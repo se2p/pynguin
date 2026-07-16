@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import libcst as cst
 
@@ -82,6 +82,12 @@ def _raw_type_or_none(raw: type | types.UnionType) -> type | None:
 def _proper_type_to_raw(typ: ProperType | None) -> type | None:
     """Map a ProperType to a concrete python type, when possible.
 
+    ``tuple`` is intentionally never modelled as ``Instance(TypeInfo(tuple))``
+    (see :class:`~pynguin.analyses.typesystem.TupleType`, and the assertion in
+    :meth:`~pynguin.analyses.typesystem.Instance.__init__`), so it needs its own
+    case here; without it every tuple-annotated parameter would be treated as an
+    unresolvable type and never receive an actual tuple value.
+
     Args:
         typ: The proper type to map.
 
@@ -90,6 +96,8 @@ def _proper_type_to_raw(typ: ProperType | None) -> type | None:
     """
     if isinstance(typ, Instance):
         return _raw_type_or_none(typ.type.raw_type)
+    if isinstance(typ, TupleType):
+        return tuple
     return None
 
 
@@ -903,15 +911,16 @@ class TestFactory:
     ) -> tuple[list[cst.Arg], int]:
         """Build the argument list for a call, reusing or generating values.
 
-        Parameters with kind ``VAR_POSITIONAL`` or ``VAR_KEYWORD`` are skipped.
-        Optional parameters (those with a default value) are skipped with
-        probability ``skip_optional_parameter_probability``.  Once a
-        ``POSITIONAL_ONLY`` optional parameter is skipped, all subsequent
-        ``POSITIONAL_ONLY`` parameters are also skipped to avoid gaps.
+        Parameters with kind ``VAR_POSITIONAL`` or ``VAR_KEYWORD`` are emitted
+        as ``*``/``**`` unpackings.  Those, and parameters carrying a default,
+        are skipped with probability ``skip_optional_parameter_probability``.
+        Once a positional parameter is skipped, all subsequent positional
+        arguments are also skipped to avoid gaps.
 
         ``POSITIONAL_ONLY`` parameters are emitted as positional
-        :class:`cst.Arg` nodes (no keyword).  All other kinds use keyword
-        arguments.
+        :class:`cst.Arg` nodes (no keyword), as are ``POSITIONAL_OR_KEYWORD``
+        parameters when the signature also has a ``*args``.  All other kinds
+        use keyword arguments.
 
         Args:
             test_case: The test case providing reusable variables.
@@ -927,39 +936,61 @@ class TestFactory:
         """
         args: list[cst.Arg] = []
         cursor = position
-        positional_only_skipped = False
+        positional_skipped = False
+        parameters = signature.signature.parameters
+        skip_probability = config.configuration.test_creation.skip_optional_parameter_probability
 
-        for name, param_type in signature.original_parameters.items():
-            param = signature.signature.parameters.get(name)
-            if param is not None and param.kind in {
-                inspect.Parameter.VAR_POSITIONAL,
-                inspect.Parameter.VAR_KEYWORD,
-            }:
-                continue
+        # A ``*args`` parameter forces every preceding POSITIONAL_OR_KEYWORD
+        # parameter to be passed positionally: passing one by keyword while also
+        # unpacking into the same call makes the unpacked values collide with it
+        # ("got multiple values for argument ...").
+        has_var_positional = any(
+            param.kind == inspect.Parameter.VAR_POSITIONAL for param in parameters.values()
+        )
 
-            is_positional_only = (
-                param is not None and param.kind == inspect.Parameter.POSITIONAL_ONLY
+        # Draw a (possibly randomised) type per parameter rather than always
+        # using the developer annotation: this is what applies ``none_weight``
+        # (pass ``None``), ``any_weight`` (disregard the annotation) and any
+        # type-tracing guesses, and it wraps ``*args``/``**kwargs`` into
+        # list/dict.  Reading ``original_parameters`` directly would pin every
+        # parameter to its annotated type and make the None/Any guarded branches
+        # of the SUT unreachable.
+        for name, param_type in signature.get_parameter_types({}).items():
+            param = parameters.get(name)
+            kind = param.kind if param is not None else inspect.Parameter.POSITIONAL_OR_KEYWORD
+
+            star: Literal["", "*", "**"] = ""
+            if kind == inspect.Parameter.VAR_POSITIONAL:
+                star = "*"
+            elif kind == inspect.Parameter.VAR_KEYWORD:
+                star = "**"
+
+            emit_positionally = kind == inspect.Parameter.POSITIONAL_ONLY or (
+                kind == inspect.Parameter.POSITIONAL_OR_KEYWORD and has_var_positional
             )
-            has_default = param is not None and param.default is not inspect.Parameter.empty
 
-            # If a previous POSITIONAL_ONLY was skipped, all subsequent ones must
-            # also be skipped (cannot pass positional args with a gap).
-            if is_positional_only and positional_only_skipped:
+            # Once a positional parameter is skipped, no later positional
+            # argument (including a ``*args`` unpacking) may be emitted: it would
+            # silently slide into the skipped parameter's slot.
+            if positional_skipped and (emit_positionally or star == "*"):
                 continue
 
-            # Probabilistically skip optional parameters.
-            if has_default and (
-                randomness.next_float()
-                < config.configuration.test_creation.skip_optional_parameter_probability
-            ):
-                if is_positional_only:
-                    positional_only_skipped = True
+            # ``*args``/``**kwargs`` are optional by nature, as are parameters
+            # carrying a default; skip them probabilistically.
+            is_optional = bool(star) or (
+                param is not None and param.default is not inspect.Parameter.empty
+            )
+            if is_optional and randomness.next_float() < skip_probability:
+                if emit_positionally:
+                    positional_skipped = True
                 continue
 
             raw = _proper_type_to_raw(param_type)
             value, cursor = self._resolve_arg_value(test_case, param_type, raw, cursor, depth)
 
-            if is_positional_only:
+            if star:
+                args.append(cst.Arg(value=value, star=star))
+            elif emit_positionally:
                 args.append(cst.Arg(value=value))
             else:
                 args.append(cst.Arg(keyword=cst.Name(name), value=value))

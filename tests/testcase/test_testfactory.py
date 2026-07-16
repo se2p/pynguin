@@ -392,6 +392,74 @@ def test_satisfy_params_positional_only(type_system):
     assert call.args[0].keyword is None
 
 
+def test_satisfy_params_tuple_annotation_receives_a_tuple(type_system):
+    # ``tuple`` is never an Instance (see TupleType), so it must be mapped
+    # explicitly; otherwise the parameter degrades to an arbitrary scalar.
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    params = [Parameter("source", Parameter.POSITIONAL_OR_KEYWORD, annotation=tuple)]
+    param_types = {"source": TupleType((Instance(TypeInfo(int)),))}
+    func = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            params, param_types, Instance(TypeInfo(float)), type_system
+        ),
+    )
+    test_case = tc.TestCase()
+    position = factory.append_generic_accessible(test_case, func)
+    assert position >= 0
+    call = _call_expr(test_case.get_statement(position).node)
+    assert len(call.args) == 1
+    # the value is emitted as a named dependency statement holding a tuple
+    dep = test_case.get_statement(position - 1).node
+    assert isinstance(dep, cst.SimpleStatementLine)
+    assert isinstance(dep.body[0], cst.Assign)
+    assert isinstance(dep.body[0].value, cst.Tuple)
+
+
+def test_satisfy_params_honours_chosen_parameter_types(type_system):
+    # The drawn type (here: NoneType via none_weight) must be used rather than
+    # the annotation, so that None-guarded branches of the SUT stay reachable.
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 0
+    config.configuration.test_creation.original_type_weight = 0
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    params = [Parameter("text", Parameter.POSITIONAL_OR_KEYWORD, annotation=str)]
+    func = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            params, {"text": Instance(TypeInfo(str))}, Instance(TypeInfo(float)), type_system
+        ),
+    )
+    test_case = tc.TestCase()
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+        position = factory.append_generic_accessible(test_case, func)
+    assert position >= 0
+    call = _call_expr(test_case.get_statement(position).node)
+    assert len(call.args) == 1
+    assert isinstance(call.args[0].value, cst.Name)
+    assert call.args[0].value.value == "None"
+
+
+def test_satisfy_params_emits_var_args_and_var_kwargs(type_system):
+    # ``*args``/``**kwargs`` must actually be passed to the callable.
+    config.configuration.test_creation.skip_optional_parameter_probability = 0.0
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    func = _var_args_function(type_system)
+    test_case = tc.TestCase()
+    position = factory.append_generic_accessible(test_case, func)
+    assert position >= 0
+    call = _call_expr(test_case.get_statement(position).node)
+    assert [arg.star for arg in call.args] == ["", "*", "**"]
+    # a preceding POSITIONAL_OR_KEYWORD must go positionally alongside ``*args``
+    assert call.args[0].keyword is None
+
+
 @pytest.mark.parametrize("kind", ["enum", "method", "bad_function", "bad_method", "unknown"])
 def test_append_generic_accessible(kind, type_system, constructor_mock):
     cluster = MagicMock(ModuleTestCluster)
