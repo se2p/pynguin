@@ -50,6 +50,13 @@ _err_console = Console(stderr=True)
 _GIT: str = shutil.which("git") or "git"
 _VENV_CACHE_DIR = Path.home() / ".cache" / "pynguin-eval" / "venvs"
 
+# Wall-clock limit for a single Pynguin run, independent of --maximum-search-time.
+# A run spends substantial time *after* the search budget is exhausted — chiefly
+# MUTATION_ANALYSIS assertion generation, which scales with the number of mutants
+# and can take minutes on its own. The limit only exists to kill genuinely hung
+# runs, so it is deliberately generous rather than derived from the budget.
+DEFAULT_TIMEOUT_S = 3600
+
 # Bundled example subjects — small packages installed in the project venv.
 # Each entry: (project_name, top_level_package, [module_names_to_test])
 BUNDLED_EXAMPLES: list[tuple[str, str, list[str]]] = [
@@ -210,8 +217,13 @@ def run_module(
     python_exe: str,
     *,
     include_mutation: bool = False,
+    timeout: int = DEFAULT_TIMEOUT_S,
 ) -> ModuleResult:
-    """Run Pynguin on one module and return its coverage (and optionally mutation) result."""
+    """Run Pynguin on one module and return its coverage (and optionally mutation) result.
+
+    The timeout is a wall-clock limit for the whole run, not just the search phase;
+    see DEFAULT_TIMEOUT_S.
+    """
     if not Path(task.project_path).exists():
         return ModuleResult(
             project=task.project,
@@ -253,14 +265,14 @@ def run_module(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=budget + 120,
+                timeout=timeout,
                 check=False,
             )
             exit_code = proc.returncode
             error: str | None = proc.stderr[-500:] if proc.returncode != 0 and proc.stderr else None
         except subprocess.TimeoutExpired:
             exit_code = -1
-            error = "timeout"
+            error = f"timeout after {timeout}s"
         duration = time.monotonic() - start
         branch_cov, line_cov, mut_score, mut_killed, mut_total = _parse_statistics_csv(tmpdir)
         return ModuleResult(
@@ -285,13 +297,20 @@ def run_eval(
     *,
     python_exe: str = sys.executable,
     include_mutation: bool = False,
+    timeout: int = DEFAULT_TIMEOUT_S,
 ) -> list[ModuleResult]:
     """Run Pynguin on all tasks in parallel and return results."""
     results: list[ModuleResult] = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as pool:
         futures = {
             pool.submit(
-                run_module, task, budget, seed, python_exe, include_mutation=include_mutation
+                run_module,
+                task,
+                budget,
+                seed,
+                python_exe,
+                include_mutation=include_mutation,
+                timeout=timeout,
             ): task
             for task in tasks
         }
@@ -546,7 +565,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     _console.print(
         f"Running {len(tasks)} module(s) with budget={args.budget}s, jobs={jobs}, seed={args.seed}"
     )
-    results = run_eval(tasks, args.budget, args.seed, jobs, include_mutation=args.mutation)
+    results = run_eval(
+        tasks,
+        args.budget,
+        args.seed,
+        jobs,
+        include_mutation=args.mutation,
+        timeout=args.timeout,
+    )
     _console.print()
     print_results_table(results)
     if args.save:
@@ -594,9 +620,17 @@ def cmd_compare_branch(args: argparse.Namespace) -> int:
             jobs,
             python_exe=base_python,
             include_mutation=args.mutation,
+            timeout=args.timeout,
         )
         _console.print(f"\nRunning current branch with budget={args.budget}s, jobs={jobs} ...")
-        curr_results = run_eval(tasks, args.budget, args.seed, jobs, include_mutation=args.mutation)
+        curr_results = run_eval(
+            tasks,
+            args.budget,
+            args.seed,
+            jobs,
+            include_mutation=args.mutation,
+            timeout=args.timeout,
+        )
     finally:
         _remove_worktree(worktree_dir)
     base_data = results_to_json(base_results, args.ref, args.budget, args.seed)
@@ -628,6 +662,15 @@ def main() -> int:
     p_run.add_argument(
         "--budget", type=int, default=60, help="Time budget per module in seconds (default: 60)"
     )
+    p_run.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_S,
+        help=(
+            "Wall-clock limit per module run in seconds, covering post-search work such as "
+            f"mutation analysis (default: {DEFAULT_TIMEOUT_S})"
+        ),
+    )
     p_run.add_argument("--seed", type=int, default=0, help="Random seed (default: 0)")
     p_run.add_argument("--jobs", type=int, default=None, help="Parallel workers (default: cpu/2)")
     p_run.add_argument("--save", metavar="FILE", help="Save results as JSON to FILE")
@@ -651,6 +694,7 @@ def main() -> int:
     p_cb.add_argument("--projects-dir")
     p_cb.add_argument("--modules", nargs="+")
     p_cb.add_argument("--budget", type=int, default=60)
+    p_cb.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S)
     p_cb.add_argument("--seed", type=int, default=0)
     p_cb.add_argument("--jobs", type=int, default=None)
     p_cb.add_argument("--save-baseline", metavar="FILE")
