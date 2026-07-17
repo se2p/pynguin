@@ -13,6 +13,7 @@ from hypothesis import strategies as st
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
+from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
 
 
 class _FakeResult:
@@ -76,6 +77,44 @@ def test_create_filtering_executor_builds_subprocess_executor(monkeypatch):
     # Construction does not spawn a process; that only happens on execution.
     result = ag.create_filtering_executor(MagicMock(spec=ex.TestCaseExecutor))
     assert isinstance(result, ex.SubprocessTestCaseExecutor)
+
+
+def test_create_filtering_executor_accepts_traces_of_instrumented_code(monkeypatch):
+    # Regression: the filtering executor used to be built with empty registries, so
+    # every trace produced by instrumented code was rejected with "Code object id N
+    # not registered in subject properties". In a subprocess that exception was
+    # swallowed, the process exited 0 without a result, and the parent reported the
+    # catch-all "Bug in Pynguin!".
+    monkeypatch.setattr(
+        config.configuration.test_case_output, "filter_assertions_in_subprocess", True
+    )
+    plain_properties = SubjectProperties()
+    code_object_id = plain_properties.create_code_object_id()
+    plain_properties.register_code_object(code_object_id, MagicMock())
+    plain = MagicMock(spec=ex.TestCaseExecutor)
+    plain.subject_properties = plain_properties
+
+    filtering = ag.create_filtering_executor(plain)
+
+    trace = ExecutionTrace()
+    trace.executed_code_objects.add(code_object_id)
+    filtering.subject_properties.validate_execution_trace(trace)
+
+
+def test_create_filtering_executor_traces_independently_of_the_search(monkeypatch):
+    monkeypatch.setattr(
+        config.configuration.test_case_output, "filter_assertions_in_subprocess", True
+    )
+    plain_properties = SubjectProperties()
+    plain = MagicMock(spec=ex.TestCaseExecutor)
+    plain.subject_properties = plain_properties
+
+    filtering = ag.create_filtering_executor(plain)
+
+    assert (
+        filtering.subject_properties.instrumentation_tracer
+        is not plain_properties.instrumentation_tracer
+    )
 
 
 @pytest.mark.parametrize("created,killed,timeout,score", [(5, 2, 1, 0.5), (1, 0, 1, 1.0)])

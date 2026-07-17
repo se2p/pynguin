@@ -21,7 +21,6 @@ import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
 import pynguin.utils.statistics.stats as stat
-from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -58,7 +57,7 @@ def create_filtering_executor(
         return None
     if isinstance(plain_executor, ex.SubprocessTestCaseExecutor):
         return None
-    return ex.SubprocessTestCaseExecutor(SubjectProperties())
+    return ex.SubprocessTestCaseExecutor(plain_executor.subject_properties.sharing_registries())
 
 
 class AssertionGenerator(cv.ChromosomeVisitor):
@@ -335,8 +334,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         """
         super().__init__(plain_executor, filtering_executor=filtering_executor)
 
-        # We use a separate executor to execute tests on the mutants.
-        subject_properties = SubjectProperties()
+        # We use a separate executor to execute tests on the mutants. It traces
+        # independently of the search, but must validate against the registries the
+        # instrumentation reports, otherwise every trace of instrumented code is
+        # rejected.
+        subject_properties = plain_executor.subject_properties.sharing_registries()
 
         self._mutation_executor: ex.TestCaseExecutor
         if config.configuration.subprocess:

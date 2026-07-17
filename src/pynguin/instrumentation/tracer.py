@@ -469,6 +469,30 @@ class SubjectProperties:
         self.existing_lines.clear()
         self.instrumentation_tracer.reset()
 
+    def sharing_registries(self) -> SubjectProperties:
+        """Create subject properties that share this instance's registries.
+
+        The code object, predicate and line registries are filled during
+        instrumentation, which happens once per module and is therefore global: every
+        instrumented module reports the ids of *these* registries, no matter which
+        executor triggered the execution. An executor that validates traces against its
+        own, empty registries would reject every trace produced by instrumented code.
+
+        The tracer, in contrast, is per-execution. Auxiliary executors (assertion
+        filtering, mutation analysis) therefore get a fresh tracer, so that they do not
+        write into the tracer that the search uses, while still validating against the
+        registries the instrumentation actually reports.
+
+        Returns:
+            Subject properties sharing this instance's registries, with a fresh tracer.
+        """
+        return SubjectProperties(
+            code_object_counter=self.code_object_counter,
+            existing_code_objects=self.existing_code_objects,
+            existing_predicates=self.existing_predicates,
+            existing_lines=self.existing_lines,
+        )
+
     def create_code_object_id(self) -> int:
         """Create a new code object ID.
 
