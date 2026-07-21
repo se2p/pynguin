@@ -35,12 +35,6 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
         def __init__(self):  # noqa: D107
             super().__init__()
             self.slicing_criteria: dict[int, SlicingCriterion] = {}
-            # Statements execute in a simple sequential loop (see
-            # TestCaseExecutor._execute_test_case) inside a fresh thread per
-            # test case, so there is no Statement.get_position() any more;
-            # track the position ourselves, incremented once per
-            # after_statement_execution call. Mirrors
-            # RemoteAssertionTraceObserver.RemoteAssertionLocalState.position.
             self.position: int = 0
 
     def __init__(self) -> None:

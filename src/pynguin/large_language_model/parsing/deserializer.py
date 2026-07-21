@@ -9,8 +9,7 @@
 
 Because the internal representation stores libcst statement nodes directly,
 turning LLM-generated source into ``TestCase``/``Statement`` objects is mostly
-"parse + validate + normalize": there is no separate statement class hierarchy
-or variable-reference graph to reconstruct.
+"parse + validate + normalize".
 """
 
 from __future__ import annotations

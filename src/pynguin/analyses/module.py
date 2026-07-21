@@ -1612,7 +1612,7 @@ def __analyse_fields(
     getter's return annotation as the field type; plain data attributes use the
     runtime type of their value.
 
-    Gated behind ``test_creation.generate_field_statements`` (off by default);
+    Gated behind ``test_creation.generate_field_statements``;
     when disabled this is a no-op.
 
     Args:

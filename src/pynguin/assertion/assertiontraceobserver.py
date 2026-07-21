@@ -60,10 +60,6 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             # Variables (by name) whose value is continually re-checked after
             # every subsequent statement.
             self.watch_list: list[str] = []
-            # Statements are executed in a simple loop (see
-            # TestCaseExecutor._execute_test_case); there is no
-            # Statement.get_position(), so track the position ourselves,
-            # incremented once per after_statement_execution call.
             self.position: int = 0
 
     def __init__(self) -> None:  # noqa: D107

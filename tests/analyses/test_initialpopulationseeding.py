@@ -76,7 +76,6 @@ def test_get_testcases(constant_provider, seed_modules_path, triangle_test_clust
     provider = seeding.InitialPopulationProvider(
         triangle_test_cluster,
         tf.TestFactory(triangle_test_cluster, constant_provider),
-        constant_provider,
     )
     provider.collect_testcases(seed_modules_path)
 
@@ -88,7 +87,6 @@ def test_get_seeded_testcase(constant_provider, seed_modules_path, triangle_test
     provider = seeding.InitialPopulationProvider(
         triangle_test_cluster,
         tf.TestFactory(triangle_test_cluster, constant_provider),
-        constant_provider,
     )
     provider.collect_testcases(seed_modules_path)
 
@@ -104,7 +102,6 @@ def test_get_seeded_testcase_content(
     provider = seeding.InitialPopulationProvider(
         triangle_test_cluster,
         tf.TestFactory(triangle_test_cluster, constant_provider),
-        constant_provider,
     )
     provider.collect_testcases(seed_modules_path)
     rand_mock.side_effect = operator.itemgetter(0)
@@ -150,7 +147,6 @@ def test_collect_different_types(  # noqa: PLR0917
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster,
         tf.TestFactory(dummy_test_cluster, constant_provider),
-        constant_provider,
     )
     provider.collect_testcases(seed_dir)
     rand_mock.side_effect = operator.itemgetter(testcase_pos)
@@ -166,7 +162,6 @@ def test_create_assertion(constant_provider, tmp_path, dummy_test_cluster):
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster,
         tf.TestFactory(dummy_test_cluster, constant_provider),
-        constant_provider,
     )
     provider.collect_testcases(seed_dir)
 
@@ -203,7 +198,6 @@ def test_not_working_cases(
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster,
         tf.TestFactory(dummy_test_cluster, constant_provider),
-        constant_provider,
     )
     provider.collect_testcases(seed_dir)
 
@@ -216,9 +210,7 @@ def test_seeded_test_case_factory_no_delegation(
 ):
     rand_mock.side_effect = operator.itemgetter(2)
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
-    provider = seeding.InitialPopulationProvider(
-        dummy_test_cluster, test_factory, constant_provider
-    )
+    provider = seeding.InitialPopulationProvider(dummy_test_cluster, test_factory)
     config.configuration.module_name = DUMMY_MODULE_NAME
     seed_dir = _dummy_seed_dir(tmp_path, "primitiveseed_test_.py")
     config.configuration.seeding.initial_population_seeding = True
@@ -238,9 +230,7 @@ def test_seeded_test_case_factory_with_delegation(
 ):
     rand_mock.side_effect = operator.itemgetter(2)  # pragma: no cover
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
-    provider = seeding.InitialPopulationProvider(
-        dummy_test_cluster, test_factory, constant_provider
-    )
+    provider = seeding.InitialPopulationProvider(dummy_test_cluster, test_factory)
     config.configuration.module_name = DUMMY_MODULE_NAME
     seed_dir = _dummy_seed_dir(tmp_path, "primitiveseed_test_.py")
     config.configuration.seeding.initial_population_seeding = True
@@ -285,8 +275,6 @@ def test_initial_mutation(mutate_mock, constant_provider, tmp_path, dummy_test_c
     config.configuration.module_name = DUMMY_MODULE_NAME
     seed_dir = _dummy_seed_dir(tmp_path, "primitiveseed_test_.py")
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
-    provider = seeding.InitialPopulationProvider(
-        dummy_test_cluster, test_factory, constant_provider
-    )
+    provider = seeding.InitialPopulationProvider(dummy_test_cluster, test_factory)
     provider.collect_testcases(seed_dir)
     mutate_mock.assert_called()

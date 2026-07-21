@@ -6,9 +6,9 @@
 #
 """Provides chromosome visitors to perform post-processing.
 
-These visitors are adapted to the libcst-based test case representation. Statements
-are referenced by their index in the test case and inter-statement dependencies are
-computed name-based via ``Statement.bound_variable`` / ``Statement.used_variables``.
+Statements are referenced by their index in the test case and inter-statement
+dependencies are computed name-based via ``Statement.bound_variable`` /
+``Statement.used_variables``.
 """
 
 from __future__ import annotations

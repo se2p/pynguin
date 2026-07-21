@@ -1161,11 +1161,6 @@ class InferredSignature:
                 choices.append(UnionType(tuple(sorted(guessed))))
                 weights.append(test_conf.type_tracing_weight)
 
-            # When every candidate was configured with zero weight (e.g. both
-            # none_weight and any_weight are 0 for an unannotated parameter,
-            # leaving no other choice), fall back to the developer annotation
-            # rather than letting the weighted draw fail with
-            # "Total of weights must be greater than zero".
             chosen = randomness.choices(choices, weights)[0] if sum(weights) > 0 else orig_type
 
             if (

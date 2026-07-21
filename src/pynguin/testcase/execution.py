@@ -325,11 +325,6 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
             super().__init__()
             self.return_type_trace: dict[int, type] = {}
             self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
-            # Statements are executed in a simple loop (see
-            # TestCaseExecutor._execute_test_case); there is no
-            # Statement.get_position(), so track the position ourselves,
-            # incremented once per after_statement_execution call. Not part of
-            # `state` — meaningless after execution finishes.
             self.position: int = 0
 
     def __init__(self):

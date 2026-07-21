@@ -5,30 +5,26 @@
 #  SPDX-License-Identifier: MIT
 """Provides the local search strategies for the libcst test-case representation.
 
-See ``REENABLEMENT_PLAN.md`` section "1. Local search" for the design. A
-statement is represented as an immutable CST node wrapped in
+A statement is represented as an immutable CST node wrapped in
 :class:`~pynguin.testcase.testcase.Statement`, so every mutation here builds a
 fresh CST node and replaces the statement via
 :meth:`~pynguin.testcase.testcase.TestCase.replace_statement`.
 
-The following statement kinds are not generated, so their strategies are absent
-(see the referenced ``DISABLED_SUBSYSTEMS.md`` entries):
+The following statement kinds are not generated, so their strategies are absent:
 
-* ``ComplexLocalSearch`` -- complex-number primitives are not generated (#15).
-* ``ClassLocalSearch`` -- class-object primitives are not generated (#15).
-* ``FieldStatementLocalSearch`` -- field-access statements do not exist (#13).
+* ``ComplexLocalSearch`` -- complex-number primitives are not generated.
+* ``ClassLocalSearch`` -- class-object primitives are not generated.
+* ``FieldStatementLocalSearch`` -- field-access statements do not exist.
 
-Collections are now literal-only (#16, no reference-carrying elements), so the
-collection strategies mutate element literals in place via
+Collections are literal-only (no reference-carrying elements), so the collection
+strategies mutate element literals in place via
 :func:`pynguin.testcase.literalgen.mutate_literal` instead of picking existing
 in-scope variables.
 
 Parametrized-statement search (calls) is restricted to the public
 :class:`~pynguin.testcase.testfactory.TestFactory` API (``change_random_call``,
 ``mutate_call``, ``insert_random_statement``) rather than the finer-grained
-single-argument replacement the original implementation used, because adding new
-factory methods is out of scope here (``testfactory.py`` is owned by a concurrent
-change in this branch).
+single-argument replacement the original implementation used.
 """
 
 from __future__ import annotations
@@ -704,9 +700,9 @@ class BytesLocalSearch(PrimitiveLocalSearch):
 class CollectionLocalSearch(StatementLocalSearch):
     """A local search strategy for literal-only list/set/tuple/dict statements.
 
-    Collections carry no variable references on this branch (``DISABLED_SUBSYSTEMS.md``
-    #16), so, unlike the original per-element remove/replace/add strategies, this
-    repeatedly applies :func:`pynguin.testcase.literalgen.mutate_literal` (which itself
+    Collections carry no variable references, so, unlike the original per-element
+    remove/replace/add strategies, this repeatedly applies
+    :func:`pynguin.testcase.literalgen.mutate_literal` (which itself
     adds/removes a random element) and keeps the mutation whenever it improves fitness,
     an AVM-style hill climb bounded by ``ls_dict_max_insertions`` consecutive failures.
     """
@@ -751,8 +747,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch):
     (``change_random_call``), ``PARAMETER`` regenerates all argument values
     (``mutate_call`` -- coarser than the original single-argument replacement, see
     module docstring), and ``RANDOM_CALL`` inserts an unrelated random statement after
-    this one (``insert_random_statement``, the plan's own documented v1 fallback for
-    "insert a call on the object just created").
+    this one (``insert_random_statement``).
     """
 
     def search(self) -> bool:  # noqa: D102

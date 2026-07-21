@@ -30,6 +30,7 @@ from pynguin.testcase.testcase import MLStatementInfo, Statement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.naming import get_module_alias
+from pynguin.utils.pynguinml import ndarray_cst
 
 if TYPE_CHECKING:
     import types
@@ -1586,9 +1587,9 @@ class TestFactory:
     def mutate_call(self, test_case: tc.TestCase, position: int) -> bool:  # noqa: C901
         """Regenerate the argument values of the call statement at *position*.
 
-        This mirrors the original ``statement.mutate()`` behaviour: it keeps the
-        same callable but picks fresh argument values, reusing already-available
-        variables where possible and falling back to literals elsewhere.  Unlike
+        It keeps the same callable but picks fresh argument values, reusing
+        already-available variables where possible and falling back to literals
+        elsewhere.  Unlike
         :meth:`_satisfy_params` it never inserts new dependency statements, so
         the call's position in the test case does not change.
 
@@ -2067,7 +2068,6 @@ class MLTestFactory(TestFactory):
         del depth  # ML-generated values never recurse into object creation.
         import pynguin.utils.pynguinml.ml_parsing_utils as mlpu  # noqa: PLC0415
         import pynguin.utils.pynguinml.ml_testfactory_utils as mltu  # noqa: PLC0415
-        from pynguin.utils.pynguinml import ndarray_cst  # noqa: PLC0415
 
         if parameter_obj.valid_enum_values:
             allowed = list(mlpu.convert_values(parameter_obj.valid_enum_values))
@@ -2161,7 +2161,6 @@ class MLTestFactory(TestFactory):
                 strategy (e.g. ``str``).
         """
         import pynguin.utils.pynguinml.ml_testfactory_utils as mltu  # noqa: PLC0415
-        from pynguin.utils.pynguinml import ndarray_cst  # noqa: PLC0415
 
         value: bool | int | float | complex
         low: float

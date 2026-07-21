@@ -6,21 +6,18 @@
 #
 """Implements initial-population seeding from previously existing test cases.
 
-Turning a Python test module's source into ``TestCase`` objects is the same
-problem the LLM subsystem solves when deserializing LLM-emitted code (see
-``pynguin.large_language_model.parsing.deserializer``); this module reuses
-``CstStatementDeserializer`` for the per-function parse+validate+normalize core
-instead of duplicating it.
+Turning a test module's source into ``TestCase`` objects is the same problem the
+LLM subsystem solves when deserializing LLM-emitted code, so this module reuses
+:class:`~pynguin.large_language_model.parsing.deserializer.CstStatementDeserializer`
+for the per-function parse/validate/normalize core instead of duplicating it.
 
-The one structural difference from the LLM use case is that a whole seed
-module (or a Pynguin-exported test suite, the flagship use case) imports the
-module under test *once*, at module level, shared by every test function --
-unlike LLM-flattened code, where the rewriter pre-pass hoists an import into
-every individual test function. ``CstStatementDeserializer`` only looks for
-SUT imports within each function body, so this module normalizes SUT
-references over the *whole* module up front via
-:func:`pynguin.large_language_model.parsing.deserializer.normalize_sut_references`
-before handing individual ``FunctionDef``s to
+Unlike LLM-flattened code -- where a rewriter pre-pass hoists the SUT import into
+every function -- a seed module (or a Pynguin-exported test suite) imports the
+module under test once at module level. Because ``CstStatementDeserializer`` only
+looks for SUT imports within each function body, this module first normalizes SUT
+references across the whole module via
+:func:`~pynguin.large_language_model.parsing.deserializer.normalize_sut_references`
+before handing each ``FunctionDef`` to
 :meth:`CstStatementDeserializer.deserialize_function`.
 """
 
@@ -47,7 +44,6 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
-    from pynguin.analyses.constants import ConstantProvider
     from pynguin.analyses.module import ModuleTestCluster
 
 logger = logging.getLogger(__name__)
@@ -60,22 +56,16 @@ class InitialPopulationProvider:
         self,
         test_cluster: ModuleTestCluster,
         test_factory: tf.TestFactory,
-        constant_provider: ConstantProvider,
     ):
         """Create new population provider.
 
         Args:
             test_cluster: Test cluster used to construct test cases
             test_factory: Test factory used to construct test cases
-            constant_provider: Constant provider for primitives. Unused by the
-                libcst-based parser (mutation of seeded test cases goes through
-                ``test_factory``, which owns its own constant provider); kept
-                as a constructor parameter for call-site/API stability.
         """
         self._testcases: list[tc.TestCase] = []
         self._test_cluster: ModuleTestCluster = test_cluster
         self._test_factory: tf.TestFactory = test_factory
-        self._constant_provider: ConstantProvider = constant_provider
 
     @staticmethod
     def _read_module_source(module_path: AnyStr | os.PathLike[AnyStr]) -> str | None:

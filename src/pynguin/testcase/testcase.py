@@ -185,9 +185,6 @@ def _uses_variable(stmt: Statement, var_name: str) -> bool:
     return var_name in stmt.used_variables()
 
 
-# TestCase is the central test-case representation; its public surface (statement
-# editing, variable/name management, cloning, code rendering) is inherently broad and
-# splitting it would not improve cohesion, hence the PLR0904 suppression below.
 class TestCase:  # noqa: PLR0904
     """An ordered list of CST-backed statements forming a single test case."""
 

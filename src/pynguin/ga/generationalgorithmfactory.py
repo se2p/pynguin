@@ -32,6 +32,7 @@ import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
+from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
@@ -196,13 +197,10 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             strategy.test_factory, strategy.test_cluster
         )
         if config.configuration.seeding.initial_population_seeding:
-            from pynguin.analyses.seeding import InitialPopulationProvider  # noqa: PLC0415
-
             self._logger.info("Using population seeding")
             population_provider = InitialPopulationProvider(
                 test_cluster=self._test_cluster,
                 test_factory=strategy.test_factory,
-                constant_provider=self._constant_provider,
             )
             self._logger.info("Collecting and parsing provided testcases.")
             population_provider.collect_testcases(

@@ -9,10 +9,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 if TYPE_CHECKING:
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
+
+
+# Mapping from old to new variable references (identified by name) used when
+# cloning an assertion into a new test-case context.
+VariableReferenceMemo: TypeAlias = dict[str, str]
 
 
 class Assertion:
@@ -40,7 +45,7 @@ class Assertion:
         """
 
     @abstractmethod
-    def clone(self, memo: dict[str, str]) -> Assertion:
+    def clone(self, memo: VariableReferenceMemo) -> Assertion:
         """Clone this assertion.
 
         Args:
@@ -123,7 +128,7 @@ class TypeNameAssertion(ReferenceAssertion):
         visitor.visit_type_name_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[str, str]
+        self, memo: VariableReferenceMemo
     ) -> TypeNameAssertion:
         return TypeNameAssertion(memo.get(self._source, self._source), self._module, self._qualname)
 
@@ -166,7 +171,7 @@ class FloatAssertion(ReferenceAssertion):
         visitor.visit_float_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[str, str]
+        self, memo: VariableReferenceMemo
     ) -> FloatAssertion:
         return FloatAssertion(memo.get(self._source, self._source), self._value)
 
@@ -213,7 +218,7 @@ class ObjectAssertion(ReferenceAssertion):
         visitor.visit_object_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[str, str]
+        self, memo: VariableReferenceMemo
     ) -> ObjectAssertion:
         return ObjectAssertion(memo.get(self._source, self._source), self._object)
 
@@ -265,7 +270,7 @@ class IsInstanceAssertion(ReferenceAssertion):
         visitor.visit_isinstance_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[str, str]
+        self, memo: VariableReferenceMemo
     ) -> IsInstanceAssertion:
         return IsInstanceAssertion(
             memo.get(self._source, self._source), self._module, self._qualname
@@ -314,7 +319,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
         visitor.visit_collection_length_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[str, str]
+        self, memo: VariableReferenceMemo
     ) -> CollectionLengthAssertion:
         return CollectionLengthAssertion(memo.get(self._source, self._source), self._length)
 
@@ -353,7 +358,7 @@ class ExceptionAssertion(Assertion):
         visitor.visit_exception_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[str, str]
+        self, memo: VariableReferenceMemo
     ) -> Assertion:
         return ExceptionAssertion(self._module, self._exception_type_name)
 

@@ -123,15 +123,6 @@ separate statement class hierarchy or `VariableReference` graph.
 
 - **type_str_parser.py**: Parse type strings
 
-### helpers/
-
-Currently empty (apart from `__init__.py`). Previously held
-`testcasereferencecopier.py`, which copied `VariableReference`-graph
-references between `DefaultTestCase` instances; that is no longer needed
-since the libcst-backed `TestCase`/`Statement` model references variables by
-name and `TestCase.append_test_case`/`clone()` handle copying/renaming
-directly.
-
 ## Key Features
 
 ### Caching System

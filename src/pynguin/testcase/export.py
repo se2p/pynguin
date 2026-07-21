@@ -71,16 +71,9 @@ def _exec_statement_guarded(
                 FilesystemIsolation(),
             ):
                 if tracer is not None:
-                    # This re-execution only exists to discover which statements raise
-                    # a *real* SUT exception (so the exporter can wrap them in
-                    # ``pytest.raises``). The SUT is still instrumented, and the shared
-                    # tracer's thread-identity guard (``ExecutionTracer.check``) is bound
-                    # to a thread from the generation phase. Since this runs in a fresh
-                    # watchdog thread, the first instrumented line would otherwise raise
-                    # ``TracingAbortedException`` and be misrecorded as the statement's
-                    # exception (yielding bogus ``pytest.raises(TracingAbortedException)``
-                    # wrappers). Rebind the guard to this thread (``with tracer``) and
-                    # suppress trace recording for the duration.
+                    # Rebind the tracer's thread-identity guard to this watchdog thread
+                    # and suppress trace recording so instrumented SUT code does not raise
+                    # a spurious ``TracingAbortedException``.
                     with tracer, tracer.temporarily_disable():  # type: ignore[attr-defined]
                         exec(compile(code_str, "<stmt>", "exec"), namespace)  # noqa: S102
                 else:

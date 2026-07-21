@@ -3,25 +3,18 @@
 #  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
-"""Provides the (currently inert) hook for LLM-based local search.
+"""Provides the hook for LLM-based local search.
 
-The LLM local-search round trip is not yet implemented.
-``REENABLEMENT_PLAN.md`` (section "1. Local search", design point (f)) lays
-out how to do it:
+The LLM local-search round trip is not yet implemented for the libcst test-case
+representation, so :meth:`LLMLocalSearch.llm_local_search` is a no-op that always
+reports "no improvement". :class:`LLMLocalSearch` is nonetheless kept importable
+so that :mod:`pynguin.testcase.localsearch` can wire it up once the round trip
+lands. ``local_search_llm`` stays default-off (see ``configuration.py``), so
+classic local search does not depend on this being finished.
 
-1. Serialize the test case via ``test_case.to_test_function().code``.
-2. Shorten the LLM context via ``test_case.forward_dependencies(position)`` plus
-   ``statement.accessible``.
-3. Deserialize the LLM's reply with a small dedicated CST-based parser (proposed at
-   ``src/pynguin/large_language_model/parsing/cst_deserializer.py``).
-
-Step 3 lives in the ``large_language_model`` package, which is out of scope for this
-change (it is being re-enabled concurrently as its own subsystem). Until it lands,
-this module only keeps :class:`LLMLocalSearch` importable so that
-:mod:`pynguin.testcase.localsearch` can wire it up; :meth:`LLMLocalSearch.llm_local_search`
-is a no-op that always reports "no improvement". ``local_search_llm`` stays
-default-off (see ``configuration.py``), so classic local search does not depend on
-this being finished.
+Re-enabling it means serializing the test case, shortening the LLM context to the
+statement's forward dependencies, and deserializing the reply with
+:class:`pynguin.large_language_model.parsing.deserializer.CstStatementDeserializer`.
 """
 
 from __future__ import annotations
