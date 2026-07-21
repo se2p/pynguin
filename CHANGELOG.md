@@ -11,6 +11,19 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.46.0
+
+- Fix shadowed sub-module imports, namespace packages, and invalid identifiers
+- Fix test export issues on timeouts and black formatting
+- Fix crashes in module analysis (e.g., C-modules, non-ClassDef parents)
+- Analyze functools.cache-wrapped functions as testable targets
+- Prefer error-free test cases over shorter ones during archive selection
+- Add no_xfail test generation mode
+- Add configurable targeting of private and protected members
+- Improve determinism of generated tests
+- Improve assertion minimization, generation and mutation generation
+- Integrate LLM-based readability test refinement
+
 ## Pynguin 0.45.0
 
 - Improve logging with master-worker architecture (cf. GitHub PR #136, #139)
