@@ -16,20 +16,15 @@ from ``pynguin.utils.llm``.  The model name is taken from the shared
 from __future__ import annotations
 
 import logging
-import random
 import time
 
-import pynguin.configuration as config
+from pynguin.large_language_model.client import OpenAIClient
+from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.llm import extract_code
 from pynguin.utils.openai_key_resolver import require_api_key
 
 try:
     import openai
-    from openai.types.chat import (
-        ChatCompletionMessageParam,
-        ChatCompletionSystemMessageParam,
-        ChatCompletionUserMessageParam,
-    )
 
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -81,27 +76,29 @@ class LLMClient:
     otherwise the raw text is returned.
     """
 
-    def __init__(self, model_name: str | None = None) -> None:
+    def __init__(self) -> None:
         """Initialize the LLM client.
 
-        Args:
-            model_name: OpenAI model to use.  Defaults to the shared
-                ``large_language_model.model_name`` configuration.
+        The model name is taken solely from the shared
+        ``large_language_model.model_name`` configuration via the rendered
+        prompt request, so no model is passed to the underlying client.
         """
-        self.model = model_name or config.configuration.large_language_model.model_name
-
         # Usage tracking (best-effort; OpenAI reports usage in the response).
+        # ``_calls`` are the refinement/repair calls (a dedicated client instance
+        # separate from the generation client).
         self._calls: int = 0
+        self._retries: int = 0
         self._input_tokens: int = 0
         self._output_tokens: int = 0
         self._time_seconds: float = 0.0
 
-        # Reuse Pynguin's shared key resolution + validation (config or env).
-        set_api_key()
+        self._client = OpenAIClient()
 
     def reset_usage(self) -> None:
         """Reset all usage counters to zero."""
+        self._client.reset_usage()
         self._calls = 0
+        self._retries = 0
         self._input_tokens = 0
         self._output_tokens = 0
         self._time_seconds = 0.0
@@ -110,11 +107,12 @@ class LLMClient:
         """Return a dict of cumulative usage statistics.
 
         Returns:
-            A mapping with ``calls``, ``input_tokens``, ``output_tokens`` and
-            ``time_seconds`` keys.
+            A mapping with ``calls`` (repair calls), ``retries``,
+            ``input_tokens``, ``output_tokens`` and ``time_seconds`` keys.
         """
         return {
             "calls": self._calls,
+            "retries": self._retries,
             "input_tokens": self._input_tokens,
             "output_tokens": self._output_tokens,
             "time_seconds": self._time_seconds,
@@ -134,82 +132,47 @@ class LLMClient:
         Returns:
             The extracted code, or a ``"# LLM ..."`` sentinel on failure.
         """
-        for attempt in range(1, _MAX_ATTEMPTS + 1):
-            outcome = self._attempt_with_handling(prompt, attempt)
-            if outcome is not None:
-                return outcome
-        return "# LLM retries exhausted"
 
-    def _attempt_with_handling(self, prompt: str, attempt: int) -> str | None:
-        """Run one request attempt; return result/sentinel, or ``None`` to retry."""
+        # Load refinement prompt configuration
+        class RefinementPrompt(Prompt):
+            _resource_name = "refinement"
+
+            def _template_vars(self):
+                return ["prompt"]
+
+        ref_prompt = RefinementPrompt()
+        request = ref_prompt.render(prompt=prompt)
+
+        # Sync refinement errors to client for dynamic check
+        self._client._rate_limit_errors = _RATE_LIMIT_ERRORS  # noqa: SLF001
+        self._client._timeout_errors = _TIMEOUT_ERRORS  # noqa: SLF001
+        self._client._api_errors = _API_ERRORS  # noqa: SLF001
+
+        start = time.perf_counter()
         try:
-            return self._request_once(prompt)
+            response_text = self._client.send(request)
+            if response_text is None:
+                return "# LLM error: request failed"
+            return _extract_code(response_text)
         except _RATE_LIMIT_ERRORS:
-            # ``random`` jitter is for backoff spreading, not cryptographic use.
-            wait = _BASE_BACKOFF * (2 ** min(attempt - 1, 6)) + random.uniform(0, 3)  # noqa: S311
-            return self._sleep_or_giveup(attempt, wait, "Rate-limited", "# LLM error: rate limited")
+            return "# LLM error: rate limited"
         except _TIMEOUT_ERRORS:
-            wait = _BASE_BACKOFF * (2 ** min(attempt - 1, 6)) + random.uniform(0, 2)  # noqa: S311
-            return self._sleep_or_giveup(attempt, wait, "Timeout", "# LLM error: timeout")
-        except _API_ERRORS as exc:
-            wait = _BASE_BACKOFF * (2 ** min(attempt - 1, 6)) + random.uniform(0, 2)  # noqa: S311
-            return self._sleep_or_giveup(
-                attempt, wait, f"API error ({exc})", "# LLM error: request failed"
-            )
+            return "# LLM error: timeout"
+        except _API_ERRORS:
+            return "# LLM error: request failed"
         except Exception:  # noqa: BLE001
             # Any unforeseen failure should degrade to a sentinel, never crash refinement.
             return "# LLM error: unable to generate code"
-
-    def _sleep_or_giveup(
-        self, attempt: int, wait: float, reason: str, exhausted_msg: str
-    ) -> str | None:
-        """Log the retry, sleep, and return ``None``; or the sentinel when exhausted."""
-        _logger.warning("%s, retry %d/%d in %.1fs", reason, attempt, _MAX_ATTEMPTS, wait)
-        if attempt >= _MAX_ATTEMPTS:
-            return exhausted_msg
-        time.sleep(wait)
-        return None
-
-    def _request_once(self, prompt: str) -> str:
-        """Perform a single OpenAI request and return the extracted code."""
-        start = time.perf_counter()
-        self._calls += 1
-        messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionSystemMessageParam(role="system", content=_SYSTEM_PROMPT),
-            ChatCompletionUserMessageParam(role="user", content=prompt),
-        ]
-        response = openai.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=_TEMPERATURE,
-            max_tokens=_MAX_TOKENS,
-        )
-        self._account_tokens(response)
-        text = response.choices[0].message.content or ""
-        self._time_seconds += time.perf_counter() - start
-        return _extract_code(text)
-
-    def _account_tokens(self, response) -> None:
-        """Best-effort token accounting from the API ``usage`` field."""
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            self._input_tokens += int(getattr(usage, "prompt_tokens", 0) or 0)
-            self._output_tokens += int(getattr(usage, "completion_tokens", 0) or 0)
+        finally:
+            usage = self._client.get_usage()
+            self._calls = usage["calls"]
+            self._retries = usage.get("retries", 0)
+            self._input_tokens = usage["input_tokens"]
+            self._output_tokens = usage["output_tokens"]
+            self._time_seconds += time.perf_counter() - start
 
 
 def _extract_code(text: str) -> str:
-    """Return the Python code block from ``text``, or the stripped text.
-
-    Reuses :func:`pynguin.utils.llm.extract_code`; falls back to the raw
-    (stripped) text when the model returns code without Markdown fences, which
-    the refinement prompts explicitly request.
-
-    Args:
-        text: The raw text returned by the model.
-
-    Returns:
-        The extracted code block, or the stripped text when no fenced block is
-        present.
-    """
+    """Return the Python code block from ``text`` or the stripped text."""
     extracted = extract_code(text).strip()
     return extracted or text.strip()

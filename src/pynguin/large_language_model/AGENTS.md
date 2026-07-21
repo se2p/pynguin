@@ -21,57 +21,53 @@ The LLM integration provides AI-assisted test generation capabilities:
 - Local search for improving branch coverage
 - Targeting uncovered callables
 
-## Architecture
-
 ### Core Components
 
-- **LLMAgent** (`llmagent.py`): Main interface to OpenAI API
-  - Manages API calls with caching and token tracking
-  - Sends prompts and extracts Python code from responses
-  - Tracks statistics (calls, tokens, timing)
-  - Supports multiple prompt types
+- **LLMClient & OpenAIClient** (`client.py`): Unified API interfaces
+  - `LLMClient`: Abstract base client defining request and response tracking interfaces.
+  - `OpenAIClient`: Concrete implementation that communicates with OpenAI via the official SDK, implementing unified retries, backoff, timeout limits, and token tracking.
+
+- **RenderedRequest** (`request.py`): Request value object
+  - Encapsulates the messages array, model, temperature, max_tokens, and stop parameters.
+  - Generates reproducible cache key hashes representing the request.
+
+- **LLMAgent** (`llmagent.py`): High-level task wrapper
+  - Orchestrates API queries for test generation, uncovered targets, and assertion extraction.
+  - Extracts Python code from responses, increments stats, and records debug logs.
 
 - **LLMTestCaseHandler** (`llmtestcasehandler.py`): Test case processing
-  - Extracts test cases from LLM output
-  - Converts LLM-generated code to TestCase chromosomes
-  - Integrates with deserializer and rewriter
-  - Saves intermediate results for debugging
+  - Extracts test cases from LLM output.
+  - Converts LLM-generated code to TestCase chromosomes.
+  - Integrates with deserializer and rewriter.
+  - Saves intermediate results for debugging.
 
-- **Cache** (`caching.py`): Response caching system
-  - File-based cache in `/tmp/pynguin/`
-  - SHA-256 hashed keys for safe filenames
-  - Optional response caching to reduce API calls
+- **LLMCache** (`cache.py`): Hashed caching system
+  - Correct, reproducible file-based caching under `~/.cache/pynguin/llm/`.
+  - Keys on hashes computed from `RenderedRequest` values.
+  - Enabled/disabled via `enable_response_caching` config.
 
 ## Subdirectories
 
 ### prompts/
 
-Prompt templates for different LLM tasks:
+Jinja2 prompt templates configured via YAML files:
 
-- **Prompt** (`prompt.py`): Abstract base class with system message
-  - System message: "You are a unit test generating AI (codename TestGenAI)..."
-  - All prompts inherit from this base
+- **Prompt** (`prompt.py`): Base prompt class loading YAML resources
+  - Automatically loads configs from `resources/<prompt_name>.yaml`.
+  - Performs runtime validation asserting that templates only use declared variables.
+  - Renders strict Jinja2 messages (system and user prompt).
 
-- **TestCaseGenerationPrompt**: Generate tests for entire module
-  - Input: module source code and path
-  - Output: pytest-based test cases
+- **Prompt Configurations** (`resources/*.yaml`): YAML templates specifying:
+  - `system_message_template`: System role prompt template.
+  - `user_message_template`: User request prompt template.
+  - `temperature` / `max_tokens` / `stop` / `model` overrides.
 
-- **AssertionGenerationPrompt**: Add assertions to test cases
-  - Input: test case code + module source code
-  - Output: test case with assertions
-
-- **TypeInferencePrompt**: Infer parameter types
-  - Analyzes function context, imports, docstrings
-  - Returns JSON mapping parameter names to types
-  - Uses module context and string subtypes
-
-- **LocalSearchPrompt**: Mutate statement for branch coverage
-  - Input: test case, position, module code, coverage info
-  - Output: modified test case to hit uncovered branches
-
-- **UncoveredTargetsPrompt**: Target specific uncovered callables
-  - Input: list of uncovered functions/methods/constructors
-  - Output: tests specifically targeting those callables
+- **Prompt Subclasses**:
+  - `TestCaseGenerationPrompt`
+  - `AssertionGenerationPrompt`
+  - `UncoveredTargetsPrompt`
+  - `LocalSearchPrompt`
+  - `BaseInferencePrompt` -> `TypeInferencePrompt` and `TypeAndSubtypeInferencePrompt`
 
 ### parsing/
 
@@ -127,9 +123,9 @@ separate statement class hierarchy or `VariableReference` graph.
 
 ### Caching System
 
-The file-based cache reduces API costs:
-- Cache location: `/tmp/pynguin/`
-- Key hashing with SHA-256
+The file-based cache reduces API costs and provides deterministic results:
+- Cache location: `~/.cache/pynguin/llm/`
+- Key hashing based on SHA-256 hash of `RenderedRequest` values
 - Automatic cache hit detection
 - Optional (configurable via `enable_response_caching`)
 

@@ -87,7 +87,6 @@ test_execution_time_per_statement = 1
 api_key = ""
 model_name = "gpt-4o-mini"
 llm_url = ""
-temperature = 0.8
 hybrid_initial_population = false
 llm_test_case_percentage = 0.5
 enable_response_caching = false
@@ -96,6 +95,8 @@ coverage_threshold = 1
 call_llm_on_stall_detection = false
 max_plateau_len = 25
 max_llm_interventions = 1
+max_retries = 8
+cache_dir = "~/.cache/pynguin/llm"
 
 [string_statement]
 random_string_weight = 0.3
@@ -284,11 +285,11 @@ def expected_txt(tmp_path):
  'minimum_plateau_iterations=-1, maximum_memory=3000, '
  'test_execution_time_per_statement=1), '
  "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
- "llm_url='', temperature=0.8, hybrid_initial_population=False, "
- 'llm_test_case_percentage=0.5, enable_response_caching=False, '
- 'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
- 'call_llm_on_stall_detection=False, max_plateau_len=25, '
- 'max_llm_interventions=1), '
+ "llm_url='', hybrid_initial_population=False, llm_test_case_percentage=0.5, "
+ 'enable_response_caching=False, call_llm_for_uncovered_targets=False, '
+ 'coverage_threshold=1, call_llm_on_stall_detection=False, max_plateau_len=25, '
+ 'max_llm_interventions=1, max_retries=8, request_timeout=None, '
+ "cache_dir='~/.cache/pynguin/llm'), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
  'faker_string_weight=0.3, fandango_string_weight=0.4, '
  'fandango_faker_string_weight=0.0), '
@@ -387,6 +388,8 @@ False
 RANK_SELECTION
 --generator_selection.generator_selection_bias
 1.7
+--large_language_model.cache_dir
+~/.cache/pynguin/llm
 --large_language_model.call_llm_for_uncovered_targets
 False
 --large_language_model.call_llm_on_stall_detection
@@ -403,10 +406,12 @@ False
 1
 --large_language_model.max_plateau_len
 25
+--large_language_model.max_retries
+8
 --large_language_model.model_name
 gpt-4o-mini
---large_language_model.temperature
-0.8
+--large_language_model.request_timeout
+None
 --llm_refinement.enabled
 False
 --llm_refinement.max_repair_iterations

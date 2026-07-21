@@ -1,0 +1,21 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# local_search.yaml
+user_message_template: |
+  Mutate the statement at position {{ position }} of the test case to cover the branch/statement.
+  Give back only the whole test and not the variable itself as Python code for better parsing
+  Also add a class where the test is in to the test_code.
+  Pick a branch where mutating the provided statement can actually increase the branch coverage.
+  Line of branches we failed to cover:
+  {% for line in branch_coverage -%}
+  {{ line }}
+  {% endfor %}
+  Test case source code:
+   `{{ test_case_code }}`
+
+  Module source code:
+   `{{ module_code }}`

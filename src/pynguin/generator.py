@@ -73,6 +73,7 @@ from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.large_language_model.client import OpenAIClient, extract_python_code
 from pynguin.testcase import export
 from pynguin.testcase.execution import (
     RemoteAssertionExecutionObserver,
@@ -81,7 +82,6 @@ from pynguin.testcase.execution import (
 )
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.llm import LLM, LLMProvider, extract_code
 from pynguin.utils.report import (
     get_coverage_report,
     render_coverage_report,
@@ -803,16 +803,25 @@ def _run_llm() -> ReturnCode:
         sut_file = project_path / module_name
         return sut_file.read_text()
 
-    model = LLM.create(LLMProvider.OPENAI)
-    user_prompt = "Generate test cases for the following Python code:\n\n"
-    user_prompt += "```\n"
-    user_prompt += load_sut_code()
-    user_prompt += "\n```\n"
-    response = model.chat(user_prompt)
+    # Imported lazily so that ``import pynguin.generator`` does not require the
+    # optional ``openai`` extra (and its ``pyyaml`` dependency) to be installed.
+    from pynguin.large_language_model.prompts.prompt import Prompt  # noqa: PLC0415
+
+    class GeneratorGeneratePrompt(Prompt):
+        _resource_name = "generator_generate"
+
+        def _template_vars(self):
+            return ["sut_code"]
+
+    prompt = GeneratorGeneratePrompt()
+    request = prompt.render(sut_code=load_sut_code())
+
+    client = OpenAIClient()
+    response = client.send(request)
     if not response:
         return ReturnCode.NO_TESTS_GENERATED
 
-    code = extract_code(response)
+    code = extract_python_code(response)
     module_name = config.configuration.module_name.replace(".", "_")
     target_file = (
         Path(config.configuration.test_case_output.output_path).resolve() / f"test_{module_name}.py"

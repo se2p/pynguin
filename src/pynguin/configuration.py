@@ -873,10 +873,6 @@ class LLMConfiguration:
     llm_url: str = ""
     """Base URL for the LLM API endpoint (leave empty for default OpenAI)."""
 
-    temperature: float = 0.8
-    """The temperature to use when querying the model.
-    The value must be from [0.0, 1.0]."""
-
     hybrid_initial_population: bool = False
     """Whether to include the LLM test cases in the initial population."""
 
@@ -902,6 +898,15 @@ class LLMConfiguration:
 
     max_llm_interventions: int = 1
     """The maximum number of allowed LLM interventions."""
+
+    max_retries: int = 8
+    """The maximum number of retries for LLM requests."""
+
+    request_timeout: float | None = None
+    """The timeout for LLM requests in seconds."""
+
+    cache_dir: str = "~/.cache/pynguin/llm"
+    """The directory to store cached responses."""
 
 
 @dataclasses.dataclass

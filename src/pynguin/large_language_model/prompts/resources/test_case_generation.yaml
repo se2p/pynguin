@@ -1,0 +1,11 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# test_case_generation.yaml
+user_message_template: |
+  Write unit tests for the following module. Don't use unittest, but only pytest.
+  Module path: `{{ module_path }}`
+  Module source code: `{{ module_code }}`

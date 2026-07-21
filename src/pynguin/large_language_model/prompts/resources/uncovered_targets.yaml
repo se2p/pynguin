@@ -1,0 +1,14 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# uncovered_targets.yaml
+user_message_template: |
+  Write unit tests for the following callables that  Pynguin failed to cover:
+  {% for target in uncovered_targets -%}
+  {{ target }}
+  {% endfor %}
+  Module path: `{{ module_path }}`
+  Module source code: `{{ module_code }}`

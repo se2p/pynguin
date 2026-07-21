@@ -1,0 +1,13 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# assertion_generation.yaml
+user_message_template: |
+  Write assertions for the following test case:
+  `{{ test_case_code }}`
+   ### Add assertions below ###
+
+  Module source code: `{{ module_code }}`

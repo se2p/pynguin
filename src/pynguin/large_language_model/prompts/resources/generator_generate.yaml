@@ -1,0 +1,18 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# generator_generate.yaml
+system_message: |
+  You are a senior level Python developer with a focus on testing
+  with the pytest framework. Provide the generated tests in the style of the pytest framework.
+  Provide the generated tests inside a Markdown-style code block.
+temperature: 0.2
+user_message_template: |
+  Generate test cases for the following Python code:
+
+  ```
+  {{ sut_code }}
+  ```

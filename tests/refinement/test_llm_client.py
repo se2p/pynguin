@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 import types
+from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.configuration as config
+import pynguin.large_language_model.client as client_mod
 from pynguin.refinement import llm_client as llm_client_module
 from pynguin.refinement.llm_client import (
     LLMClient,
@@ -41,21 +42,34 @@ def _make_response(content, prompt_tokens=11, completion_tokens=4):
     return types.SimpleNamespace(choices=[choice], usage=usage)
 
 
-def _patch_create(monkeypatch, fake_create):
+def _patch_create(mock_client, fake_create):
     """Replace ``openai.chat.completions.create`` with ``fake_create``."""
-    fake_chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=fake_create))
-    monkeypatch.setattr(llm_client_module.openai, "chat", fake_chat)
+    mock_client.chat.completions.create.side_effect = fake_create
+
+
+@pytest.fixture(autouse=True)
+def mock_openai_client(monkeypatch):
+    mock_client = MagicMock()
+    monkeypatch.setattr(client_mod.openai, "OpenAI", lambda **_kw: mock_client)
+    return mock_client
 
 
 @pytest.fixture(autouse=True)
 def _no_live_api_key(monkeypatch):
     """Avoid the live key validation performed in ``LLMClient.__init__``."""
+    monkeypatch.setattr(client_mod, "require_api_key", MagicMock)
     monkeypatch.setattr(llm_client_module, "set_api_key", lambda: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_sleep(monkeypatch):
+    """Disable sleep in client.py."""
+    monkeypatch.setattr(client_mod.time, "sleep", lambda _seconds: None)
 
 
 @pytest.fixture
 def client():
-    return LLMClient(model_name="gpt-4o-mini")
+    return LLMClient()
 
 
 # ---------------------------------------------------------------------------
@@ -80,18 +94,10 @@ def test_extract_code_without_block_returns_stripped_text():
 # ---------------------------------------------------------------------------
 
 
-def test_model_defaults_to_configuration(monkeypatch):
-    monkeypatch.setattr(config.configuration.large_language_model, "model_name", "cfg-model")
-    assert LLMClient().model == "cfg-model"
-
-
-def test_explicit_model_name_wins(client):
-    assert client.model == "gpt-4o-mini"
-
-
 def test_usage_counters_start_at_zero(client):
     assert client.get_usage() == {
         "calls": 0,
+        "retries": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "time_seconds": 0.0,
@@ -100,12 +106,14 @@ def test_usage_counters_start_at_zero(client):
 
 def test_reset_usage(client):
     client._calls = 7
+    client._retries = 3
     client._input_tokens = 100
     client._output_tokens = 50
     client._time_seconds = 1.5
     client.reset_usage()
     assert client.get_usage() == {
         "calls": 0,
+        "retries": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "time_seconds": 0.0,
@@ -117,11 +125,11 @@ def test_reset_usage(client):
 # ---------------------------------------------------------------------------
 
 
-def test_generate_code_happy_path(client, monkeypatch):
+def test_generate_code_happy_path(client, mock_openai_client):
     def fake_create(**_kwargs):
         return _make_response("```python\nresult = 42\n```")
 
-    _patch_create(monkeypatch, fake_create)
+    _patch_create(mock_openai_client, fake_create)
 
     code = client.generate_code("write something")
     assert code == "result = 42"
@@ -131,17 +139,17 @@ def test_generate_code_happy_path(client, monkeypatch):
     assert usage["output_tokens"] == 4
 
 
-def test_generate_code_unexpected_error_returns_sentinel(client, monkeypatch):
+def test_generate_code_unexpected_error_returns_sentinel(client, mock_openai_client):
     def fake_create(**_kwargs):
         raise RuntimeError("boom")
 
-    _patch_create(monkeypatch, fake_create)
+    _patch_create(mock_openai_client, fake_create)
 
     result = client.generate_code("write something")
     assert result == "# LLM error: unable to generate code"
 
 
-def test_generate_code_retries_after_rate_limit(client, monkeypatch):
+def test_generate_code_retries_after_rate_limit(client, monkeypatch, mock_openai_client):
     monkeypatch.setattr(llm_client_module.time, "sleep", lambda _seconds: None)
 
     class _FakeRateLimitError(Exception):
@@ -157,15 +165,18 @@ def test_generate_code_retries_after_rate_limit(client, monkeypatch):
             raise _FakeRateLimitError
         return _make_response("```python\nok = 1\n```", prompt_tokens=1, completion_tokens=1)
 
-    _patch_create(monkeypatch, fake_create)
+    _patch_create(mock_openai_client, fake_create)
 
     result = client.generate_code("write something")
     assert result == "ok = 1"
-    # The failed attempt and the successful one both increment the call counter.
-    assert client.get_usage()["calls"] == 2
+    # A logical request counts once regardless of retries; the extra attempt
+    # is tracked separately as a retry.
+    usage = client.get_usage()
+    assert usage["calls"] == 1
+    assert usage["retries"] == 1
 
 
-def test_generate_code_exhausts_retries_on_api_error(client, monkeypatch):
+def test_generate_code_exhausts_retries_on_api_error(client, monkeypatch, mock_openai_client):
     monkeypatch.setattr(llm_client_module.time, "sleep", lambda _seconds: None)
 
     class _FakeApiError(Exception):
@@ -176,13 +187,13 @@ def test_generate_code_exhausts_retries_on_api_error(client, monkeypatch):
     def fake_create(**_kwargs):
         raise _FakeApiError("down")
 
-    _patch_create(monkeypatch, fake_create)
+    _patch_create(mock_openai_client, fake_create)
 
     result = client.generate_code("write something")
     assert result == "# LLM error: request failed"
 
 
-def test_generate_code_exhausts_retries_on_rate_limit(client, monkeypatch):
+def test_generate_code_exhausts_retries_on_rate_limit(client, monkeypatch, mock_openai_client):
     monkeypatch.setattr(llm_client_module.time, "sleep", lambda _seconds: None)
 
     class _AlwaysRateLimitError(Exception):
@@ -193,7 +204,7 @@ def test_generate_code_exhausts_retries_on_rate_limit(client, monkeypatch):
     def fake_create(**_kwargs):
         raise _AlwaysRateLimitError("slow down")
 
-    _patch_create(monkeypatch, fake_create)
+    _patch_create(mock_openai_client, fake_create)
 
     result = client.generate_code("write something")
     assert result == "# LLM error: rate limited"
