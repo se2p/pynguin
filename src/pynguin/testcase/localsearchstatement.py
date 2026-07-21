@@ -10,11 +10,12 @@ A statement is represented as an immutable CST node wrapped in
 fresh CST node and replaces the statement via
 :meth:`~pynguin.testcase.testcase.TestCase.replace_statement`.
 
-The following statement kinds are not generated, so their strategies are absent:
+One statement kind is never generated in this representation, so its strategy is
+absent:
 
-* ``ComplexLocalSearch`` -- complex-number primitives are not generated.
-* ``ClassLocalSearch`` -- class-object primitives are not generated.
-* ``FieldStatementLocalSearch`` -- field-access statements do not exist.
+* ``ClassLocalSearch`` -- class-object primitive statements are not generated in
+  the libcst representation, so no statement of that kind ever reaches local
+  search.
 
 Collections are literal-only (no reference-carrying elements), so the collection
 strategies mutate element literals in place via
@@ -344,6 +345,40 @@ class FloatLocalSearch(NumericalLocalSearch):
             if self.iterate_directions(10.0 ** (-precision), increasing_factor):
                 improved = True
             precision += 1
+        return improved
+
+
+class ComplexLocalSearch(PrimitiveLocalSearch):
+    """A local search strategy for complex-number primitives.
+
+    Complex values are unordered, so a directional AVM search does not apply.
+    Instead, this repeatedly applies
+    :func:`pynguin.testcase.literalgen.mutate_literal` (which itself perturbs the
+    real or imaginary component) and keeps the mutation whenever it improves
+    fitness, an AVM-style hill climb bounded by ``ls_dict_max_insertions``
+    consecutive failures -- mirroring :class:`CollectionLocalSearch`.
+    """
+
+    def search(self) -> bool:  # noqa: D102
+        if get_literal_value(self._statement(), complex) is None:
+            return False
+        improved = False
+        failures = 0
+        max_failures = config.configuration.local_search.ls_dict_max_insertions
+        self._snapshot()
+        while failures < max_failures and not self._timer.limit_reached():
+            expr = _rhs_expression(self._statement())
+            if expr is None:
+                break
+            new_expr = literalgen.mutate_literal(expr, complex, _FALLBACK_CONSTANT_PROVIDER)
+            _replace_rhs(self._chromosome.test_case, self._position, new_expr)
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                failures = 0
+                self._snapshot()
+            else:
+                self._restore()
+                failures += 1
         return improved
 
 
@@ -797,12 +832,46 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch):
         return self._factory.change_random_call(test_case, self._position)
 
 
+class FieldStatementLocalSearch(StatementLocalSearch):
+    """A local search strategy for field-access statements.
+
+    Repeatedly swaps the accessed field for another same-typed field via
+    :meth:`~pynguin.testcase.testfactory.TestFactory.change_random_field_call`
+    (which replaces the single field statement), keeping a swap whenever it
+    improves fitness and rolling it back otherwise. Bounded by
+    ``ls_random_parametrized_statement_call_count`` attempts, mirroring
+    :class:`ParametrizedStatementLocalSearch`.
+    """
+
+    def search(self) -> bool:  # noqa: D102
+        if not isinstance(self._statement().accessible, gao.GenericField):
+            return False
+        max_mutations = (
+            config.configuration.local_search.ls_random_parametrized_statement_call_count
+        )
+        mutations = 0
+        improved = False
+        self._snapshot()
+        while mutations < max_mutations and not self._timer.limit_reached():
+            if not self._factory.change_random_field_call(
+                self._chromosome.test_case, self._position
+            ):
+                break
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                self._snapshot()
+            else:
+                self._restore()
+            mutations += 1
+        return improved
+
+
 # ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
 
-def choose_local_search_statement(
+def choose_local_search_statement(  # noqa: C901
     chromosome: TestCaseChromosome,
     position: int,
     objective: LocalSearchObjective,
@@ -835,6 +904,8 @@ def choose_local_search_statement(
         return IntegerLocalSearch(*args) if get_literal_value(stmt, int) is not None else None
     if stmt.bound_type is float:
         return FloatLocalSearch(*args) if get_literal_value(stmt, float) is not None else None
+    if stmt.bound_type is complex:
+        return ComplexLocalSearch(*args) if get_literal_value(stmt, complex) is not None else None
     if stmt.bound_type is str:
         return StringLocalSearch(*args) if get_literal_value(stmt, str) is not None else None
     if stmt.bound_type is bytes:
@@ -843,6 +914,8 @@ def choose_local_search_statement(
         return CollectionLocalSearch(*args)
     if isinstance(stmt.accessible, gao.GenericEnum):
         return EnumLocalSearch(*args)
+    if isinstance(stmt.accessible, gao.GenericField):
+        return FieldStatementLocalSearch(*args)
     if isinstance(stmt.accessible, gao.GenericCallableAccessibleObject):
         return ParametrizedStatementLocalSearch(*args)
     return None

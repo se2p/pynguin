@@ -172,14 +172,36 @@ class TestCaseLocalSearch:
         objective: LocalSearchObjective,
         position: int,
     ) -> bool:
-        # Different-datatype local search is not implemented; it stays a no-op
-        # that reports "no improvement". This is only reached when
-        # `local_search_different_datatype=True`, which is not the default.
-        del chromosome, factory, objective, position  # unused: no-op strategy
+        statement = chromosome.test_case.get_statement(position)
         self._logger.debug(
-            "Different-datatype local search is not implemented; reporting no improvement."
+            "Local search on different datatype for statement %s at position %d",
+            statement.__class__,
+            position,
         )
-        return False
+        old_test_case = chromosome.test_case.clone()
+        last_execution_result = chromosome.get_last_execution_result()
+        assert last_execution_result is not None
+
+        counter = 0
+        found = False
+        while not found and counter < self._max_mutations and not self._timer.limit_reached():
+            old_size = chromosome.test_case.size()
+            if factory.change_statement_type(
+                chromosome.test_case, position
+            ) and objective.has_improved(chromosome):
+                self._logger.debug("Local search has found another possible datatype")
+                found = True
+                position += chromosome.test_case.size() - old_size
+            else:
+                chromosome.test_case = old_test_case.clone()
+                chromosome.set_last_execution_result(last_execution_result)
+            counter += 1
+
+        if not found:
+            self._logger.debug("Local search did not find another possible datatype.")
+        else:
+            self._search_same_datatype(chromosome, factory, objective, position)
+        return found
 
     def _search_llm(
         self,

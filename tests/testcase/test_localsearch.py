@@ -19,6 +19,8 @@ from pynguin.testcase.localsearch import TestCaseLocalSearch, TestSuiteLocalSear
 from pynguin.testcase.localsearchstatement import (
     BooleanLocalSearch,
     CollectionLocalSearch,
+    ComplexLocalSearch,
+    FieldStatementLocalSearch,
     IntegerLocalSearch,
     ParametrizedStatementLocalSearch,
     choose_local_search_statement,
@@ -191,6 +193,95 @@ def test_collection_local_search_keeps_or_reverts():
     assert tc.get_statement(0).bound_type is list
 
 
+def _complex_case(value: complex) -> TestCase:
+    tc = TestCase()
+    tc.add_statement(_assign_stmt("var_0", literalgen.literal_to_cst(value), bound_type=complex))
+    return tc
+
+
+def test_complex_local_search_keeps_improvement():
+    tc = _complex_case(complex(1, 2))
+    chromosome = TestCaseChromosome(tc, None)
+    timer = MagicMock()
+    timer.limit_reached.return_value = False
+    # First mutation "improves"; all following retries "do not" -> stop after
+    # ls_dict_max_insertions consecutive failures (mirrors the collection search).
+    max_failures = config.configuration.local_search.ls_dict_max_insertions
+    objective = _fake_objective([True] + [False] * (max_failures + 1))
+
+    search = ComplexLocalSearch(chromosome, 0, objective, MagicMock(), timer)
+    improved = search.search()
+
+    assert improved is True
+    assert tc.get_statement(0).bound_type is complex
+    # The RHS is still a parseable complex literal after the search.
+    assert get_literal_value(tc.get_statement(0), complex) is not None
+
+
+def test_complex_local_search_non_literal_rhs_returns_false():
+    tc = TestCase()
+    tc.add_statement(
+        _assign_stmt("var_0", cst.Call(func=cst.Name("foo"), args=[]), bound_type=complex)
+    )
+    chromosome = TestCaseChromosome(tc, None)
+    search = ComplexLocalSearch(chromosome, 0, MagicMock(), MagicMock(), MagicMock())
+    assert search.search() is False
+
+
+def _field_statement(name: str = "var_0") -> Statement:
+    stmt = _assign_stmt(name, cst.Attribute(value=cst.Name("var_1"), attr=cst.Name("attr")))
+    stmt.accessible = MagicMock(spec=gao.GenericField)
+    return stmt
+
+
+def test_field_local_search_keeps_improvement():
+    tc = TestCase()
+    tc.add_statement(_field_statement())
+    chromosome = TestCaseChromosome(tc, None)
+    timer = MagicMock()
+    timer.limit_reached.return_value = False
+    factory = MagicMock()
+    # First swap succeeds and improves; the second finds no further candidate.
+    factory.change_random_field_call.side_effect = [True, False]
+    objective = _fake_objective([True])
+
+    search = FieldStatementLocalSearch(chromosome, 0, objective, factory, timer)
+
+    assert search.search() is True
+    assert objective.has_improved.call_count == 1
+
+
+def test_field_local_search_reverts_on_no_improvement(monkeypatch):
+    monkeypatch.setattr(
+        config.configuration.local_search,
+        "ls_random_parametrized_statement_call_count",
+        3,
+    )
+    tc = TestCase()
+    tc.add_statement(_field_statement())
+    chromosome = TestCaseChromosome(tc, None)
+    timer = MagicMock()
+    timer.limit_reached.return_value = False
+    factory = MagicMock()
+    factory.change_random_field_call.return_value = True
+    objective = MagicMock()
+    objective.has_improved.return_value = False
+
+    search = FieldStatementLocalSearch(chromosome, 0, objective, factory, timer)
+
+    assert search.search() is False
+    # Exhausts all allowed attempts, restoring after each non-improving swap.
+    assert factory.change_random_field_call.call_count == 3
+
+
+def test_field_local_search_no_field_accessible_returns_false():
+    tc = TestCase()
+    tc.add_statement(_assign_stmt("var_0", cst.Name("None")))
+    chromosome = TestCaseChromosome(tc, None)
+    search = FieldStatementLocalSearch(chromosome, 0, MagicMock(), MagicMock(), MagicMock())
+    assert search.search() is False
+
+
 # ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
@@ -210,6 +301,31 @@ def test_choose_local_search_statement_skips_non_literal_rhs():
     chromosome = TestCaseChromosome(tc, None)
     strategy = choose_local_search_statement(chromosome, 0, MagicMock(), MagicMock(), MagicMock())
     assert strategy is None
+
+
+def test_choose_local_search_statement_complex():
+    tc = _complex_case(complex(3, -1))
+    chromosome = TestCaseChromosome(tc, None)
+    strategy = choose_local_search_statement(chromosome, 0, MagicMock(), MagicMock(), MagicMock())
+    assert isinstance(strategy, ComplexLocalSearch)
+
+
+def test_choose_local_search_statement_complex_non_literal_rhs():
+    tc = TestCase()
+    tc.add_statement(
+        _assign_stmt("var_0", cst.Call(func=cst.Name("f"), args=[]), bound_type=complex)
+    )
+    chromosome = TestCaseChromosome(tc, None)
+    strategy = choose_local_search_statement(chromosome, 0, MagicMock(), MagicMock(), MagicMock())
+    assert strategy is None
+
+
+def test_choose_local_search_statement_field():
+    tc = TestCase()
+    tc.add_statement(_field_statement())
+    chromosome = TestCaseChromosome(tc, None)
+    strategy = choose_local_search_statement(chromosome, 0, MagicMock(), MagicMock(), MagicMock())
+    assert isinstance(strategy, FieldStatementLocalSearch)
 
 
 def test_choose_local_search_statement_parametrized():
@@ -262,11 +378,45 @@ def test_local_search_visits_statements_with_probability_one(monkeypatch):
     search.local_search(chromosome, MagicMock(), objective)
 
 
-def test_search_different_datatype_is_a_documented_noop():
+def test_search_different_datatype_returns_true_on_improvement():
     tc = _int_case(1)
     chromosome = TestCaseChromosome(tc, None)
-    search = TestCaseLocalSearch(MagicMock(), MagicMock(), MagicMock())
-    assert search._search_different_datatype(chromosome, MagicMock(), MagicMock(), 0) is False
+    chromosome.set_last_execution_result(MagicMock())
+
+    timer = MagicMock()
+    timer.limit_reached.return_value = False
+    factory = MagicMock()
+    factory.change_statement_type.return_value = True
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+
+    search = TestCaseLocalSearch(MagicMock(), MagicMock(), timer)
+    # Avoid running the real same-datatype machinery once an improvement is found.
+    search._search_same_datatype = MagicMock(return_value=True)
+
+    assert search._search_different_datatype(chromosome, factory, objective, 0) is True
+    factory.change_statement_type.assert_called_once_with(chromosome.test_case, 0)
+    search._search_same_datatype.assert_called_once_with(chromosome, factory, objective, 0)
+
+
+def test_search_different_datatype_returns_false_when_no_improvement(monkeypatch):
+    monkeypatch.setattr(config.configuration.local_search, "ls_max_different_type_mutations", 3)
+    tc = _int_case(1)
+    chromosome = TestCaseChromosome(tc, None)
+    chromosome.set_last_execution_result(MagicMock())
+
+    timer = MagicMock()
+    timer.limit_reached.return_value = False
+    factory = MagicMock()
+    factory.change_statement_type.return_value = False
+    objective = MagicMock()
+    objective.has_improved.return_value = False
+
+    search = TestCaseLocalSearch(MagicMock(), MagicMock(), timer)
+
+    assert search._search_different_datatype(chromosome, factory, objective, 0) is False
+    # The mutation loop should have exhausted all allowed attempts.
+    assert factory.change_statement_type.call_count == search._max_mutations
 
 
 # ---------------------------------------------------------------------------
