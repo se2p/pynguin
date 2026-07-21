@@ -194,6 +194,15 @@ class TestFactory:
             constant_provider = EmptyConstantProvider()
         self._constant_provider: ConstantProvider = constant_provider
 
+    @property
+    def test_cluster(self) -> ModuleTestCluster:
+        """The underlying test cluster.
+
+        Returns:
+            The test cluster backing this factory.
+        """
+        return self._test_cluster
+
     # ------------------------------------------------------------------
     # Public API used by the GA
     # ------------------------------------------------------------------
