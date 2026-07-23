@@ -167,11 +167,18 @@ class _GoalsManager:
     ) -> None:
         self._archive = archive
         branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
+        other_fitness_functions: OrderedSet[ff.FitnessFunction] = OrderedSet()
+
         for fit in fitness_functions:
-            assert isinstance(fit, bg.BranchCoverageTestFitness)
-            branch_fitness_functions.add(fit)
+            if isinstance(fit, bg.BranchCoverageTestFitness):
+                branch_fitness_functions.add(fit)
+            else:
+                other_fitness_functions.add(fit)
         self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
-        self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = self._graph.root_branches
+        self._current_goals: OrderedSet[ff.FitnessFunction] = OrderedSet(self._graph.root_branches)
+
+        # Add non-branch goals immediately (no delayed activation!)
+        self._current_goals.update(other_fitness_functions)
         self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property
@@ -189,24 +196,36 @@ class _GoalsManager:
         Args:
             solutions: The previously found solutions
         """
-        # We must keep iterating, as long as new goals are added.
         new_goals_added = True
+
         while new_goals_added:
             self._archive.update(solutions)
             covered = self._archive.covered_goals
-            new_goals: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
+
+            new_goals: OrderedSet[ff.FitnessFunction] = OrderedSet()
             new_goals_added = False
+
             for old_goal in self._current_goals:
-                if old_goal in covered:
-                    children = self._graph.get_structural_children(old_goal)
-                    for child in children:
-                        if child not in self._current_goals and child not in covered:
-                            new_goals.add(child)
-                            new_goals_added = True
-                else:
+                # Non-branch goals → always active
+                if not isinstance(old_goal, bg.BranchCoverageTestFitness):
                     new_goals.add(old_goal)
+                    continue
+
+                # Branch not covered → keep it
+                if old_goal not in covered:
+                    new_goals.add(old_goal)
+                    continue
+
+                # Branch covered → activate children
+                for child in self._graph.get_structural_children(old_goal):
+                    if child in self._current_goals or child in covered:
+                        continue
+                    new_goals.add(child)
+                    new_goals_added = True
+
             self._current_goals = new_goals
             self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
+
         self._logger.debug("current goals after update: %s", self._current_goals)
 
 
