@@ -14,6 +14,7 @@ import pytest
 import pynguin.configuration as config
 from pynguin.large_language_model.llmagent import (
     LLMAgent,
+    _truncate_to_context_budget,  # noqa: PLC2701
     get_module_source_code,
     get_part_of_source_code,
     save_prompt_info_to_file,
@@ -23,6 +24,25 @@ from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.request import RenderedRequest
 from pynguin.utils.report import CoverageEntry, LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+
+def test_truncate_to_context_budget_truncates_over_limit(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "max_context_chars", 10)
+    out = _truncate_to_context_budget("y" * 50)
+    assert out.startswith("y" * 10)
+    assert "truncated" in out
+    assert len(out) < 50 + 60  # marker only, not the full source
+
+
+def test_truncate_to_context_budget_keeps_small_source(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "max_context_chars", 10)
+    assert _truncate_to_context_budget("abc") == "abc"
+
+
+def test_truncate_to_context_budget_disabled(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "max_context_chars", 0)
+    source = "z" * 100
+    assert _truncate_to_context_budget(source) == source
 
 
 def test_save_prompt_info_to_file(tmp_path, monkeypatch):

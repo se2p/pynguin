@@ -26,6 +26,7 @@ class UncoveredTargetsPrompt(Prompt):
         callables: list[GenericCallableAccessibleObject],
         module_code: str,
         module_path: str,
+        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
     ):
         """Initializes the prompt.
 
@@ -34,10 +35,14 @@ class UncoveredTargetsPrompt(Prompt):
                 uncovered callables.
             module_path (str): Path to the module.
             module_code (str): Source code of the module.
+            diagnostics (dict): Optional per-callable diagnostic hints describing why
+                a target is uncovered (e.g. never reached, one-sided branch). Used to
+                give the LLM a targeted "problem card" per callable.
         """
         self.callables: list[GenericCallableAccessibleObject] = callables
         self.module_path = module_path
         self.module_code = module_code
+        self.diagnostics: dict[GenericCallableAccessibleObject, str] = diagnostics or {}
         super().__init__()
 
     def _template_vars(self) -> list[str]:
@@ -68,6 +73,10 @@ class UncoveredTargetsPrompt(Prompt):
                 callable_list_item = f"- The constructor of the class {class_name}{signature}"
             else:
                 continue  # Skip unknown callable types
+
+            diagnostic = self.diagnostics.get(gao)
+            if diagnostic:
+                callable_list_item += f" [hint: {diagnostic}]"
 
             callables_list.append(callable_list_item)
 

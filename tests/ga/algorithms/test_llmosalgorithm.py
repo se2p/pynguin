@@ -6,6 +6,7 @@
 #
 """Tests for the MOSA-LLM test-generation strategy."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +15,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
+from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -130,6 +132,10 @@ def test_generate_tests_with_llm_on_stall(mock_config, llmosa_algorithm):
     mock_config.configuration.large_language_model.call_llm_on_stall_detection = True
     mock_config.configuration.large_language_model.max_llm_interventions = 2
     mock_config.configuration.large_language_model.max_plateau_len = 1
+    # Use the iteration-count fallback (window <= 0) and disable the late-budget guard
+    # so this test exercises the plateau path deterministically.
+    mock_config.configuration.large_language_model.stall_detection_window_seconds = -1
+    mock_config.configuration.large_language_model.min_remaining_budget_for_llm = -1
 
     # Mock resources_left to return True for 3 iterations then False
     llmosa_algorithm.resources_left = MagicMock(side_effect=[True, True, True, False])
@@ -418,6 +424,83 @@ def test_get_random_population_non_hybrid(mock_config, llmosa_algorithm):
         llmosa_algorithm._chromosome_factory.test_case_chromosome_factory.get_chromosome.call_count
         == 2
     )
+
+
+def _annotation(line_no, existing, covered, br_existing=0, br_covered=0):
+    return LineAnnotation(
+        line_no=line_no,
+        total=CoverageEntry(existing=existing, covered=covered),
+        branches=CoverageEntry(existing=br_existing, covered=br_covered),
+        branchless_code_objects=CoverageEntry(existing=0, covered=0),
+        lines=CoverageEntry(existing=0, covered=0),
+    )
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines")
+def test_diagnose_callable_never_reached(mock_getsourcelines, llmosa_algorithm):
+    mock_getsourcelines.return_value = (["l1", "l2"], 10)  # lines 10-11
+    annotations = [_annotation(10, 3, 0), _annotation(11, 2, 0)]
+    gao = MagicMock(spec=GenericCallableAccessibleObject)
+    hint = llmosa_algorithm._diagnose_callable(gao, annotations)
+    assert "never reached" in hint
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines")
+def test_diagnose_callable_branch_polarity(mock_getsourcelines, llmosa_algorithm):
+    mock_getsourcelines.return_value = (["l1", "l2"], 10)
+    # Reached (covered > 0) but a branch on line 10 only took one of two outcomes.
+    annotations = [_annotation(10, 3, 2, br_existing=2, br_covered=1), _annotation(11, 2, 2)]
+    gao = MagicMock(spec=GenericCallableAccessibleObject)
+    hint = llmosa_algorithm._diagnose_callable(gao, annotations)
+    assert "only took one outcome" in hint
+    assert "10" in hint
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines")
+def test_diagnose_callable_no_hint_when_covered(mock_getsourcelines, llmosa_algorithm):
+    mock_getsourcelines.return_value = (["l1"], 10)
+    annotations = [_annotation(10, 3, 3, br_existing=2, br_covered=2)]
+    gao = MagicMock(spec=GenericCallableAccessibleObject)
+    assert not llmosa_algorithm._diagnose_callable(gao, annotations)
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines", side_effect=OSError)
+def test_diagnose_callable_unavailable_source(mock_getsourcelines, llmosa_algorithm):  # noqa: ARG001
+    gao = MagicMock(spec=GenericCallableAccessibleObject)
+    assert not llmosa_algorithm._diagnose_callable(gao, [])
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_enough_budget_for_llm_guard_disabled(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.min_remaining_budget_for_llm = -1
+    llmosa_algorithm._stopping_conditions = []
+    assert llmosa_algorithm._enough_budget_for_llm() is True
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_enough_budget_for_llm_no_time_condition(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.min_remaining_budget_for_llm = 45
+    llmosa_algorithm._stopping_conditions = [MagicMock()]
+    assert llmosa_algorithm._enough_budget_for_llm() is True
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_enough_budget_for_llm_suppresses_when_low(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.min_remaining_budget_for_llm = 45
+    condition = MaxSearchTimeStoppingCondition(10)  # only 10s total budget
+    condition.before_search_start(time.time_ns())
+    llmosa_algorithm._stopping_conditions = [condition]
+    # ~10s remaining < 45s guard -> suppress.
+    assert llmosa_algorithm._enough_budget_for_llm() is False
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_enough_budget_for_llm_allows_when_ample(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.min_remaining_budget_for_llm = 45
+    condition = MaxSearchTimeStoppingCondition(600)
+    condition.before_search_start(time.time_ns())
+    llmosa_algorithm._stopping_conditions = [condition]
+    assert llmosa_algorithm._enough_budget_for_llm() is True
 
 
 def test_breed_next_generation(llmosa_algorithm):

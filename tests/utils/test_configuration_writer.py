@@ -93,9 +93,13 @@ enable_response_caching = false
 call_llm_for_uncovered_targets = false
 coverage_threshold = 1
 call_llm_on_stall_detection = false
+stall_detection_window_seconds = 30
 max_plateau_len = 25
 max_llm_interventions = 1
+min_remaining_budget_for_llm = 45
+max_context_chars = 64000
 max_retries = 8
+request_timeout = 30.0
 cache_dir = "~/.cache/pynguin/llm"
 
 [string_statement]
@@ -210,7 +214,7 @@ enable_inline_pragma_no_cover = true
 
 [llm_refinement]
 enabled = false
-max_repair_iterations = 3
+max_repair_iterations = 2
 save_original = true
 save_refined = true
 enable_dependency_context = false
@@ -293,8 +297,10 @@ def expected_txt(tmp_path):
  "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
  "llm_url='', hybrid_initial_population=False, llm_test_case_percentage=0.5, "
  'enable_response_caching=False, call_llm_for_uncovered_targets=False, '
- 'coverage_threshold=1, call_llm_on_stall_detection=False, max_plateau_len=25, '
- 'max_llm_interventions=1, max_retries=8, request_timeout=None, '
+ 'coverage_threshold=1, call_llm_on_stall_detection=False, '
+ 'stall_detection_window_seconds=30, max_plateau_len=25, '
+ 'max_llm_interventions=1, min_remaining_budget_for_llm=45, '
+ 'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
  "cache_dir='~/.cache/pynguin/llm'), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
  'faker_string_weight=0.3, fandango_string_weight=0.4, '
@@ -350,7 +356,7 @@ def expected_txt(tmp_path):
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), '
  'llm_refinement=LLMRefinementConfiguration(enabled=False, '
- 'max_repair_iterations=3, max_tests=None, save_original=True, '
+ 'max_repair_iterations=2, max_tests=None, save_original=True, '
  'save_refined=True, enable_dependency_context=False, '
  'enable_usage_examples=False, max_dependencies=10, max_usage_examples=3, '
  'enable_mutation_strengthening=False, max_mutation_iterations=3), '
@@ -411,16 +417,22 @@ False
 False
 --large_language_model.llm_test_case_percentage
 0.5
+--large_language_model.max_context_chars
+64000
 --large_language_model.max_llm_interventions
 1
 --large_language_model.max_plateau_len
 25
 --large_language_model.max_retries
 8
+--large_language_model.min_remaining_budget_for_llm
+45
 --large_language_model.model_name
 gpt-4o-mini
 --large_language_model.request_timeout
-None
+30.0
+--large_language_model.stall_detection_window_seconds
+30
 --llm_refinement.enable_dependency_context
 False
 --llm_refinement.enable_mutation_strengthening
@@ -434,7 +446,7 @@ False
 --llm_refinement.max_mutation_iterations
 3
 --llm_refinement.max_repair_iterations
-3
+2
 --llm_refinement.max_tests
 None
 --llm_refinement.max_usage_examples

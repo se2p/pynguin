@@ -84,8 +84,35 @@ def get_module_path() -> Path:
     )
 
 
+def _truncate_to_context_budget(source: str) -> str:
+    """Truncate module source to the configured LLM context-character budget.
+
+    Coverage gains saturate beyond a moderate context size while token consumption
+    keeps growing, so oversized sources are truncated to
+    ``large_language_model.max_context_chars`` (a value of <= 0 disables truncation).
+
+    Args:
+        source: The full module source code.
+
+    Returns:
+        The source, truncated with a marker comment if it exceeds the budget.
+    """
+    max_chars = config.configuration.large_language_model.max_context_chars
+    if max_chars > 0 and len(source) > max_chars:
+        _logger.warning(
+            "Module source (%d chars) exceeds max_context_chars (%d); truncating.",
+            len(source),
+            max_chars,
+        )
+        return source[:max_chars] + "\n# ... [truncated: source exceeds max_context_chars] ...\n"
+    return source
+
+
 def get_module_source_code() -> str:
     """Reads and returns the source code of the module.
+
+    The source is truncated to the configured LLM context-character budget
+    (``large_language_model.max_context_chars``).
 
     Returns:
         The source code of the module.
@@ -94,7 +121,7 @@ def get_module_source_code() -> str:
         FileNotFoundError: If the module file is not found.
     """
     module = import_module(config.configuration.module_name)
-    return inspect.getsource(module)
+    return _truncate_to_context_budget(inspect.getsource(module))
 
 
 def get_part_of_source_code(name: str) -> str:
@@ -317,12 +344,16 @@ class LLMAgent:
         return self.query(prompt)
 
     def call_llm_for_uncovered_targets(
-        self, gao_coverage_map: dict[GenericCallableAccessibleObject, float]
+        self,
+        gao_coverage_map: dict[GenericCallableAccessibleObject, float],
+        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
     ):
         """Queries the language model for uncovered targets.
 
         Args:
             gao_coverage_map (dict): Maps callable objects to coverage percentages.
+            diagnostics (dict): Optional per-callable diagnostic hints describing why
+                a target is uncovered (e.g. never reached, one-sided branch).
 
         Returns:
             Any: Result of the query based on the constructed prompt.
@@ -330,7 +361,10 @@ class LLMAgent:
         module_code = get_module_source_code()
         module_path = get_module_path()
         prompt = UncoveredTargetsPrompt(
-            list(gao_coverage_map.keys()), module_code, str(module_path)
+            list(gao_coverage_map.keys()),
+            module_code,
+            str(module_path),
+            diagnostics=diagnostics,
         )
         return self.query(prompt)
 

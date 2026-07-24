@@ -84,6 +84,25 @@ def test_build_prompt_aggregates_sections(module_info):
     assert module_info["code"] in result
 
 
+def test_build_callables_prompt_section_includes_diagnostics(module_info):
+    foo = make_generic_function("foo")
+    bar = make_generic_method("MyClass", "bar")
+    prompt = UncoveredTargetsPrompt(
+        [foo, bar],
+        module_info["code"],
+        module_info["path"],
+        diagnostics={foo: "never reached; construct valid inputs"},
+    )
+    result = prompt.build_callables_prompt_section()
+
+    # foo carries its hint; bar (no diagnostic) does not get a bracketed hint.
+    assert (
+        "- The function foo(a: int) -> str [hint: never reached; construct valid inputs]" in result
+    )
+    assert "- The method bar of class MyClass(self, x: float) -> None" in result
+    assert not any("[hint:" in item and "bar" in item for item in result)
+
+
 def test_skips_unknown_callable_type(module_info):
     unknown_gao = MagicMock()
     unknown_gao.is_method.return_value = False
