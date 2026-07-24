@@ -166,6 +166,29 @@ def _exception_assertion_names(test_case: tc.TestCase) -> list[str]:
     ]
 
 
+_EXECUTION_THREAD_JOIN_TIMEOUT = 30.0
+
+
+def _assert_no_execution_threads_leaked() -> None:
+    """Assert the mutation run left none of its execution threads dangling.
+
+    ``TestCaseExecutor`` runs each test case on a daemon thread whose name
+    carries ``_execute_test_case``. After a run — even one truncated by a mutant
+    cap or a spent time budget — none of those threads may still be alive.
+
+    The process-wide thread count is deliberately *not* asserted. Unrelated
+    daemon threads from other modules (e.g. the exporter's ``_target`` statement
+    watchdog in :mod:`pynguin.testcase.export`, which may still be winding down
+    from an earlier test in the session) are none of this test's concern, and
+    asserting ``len(threading.enumerate()) == 1`` made the check flaky under
+    load. Scope the assertion to the executor's own threads instead.
+    """
+    for thread in threading.enumerate():
+        if "_execute_test_case" in thread.name:
+            thread.join(timeout=_EXECUTION_THREAD_JOIN_TIMEOUT)
+    assert not any("_execute_test_case" in thread.name for thread in threading.enumerate())
+
+
 # -- TEST-CASE FACTORIES ---------------------------------------------------------------
 # Each builds the libcst test case for a fixture module, referencing the SUT through
 # its module alias (e.g. ``mutation_``) exactly as the current pipeline does.
@@ -473,10 +496,7 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0917
 
         assert _render(test_case) == expected_source
 
-        for thread in threading.enumerate():
-            if "_execute_test_case" in thread.name:
-                thread.join()
-        assert len(threading.enumerate()) == 1  # Only main thread should be alive.
+        _assert_no_execution_threads_leaked()
 
 
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
@@ -521,10 +541,7 @@ def test_mutation_analysis_truncated_by_mutant_cap(
         assert num_checked == cap
         assert num_checked < num_created
 
-        for thread in threading.enumerate():
-            if "_execute_test_case" in thread.name:
-                thread.join()
-        assert len(threading.enumerate()) == 1
+        _assert_no_execution_threads_leaked()
 
 
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
@@ -563,10 +580,7 @@ def test_mutation_analysis_truncated_by_time_budget(subject_properties: SubjectP
             # The budget cut every mutant; the run still completes cleanly.
             assert len(gen._testing_mutation_summary.mutant_information) == 0
 
-            for thread in threading.enumerate():
-                if "_execute_test_case" in thread.name:
-                    thread.join()
-            assert len(threading.enumerate()) == 1
+            _assert_no_execution_threads_leaked()
     finally:
         config.configuration.test_case_output.maximum_mutation_time = original_budget
 
