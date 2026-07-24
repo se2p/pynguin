@@ -6,7 +6,6 @@
 #
 """Provides class prompt for type inference using LLMs."""
 
-import textwrap
 from collections.abc import Callable
 from typing import Any
 
@@ -61,25 +60,3 @@ class TypeInferencePrompt(BaseInferencePrompt):
     def build_user_prompt(self) -> str:
         """Build the complete prompt for type inference."""
         return self.render_request().messages[-1]["content"]
-
-
-def get_inference_system_prompt() -> str:
-    """Build the system prompt for type inference."""
-    return textwrap.dedent(
-        """
-            You are a Python type inference engine.
-            Your task is to analyze given Python functions and infer the parameter types.
-            Think step by step. Before inferring types, analyze the given context.
-            Reason about each parameter's type based on usage and context.
-            Keep this reasoning to yourself and do not include it in the final output.
-            Use your knowledge of programming, common libraries, and best practices to infer types.
-            Use the provided context to make an informed decision about the types of parameters.
-            Always return results in full qualified names, e.g., typing.List[builtins.int].
-            *NEVER* use Any or object as a type.
-            Only infer types for parameters, exclude self and return types.
-            Return your output in JSON format only.
-
-            When a parameter is a string, consider if it matches one of the known
-            string subtypes and prefer returning that subtype when appropriate.
-            """
-    ).strip()

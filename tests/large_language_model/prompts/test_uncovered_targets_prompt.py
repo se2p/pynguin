@@ -78,10 +78,10 @@ def test_build_prompt_aggregates_sections(module_info):
     prompt = UncoveredTargetsPrompt(callables, module_info["code"], module_info["path"])
     result = prompt.build_prompt()
 
-    assert "Write unit tests for the following callables" in result
+    assert "Pynguin failed to cover the following callables" in result
     assert "- The function foo(a: int) -> str" in result
     assert f"Module path: `{module_info['path']}`" in result
-    assert f"Module source code: `{module_info['code']}`" in result
+    assert module_info["code"] in result
 
 
 def test_skips_unknown_callable_type(module_info):

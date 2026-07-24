@@ -4,15 +4,13 @@
 #
 # SPDX-License-Identifier: MIT
 
-# generator_generate.yaml
 system_message: |
-  You are a senior level Python developer with a focus on testing
-  with the pytest framework. Provide the generated tests in the style of the pytest framework.
-  Provide the generated tests inside a Markdown-style code block.
-temperature: 0.2
+  You are a senior Python developer specialized in testing with the pytest framework.
+  Generate tests in pytest style. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
 user_message_template: |
-  Generate test cases for the following Python code:
+  Generate pytest test cases for the following Python code:
 
-  ```
+  ```python
   {{ sut_code }}
   ```

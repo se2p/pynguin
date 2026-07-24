@@ -6,7 +6,6 @@
 #
 """Provides enhanced prompt for type and subtype inference using LLMs."""
 
-import textwrap
 from collections.abc import Callable
 from typing import Any
 
@@ -73,35 +72,3 @@ class TypeAndSubtypeInferencePrompt(BaseInferencePrompt):
 
         generators = AVAILABLE_GENERATORS
         return ", ".join(generators) if generators else "(none)"
-
-
-def get_type_and_subtype_inference_system_prompt() -> str:
-    """Build the system prompt for type and subtype inference."""
-    return textwrap.dedent(
-        """
-            You are a Python type and string subtype inference engine.
-            Your task is to analyze given Python functions and infer both parameter types
-            and appropriate string subtypes (using Faker generators or regex patterns).
-
-            Think step by step. Before inferring types, analyze the given context.
-            Reason about each parameter's type based on usage and context.
-            Keep this reasoning to yourself and do not include it in the final output.
-
-            Use your knowledge of programming, common libraries, and best practices to infer types.
-            Use the provided context to make an informed decision about the types of parameters.
-
-            Always return results in full qualified names, e.g., typing.List[builtins.int].
-            *NEVER* use Any or object as a type.
-            Only infer types for parameters, exclude self and return types.
-            Return your output in JSON format only.
-
-            For string parameters:
-            1. Check if a Faker generator from the available list matches the expected format.
-            2. If a Faker generator matches, use its name in the "subtype" field.
-            3. If no Faker generator matches, provide a custom regex pattern instead.
-            4. If the string has no specific format requirements, omit the "subtype" field.
-
-            Prefer Faker generators over custom regex patterns when possible, as they provide
-            more diverse and realistic test data.
-            """
-    ).strip()

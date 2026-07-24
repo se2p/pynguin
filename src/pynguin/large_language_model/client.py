@@ -33,6 +33,26 @@ except ImportError:
 
 _logger = logging.getLogger(__name__)
 
+# Some models/endpoints reject an explicit temperature of 0. When that happens we
+# retry once with this small positive temperature instead of failing the request.
+_TEMPERATURE_FALLBACK = 0.1
+
+
+def _is_temperature_unsupported_error(exc: Exception) -> bool:
+    """Heuristically detect an API error caused by an unsupported temperature value.
+
+    Providers phrase this differently (and some run behind OpenAI-compatible proxies),
+    so we match on the error message mentioning ``temperature`` rather than a specific
+    exception type.
+
+    Args:
+        exc: The exception raised by the API call.
+
+    Returns:
+        True if the error appears to be about the ``temperature`` parameter.
+    """
+    return "temperature" in str(exc).lower()
+
 
 def extract_python_code(text: str | None) -> str:
     """Extracts Python code blocks from LLM markdown output.
@@ -127,6 +147,10 @@ class OpenAIClient(LLMClient):
         self._time_seconds = 0.0
         self._calls_with_no_python_code = 0
 
+        # Once a model rejects an explicit temperature of 0, remember it so all future
+        # requests from this client skip the doomed attempt and use the fallback directly.
+        self._temperature_zero_rejected = False
+
         # Dynamic exception lists for retrying
         self._rate_limit_errors: tuple[type[Exception], ...] = (openai.RateLimitError,)
         self._timeout_errors: tuple[type[Exception], ...] = (openai.APITimeoutError,)
@@ -184,7 +208,7 @@ class OpenAIClient(LLMClient):
         self._time_seconds = 0.0
         self._calls_with_no_python_code = 0
 
-    def send(self, request: RenderedRequest) -> str | None:  # noqa: C901, PLR0914
+    def send(self, request: RenderedRequest) -> str | None:  # noqa: C901, PLR0914, PLR0915
         """Sends a query to OpenAI with retry policy, timeout, and usage tracking.
 
         Args:
@@ -205,13 +229,21 @@ class OpenAIClient(LLMClient):
         # Count one logical request, regardless of how many retry attempts it takes.
         self._calls += 1
 
+        # Temperature may be adjusted at runtime if the model rejects the value of 0.
+        # If a previous request already learned that this client's model rejects 0,
+        # start from the fallback right away instead of paying the failed attempt again.
+        temperature = request.temperature
+        if temperature == 0 and self._temperature_zero_rejected:
+            temperature = _TEMPERATURE_FALLBACK
+        temperature_fallback_applied = False
+
         for attempt in range(1, max_attempts + 1):
             start_time = time.perf_counter()
             try:
                 kwargs: dict[str, Any] = {
                     "model": request.model,
                     "messages": request.messages,
-                    "temperature": request.temperature,
+                    "temperature": temperature,
                     "max_tokens": request.max_tokens,
                     "stop": request.stop,
                 }
@@ -246,6 +278,26 @@ class OpenAIClient(LLMClient):
 
             except Exception as exc:
                 self._time_seconds += time.perf_counter() - start_time
+
+                # Some models/endpoints reject an explicit temperature of 0. Fall back
+                # once to a small positive temperature and retry immediately.
+                if (
+                    temperature == 0
+                    and not temperature_fallback_applied
+                    and _is_temperature_unsupported_error(exc)
+                ):
+                    temperature_fallback_applied = True
+                    temperature = _TEMPERATURE_FALLBACK
+                    # Remember for all future requests from this client so the warning
+                    # and the failed attempt happen at most once per client.
+                    self._temperature_zero_rejected = True
+                    _logger.warning(
+                        "Model %r rejected temperature=0; using temperature=%s for this "
+                        "and all future requests from this client.",
+                        request.model,
+                        _TEMPERATURE_FALLBACK,
+                    )
+                    continue
 
                 # Check dynamic exceptions
                 is_rate_limit = self._rate_limit_errors and isinstance(exc, self._rate_limit_errors)

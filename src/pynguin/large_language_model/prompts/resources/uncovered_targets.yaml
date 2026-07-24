@@ -4,11 +4,28 @@
 #
 # SPDX-License-Identifier: MIT
 
-# uncovered_targets.yaml
 user_message_template: |
-  Write unit tests for the following callables that  Pynguin failed to cover:
+  ### Task
+  Pynguin failed to cover the following callables. Write additional pytest tests that
+  specifically exercise them, covering their statements and branches.
+
+  ### Uncovered callables
   {% for target in uncovered_targets -%}
   {{ target }}
   {% endfor %}
-  Module path: `{{ module_path }}`
-  Module source code: `{{ module_code }}`
+  ### Instructions
+  - Use pytest only; do not use the `unittest` module.
+  - Derive imports from the module path: for `a/b/c.py`, import via `from a.b.c import ...`.
+  - Focus each test on reaching an uncovered callable and its branches, including error
+    paths via `with pytest.raises(...)`.
+  - Write test functions named `test_<callable>_<scenario>`.
+
+  ### Module under test
+  - Module path: `{{ module_path }}`
+  - Module source code:
+  ```python
+  {{ module_code }}
+  ```
+
+  ### Output
+  Return only the new tests as a single ```python code block.

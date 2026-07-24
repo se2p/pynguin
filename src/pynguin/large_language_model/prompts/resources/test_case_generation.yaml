@@ -4,8 +4,26 @@
 #
 # SPDX-License-Identifier: MIT
 
-# test_case_generation.yaml
 user_message_template: |
-  Write unit tests for the following module. Don't use unittest, but only pytest.
-  Module path: `{{ module_path }}`
-  Module source code: `{{ module_code }}`
+  ### Task
+  Write a pytest test suite for the Python module below, aiming for 100% statement and
+  branch coverage.
+
+  ### Instructions
+  - Use pytest only; do not use the `unittest` module.
+  - Derive imports from the module path: for a module path `a/b/c.py`, import the module
+    under test as `from a.b.c import ...` (drop the `.py` suffix and turn path separators
+    into dots).
+  - Write test functions named `test_<function>_<scenario>`.
+  - Cover edge cases: empty inputs, `None`, boundary values, and invalid types.
+  - Exercise error paths with `with pytest.raises(...)`.
+
+  ### Module under test
+  - Module path: `{{ module_path }}`
+  - Module source code:
+  ```python
+  {{ module_code }}
+  ```
+
+  ### Output
+  Return only the test suite as a single ```python code block.

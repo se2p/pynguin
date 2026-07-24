@@ -38,36 +38,25 @@ def dummy_function(a: str, b: float):
 
 def test_test_case_generation_prompt_characterization():
     prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
-    assert prompt.system_message == (
-        "You are a unit test generating AI (codename TestGenAI). "
-        "TestGenAI generates "
-        "unit tests for a Python module, just like a senior test "
-        "automation engineer "
-        "with an ISTQB certificate would. TestGenAI achieves very "
-        "high coverage "
-        "by boundary value analysis, considering corner cases, "
-        "a range of input "
-        "values, and relevant combinations."
-    )
+    assert "You are TestGenAI" in prompt.system_message
+    assert "pytest framework only" in prompt.system_message
+    assert "```python" in prompt.system_message
     user_prompt = prompt.build_prompt()
-    expected = (
-        "Write unit tests for the following module. Don't use unittest, but only pytest.\n"
-        "Module path: `example/path.py`\n"
-        "Module source code: `def foo():\n    pass`"
-    )
-    assert user_prompt == expected
+    assert "Write a pytest test suite" in user_prompt
+    assert "from a.b.c import" in user_prompt
+    assert "Module path: `example/path.py`" in user_prompt
+    assert "def foo():\n    pass" in user_prompt
+    assert "Return only the test suite as a single ```python code block." in user_prompt
 
 
 def test_assertion_generation_prompt_characterization():
     prompt = AssertionGenerationPrompt("def test_foo():\n    assert True", "def foo():\n    pass")
     user_prompt = prompt.build_prompt()
-    expected = (
-        "Write assertions for the following test case:\n"
-        "`def test_foo():\n    assert True`\n"
-        " ### Add assertions below ###\n\n"
-        "Module source code: `def foo():\n    pass`"
-    )
-    assert user_prompt == expected
+    assert "APPENDING new `assert` statements" in user_prompt
+    assert "Do NOT add new calls" in user_prompt
+    assert "def test_foo():\n    assert True" in user_prompt
+    assert "def foo():\n    pass" in user_prompt
+    assert "Return only the complete updated test function" in user_prompt
 
 
 def test_uncovered_targets_prompt_characterization():
@@ -97,14 +86,12 @@ def test_uncovered_targets_prompt_characterization():
     prompt = UncoveredTargetsPrompt(callables, "def source():\n    pass", "dummy/module.py")
     user_prompt = prompt.build_prompt()
 
-    assert (
-        "Write unit tests for the following callables that  Pynguin failed to cover:" in user_prompt
-    )
+    assert "Pynguin failed to cover the following callables" in user_prompt
     assert "- The function dummy_func(a: str) -> None" in user_prompt
     assert "- The method dummy_meth of class DummyClass(self, x: int) -> bool" in user_prompt
     assert "- The constructor of the class DummyClass(self)" in user_prompt
     assert "Module path: `dummy/module.py`" in user_prompt
-    assert "Module source code: `def source():\n    pass`" in user_prompt
+    assert "def source():\n    pass" in user_prompt
 
 
 def test_local_search_prompt_characterization():
@@ -133,16 +120,13 @@ def test_local_search_prompt_characterization():
     user_prompt = prompt.build_prompt()
 
     # The statement position in local search prompt adds 2 to the position passed.
-    assert "Mutate the statement at position 4" in user_prompt
-    assert "Line of branches we failed to cover:" in user_prompt
+    assert "the statement at position 4" in user_prompt
+    assert "Partially covered lines" in user_prompt
     assert "Line 10: Covered 1 of 2" in user_prompt
     # Line 15 is not included because covered is 0 (branch_coverage filter covered > 0)
     assert "Line 15:" not in user_prompt
-    assert "Test case source code:\n `1: def test_foo():\n2:     assert True`" in user_prompt
-    assert (
-        "Module source code:\n `def foo(x):\n    if x > 0:\n        return 1\n    return 2`"
-        in user_prompt
-    )
+    assert "1: def test_foo():\n2:     assert True" in user_prompt
+    assert "def foo(x):\n    if x > 0:\n        return 1\n    return 2" in user_prompt
 
 
 def test_type_inference_prompt_characterization():

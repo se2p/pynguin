@@ -29,7 +29,6 @@ from pynguin.analyses.typesystem import (
 )
 from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
     TypeAndSubtypeInferencePrompt,
-    get_type_and_subtype_inference_system_prompt,
 )
 
 
@@ -206,7 +205,12 @@ def test_prompt_formatting() -> None:
 
 def test_system_prompt() -> None:
     """Test the system prompt for type and subtype inference."""
-    system_prompt = get_type_and_subtype_inference_system_prompt()
+
+    def dummy_function(email: str) -> str:
+        """Dummy function."""
+        return email
+
+    system_prompt = TypeAndSubtypeInferencePrompt(dummy_function).system_message
 
     assert "type" in system_prompt.lower()
     assert "subtype" in system_prompt.lower()
