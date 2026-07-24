@@ -83,3 +83,37 @@ def test_extract_signature_handles_uninspectable_object():
     inspector = SUTInspector()
     # An int has no inspectable signature -> returns None instead of raising.
     assert inspector._extract_signature(5) is None
+
+
+def test_inspect_dependencies():
+    inspector = SUTInspector()
+    deps = inspector.inspect_dependencies("json", "dumps")
+    assert isinstance(deps, str)
+
+
+def test_inspect_dependencies_handles_unhashable_module_constants(tmp_path, monkeypatch):
+    # Regression: a module-level dict/list constant referenced by the SUT must
+    # not raise ``TypeError: unhashable type`` while filtering dependencies.
+    module_src = (
+        "CONFIG = {'a': 1}\n"
+        "ITEMS = [1, 2, 3]\n"
+        "def helper(x):\n"
+        "    return x\n"
+        "def target():\n"
+        "    return helper(CONFIG) or ITEMS\n"
+    )
+    module_file = tmp_path / "unhashable_deps_mod.py"
+    module_file.write_text(module_src, encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    inspector = SUTInspector()
+    # Must not raise, and should still surface the callable dependency.
+    deps = inspector.inspect_dependencies("unhashable_deps_mod", "target")
+    assert isinstance(deps, str)
+    assert "helper" in deps
+
+
+def test_inspect_usage_examples():
+    inspector = SUTInspector(project_root=".")
+    examples = inspector.inspect_usage_examples("json", "dumps")
+    assert isinstance(examples, str)

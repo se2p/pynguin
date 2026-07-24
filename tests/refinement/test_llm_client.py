@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.large_language_model.client as client_mod
+from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.refinement import llm_client as llm_client_module
 from pynguin.refinement.llm_client import (
     LLMClient,
@@ -137,6 +138,23 @@ def test_generate_code_happy_path(client, mock_openai_client):
     assert usage["calls"] == 1
     assert usage["input_tokens"] == 11
     assert usage["output_tokens"] == 4
+
+
+def test_generate_from_prompt_happy_path(client, mock_openai_client):
+    class DummyPrompt(Prompt):
+        def _template_vars(self) -> list[str]:
+            return []
+
+        def render_request(self):
+            return self.render()
+
+    def fake_create(**_kwargs):
+        return _make_response("```python\nx = 100\n```")
+
+    _patch_create(mock_openai_client, fake_create)
+    prompt = DummyPrompt()
+    code = client.generate_from_prompt(prompt)
+    assert code == "x = 100"
 
 
 def test_generate_code_unexpected_error_returns_sentinel(client, mock_openai_client):

@@ -6,14 +6,19 @@
 #
 """SUT inspector: extracts docstrings and signatures via importlib."""
 
+import ast
 import importlib
 import inspect
+import logging
 import signal
 import sys
-from contextlib import contextmanager
+from collections import Counter
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -71,6 +76,57 @@ def time_limit(seconds: int):
         # On Windows, we can't use SIGALRM, so just proceed without timeout
         # Alternative: use threading.Timer or multiprocessing, but adds complexity
         yield
+
+
+def _collect_referenced_names(source: str, object_path: str | None) -> list[str]:  # noqa: C901
+    referenced_names: list[str] = []
+    try:
+        tree = ast.parse(source)
+        # Find the AST node of the target SUT object
+        target_node = None
+        if object_path:
+            parts = object_path.split(".")
+            # Simple search for class or function def matching path parts
+            current_node: ast.AST = tree
+            for part in parts:
+                found = False
+                for child in ast.iter_child_nodes(current_node):
+                    if (
+                        isinstance(
+                            child,
+                            (
+                                ast.FunctionDef,
+                                ast.AsyncFunctionDef,
+                                ast.ClassDef,
+                            ),
+                        )
+                        and child.name == part
+                    ):
+                        current_node = child
+                        found = True
+                        break
+                if not found:
+                    break
+            else:
+                target_node = current_node
+        if target_node is None:
+            target_node = tree
+
+        class NameCollector(ast.NodeVisitor):
+            def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
+                referenced_names.append(node.id)
+                self.generic_visit(node)
+
+            def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
+                if isinstance(node.value, ast.Name):
+                    referenced_names.append(f"{node.value.id}.{node.attr}")
+                    referenced_names.append(node.value.id)
+                self.generic_visit(node)
+
+        NameCollector().visit(target_node)
+    except Exception:  # noqa: BLE001, S110
+        pass
+    return referenced_names
 
 
 class SUTInspector:
@@ -291,3 +347,237 @@ class SUTInspector:
             lines.append(f"\nParent Class Documentation:\n{result.parent_docstring}")
 
         return "\n".join(lines) if lines else "Documentation unavailable."
+
+    def inspect_dependencies(  # noqa: C901, PLR0914, PLR0915
+        self, module_name: str, object_path: str | None = None, max_deps: int = 10
+    ) -> str:
+        """Safely extract signatures and docstrings of dependencies referenced by SUT.
+
+        Args:
+            module_name: Fully qualified module name (e.g., "structlog.processors")
+            object_path: Path to SUT object within the module. If None, inspects the module.
+            max_deps: Maximum dependencies to return in the string.
+
+        Returns:
+            A formatted string describing the dependencies and their signatures.
+        """
+        module = self._safe_import(module_name)
+        if module is None:
+            return ""
+
+        # Step 1: Find the target SUT object
+        target_obj = module
+        if object_path:
+            target_obj = self._traverse_object_path(module, object_path)
+            if target_obj is None:
+                target_obj = module
+
+        # Step 2: Attempt to retrieve module source and AST
+        source = None
+        with suppress(Exception):
+            source = inspect.getsource(module)
+
+        if not source:
+            file_path = getattr(module, "__file__", None)
+            if file_path and Path(file_path).exists():
+                with suppress(Exception):
+                    source = Path(file_path).read_text(encoding="utf-8")
+
+        referenced_names = _collect_referenced_names(source, object_path) if source else []
+
+        # Step 3: Resolve name objects in globals
+        resolved_deps = {}
+
+        # If AST parsing yielded no names, fallback to module dir()
+        candidates = referenced_names or dir(module)
+        frequencies = Counter(candidates)
+
+        def is_valid_dep(obj: Any) -> bool:
+            if obj is None:
+                return False
+            if hasattr(obj, "__module__") and obj.__module__ == "builtins":
+                return False
+            # ``obj in {...}`` would raise TypeError for unhashable module-level
+            # values (e.g. a dict/list constant), so guard on ``isinstance`` first.
+            if isinstance(obj, type) and obj in {
+                str,
+                int,
+                float,
+                bool,
+                list,
+                dict,
+                set,
+                tuple,
+                bytes,
+            }:
+                return False
+            # Check if it's class or callable function
+            return inspect.isclass(obj) or inspect.isfunction(obj) or inspect.ismethod(obj)
+
+        for name, freq in frequencies.most_common():
+            obj = None
+            if "." in name:
+                # E.g. math.sqrt
+                parts = name.split(".")
+                base_obj = module.__dict__.get(parts[0])
+                if base_obj:
+                    obj = getattr(base_obj, parts[1], None)
+            else:
+                obj = module.__dict__.get(name)
+
+            if is_valid_dep(obj):
+                # Avoid duplicate entries for the same object
+                obj_id = id(obj)
+                if obj_id not in resolved_deps:
+                    resolved_deps[obj_id] = (name, obj, freq)
+
+        # Sort by frequency descending
+        sorted_deps = sorted(resolved_deps.values(), key=lambda x: x[2], reverse=True)  # noqa: FURB118
+
+        if len(sorted_deps) > max_deps:
+            truncated = sorted_deps[max_deps:]
+            truncated_names = [item[0] for item in truncated]
+            _logger.warning("Truncated SUT dependencies: %s", ", ".join(truncated_names))
+            sorted_deps = sorted_deps[:max_deps]
+
+        # Step 4: Format dependency details
+        formatted_parts = []
+        for name, obj, _ in sorted_deps:
+            # Skip if it is the target SUT object itself
+            if obj is target_obj:
+                continue
+
+            assert obj is not None
+
+            try:
+                if inspect.isclass(obj):
+                    # For class, extract init signature
+                    try:
+                        sig = inspect.signature(obj.__init__)
+                    except Exception:  # noqa: BLE001
+                        sig = inspect.signature(obj)
+                else:
+                    sig = inspect.signature(obj)
+                sig_str = str(sig)
+            except Exception:  # noqa: BLE001
+                sig_str = "(...)"
+
+            try:
+                doc = inspect.getdoc(obj)
+                doc_str = doc.split("\n")[0] if doc else "No description available."
+            except Exception:  # noqa: BLE001
+                doc_str = "No description available."
+
+            kind = "Class" if inspect.isclass(obj) else "Function"
+            formatted_parts.append(
+                f"### {kind}: {name}\nSignature: {name}{sig_str}\nDescription: {doc_str}"
+            )
+
+        return "\n\n".join(formatted_parts)
+
+    def inspect_usage_examples(  # noqa: C901
+        self,
+        module_name: str,
+        object_path: str | None = None,
+        max_examples: int = 3,
+    ) -> str:
+        """Scan the project for call sites of the target SUT object and return examples.
+
+        Args:
+            module_name: Fully qualified SUT module name.
+            object_path: SUT object path.
+            max_examples: Maximum examples to return.
+
+        Returns:
+            A formatted string with code examples.
+        """
+        if not self.project_root:
+            return ""
+
+        target_name = (
+            object_path.rsplit(".", 1)[-1] if object_path else module_name.rsplit(".", 1)[-1]
+        )
+        if not target_name:
+            return ""
+
+        examples: list[str] = []
+        root_path = Path(self.project_root)
+
+        # Scan python files
+        py_files = list(root_path.glob("**/*.py"))
+        # Prioritize non-test files, sort to be deterministic
+        py_files = sorted([f for f in py_files if "test" not in f.name.lower()]) + sorted([
+            f for f in py_files if "test" in f.name.lower()
+        ])
+
+        for file_path in py_files:
+            if len(examples) >= max_examples:
+                break
+            try:
+                content = file_path.read_text(encoding="utf-8")
+                if target_name not in content:
+                    continue
+
+                tree = ast.parse(content)
+
+                class UsageVisitor(ast.NodeVisitor):
+                    def __init__(self, target: str):
+                        self.target = target
+                        self.found_examples: list[str] = []
+                        self.current_function: ast.FunctionDef | ast.AsyncFunctionDef | None = None
+
+                    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+                        old_func = self.current_function
+                        self.current_function = node
+                        self.generic_visit(node)
+                        self.current_function = old_func
+
+                    def visit_AsyncFunctionDef(  # noqa: N802
+                        self, node: ast.AsyncFunctionDef
+                    ) -> None:
+                        old_func = self.current_function
+                        self.current_function = node
+                        self.generic_visit(node)
+                        self.current_function = old_func
+
+                    def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
+                        try:
+                            func_str = ast.unparse(node.func)
+                        except Exception:  # noqa: BLE001
+                            func_str = ""
+                        if self.target in func_str:
+                            if self.current_function:
+                                try:
+                                    code = ast.unparse(self.current_function)
+                                except Exception:  # noqa: BLE001
+                                    code = ""
+                            else:
+                                try:
+                                    code = ast.unparse(node)
+                                except Exception:  # noqa: BLE001
+                                    code = ""
+                            if code and code not in self.found_examples:
+                                self.found_examples.append(code)
+                        self.generic_visit(node)
+
+                visitor = UsageVisitor(target_name)
+                visitor.visit(tree)
+
+                for code in visitor.found_examples:
+                    # Skip giant functions
+                    if len(code.splitlines()) > 25:
+                        continue
+                    if code not in examples:
+                        examples.append(code)
+                        if len(examples) >= max_examples:
+                            break
+            except Exception:  # noqa: BLE001, S110
+                pass
+
+        if not examples:
+            return ""
+
+        formatted = []
+        for i, code in enumerate(examples, 1):
+            formatted.append(f"### Example {i}\n```python\n{code}\n```")
+        return "\n\n".join(formatted)

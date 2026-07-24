@@ -34,6 +34,7 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
 from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
 )
+from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -290,7 +291,29 @@ class LLMAgent:
         """
         module_code = get_module_source_code()
         module_path = get_module_path()
-        prompt = TestCaseGenerationPrompt(module_code, str(module_path))
+
+        dependencies = ""
+        usage_examples = ""
+        ref_config = config.configuration.llm_refinement
+        if ref_config.enable_dependency_context or ref_config.enable_usage_examples:
+            inspector = SUTInspector(project_root=config.configuration.project_path)
+            if ref_config.enable_dependency_context:
+                dependencies = inspector.inspect_dependencies(
+                    config.configuration.module_name,
+                    max_deps=ref_config.max_dependencies,
+                )
+            if ref_config.enable_usage_examples:
+                usage_examples = inspector.inspect_usage_examples(
+                    config.configuration.module_name,
+                    max_examples=ref_config.max_usage_examples,
+                )
+
+        prompt = TestCaseGenerationPrompt(
+            module_code,
+            str(module_path),
+            dependencies=dependencies,
+            usage_examples=usage_examples,
+        )
         return self.query(prompt)
 
     def call_llm_for_uncovered_targets(

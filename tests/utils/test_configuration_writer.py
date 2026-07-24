@@ -213,6 +213,12 @@ enabled = false
 max_repair_iterations = 3
 save_original = true
 save_refined = true
+enable_dependency_context = false
+enable_usage_examples = false
+max_dependencies = 10
+max_usage_examples = 3
+enable_mutation_strengthening = false
+max_mutation_iterations = 3
 
 [local_search]
 local_search = true
@@ -345,7 +351,10 @@ def expected_txt(tmp_path):
  'enable_inline_pragma_no_cover=True), '
  'llm_refinement=LLMRefinementConfiguration(enabled=False, '
  'max_repair_iterations=3, max_tests=None, save_original=True, '
- 'save_refined=True), ignore_modules=[], ignore_methods=[], '
+ 'save_refined=True, enable_dependency_context=False, '
+ 'enable_usage_examples=False, max_dependencies=10, max_usage_examples=3, '
+ 'enable_mutation_strengthening=False, max_mutation_iterations=3), '
+ 'ignore_modules=[], ignore_methods=[], '
  "element_visibility=<ElementVisibility.PUBLIC: 'PUBLIC'>, subprocess=False, "
  'subprocess_if_recommended=True, '
  'local_search=LocalSearchConfiguration(local_search=True, '
@@ -412,12 +421,24 @@ False
 gpt-4o-mini
 --large_language_model.request_timeout
 None
+--llm_refinement.enable_dependency_context
+False
+--llm_refinement.enable_mutation_strengthening
+False
+--llm_refinement.enable_usage_examples
+False
 --llm_refinement.enabled
 False
+--llm_refinement.max_dependencies
+10
+--llm_refinement.max_mutation_iterations
+3
 --llm_refinement.max_repair_iterations
 3
 --llm_refinement.max_tests
 None
+--llm_refinement.max_usage_examples
+3
 --llm_refinement.save_original
 True
 --llm_refinement.save_refined

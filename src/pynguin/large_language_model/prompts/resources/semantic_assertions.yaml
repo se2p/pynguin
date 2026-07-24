@@ -1,0 +1,173 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: 2000
+user_message_template: |
+  You are a test assertion expert.
+  Your task is to add meaningful assertions to a
+  unit test based on the method's documented behavior.
+
+  **Method Documentation:**
+  {{ sut_context }}
+
+  **Current Test Code:**
+  ```python
+  {{ test_code }}
+  ```
+
+  **CRITICAL: You MUST preserve ALL import statements from the input test code.**
+  **CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+  **Do NOT remove the `module_0.` prefix — that will cause NameError.**
+
+  **Your Task:**
+  Analyze the method's documentation and add appropriate assertions to verify its behavior.
+
+  **Critical Rules:**
+
+  1. **Understand the Method's Contract from Documentation:**
+     - Read the docstring carefully to understand what the method returns
+     - Identify the return type (string, int, dict, list, bool, etc.)
+     - Note any special behaviors or edge cases mentioned
+
+  2. **Handling Expected Exceptions (Negative Testing):**
+
+     **CRITICAL: Analyze the test inputs to determine
+     if the test is a NEGATIVE test
+     (expects failure).**
+
+     **Indicators of Negative Tests:**
+     - Variable names containing: `invalid_`, `none_`, `negative_`, `bad_`, `wrong_`, `empty_`
+     - Values that are clearly invalid: `None`, `-1`
+       (when positive expected), empty strings,
+       mismatched types
+     - Multiple `None` values passed as arguments
+     - Type mismatches (e.g., passing string where int expected, or boolean where number expected)
+
+     **For Negative Tests (expecting exceptions):**
+     ```python
+     # Use pytest.raises() context manager for negative tests
+     with pytest.raises(Exception):
+         method_under_test(invalid_input)
+     ```
+
+     **For Positive Tests (expecting success):**
+     - Remove try/except blocks entirely
+     - Add proper assertions for the return value
+     - Verify the method completes successfully
+
+  3. **Generate Appropriate Assertions Based on Return Type:**
+
+     **IMPORTANT: Be conservative with assertions.
+     Only assert what you can confidently verify
+     from the documentation.**
+
+     **For STRING returns:**
+     ```python
+     assert isinstance(result, str), "Should return a string"
+     assert len(result) > 0
+     ```
+
+     **For INTEGER/FLOAT returns:**
+     ```python
+     assert isinstance(result, int), "Should return an integer"
+     ```
+
+     **For BOOLEAN returns:**
+     ```python
+     assert isinstance(result, bool), "Should return a boolean"
+     ```
+
+     **For DICT/LIST returns:**
+     ```python
+     assert isinstance(result, dict)
+     assert len(result) > 0
+     ```
+
+  4. **For the focal method '{{ focal_method }}':**
+     - Look at each call to this method in the test
+     - Determine if it's a positive or negative test based on inputs
+     - For positive tests: Store result and add assertions
+     - For negative tests: Wrap in pytest.raises()
+
+  5. **Preserve ALL existing code and AAA Structure:**
+     - Keep the # Arrange section unchanged
+     - Keep the # Act section unchanged (unless converting try/except to pytest.raises)
+     - Keep variable names unchanged
+     - Only add/modify assertions in the # Assert section
+     - Never remove the AAA comment markers
+
+  **Example Transformation for POSITIVE Test:**
+
+  BEFORE:
+  ```python
+  def test_triangle_valid():
+      # Arrange
+      side_a = 5
+      side_b = 5
+      side_c = 5
+
+      # Act
+      try:
+          module_0.triangle(side_a, side_b, side_c)
+      except Exception:
+          pytest.fail("Unexpected exception")
+  ```
+
+  AFTER:
+  ```python
+  def test_triangle_valid():
+      # Arrange
+      side_a = 5
+      side_b = 5
+      side_c = 5
+
+      # Act
+      result = module_0.triangle(side_a, side_b, side_c)
+
+      # Assert
+      assert isinstance(result, str)
+      assert len(result) > 0
+  ```
+
+  **Example Transformation for NEGATIVE Test:**
+
+  BEFORE:
+  ```python
+  def test_triangle_invalid():
+      # Arrange
+      invalid_side = None
+      another_invalid = None
+
+      # Act
+      try:
+          module_0.triangle(invalid_side, invalid_side, another_invalid)
+      except Exception:
+          pytest.fail("Unexpected exception")
+  ```
+
+  AFTER:
+  ```python
+  def test_triangle_invalid():
+      # Arrange
+      invalid_side = None
+      another_invalid = None
+
+      # Act & Assert
+      with pytest.raises(Exception):
+          module_0.triangle(invalid_side, invalid_side, another_invalid)
+  ```
+
+  **Output Format:**
+  Return the complete test function with ALL import statements and ALL original code preserved.
+  Start with import statements, then the test function.
+  ONLY modify the Act/Assert sections to add proper assertions or pytest.raises() blocks.
+  Do NOT change function names, variable names, or the Arrange section.
+  Do NOT add inline comments or docstring with assertion explanations.
+  No explanations, no markdown code blocks.

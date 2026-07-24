@@ -17,11 +17,15 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from pynguin.large_language_model.client import OpenAIClient
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.llm import extract_code
 from pynguin.utils.openai_key_resolver import require_api_key
+
+if TYPE_CHECKING:
+    from pynguin.large_language_model.request import RenderedRequest
 
 try:
     import openai
@@ -31,6 +35,10 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 _logger = logging.getLogger(__name__)
+
+# Prefix for all sentinel strings returned when code generation fails. Callers
+# use this to detect a failed generation instead of matching exact messages.
+LLM_ERROR_PREFIX = "# LLM error"
 
 
 def set_api_key() -> None:
@@ -137,11 +145,24 @@ class LLMClient:
         class RefinementPrompt(Prompt):
             _resource_name = "refinement"
 
-            def _template_vars(self):
+            def _template_vars(self) -> list[str]:
                 return ["prompt"]
 
-        ref_prompt = RefinementPrompt()
-        request = ref_prompt.render(prompt=prompt)
+            def render_request(self) -> RenderedRequest:
+                return self.render(prompt=prompt)
+
+        return self.generate_from_prompt(RefinementPrompt())
+
+    def generate_from_prompt(self, prompt: Prompt) -> str:
+        """Generate code using a templated Prompt instance.
+
+        Args:
+            prompt: The Prompt object to render and send.
+
+        Returns:
+            The extracted code, or a ``"# LLM ..."`` sentinel on failure.
+        """
+        request = prompt.render_request()
 
         # Sync refinement errors to client for dynamic check
         self._client._rate_limit_errors = _RATE_LIMIT_ERRORS  # noqa: SLF001
@@ -152,17 +173,17 @@ class LLMClient:
         try:
             response_text = self._client.send(request)
             if response_text is None:
-                return "# LLM error: request failed"
+                return f"{LLM_ERROR_PREFIX}: request failed"
             return _extract_code(response_text)
         except _RATE_LIMIT_ERRORS:
-            return "# LLM error: rate limited"
+            return f"{LLM_ERROR_PREFIX}: rate limited"
         except _TIMEOUT_ERRORS:
-            return "# LLM error: timeout"
+            return f"{LLM_ERROR_PREFIX}: timeout"
         except _API_ERRORS:
-            return "# LLM error: request failed"
+            return f"{LLM_ERROR_PREFIX}: request failed"
         except Exception:  # noqa: BLE001
             # Any unforeseen failure should degrade to a sentinel, never crash refinement.
-            return "# LLM error: unable to generate code"
+            return f"{LLM_ERROR_PREFIX}: unable to generate code"
         finally:
             usage = self._client.get_usage()
             self._calls = usage["calls"]

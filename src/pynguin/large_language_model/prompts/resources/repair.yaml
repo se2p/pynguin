@@ -1,0 +1,51 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: 2000
+user_message_template: |
+  You are a Python test repair expert. A test has failed and needs to be fixed.
+
+  **Broken Test Code:**
+  ```python
+  {{ broken_code }}
+  ```
+
+  **Error Traceback:**
+  ```
+  {{ error_message }}
+  ```
+  {% if dependencies %}
+  **Dependency Signatures:**
+  {{ dependencies }}
+  {% endif %}
+  {% if usage_examples %}
+  **Usage Examples:**
+  {{ usage_examples }}
+  {% endif %}
+
+
+  **Your Task:**
+  Fix the test code to resolve the error. Common fixes include:
+  1. **Syntax Errors:** Fix indentation, parentheses, quotes, or invalid syntax
+  2. **Import Errors:** Add missing imports (e.g., `import pytest`, `from module import ...`)
+  3. **Name Errors:** Fix undefined variables or incorrect variable names
+  4. **Assertion Errors:** Replace vacuous assertions (e.g., `pytest.fail()`) with meaningful checks
+  5. **Type Errors:** Ensure correct types are passed to functions
+
+  **Requirements:**
+  - Output ONLY the corrected Python test function code
+  - Keep the same test function name
+  - Preserve the test's intent and behavior
+  - Fix ONLY what's broken - don't change working parts
+  - Preserve ALL module prefixes (e.g., `module_0.func()`) — do NOT convert to bare `func()` calls
+  - Do NOT include explanations, just the fixed code
+
+  **Corrected Test Code:**
+  ```python

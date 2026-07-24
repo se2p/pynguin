@@ -10,6 +10,12 @@ from unittest.mock import MagicMock
 
 from pynguin.large_language_model.prompts.assertiongenerationprompt import AssertionGenerationPrompt
 from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
+from pynguin.large_language_model.prompts.mutationstrengthenprompt import MutationStrengthenPrompt
+from pynguin.large_language_model.prompts.readabilityrefinementprompt import (
+    ReadabilityRefinementPrompt,
+)
+from pynguin.large_language_model.prompts.repairprompt import RepairPrompt
+from pynguin.large_language_model.prompts.semanticassertionsprompt import SemanticAssertionsPrompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import TestCaseGenerationPrompt
 from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
     TypeAndSubtypeInferencePrompt,
@@ -156,3 +162,45 @@ def test_type_and_subtype_inference_prompt_characterization():
     assert "Function signature:\n(a: str, b: float)" in user_prompt
     assert "Docstring:\nFunction docstring." in user_prompt
     assert "Function body:\ndef dummy_function(a: str, b: float):" in user_prompt
+
+
+def test_repair_prompt_characterization():
+    prompt = RepairPrompt("def test_x():\n    pass", "SyntaxError: invalid syntax")
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are a Python test repair expert." in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+    assert "SyntaxError: invalid syntax" in user_prompt
+
+
+def test_readability_refinement_prompt_characterization():
+    prompt = ReadabilityRefinementPrompt("sut context doc", "focal_func", "def test_x():\n    pass")
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are refactoring a Python unit test" in user_prompt
+    assert "sut context doc" in user_prompt
+    assert "focal_func" in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+
+
+def test_semantic_assertions_prompt_characterization():
+    prompt = SemanticAssertionsPrompt("sut context doc", "focal_func", "def test_x():\n    pass")
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are a test assertion expert." in user_prompt
+    assert "sut context doc" in user_prompt
+    assert "focal_func" in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+
+
+def test_mutation_strengthen_prompt_characterization():
+    prompt = MutationStrengthenPrompt(
+        "module code", "def test_x():\n    pass", "survivor list", "focal_func"
+    )
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are a test assertion expert." in user_prompt
+    assert "module code" in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+    assert "survivor list" in user_prompt
+    assert "focal_func" in user_prompt

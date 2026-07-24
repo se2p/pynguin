@@ -7,15 +7,27 @@
 """Test refinement pipeline orchestrator."""
 
 import ast
+import inspect
 import re
 from pathlib import Path
 from typing import Any
 
+import pynguin.configuration as config
+from pynguin.large_language_model.prompts import (
+    MutationStrengthenPrompt,
+    ReadabilityRefinementPrompt,
+    RepairPrompt,
+    SemanticAssertionsPrompt,
+)
 from pynguin.refinement.aaa_inserter import insert_aaa_markers_simple
 from pynguin.refinement.ast_analyzer import FocalMethodAnalyzer
 from pynguin.refinement.coverage_checker import check_coverage_preservation
-from pynguin.refinement.llm_client import LLMClient
-from pynguin.refinement.mutation_analyzer import AssertionTracker, filter_vacuous_assertions
+from pynguin.refinement.llm_client import LLM_ERROR_PREFIX, LLMClient
+from pynguin.refinement.mutation_analyzer import (
+    AssertionTracker,
+    filter_vacuous_assertions,
+    get_surviving_mutants,
+)
 from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.refinement.validator import run_test
 
@@ -207,8 +219,10 @@ class TestRefiner:
         self.project_root = project_root or str(Path(__file__).resolve().parent.parent)
         self.sut_inspector = SUTInspector(project_root=self.project_root)
         self.subject_properties = subject_properties
+        self.current_dependencies = ""
+        self.current_usage_examples = ""
 
-    def structural_analysis(self, test_code: str):
+    def structural_analysis(self, test_code: str):  # noqa: C901
         """Structural analysis of a test.
 
         Uses AST-based focal method detection and SUT introspection
@@ -242,14 +256,41 @@ class TestRefiner:
 
             # Step 2: Use SUTInspector to extract SUT documentation
             sut_context = "Documentation unavailable."
+            dependencies = ""
+            usage_examples = ""
             if focal_info.resolved_module_name:
-                inspection_result = self.sut_inspector.inspect_method(
-                    focal_info.resolved_module_name,
+                focal_object_name = (
                     focal_info.focal_method_name.split(".")[-1]
                     if "." in focal_info.focal_method_name
-                    else focal_info.focal_method_name,
+                    else focal_info.focal_method_name
+                )
+                inspection_result = self.sut_inspector.inspect_method(
+                    focal_info.resolved_module_name,
+                    focal_object_name,
                 )
                 sut_context = self.sut_inspector.format_context_string(inspection_result)
+
+                ref_config = config.configuration.llm_refinement
+                if ref_config.enable_dependency_context:
+                    dependencies = self.sut_inspector.inspect_dependencies(
+                        focal_info.resolved_module_name,
+                        focal_object_name,
+                        max_deps=ref_config.max_dependencies,
+                    )
+                    if dependencies:
+                        sut_context += f"\n\nDependency Signatures:\n{dependencies}"
+
+                if ref_config.enable_usage_examples:
+                    usage_examples = self.sut_inspector.inspect_usage_examples(
+                        focal_info.resolved_module_name,
+                        focal_object_name,
+                        max_examples=ref_config.max_usage_examples,
+                    )
+                    if usage_examples:
+                        sut_context += f"\n\nUsage Examples:\n{usage_examples}"
+
+            self.current_dependencies = dependencies
+            self.current_usage_examples = usage_examples
 
             # Step 3: Parse the test structure for AAA sections
             tree = ast.parse(test_code)
@@ -357,75 +398,12 @@ class TestRefiner:
         sut_context = analysis.get("sut_context", "Documentation unavailable.")
         focal_method = analysis.get("focal_method_name", "unknown")
 
-        prompt = f"""You are refactoring a Python unit test
-to improve readability while preserving its exact behavior.
-
-**Method Documentation:**
-{sut_context}
-
-**Current Test:**
-```python
-{analysis["full_code"]}
-```
-
-**Task:** Refactor this test following the Arrange-Act-Assert (AAA) pattern.
-
-**CRITICAL - Preserve ALL import statements exactly as they appear in the original test.**
-**CRITICAL - Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
-**The test uses `import ... as module_0` style imports, and ALL SUT function/method calls**
-**MUST keep the `module_0.` prefix. Do NOT convert `module_0.func()` to bare `func()`**
-**— that will cause NameError.**
-
-**Requirements:**
-1. **Test Function Name:** Rename the test function
-   to be descriptive of what it tests.If multiple
-   tests exist, ensure each has a distinct name
-   (e.g., test_equilateral_triangle,
-   test_isosceles_with_negative,
-   test_scalene_with_bytes)".
-   - Use pattern: test_<behavior_being_tested>
-   - Example: test_case_0() → test_triangle_with_equal_sides()
-   - Example: test_case_1() → test_basket_adds_item_successfully()
-
-2. **Semantic Naming:** Rename generic variables
-   (bool_0, int_0, str_0) to meaningful names
-   based on the method's purpose
-   - Study the docstring to understand what the method does
-   - Choose names that reflect the test scenario (e.g., equal_sides, different_sides, invalid_input)
-
-3. **AAA Structure:** CRITICAL - Preserve the
-   Arrange-Act-Assert structure with clear
-   section markers:
-   ```python
-   # Arrange
-   # ... setup code ...
-
-   # Act
-   # ... call to focal method: {focal_method} ...
-
-   # Assert
-   # ... verification code ...
-   ```
-   - Each section must be clearly marked with its comment (# Arrange, # Act, # Assert)
-   - Do NOT skip sections even if they are empty
-   - Maintain logical separation between setup, execution, and verification
-
-4. **Preserve Behavior:** Keep the exact same logic, assertions, and control flow. Do NOT:
-   - Change assertion conditions
-   - Add new assertions
-   - Remove existing code
-   - Modify try/except blocks
-
-5. **Docstring:** Add a brief (1-2 line) docstring
-   explaining what this test verifies. Do NOT add
-   excessive comments within the test body.
-
-**Output Format:**
-Return the complete refactored test WITH ALL IMPORT STATEMENTS from the original test.
-Include imports at the top, then the test function.
-No explanations, no markdown formatting."""
-
-        return self.llm_client.generate_code(prompt)
+        prompt_obj = ReadabilityRefinementPrompt(
+            sut_context=sut_context,
+            focal_method=focal_method,
+            test_code=analysis["full_code"],
+        )
+        return self.llm_client.generate_from_prompt(prompt_obj)
 
     def generate_semantic_assertions(
         self,
@@ -450,170 +428,13 @@ No explanations, no markdown formatting."""
         if sut_context == "Documentation unavailable.":
             return test_code
 
-        prompt = f"""You are a test assertion expert.
-Your task is to add meaningful assertions to a
-unit test based on the method's documented behavior.
-
-**Method Documentation:**
-{sut_context}
-
-**Current Test Code:**
-```python
-{test_code}
-```
-
-**CRITICAL: You MUST preserve ALL import statements from the input test code.**
-**CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
-**Do NOT remove the `module_0.` prefix — that will cause NameError.**
-
-**Your Task:**
-Analyze the method's documentation and add appropriate assertions to verify its behavior.
-
-**Critical Rules:**
-
-1. **Understand the Method's Contract from Documentation:**
-   - Read the docstring carefully to understand what the method returns
-   - Identify the return type (string, int, dict, list, bool, etc.)
-   - Note any special behaviors or edge cases mentioned
-
-2. **Handling Expected Exceptions (Negative Testing):**
-
-   **CRITICAL: Analyze the test inputs to determine
-   if the test is a NEGATIVE test
-   (expects failure).**
-
-   **Indicators of Negative Tests:**
-   - Variable names containing: `invalid_`, `none_`, `negative_`, `bad_`, `wrong_`, `empty_`
-   - Values that are clearly invalid: `None`, `-1`
-     (when positive expected), empty strings,
-     mismatched types
-   - Multiple `None` values passed as arguments
-   - Type mismatches (e.g., passing string where int expected, or boolean where number expected)
-
-   **For Negative Tests (expecting exceptions):**
-   ```python
-   # Use pytest.raises() context manager for negative tests
-   with pytest.raises(Exception):
-       method_under_test(invalid_input)
-   ```
-
-   **For Positive Tests (expecting success):**
-   - Remove try/except blocks entirely
-   - Add proper assertions for the return value
-   - Verify the method completes successfully
-
-3. **Generate Appropriate Assertions Based on Return Type:**
-
-   **IMPORTANT: Be conservative with assertions.
-   Only assert what you can confidently verify
-   from the documentation.**
-
-   **For STRING returns:**
-   ```python
-   assert isinstance(result, str), "Should return a string"
-   assert len(result) > 0
-   ```
-
-   **For INTEGER/FLOAT returns:**
-   ```python
-   assert isinstance(result, int), "Should return an integer"
-   ```
-
-   **For BOOLEAN returns:**
-   ```python
-   assert isinstance(result, bool), "Should return a boolean"
-   ```
-
-   **For DICT/LIST returns:**
-   ```python
-   assert isinstance(result, dict)
-   assert len(result) > 0
-   ```
-
-4. **For the focal method '{focal_method}':**
-   - Look at each call to this method in the test
-   - Determine if it's a positive or negative test based on inputs
-   - For positive tests: Store result and add assertions
-   - For negative tests: Wrap in pytest.raises()
-
-5. **Preserve ALL existing code and AAA Structure:**
-   - Keep the # Arrange section unchanged
-   - Keep the # Act section unchanged (unless converting try/except to pytest.raises)
-   - Keep variable names unchanged
-   - Only add/modify assertions in the # Assert section
-   - Never remove the AAA comment markers
-
-**Example Transformation for POSITIVE Test:**
-
-BEFORE:
-```python
-def test_triangle_valid():
-    # Arrange
-    side_a = 5
-    side_b = 5
-    side_c = 5
-
-    # Act
-    try:
-        module_0.triangle(side_a, side_b, side_c)
-    except Exception:
-        pytest.fail("Unexpected exception")
-```
-
-AFTER:
-```python
-def test_triangle_valid():
-    # Arrange
-    side_a = 5
-    side_b = 5
-    side_c = 5
-
-    # Act
-    result = module_0.triangle(side_a, side_b, side_c)
-
-    # Assert
-    assert isinstance(result, str)
-    assert len(result) > 0
-```
-
-**Example Transformation for NEGATIVE Test:**
-
-BEFORE:
-```python
-def test_triangle_invalid():
-    # Arrange
-    invalid_side = None
-    another_invalid = None
-
-    # Act
-    try:
-        module_0.triangle(invalid_side, invalid_side, another_invalid)
-    except Exception:
-        pytest.fail("Unexpected exception")
-```
-
-AFTER:
-```python
-def test_triangle_invalid():
-    # Arrange
-    invalid_side = None
-    another_invalid = None
-
-    # Act & Assert
-    with pytest.raises(Exception):
-        module_0.triangle(invalid_side, invalid_side, another_invalid)
-```
-
-**Output Format:**
-Return the complete test function with ALL import statements and ALL original code preserved.
-Start with import statements, then the test function.
-ONLY modify the Act/Assert sections to add proper assertions or pytest.raises() blocks.
-Do NOT change function names, variable names, or the Arrange section.
-Do NOT add inline comments or docstring with assertion explanations.
-No explanations, no markdown code blocks."""
-
+        prompt_obj = SemanticAssertionsPrompt(
+            sut_context=sut_context,
+            focal_method=focal_method,
+            test_code=test_code,
+        )
         try:
-            improved_code = self.llm_client.generate_code(prompt)
+            improved_code = self.llm_client.generate_from_prompt(prompt_obj)
 
             # Verify imports are preserved - if not, fallback to original
             if "import" not in improved_code:
@@ -636,39 +457,14 @@ No explanations, no markdown code blocks."""
         Returns:
             str: The repaired test code
         """
-        prompt = f"""You are a Python test repair expert. A test has failed and needs to be fixed.
-
-**Broken Test Code:**
-```python
-{broken_code}
-```
-
-**Error Traceback:**
-```
-{error_message}
-```
-
-**Your Task:**
-Fix the test code to resolve the error. Common fixes include:
-1. **Syntax Errors:** Fix indentation, parentheses, quotes, or invalid syntax
-2. **Import Errors:** Add missing imports (e.g., `import pytest`, `from module import ...`)
-3. **Name Errors:** Fix undefined variables or incorrect variable names
-4. **Assertion Errors:** Replace vacuous assertions (e.g., `pytest.fail()`) with meaningful checks
-5. **Type Errors:** Ensure correct types are passed to functions
-
-**Requirements:**
-- Output ONLY the corrected Python test function code
-- Keep the same test function name
-- Preserve the test's intent and behavior
-- Fix ONLY what's broken - don't change working parts
-- Preserve ALL module prefixes (e.g., `module_0.func()`) — do NOT convert to bare `func()` calls
-- Do NOT include explanations, just the fixed code
-
-**Corrected Test Code:**
-```python"""
-
+        prompt_obj = RepairPrompt(
+            broken_code=broken_code,
+            error_message=error_message,
+            dependencies=self.current_dependencies,
+            usage_examples=self.current_usage_examples,
+        )
         try:
-            return self.llm_client.generate_code(prompt)
+            return self.llm_client.generate_from_prompt(prompt_obj)
         except Exception:  # noqa: BLE001
             return broken_code  # Return original if repair fails
 
@@ -708,7 +504,104 @@ Fix the test code to resolve the error. Common fixes include:
         except Exception as e:  # noqa: BLE001
             mutation_stats = {"error": str(e)}
 
+        ref_config = config.configuration.llm_refinement
+        if ref_config.enable_mutation_strengthening:
+            current_code = self._run_mutation_strengthening_loop(
+                current_code=current_code,
+                original_code=original_code,
+                focal_method=focal_method,
+                max_iterations=ref_config.max_mutation_iterations,
+            )
+
         return current_code, mutation_stats, None
+
+    def _run_mutation_strengthening_loop(  # noqa: C901
+        self,
+        current_code: str,
+        original_code: str,
+        focal_method: str,
+        max_iterations: int,
+    ) -> str:
+        """Strengthen assertions by prompting LLM with surviving mutants.
+
+        Args:
+            current_code: The current test code with semantic assertions.
+            original_code: The original Pynguin test code.
+            focal_method: Name of the focal method.
+            max_iterations: Maximum number of mutation strengthening iterations.
+
+        Returns:
+            The strengthened test code.
+        """
+        for _ in range(max_iterations):
+            # 1. Run mutation analysis to get surviving mutants
+            survivors = get_surviving_mutants(
+                test_code=current_code,
+                module_under_test=self.module_under_test,
+                max_mutants=10,
+            )
+            if not survivors:
+                break  # No surviving mutants! Perfect.
+
+            # 2. Format surviving mutants for the prompt
+            formatted_mutants = []
+            for idx, (_mutant_module, mutations) in enumerate(survivors, 1):
+                mut_details = []
+                for m in mutations:
+                    mut_op = m.operator.__name__
+                    try:
+                        original_source = ast.unparse(m.node).strip()
+                        mutated_source = ast.unparse(m.replacement_node).strip()
+                    except Exception:  # noqa: BLE001
+                        original_source = "unknown"
+                        mutated_source = "unknown"
+                    lineno = getattr(m.node, "lineno", "unknown")
+                    mut_details.append(
+                        f"Line {lineno}: Mutated '{original_source}' to "
+                        f"'{mutated_source}' (operator: {mut_op})"
+                    )
+                formatted_mutants.append(f"{idx}. " + " | ".join(mut_details))
+
+            survivors_str = "\n".join(formatted_mutants)
+
+            # Retrieve SUT module source code
+            try:
+                module_source = inspect.getsource(self.module_under_test)
+            except Exception:  # noqa: BLE001
+                module_source = "Source code unavailable."
+
+            # 3. Create the MutationStrengthenPrompt
+            prompt_obj = MutationStrengthenPrompt(
+                module_code=module_source,
+                test_code=current_code,
+                surviving_mutants=survivors_str,
+                focal_method=focal_method,
+            )
+
+            # 4. Generate strengthened test code
+            try:
+                strengthened = self.llm_client.generate_from_prompt(prompt_obj)
+                if strengthened and not strengthened.startswith(LLM_ERROR_PREFIX):
+                    # Check that it compiles
+                    ast.parse(strengthened)
+                    # Verify imports are preserved
+                    if "import" in strengthened:
+                        # Restore imports
+                        strengthened = _restore_import_block(strengthened, original_code)
+                        # Check coverage preservation (never drop coverage!)
+                        coverage_passed, _ = check_coverage_preservation(
+                            original_test=original_code,
+                            refined_test=strengthened,
+                            module_under_test=self.module_under_test,
+                            tolerance=0.0,
+                            subject_properties=self.subject_properties,
+                        )
+                        if coverage_passed:
+                            current_code = strengthened
+            except Exception:  # noqa: BLE001, S110
+                pass  # Ignore failures, continue with previous best current_code
+
+        return current_code
 
     def _apply_aaa_markers(self, current_code: str) -> str:
         """Insert AAA markers (best-effort), keeping them only if the test still passes."""

@@ -17,7 +17,12 @@ def test_testcasegenerationprompt_init():
     assert prompt.module_code == "def foo():\n    pass"
     assert prompt.module_path == "example/path.py"
     assert prompt._resource_name == "test_case_generation"
-    assert prompt._template_vars() == ["module_code", "module_path"]
+    assert prompt._template_vars() == [
+        "module_code",
+        "module_path",
+        "dependencies",
+        "usage_examples",
+    ]
 
 
 def test_testcasegenerationprompt_build_prompt():
@@ -31,7 +36,12 @@ def test_testcasegenerationprompt_build_prompt():
 
 def test_testcasegenerationprompt_render():
     prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
-    rendered = prompt.render(module_code="def foo():\n    pass", module_path="example/path.py")
+    rendered = prompt.render(
+        module_code="def foo():\n    pass",
+        module_path="example/path.py",
+        dependencies="",
+        usage_examples="",
+    )
 
     assert isinstance(rendered, RenderedRequest)
     assert len(rendered.messages) == 2
@@ -50,7 +60,12 @@ def test_prompt_parameter_overrides(monkeypatch):
     prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "gpt-4o-mini")
 
-    rendered = prompt.render(module_code="def foo():\n    pass", module_path="example/path.py")
+    rendered = prompt.render(
+        module_code="def foo():\n    pass",
+        module_path="example/path.py",
+        dependencies="",
+        usage_examples="",
+    )
     assert rendered.model == "gpt-4o-mini"
     assert rendered.temperature == 0.0
     assert rendered.max_tokens is None

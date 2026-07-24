@@ -1018,6 +1018,24 @@ class LLMRefinementConfiguration:
     save_refined: bool = True
     """Save the refined test file with _refined suffix."""
 
+    enable_dependency_context: bool = False
+    """Enable retrieving dependent class/method signatures to include in prompt context."""
+
+    enable_usage_examples: bool = False
+    """Enable retrieving usage examples from the codebase to include in prompt context."""
+
+    max_dependencies: int = 10
+    """Maximum number of dependencies to collect context for."""
+
+    max_usage_examples: int = 3
+    """Maximum number of usage examples to collect context for."""
+
+    enable_mutation_strengthening: bool = False
+    """Enable mutation-driven assertion strengthening."""
+
+    max_mutation_iterations: int = 3
+    """Maximum iterations for mutation-driven assertion strengthening."""
+
 
 @dataclasses.dataclass
 class Configuration:

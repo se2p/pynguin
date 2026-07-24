@@ -1,0 +1,79 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: 2000
+user_message_template: |
+  You are refactoring a Python unit test
+  to improve readability while preserving its exact behavior.
+
+  **Method Documentation:**
+  {{ sut_context }}
+
+  **Current Test:**
+  ```python
+  {{ test_code }}
+  ```
+
+  **Task:** Refactor this test following the Arrange-Act-Assert (AAA) pattern.
+
+  **CRITICAL - Preserve ALL import statements exactly as they appear in the original test.**
+  **CRITICAL - Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+  **The test uses `import ... as module_0` style imports, and ALL SUT function/method calls**
+  **MUST keep the `module_0.` prefix. Do NOT convert `module_0.func()` to bare `func()`**
+  **— that will cause NameError.**
+
+  **Requirements:**
+  1. **Test Function Name:** Rename the test function
+     to be descriptive of what it tests.If multiple
+     tests exist, ensure each has a distinct name
+     (e.g., test_equilateral_triangle,
+     test_isosceles_with_negative,
+     test_scalene_with_bytes)".
+     - Use pattern: test_<behavior_being_tested>
+     - Example: test_case_0() → test_triangle_with_equal_sides()
+     - Example: test_case_1() → test_basket_adds_item_successfully()
+
+  2. **Semantic Naming:** Rename generic variables
+     (bool_0, int_0, str_0) to meaningful names
+     based on the method's purpose
+     - Study the docstring to understand what the method does
+     - Choose names that reflect the test scenario (e.g., equal_sides, different_sides, invalid_input)
+
+  3. **AAA Structure:** CRITICAL - Preserve the
+     Arrange-Act-Assert structure with clear
+     section markers:
+     ```python
+     # Arrange
+     # ... setup code ...
+
+     # Act
+     # ... call to focal method: {{ focal_method }} ...
+
+     # Assert
+     # ... verification code ...
+     ```
+     - Each section must be clearly marked with its comment (# Arrange, # Act, # Assert)
+     - Do NOT skip sections even if they are empty
+     - Maintain logical separation between setup, execution, and verification
+
+  4. **Preserve Behavior:** Keep the exact same logic, assertions, and control flow. Do NOT:
+     - Change assertion conditions
+     - Add new assertions
+     - Remove existing code
+     - Modify try/except blocks
+
+  5. **Docstring:** Add a brief (1-2 line) docstring
+     explaining what this test verifies. Do NOT add
+     excessive comments within the test body.
+
+  **Output Format:**
+  Return the complete refactored test WITH ALL IMPORT STATEMENTS from the original test.
+  Include imports at the top, then the test function.
+  No explanations, no markdown formatting.
