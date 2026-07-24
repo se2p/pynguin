@@ -6,14 +6,71 @@
 #
 """Provide various crossover functions for genetic algorithms."""
 
+from __future__ import annotations
+
 from abc import abstractmethod
 from math import floor
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
+import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
+if TYPE_CHECKING:
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
+    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
+
 T = TypeVar("T", bound=chrom.Chromosome)
+
+
+def splice_test_case_chromosomes(
+    parent: TestCaseChromosome,
+    other: TestCaseChromosome,
+    position1: int,
+    position2: int,
+) -> None:
+    """Perform crossover on TestCaseChromosome.
+
+    Args:
+        parent: The parent chromosome to mutate in place
+        other: The other parent chromosome
+        position1: Crossover split point for parent
+        position2: Crossover split point for other
+    """
+    assert parent._test_factory is not None, "Crossover requires a test factory."  # noqa: SLF001
+
+    offspring_test_case = parent.test_case.clone()
+    # Keep only the first `position1` statements of this parent.
+    if offspring_test_case.size() > position1:
+        offspring_test_case.remove_statements_batch(
+            set(range(position1, offspring_test_case.size()))
+        )
+
+    offspring_test_case.append_test_case_from(other.test_case, position2)
+
+    if offspring_test_case.size() < config.configuration.search_algorithm.chromosome_length:
+        parent._test_case = offspring_test_case  # noqa: SLF001
+        parent.changed = True
+
+
+def splice_test_suite_chromosomes(
+    parent: TestSuiteChromosome,
+    other: TestSuiteChromosome,
+    position1: int,
+    position2: int,
+) -> None:
+    """Perform crossover on TestSuiteChromosome.
+
+    Args:
+        parent: The parent chromosome to mutate in place
+        other: The other parent chromosome
+        position1: Crossover split point for parent
+        position2: Crossover split point for other
+    """
+    parent.test_case_chromosomes = parent.test_case_chromosomes[:position1] + [
+        test.clone() for test in other.test_case_chromosomes[position2:]
+    ]
+    parent.changed = True
 
 
 class CrossOverFunction(Generic[T]):

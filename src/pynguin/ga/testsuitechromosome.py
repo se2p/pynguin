@@ -10,9 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
@@ -134,43 +132,14 @@ class TestSuiteChromosome(chrom.Chromosome):
         assert isinstance(other, TestSuiteChromosome), "Cannot perform crossover with " + str(
             type(other)
         )
+        from pynguin.ga.operators.crossover import splice_test_suite_chromosomes  # noqa: PLC0415
 
-        self.test_case_chromosomes = self.test_case_chromosomes[:position1] + [
-            test.clone() for test in other.test_case_chromosomes[position2:]
-        ]
-        self.changed = True
+        splice_test_suite_chromosomes(self, other, position1, position2)
 
-    def mutate(self) -> None:
-        """Apply mutation at test suite level."""
-        assert self.test_case_chromosome_factory is not None, (
-            "Mutation is not possibly without test case chromosome factory"
-        )
+    def mutate(self) -> None:  # noqa: D102
+        from pynguin.ga.operators.mutation import _TEST_SUITE_MUTATION  # noqa: PLC0415
 
-        changed = False
-
-        # Mutate existing test cases.
-        for test in self.test_case_chromosomes:
-            if randomness.next_float() < 1.0 / self.size():
-                test.mutate()
-                if test.changed:
-                    changed = True
-
-        # Randomly add new test cases.
-        alpha = config.configuration.search_algorithm.test_insertion_probability
-        exponent = 1
-        while (
-            randomness.next_float() <= pow(alpha, exponent)
-            and self.size() < config.configuration.test_creation.max_size
-        ):
-            self.add_test_case_chromosome(self.test_case_chromosome_factory.get_chromosome())
-            exponent += 1
-            changed = True
-
-        # Remove any tests that have no more statements left.
-        self.test_case_chromosomes = [t for t in self.test_case_chromosomes if t.size() > 0]
-
-        if changed:
-            self.changed = True
+        _TEST_SUITE_MUTATION.mutate(self)
 
     def accept(self, visitor: cv.ChromosomeVisitor) -> None:  # noqa: D102
         visitor.visit_test_suite_chromosome(self)

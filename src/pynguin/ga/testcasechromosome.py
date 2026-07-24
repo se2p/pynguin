@@ -10,10 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomevisitor as cv
@@ -89,168 +86,39 @@ class TestCaseChromosome(chrom.Chromosome):
         assert isinstance(other, TestCaseChromosome), "Cannot perform crossover with " + str(
             type(other)
         )
-        assert self._test_factory is not None, "Crossover requires a test factory."
+        from pynguin.ga.operators.crossover import splice_test_case_chromosomes  # noqa: PLC0415
 
-        offspring_test_case = self.test_case.clone()
-        # Keep only the first `position1` statements of this parent.
-        if offspring_test_case.size() > position1:
-            offspring_test_case.remove_statements_batch(
-                set(range(position1, offspring_test_case.size()))
-            )
-
-        offspring_test_case.append_test_case_from(other.test_case, position2)
-
-        if offspring_test_case.size() < config.configuration.search_algorithm.chromosome_length:
-            self._test_case = offspring_test_case
-            self.changed = True
+        splice_test_case_chromosomes(self, other, position1, position2)
 
     def mutate(self) -> None:  # noqa: D102
-        changed = False
+        from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415
 
-        if (
-            config.configuration.search_algorithm.chop_max_length
-            and self.size() >= config.configuration.search_algorithm.chromosome_length
-        ):
-            last_mutatable_position = self.get_last_mutatable_statement()
-            if last_mutatable_position is not None:
-                # Remove all statements after the last mutatable position.
-                self._test_case.remove_statements_batch(
-                    set(range(last_mutatable_position + 1, self._test_case.size()))
-                )
-                changed = True
-
-        # In case mutation removes all calls on the SUT.
-        backup = self.test_case.clone()
-
-        if (
-            randomness.next_float() <= config.configuration.search_algorithm.test_delete_probability
-            and self._mutation_delete()
-        ):
-            changed = True
-
-        if (
-            randomness.next_float() <= config.configuration.search_algorithm.test_change_probability
-            and self._mutation_change()
-        ):
-            changed = True
-
-        if (
-            randomness.next_float() <= config.configuration.search_algorithm.test_insert_probability
-            and self._mutation_insert()
-        ):
-            changed = True
-
-        assert self._test_factory, "Required for mutation"
-        if not self._test_factory.has_call_on_sut(self._test_case):
-            self._test_case = backup
-            self._mutation_insert()
-
-        if changed:
-            self.changed = True
-            self._num_mutations += 1
+        _TEST_CASE_MUTATION.mutate(self)
 
     def _mutation_delete(self) -> bool:
-        last_mutatable_statement = self.get_last_mutatable_statement()
-        if last_mutatable_statement is None:
-            return False
+        from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415
 
-        changed = False
-        p_per_statement = 1.0 / (last_mutatable_statement + 1)
-        for idx in reversed(range(last_mutatable_statement + 1)):
-            if idx >= self.size():
-                continue
-            if randomness.next_float() <= p_per_statement:
-                changed |= self._delete_statement(idx)
-        return changed
+        return _TEST_CASE_MUTATION._mutation_delete(self)  # noqa: SLF001
 
     def _delete_statement(self, idx: int) -> bool:
-        assert self._test_factory, "Mutation requires a test factory."
-        return self._test_factory.delete_statement_gracefully(self._test_case, idx)
+        from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415
+
+        return _TEST_CASE_MUTATION._delete_statement(self, idx)  # noqa: SLF001
 
     def _mutation_change(self) -> bool:
-        last_mutatable_statement = self.get_last_mutatable_statement()
-        if last_mutatable_statement is None:
-            return False
+        from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415
 
-        changed = False
-        p_per_statement = 1.0 / (last_mutatable_statement + 1.0)
-        position = 0
-        while position <= last_mutatable_statement and position < self.size():
-            if randomness.next_float() < p_per_statement:
-                statement = self._test_case.get_statement(position)
-                if statement.bound_variable is not None and self._mutate_statement(
-                    position, statement
-                ):
-                    changed = True
-            position += 1
-
-        return changed
+        return _TEST_CASE_MUTATION._mutation_change(self)  # noqa: SLF001
 
     def _mutate_statement(self, position: int, statement: tc.Statement) -> bool:
-        """Apply a single change mutation to the statement at *position*.
+        from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415
 
-        Args:
-            position: The index of the statement to mutate.
-            statement: The statement at *position*.
-
-        Returns:
-            Whether the statement was changed.
-        """
-        assert self._test_factory, "Mutation requires a test factory."
-        if (
-            randomness.next_float()
-            < config.configuration.search_algorithm.change_statement_type_probability
-            and self._test_factory.change_statement_type(self._test_case, position)
-        ):
-            # Replace the statement with one of a different type, keeping its
-            # bound variable (Evosuite change_statement_type). On failure, fall
-            # through to the regular value/call mutation below.
-            return True
-        if statement.accessible is None:
-            # Primitive statement: regenerate the literal value.
-            return self._test_factory.mutate_value(self._test_case, position)
-        if isinstance(statement.accessible, gao.GenericField):
-            # Field statement: swap the accessed field, else re-pick the receiver.
-            return self._test_factory.change_random_field_call(
-                self._test_case, position
-            ) or self._test_factory.mutate_call(self._test_case, position)
-        # Call statement: first try to regenerate argument values (mirrors the
-        # original statement.mutate() path), then fall back to replacing the
-        # call with a different one.
-        return self._test_factory.mutate_call(
-            self._test_case, position
-        ) or self._test_factory.change_random_call(self._test_case, position)
+        return _TEST_CASE_MUTATION._mutate_statement(self, position, statement)  # noqa: SLF001
 
     def _mutation_insert(self) -> bool:
-        """Insertion mutation operation.
+        from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415
 
-        With exponentially decreasing probability, insert statements at a random
-        position.
-
-        Returns:
-            Whether the test case was changed
-        """
-        changed = False
-        alpha = config.configuration.search_algorithm.statement_insertion_probability
-        exponent = 1
-        while (
-            randomness.next_float() <= pow(alpha, exponent)
-            and self.size() < config.configuration.search_algorithm.chromosome_length
-        ):
-            assert self._test_factory, "Mutation requires a test factory."
-            max_position = self.get_last_mutatable_statement()
-            if max_position is None:
-                # No mutatable statement found, so start at the first position.
-                max_position = 0
-            else:
-                # Also include the position after the last mutatable statement.
-                max_position += 1
-
-            position = self._test_factory.insert_random_statement(self._test_case, max_position)
-            exponent += 1
-            if 0 <= position < self.size():
-                changed = True
-        return changed
+        return _TEST_CASE_MUTATION._mutation_insert(self)  # noqa: SLF001
 
     def get_last_mutatable_statement(self) -> int | None:
         """Provides the index of the last mutatable statement of the wrapped test case.
