@@ -14,6 +14,26 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 from pynguin.utils.orderedset import OrderedSet
 
+
+def compare(fitness_1: float, fitness_2: float) -> int:
+    """Compare the two specified values.
+
+    Args:
+        fitness_1: The first value to compare
+        fitness_2: The second value to compare
+
+    Returns:
+        the value 0 if fitness_1 is equal to fitness_2; a value less than 0 if
+        fitness_1 is less than fitness_2; and a value greater than 0 if fitness_1 is
+        greater than fitness_2
+    """
+    if fitness_1 < fitness_2:
+        return -1
+    if fitness_1 > fitness_2:
+        return 1
+    return 0
+
+
 C = TypeVar("C", bound=chrom.Chromosome)
 
 
@@ -70,7 +90,7 @@ class DominanceComparator(Generic[C]):
             self._objectives = OrderedSet(chromosome_1.get_fitness_functions())
 
         for objective in self._objectives:
-            flag = ff.compare(
+            flag = compare(
                 chromosome_1.get_fitness_for(objective),
                 chromosome_2.get_fitness_for(objective),
             )
