@@ -62,8 +62,6 @@ rich = "^14.0.0"
 Pygments = "^2.19.2"
 pytest = "^8.3.5"
 simple-parsing = "^0.1.7"
-typing_inspect = "^0.9.0"
-asciitree = "^0.3.3"
 libcst = "^1.7.0"
 setuptools = "^80.9.0"
 toml = "^0.10.2"
@@ -76,7 +74,6 @@ mypy = { version = "^1.15.0", optional = true }
 typing-extensions = { version = "^4.12.2", optional = true }
 faker = { version = "^37.3.0", optional = true }
 fandango-fuzzer = { version = "^0.8.2", optional = true }
-xmltodict = { version = "^0.14.2", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.15.0"
@@ -105,7 +102,7 @@ pytest-xdist = "^3.6.0"
 openai = [ "openai", "python-dotenv" ]
 numpy = [ "numpy" ]
 typing = [ "mypy", "typing-extensions" ]
-fandango-faker = [ "faker", "fandango-fuzzer", "xmltodict" ]
+fandango-faker = [ "faker", "fandango-fuzzer" ]
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"

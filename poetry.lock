@@ -86,17 +86,6 @@ typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 trio = ["trio (>=0.31.0)"]
 
 [[package]]
-name = "asciitree"
-version = "0.3.3"
-description = "Draws ASCII trees."
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "asciitree-0.3.3.tar.gz", hash = "sha256:4aa4b9b649f85e3fcb343363d97564aa1fb62e249677f2e18a96765145cc0f6e"},
-]
-
-[[package]]
 name = "astroid"
 version = "4.0.1"
 description = "An abstract syntax tree for Python with inference support."
@@ -2777,22 +2766,6 @@ files = [
 markers = {test = "python_version == \"3.10\" or extra == \"typing\""}
 
 [[package]]
-name = "typing-inspect"
-version = "0.9.0"
-description = "Runtime inspection utilities for typing module."
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "typing_inspect-0.9.0-py3-none-any.whl", hash = "sha256:9ee6fc59062311ef8547596ab6b955e1b8aa46242d854bfc78f4f6b0eff35f9f"},
-    {file = "typing_inspect-0.9.0.tar.gz", hash = "sha256:b23fc42ff6f6ef6954e4852c1fb512cdd18dbea03134f91f856a95ccc9461f78"},
-]
-
-[package.dependencies]
-mypy-extensions = ">=0.3.0"
-typing-extensions = ">=3.7.4"
-
-[[package]]
 name = "typing-inspection"
 version = "0.4.2"
 description = "Runtime typing introspection tools"
@@ -2874,21 +2847,8 @@ files = [
     {file = "xdg_base_dirs-6.0.2.tar.gz", hash = "sha256:950504e14d27cf3c9cb37744680a43bf0ac42efefc4ef4acf98dc736cab2bced"},
 ]
 
-[[package]]
-name = "xmltodict"
-version = "0.14.2"
-description = "Makes working with XML feel like you are working with JSON"
-optional = true
-python-versions = ">=3.6"
-groups = ["main"]
-markers = "extra == \"fandango-faker\""
-files = [
-    {file = "xmltodict-0.14.2-py2.py3-none-any.whl", hash = "sha256:20cc7d723ed729276e808f26fb6b3599f786cbc37e06c65e192ba77c40f20aac"},
-    {file = "xmltodict-0.14.2.tar.gz", hash = "sha256:201e7c28bb210e374999d1dde6382923ab0ed1a8a5faeece48ab525b7810a553"},
-]
-
 [extras]
-fandango-faker = ["faker", "fandango-fuzzer", "xmltodict"]
+fandango-faker = ["faker", "fandango-fuzzer"]
 numpy = ["numpy"]
 openai = ["openai", "python-dotenv"]
 typing = ["mypy", "typing-extensions"]
@@ -2896,4 +2856,4 @@ typing = ["mypy", "typing-extensions"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.15"
-content-hash = "5b4591c5bd6eda5d5374866c559a640405633a9be47ef560f602c617c9554a80"
+content-hash = "0ef9a8783a4dfa77141f1d47512d925c82da1ea4e39cc680b4f532bbeda2cd5a"

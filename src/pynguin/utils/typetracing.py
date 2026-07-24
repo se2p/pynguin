@@ -24,12 +24,43 @@ import logging
 import operator
 from collections import defaultdict
 
-from asciitree import BoxStyle, LeftAligned
-from asciitree.drawing import BOX_LIGHT
-
 from pynguin.utils.orderedset import OrderedSet, OrderedTypeSet
 
 LOGGER = logging.getLogger(__name__)
+
+# Light box-drawing glyphs used to render the usage-trace tree. These reproduce
+# the output of the (unmaintained) ``asciitree`` library that Pynguin used to
+# depend on, configured as ``BoxStyle(gfx=BOX_LIGHT, label_space=0,
+# label_format="[{}]", indent=0)`` -- the only way it was ever used here.
+_TREE_VERTICAL_AND_RIGHT = "├"
+_TREE_UP_AND_RIGHT = "└"
+_TREE_HORIZONTAL = "─"
+_TREE_VERTICAL = "│"
+
+
+def _render_usage_tree(label: str, children: dict[str, dict]) -> list[str]:
+    """Render a nested ``{label: children}`` tree into left-aligned ASCII lines.
+
+    Args:
+        label: The label of the current node.
+        children: The node's children, keyed by their own labels.
+
+    Returns:
+        The rendered lines for this node and its subtree.
+    """
+    lines = [f"[{label}]"]
+    items = list(children.items())
+    for index, (child_label, child_children) in enumerate(items):
+        subtree = _render_usage_tree(child_label, child_children)
+        head = subtree.pop(0)
+        if index == len(items) - 1:
+            lines.append(_TREE_UP_AND_RIGHT + _TREE_HORIZONTAL * 2 + head)
+            lines.extend("   " + line for line in subtree)
+        else:
+            lines.append(_TREE_VERTICAL_AND_RIGHT + _TREE_HORIZONTAL * 2 + head)
+            lines.extend(_TREE_VERTICAL + "  " + line for line in subtree)
+    return lines
+
 
 # Max depth for proxies. Afterwards we don't wrap values anymore.
 _MAX_PROXY_NESTING = 5
@@ -91,10 +122,7 @@ class UsageTraceNode:
         Returns:
             A nicely formatted string
         """
-        tree = LeftAligned(
-            draw=BoxStyle(gfx=BOX_LIGHT, label_space=0, label_format="[{}]", indent=0)
-        )
-        return tree({self._format_str(): self._format_children()})
+        return "\n".join(_render_usage_tree(self._format_str(), self._format_children()))
 
     def __len__(self) -> int:
         """Yield the length of a usage-trace node.

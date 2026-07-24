@@ -32,7 +32,6 @@ from typing import (  # type: ignore[attr-defined]
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
-from typing_inspect import is_union_type
 
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
@@ -2046,7 +2045,7 @@ class TypeSystem:  # noqa: PLR0904
             if not args:
                 return TupleType((ANY,), unknown_size=True)
             return TupleType(args)
-        if is_union_type(hint) or isinstance(hint, types.UnionType):
+        if get_origin(hint) is typing.Union or isinstance(hint, types.UnionType):
             # Type is `int | str` or `typing.Union[int, str]`
             # TODO(fk) don't make a union including Any.
             return UnionType(
