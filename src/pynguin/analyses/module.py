@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import abc
+import ast
 import builtins
 import dataclasses
 import enum
@@ -22,6 +23,7 @@ import queue
 import re
 import types
 import typing
+from ast import Assign, AsyncFunctionDef, ClassDef, FunctionDef, Lambda, Module
 from collections import defaultdict
 from pathlib import Path
 from types import (
@@ -34,12 +36,10 @@ from types import (
 )
 from typing import Any
 
-import astroid
-from astroid.nodes import Assign, AsyncFunctionDef, ClassDef, FunctionDef, Lambda, Module
-
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
+from pynguin.analyses.ast_utils import instance_attributes
 from pynguin.analyses.type_inference import (
     ANY_STR,
     HintInference,
@@ -58,7 +58,6 @@ from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvide
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
     FunctionDescription,
-    astroid_to_ast,
     get_class_node_from_ast,
     get_function_description,
     get_function_node_from_ast,
@@ -108,7 +107,7 @@ if typing.TYPE_CHECKING:
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
-AstroidFunctionDef: typing.TypeAlias = AsyncFunctionDef | FunctionDef
+ASTFunctionDef: typing.TypeAlias = AsyncFunctionDef | FunctionDef
 
 LOGGER = logging.getLogger(__name__)
 
@@ -487,22 +486,21 @@ def import_module(module_name: str) -> ModuleType:
         return submodule
 
 
-def read_module_ast(module_path: str, module_name: str) -> tuple[Module, str]:
+def read_module_ast(module_path: str) -> tuple[Module, str]:
     """Reads the AST of the module and returns it along with its source code.
 
     Args:
         module_path: The path of the module.
-        module_name: The name of the module.
 
     Raises:
         OSError: if the module file cannot be read.
-        AstroidError: if an error occurs during the creation of the AST.
+        SyntaxError: if an error occurs during the creation of the AST.
 
     Returns:
         A tuple containing the AST and the source code.
     """
     source_code = Path(module_path).read_text(encoding="utf-8")
-    syntax_tree = astroid.parse(code=source_code, module_name=module_name, path=module_path)
+    syntax_tree = ast.parse(source_code, filename=module_path)
     return syntax_tree, source_code
 
 
@@ -526,12 +524,12 @@ def parse_module(module_name: str) -> _ModuleParseResult:
     try:
         module_path = inspect.getsourcefile(module)
         assert module_path is not None, f"Could not determine the path of module {module}"
-        syntax_tree, source_code = read_module_ast(module_path, module_name)
+        syntax_tree, source_code = read_module_ast(module_path)
     except (
         TypeError,  # from `inspect.getsourcefile`
         AssertionError,  # from `assert`
         OSError,
-        astroid.AstroidError,
+        SyntaxError,
     ) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
@@ -1289,11 +1287,11 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
         return self.__delegate.select_concrete_type(typ)
 
 
-def __get_mccabe_complexity(tree: AstroidFunctionDef | None) -> int | None:
+def __get_mccabe_complexity(tree: ASTFunctionDef | None) -> int | None:
     if tree is None:
         return None
     try:
-        return mccabe_complexity(astroid_to_ast(tree))
+        return mccabe_complexity(tree)
     except SyntaxError:
         return None
 
@@ -1379,7 +1377,7 @@ class CallableData:
     """
 
     accessible: GenericAccessibleObject
-    tree: AstroidFunctionDef | None
+    tree: ASTFunctionDef | None
     description: FunctionDescription | None
     cyclomatic_complexity: int | None
 
@@ -1409,11 +1407,11 @@ def _get_lambda_assigned_name(module_tree, lambda_lineno) -> str | None:
         if isinstance(node, Assign) and len(node.targets) == 1:
             target = node.targets[0]
             if (
-                hasattr(target, "name")
+                isinstance(target, ast.Name)
                 and isinstance(node.value, Lambda)
                 and node.value.lineno == lambda_lineno
             ):
-                return target.name
+                return target.id
     return None
 
 
@@ -1470,7 +1468,7 @@ def __analyse_function(
 
         try:
             parameters, generation_order = tr.load_and_process_constraints(
-                module_tree.name, func_name, list(inferred_signature.original_parameters.keys())
+                func.__module__, func_name, list(inferred_signature.original_parameters.keys())
             )
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
@@ -1667,7 +1665,7 @@ def __add_symbols(class_ast: ClassDef | None, type_info: TypeInfo) -> None:
         type_info: The type info.
     """
     if class_ast is not None:
-        type_info.instance_attributes.update(tuple(class_ast.instance_attrs))
+        type_info.instance_attributes.update(instance_attributes(class_ast))
     type_info.attributes.update(type_info.instance_attributes)
     type_info.attributes.update(tuple(vars(type_info.raw_type)))
     type_info.attributes.difference_update(IGNORED_SYMBOLS)

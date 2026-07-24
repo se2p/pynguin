@@ -19,15 +19,10 @@ import logging
 from collections import deque
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from astroid.nodes import AsyncFunctionDef, ClassDef, FunctionDef, Module
-from astroid.nodes.as_string import to_code
-
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-
 _LOGGER = logging.getLogger(__name__)
-AstroidFunctionDef: TypeAlias = AsyncFunctionDef | FunctionDef
 ASTFunctionDef: TypeAlias = ast.AsyncFunctionDef | ast.FunctionDef
 
 
@@ -452,7 +447,7 @@ class FunctionDescription:
     """
 
     end_line_no: int
-    func: AstroidFunctionDef
+    func: ASTFunctionDef
     has_empty_return: bool
     has_return: bool
     has_yield: bool
@@ -462,24 +457,34 @@ class FunctionDescription:
     start_line_no: int
 
 
-def astroid_to_ast(astroid_in: AstroidFunctionDef) -> ASTFunctionDef:
-    """Some part of the analysis only works with Pythons AST (for now).
+def _nested_statements(node: ast.AST) -> list[ast.AST]:
+    """Statements nested directly in ``node`` that do not open a new scope.
 
-    So it is necessary to convert astroid to AST.
+    This mirrors astroid's ``.locals``: a ``def``/``class`` defined inside a
+    flow-control block (``if``/``for``/``while``/``try``/``with``/``match``, and
+    their ``async`` variants) belongs to the enclosing scope, so we descend into
+    those blocks but never into nested function/class bodies.
 
     Args:
-        astroid_in: The astroid function def
+        node: The AST node to inspect.
 
     Returns:
-        The ast function def
+        The nested statements to continue the search in.
     """
-    # TODO(fk) port all of the analysis to astroid so this is no longer necessary.
-    return ast.parse(to_code(astroid_in)).body[0]  # type: ignore[return-value]
+    if isinstance(node, (ast.If, ast.For, ast.AsyncFor, ast.While)):
+        return [*node.body, *node.orelse]
+    if isinstance(node, (ast.With, ast.AsyncWith, ast.ExceptHandler)):
+        return list(node.body)
+    if isinstance(node, ast.Try):
+        return [*node.body, *node.handlers, *node.orelse, *node.finalbody]
+    if isinstance(node, ast.Match):
+        return [stmt for case in node.cases for stmt in case.body]
+    return []
 
 
 def get_function_node_from_ast(
-    tree: Module | ClassDef | None, name: str
-) -> AstroidFunctionDef | None:
+    tree: ast.Module | ast.ClassDef | None, name: str
+) -> ASTFunctionDef | None:
     """Get the AST Node that represents the function with the given name.
 
     Args:
@@ -491,15 +496,16 @@ def get_function_node_from_ast(
     """
     if tree is None:
         return None
-    if name not in tree.locals:
-        return None
-    maybe_function = tree.locals[name][0]
-    if isinstance(maybe_function, FunctionDef | AsyncFunctionDef):
-        return maybe_function
+    queue: list[ast.AST] = list(tree.body)
+    while queue:
+        node = queue.pop(0)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return node
+        queue.extend(_nested_statements(node))
     return None
 
 
-def get_class_node_from_ast(tree: Module | None, name: str) -> ClassDef | None:
+def get_class_node_from_ast(tree: ast.Module | None, name: str) -> ast.ClassDef | None:
     """Get the AST Node that represents the class with the given name.
 
     Args:
@@ -511,16 +517,17 @@ def get_class_node_from_ast(tree: Module | None, name: str) -> ClassDef | None:
     """
     if tree is None:
         return None
-    if name not in tree.locals:
-        return None
-    maybe_class = tree.locals[name][0]
-    if isinstance(maybe_class, ClassDef):
-        return maybe_class
+    queue: list[ast.AST] = list(tree.body)
+    while queue:
+        node = queue.pop(0)
+        if isinstance(node, ast.ClassDef) and node.name == name:
+            return node
+        queue.extend(_nested_statements(node))
     return None
 
 
 def get_function_description(
-    func: AstroidFunctionDef | None,
+    func: ASTFunctionDef | None,
 ) -> FunctionDescription | None:
     """Get a description of the given function, if any.
 
@@ -535,7 +542,7 @@ def get_function_description(
 
     function_analysis = FunctionAnalysisVisitor()
     try:
-        function_analysis.visit(astroid_to_ast(func))
+        function_analysis.visit(func)
     except SyntaxError:
         _LOGGER.debug("Analysis of %s failed", func.name)
         return None
@@ -547,7 +554,7 @@ def get_function_description(
         has_empty_return = return_value is not None and return_value.value is None
 
     return FunctionDescription(
-        end_line_no=func.tolineno,
+        end_line_no=func.end_lineno or func.lineno,
         func=func,
         has_empty_return=has_empty_return,
         has_return=has_return,
@@ -555,5 +562,5 @@ def get_function_description(
         name=func.name,
         raises=function_analysis.exceptions,
         raises_assert=bool(function_analysis.asserts),
-        start_line_no=func.fromlineno,
+        start_line_no=func.lineno,
     )

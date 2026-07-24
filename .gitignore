@@ -124,6 +124,7 @@ sample/
 # AI agent working directories
 .sisyphus/
 .omc/
+.omo/
 DIFF.md
 *.code-workspace
 .claude/

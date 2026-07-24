@@ -16,14 +16,11 @@ import importlib
 import inspect
 import logging
 
-import astroid
 import pytest
-from astroid.nodes import Module
 
 from pynguin.analyses import syntaxtree
 from pynguin.analyses.syntaxtree import (
     FunctionAnalysisVisitor,
-    astroid_to_ast,
     get_class_node_from_ast,
     get_function_description,
     get_function_node_from_ast,
@@ -32,9 +29,9 @@ from pynguin.analyses.syntaxtree import (
 
 
 @pytest.fixture(scope="module")
-def comments_tree() -> Module:
+def comments_tree() -> ast.Module:
     module = importlib.import_module("tests.fixtures.cluster.comments")
-    return astroid.parse(inspect.getsource(module), path="comments.py")
+    return ast.parse(inspect.getsource(module), filename="comments.py")
 
 
 @pytest.fixture
@@ -43,7 +40,7 @@ def function_analysis() -> FunctionAnalysisVisitor:
 
 
 def __parse_ast(code: str) -> ast.Module:
-    return ast.parse(code, filename="dummy.py", type_comments=True, feature_version=(3, 8))
+    return ast.parse(code)
 
 
 @pytest.mark.parametrize(
@@ -55,7 +52,7 @@ def __parse_ast(code: str) -> ast.Module:
 )
 def test__has_decorator(comments_tree, decorators, expected):
     public_function = get_function_node_from_ast(comments_tree, "public_function")
-    assert has_decorator(astroid_to_ast(public_function), decorators) == expected
+    assert has_decorator(public_function, decorators) == expected
 
 
 @pytest.mark.parametrize(
@@ -89,7 +86,7 @@ def test_get_method_description(comments_tree, function):
 
 
 def test_get_function_description_nested():
-    module = astroid.parse(
+    module = ast.parse(
         """
 def foo():
     def bar():

@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import ast
 import importlib.util
 from pathlib import Path
 
@@ -45,7 +46,6 @@ def test_ast_info_from_covered_function(scope_line, expected_should_be_covered):
     module_name = "tests.fixtures.instrumentation.covered_functions"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
@@ -71,7 +71,6 @@ def test_ast_info_from_covered_function_no_cover(scope_line, expected_should_be_
     module_name = "tests.fixtures.instrumentation.covered_functions"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(
             no_cover=["covered"],
             enable_inline_pragma_no_cover=False,
@@ -101,7 +100,6 @@ def test_ast_info_from_covered_function_only_cover(scope_line, expected_should_b
     module_name = "tests.fixtures.instrumentation.covered_functions"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(
             only_cover=["not_covered1"],
             enable_inline_pragma_no_cover=False,
@@ -130,7 +128,6 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
     module_name = "tests.fixtures.instrumentation.covered_classes"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
@@ -213,7 +210,6 @@ def test_ast_info_from_covered_branches(scope_line, expected_lines, expected_bra
     module_name = "tests.fixtures.instrumentation.covered_branches"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
@@ -277,7 +273,6 @@ def test_ast_info_from_covered_lines(scope_line, expected_lines):
     module_name = "tests.fixtures.instrumentation.covered_lines"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
@@ -297,7 +292,6 @@ def test_ast_info_from_invalid():
     module_name = "tests.fixtures.test"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name, ".conf"),
-        module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
@@ -387,7 +381,6 @@ def test_ast_info_excluded_blocks(config, expected_no_cover_lines):
     module_name = "tests.fixtures.instrumentation.excluded_blocks"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=config,
     )
 
@@ -400,7 +393,6 @@ def test_ast_info_excluded_blocks_all_patterns():
     module_name = "tests.fixtures.instrumentation.excluded_blocks"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
-        module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
@@ -466,3 +458,34 @@ def test_ast_info_excluded_blocks_all_patterns():
     assert 65 in module_ast_info.no_cover_lines  # if typing.TYPE_CHECKING in method
     assert 66 in module_ast_info.no_cover_lines  # comment
     assert 67 in module_ast_info.no_cover_lines  # y: str
+
+
+def test_get_scope_module_uses_line_zero(tmp_path):
+    # The ``<module>`` code object is looked up with line 0 by the transformer,
+    # so the module scope must be reachable via ``get_scope(0)``.
+    module_file = tmp_path / "mod.py"
+    module_file.write_text("import os\n\ndef foo():\n    pass\n", encoding="utf-8")
+    module_ast_info = ModuleAstInfo.from_path(
+        str(module_file), to_cover_config=ToCoverConfiguration()
+    )
+
+    assert module_ast_info is not None
+    module_scope = module_ast_info.get_scope(0)
+    assert module_scope is not None
+    assert isinstance(module_scope.ast, ast.Module)
+
+
+def test_get_scope_line_one_definition_not_shadowed_by_module(tmp_path):
+    # A function starting on line 1 must resolve to the function, not the module
+    # (whose start line is 0), even though both begin the file.
+    module_file = tmp_path / "mod.py"
+    module_file.write_text("def foo():\n    pass\n", encoding="utf-8")
+    module_ast_info = ModuleAstInfo.from_path(
+        str(module_file), to_cover_config=ToCoverConfiguration()
+    )
+
+    assert module_ast_info is not None
+    scope = module_ast_info.get_scope(1)
+    assert scope is not None
+    assert isinstance(scope.ast, ast.FunctionDef)
+    assert scope.ast.name == "foo"

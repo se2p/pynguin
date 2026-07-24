@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 """Tests for the TypeEvalPy JSON generation."""
 
+import ast
 import json
 import tempfile
 from collections.abc import Callable
@@ -13,8 +14,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from astroid import parse
-from astroid.nodes import FunctionDef
 
 import pynguin.configuration as config
 from pynguin.analyses.module import CallableData, SignatureInfo, TypeGuessingStats
@@ -44,6 +43,9 @@ from pynguin.utils.typeevalpy_json_schema import (
     parse_json,
     provide_json,
 )
+
+FunctionDef = ast.FunctionDef
+parse = ast.parse
 
 
 @pytest.fixture(scope="session")

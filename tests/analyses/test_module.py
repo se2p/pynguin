@@ -10,7 +10,6 @@ from logging import Logger
 from typing import Union, cast
 from unittest.mock import MagicMock, patch
 
-import astroid
 import pytest
 
 import pynguin.configuration as config
@@ -97,8 +96,8 @@ def test_parse_native_module():
     module.LOGGER.debug.assert_called_once()
 
 
-@pytest.mark.parametrize("exception_type", [TypeError, OSError, astroid.AstroidError])
-@patch("astroid.parse")
+@pytest.mark.parametrize("exception_type", [TypeError, OSError, SyntaxError])
+@patch("pynguin.analyses.module.ast.parse")
 def test_parse_module_exceptions(mock_parse, exception_type):
     mock_parse.side_effect = exception_type("Mocked Exception")
     module.LOGGER = MagicMock(Logger)

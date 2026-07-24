@@ -8,41 +8,33 @@
 
 from __future__ import annotations
 
+import ast
+import ast as _ast
+
+try:
+    from ast import TryStar  # type: ignore[attr-defined]
+except ImportError:
+
+    class TryStar(_ast.AST):  # type: ignore[no-redef]
+        """Fallback placeholder for Python < 3.11 where ``ast.TryStar`` is absent."""
+
+
 import logging
 import re
 from abc import abstractmethod
 from dataclasses import dataclass
 from types import CodeType
-from typing import TYPE_CHECKING, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Protocol, TypeAlias, cast
 
-from astroid.exceptions import AstroidError
-from astroid.nodes import (
-    Attribute,
-    ClassDef,
-    Compare,
-    ComprehensionScope,
-    Const,
-    For,
-    FunctionDef,
-    If,
-    Lambda,
-    Match,
-    MatchCase,
-    Module,
-    Name,
-    NodeNG,
-    Try,
-    TryStar,
-    While,
-)
 from bytecode import Bytecode
 from bytecode.instr import Instr
 
+from pynguin.analyses.ast_utils import nodes_of_class, scope_line_range, scope_name
 from pynguin.analyses.module import read_module_ast
 from pynguin.configuration import ToCoverConfiguration
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Collection, Iterable, Sequence
 
     from typing_extensions import Self
 
@@ -54,37 +46,64 @@ PYNGUIN_NO_COVER_PATTERN = re.compile(r"# +?pynguin: +?no +?cover")
 PRAGMA_NO_COVER_PATTERN = re.compile(r"# +?pragma: +?no +?cover")
 
 
-ScopeNode: TypeAlias = Module | ClassDef | FunctionDef | Lambda | ComprehensionScope
+ScopeNode: TypeAlias = (
+    ast.Module
+    | ast.ClassDef
+    | ast.FunctionDef
+    | ast.AsyncFunctionDef
+    | ast.Lambda
+    | ast.ListComp
+    | ast.SetComp
+    | ast.DictComp
+    | ast.GeneratorExp
+)
+
+SCOPE_CLASSES = (
+    ast.Module,
+    ast.ClassDef,
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.Lambda,
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+)
 
 
-def _is_main(node: If) -> bool:
+def _is_main(node: ast.If) -> bool:
     """Check for 'if __name__ == "__main__":' block."""
     return (
-        isinstance(node.test, Compare)
-        and isinstance(node.test.left, Name)
-        and node.test.left.name == "__name__"
+        isinstance(node.test, ast.Compare)
+        and isinstance(node.test.left, ast.Name)
+        and node.test.left.id == "__name__"
         and len(node.test.ops) == 1
-        and node.test.ops[0][0] == "=="
-        and isinstance(node.test.ops[0][1], Const)
-        and node.test.ops[0][1].value == "__main__"
+        and isinstance(node.test.ops[0], ast.Eq)
+        and len(node.test.comparators) == 1
+        and isinstance(node.test.comparators[0], ast.Constant)
+        and node.test.comparators[0].value == "__main__"
     )
 
 
-def _is_type_checking(node: If) -> bool:
+def _is_type_checking(node: ast.If) -> bool:
     """Check for 'if TYPE_CHECKING:' or 'if typing.TYPE_CHECKING:' blocks."""
-    return (isinstance(node.test, Name) and node.test.name == "TYPE_CHECKING") or (
-        isinstance(node.test, Attribute)
-        and node.test.attrname == "TYPE_CHECKING"
-        and isinstance(node.test.expr, Name)
-        and node.test.expr.name in {"typing", "types"}
+    return (isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING") or (
+        isinstance(node.test, ast.Attribute)
+        and node.test.attr == "TYPE_CHECKING"
+        and isinstance(node.test.value, ast.Name)
+        and node.test.value.id in {"typing", "types"}
     )
+
+
+def _has_elif_block(node: ast.If) -> bool:
+    return bool(node.orelse) and len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If)
 
 
 @dataclass(frozen=True)
 class ModuleAstInfo:
     """Encapsulates the AST of a Python module with metadata about lines in-/excluded for coverage."""  # noqa: E501
 
-    module_ast: Module
+    module_ast: ast.Module
 
     # Metadata
     only_cover_lines: frozenset[int]
@@ -108,19 +127,19 @@ class ModuleAstInfo:
         Returns:
             The AST info of the scope, or None if there are no scope at lineno
         """
-        ast: ScopeNode | None = next(
+        ast_scope = next(
             iter(
                 scope
-                for scope in self.module_ast.nodes_of_class(ScopeNode)
-                if scope.fromlineno == lineno
+                for scope in nodes_of_class(self.module_ast, SCOPE_CLASSES)
+                if scope_line_range(scope)[0] == lineno
             ),
             None,
         )
 
-        if ast is None:
+        if ast_scope is None:
             return None
 
-        return AstInfo(ast=ast, module=self)
+        return AstInfo(ast=cast("ScopeNode", ast_scope), module=self)
 
     @classmethod
     def _find_lines_in_source_code(
@@ -154,47 +173,46 @@ class ModuleAstInfo:
         Returns:
             The scope names and line numbers.
         """
-        assert scope_node.lineno is not None
+        node_scope_name = scope_name(scope_node)
 
-        scope_name = (
-            f"<generator-{scope_node.lineno}>"
-            if isinstance(scope_node, ComprehensionScope)
-            else scope_node.name
-        )
-
-        if isinstance(scope_node, Module):
+        if isinstance(scope_node, ast.Module):
             full_scope_name = ""
         else:
-            full_scope_name = f"{parent_scope}.{scope_name}" if parent_scope else scope_name
-            yield (full_scope_name, scope_node.lineno)
+            lineno = getattr(scope_node, "lineno", 1)
+            full_scope_name = (
+                f"{parent_scope}.{node_scope_name}" if parent_scope else node_scope_name
+            )
+            yield (full_scope_name, lineno)
 
-        for child in scope_node.get_children():
+        for child in ast.iter_child_nodes(scope_node):
             if isinstance(child, ScopeNode):
                 yield from cls._get_scope_names(child, full_scope_name)
 
     @classmethod
-    def _find_lines_in_ast(cls, ast: Module, target_scope_names: Collection[str]) -> Iterable[int]:
+    def _find_lines_in_ast(
+        cls, ast_node: ast.Module, target_scope_names: Collection[str]
+    ) -> Iterable[int]:
         """Find the lines that contain the target identifiers in the module AST.
 
         Args:
-            ast: The module AST.
+            ast_node: The module AST.
             target_scope_names: The collection of target scope names.
 
         Returns:
             The iterable of lines that contain the target identifiers.
         """
-        scope_names = dict(cls._get_scope_names(ast))
-        for scope_name in target_scope_names:
-            if (lineno := scope_names.get(scope_name)) is not None:
+        scope_names = dict(cls._get_scope_names(ast_node))
+        for target_name in target_scope_names:
+            if (lineno := scope_names.get(target_name)) is not None:
                 yield lineno
             else:
                 _LOGGER.warning(
                     "Target scope name '%s' not found in AST. Did you specify the right name?",
-                    scope_name,
+                    target_name,
                 )
 
     @classmethod
-    def _find_excluded_block_lines(cls, ast: Module) -> Iterable[int]:
+    def _find_excluded_block_lines(cls, ast_node: ast.Module) -> Iterable[int]:
         """Find the lines of blocks that should be excluded from coverage.
 
         This includes:
@@ -202,31 +220,31 @@ class ModuleAstInfo:
         - 'if TYPE_CHECKING:' blocks (including 'typing.TYPE_CHECKING')
 
         Args:
-            ast: The module AST.
+            ast_node: The module AST.
 
         Returns:
             The iterable of lines in such blocks.
         """
-        for node in ast.nodes_of_class(If):
+        for node in nodes_of_class(ast_node, ast.If):
             if _is_main(node):
-                yield from range(node.fromlineno, node.tolineno + 1)
+                start, end = scope_line_range(node)
+                yield from range(start, end + 1)
                 continue
 
             if _is_type_checking(node):
-                yield from range(node.fromlineno, node.tolineno + 1)
+                start, end = scope_line_range(node)
+                yield from range(start, end + 1)
 
     @classmethod
     def from_path(
         cls,
         module_path: str,
-        module_name: str,
         to_cover_config: ToCoverConfiguration,
     ) -> Self | None:
         """Create an AstInfo from a module path.
 
         Args:
             module_path: The path of the module.
-            module_name: The name of the module.
             to_cover_config: the configuration of which code elements are used as coverage goals.
 
         Raises:
@@ -236,8 +254,8 @@ class ModuleAstInfo:
             The AstInfo of the module path, or None.
         """
         try:
-            module_ast, source_code = read_module_ast(module_path, module_name)
-        except (OSError, AstroidError):
+            module_ast, source_code = read_module_ast(module_path)
+        except (OSError, SyntaxError):
             return None
 
         only_cover_lines = frozenset(cls._find_lines_in_ast(module_ast, to_cover_config.only_cover))
@@ -299,13 +317,15 @@ class AstInfo:
             or lineno in self.module.only_cover_lines
             or any(
                 child_lineno in self.module.only_cover_lines
-                for child_lineno in range(self.ast.fromlineno, self.ast.tolineno + 1)
+                for child_lineno in range(
+                    scope_line_range(self.ast)[0], scope_line_range(self.ast)[1] + 1
+                )
                 if child_lineno not in self.module.no_cover_lines
             )
         )
 
     @staticmethod
-    def _in_body(body: list[NodeNG], lineno: int) -> bool:
+    def _in_body(body: Sequence[_ast.AST], lineno: int) -> bool:
         """Check if the lineno is contained in the body.
 
         Args:
@@ -315,29 +335,37 @@ class AstInfo:
         Returns:
             True if it is included, False otherwise.
         """
-        return bool(body) and body[0].fromlineno <= lineno <= body[-1].tolineno
+        if not body:
+            return False
+        start = scope_line_range(body[0])[0]
+        end = scope_line_range(body[-1])[1]
+        return start <= lineno <= end
 
     @staticmethod
-    def _inter_lines(previous_body: list[NodeNG], after_body: list[NodeNG]) -> Iterable[int]:
+    def _inter_lines(
+        previous_body: Sequence[_ast.AST], after_body: Sequence[_ast.AST]
+    ) -> Iterable[int]:
         if previous_body and after_body:
+            prev_end = scope_line_range(previous_body[-1])[1]
+            after_start = scope_line_range(after_body[0])[0]
             yield from range(
-                previous_body[-1].tolineno + 1,
-                after_body[0].fromlineno,
+                prev_end + 1,
+                after_start,
             )
 
     @staticmethod
-    def _else_lines(node: If | For | While) -> Iterable[int]:
+    def _else_lines(node: _ast.If | _ast.For | _ast.While) -> Iterable[int]:
         return AstInfo._inter_lines(node.body, node.orelse)
 
     @staticmethod
-    def _try_else_lines(node: Try | TryStar) -> Iterable[int]:
+    def _try_else_lines(node: _ast.Try | TryStar) -> Iterable[int]:
         if node.handlers:
             return AstInfo._inter_lines(node.handlers[-1].body, node.orelse)
 
         return AstInfo._inter_lines(node.body, node.orelse)
 
     @staticmethod
-    def _try_finally_lines(node: Try | TryStar) -> Iterable[int]:
+    def _try_finally_lines(node: _ast.Try | TryStar) -> Iterable[int]:
         if node.orelse:
             return AstInfo._inter_lines(node.orelse, node.finalbody)
 
@@ -355,10 +383,15 @@ class AstInfo:
         Returns:
             True if self should be covered, False otherwise.
         """
-        return self._in_cover(self.ast.fromlineno) and all(
-            self._in_cover(definition_node.fromlineno)
-            for definition_node in self.module.module_ast.nodes_of_class(FunctionDef | ClassDef)
-            if definition_node.fromlineno <= self.ast.fromlineno <= definition_node.tolineno
+        start_line = scope_line_range(self.ast)[0]
+        return self._in_cover(start_line) and all(
+            self._in_cover(scope_line_range(definition_node)[0])
+            for definition_node in nodes_of_class(
+                self.module.module_ast, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            )
+            if scope_line_range(definition_node)[0]
+            <= start_line
+            <= scope_line_range(definition_node)[1]
         )
 
     def should_cover_line(self, lineno: int) -> bool:
@@ -379,18 +412,21 @@ class AstInfo:
         if not self._in_cover(lineno):
             return False
 
-        for branch_node in self.ast.nodes_of_class(If | For | While | Match | Try | TryStar):
+        for branch_node in nodes_of_class(
+            self.ast, (ast.If, ast.For, ast.While, ast.Match, ast.Try, TryStar)
+        ):
             # Skip nodes that do not contains the lineno
-            if lineno < branch_node.fromlineno or branch_node.tolineno < lineno:
+            start, end = scope_line_range(branch_node)
+            if lineno < start or end < lineno:
                 continue
 
             # Handle the "Match" nodes by checking that they are in the cover lines and
             # by checking that the branch in which the line number is contained is also
             # in the cover lines.
-            if isinstance(branch_node, Match) and (
-                branch_node.fromlineno in self.module.no_cover_lines
+            if isinstance(branch_node, ast.Match) and (
+                start in self.module.no_cover_lines
                 or any(
-                    case_node.fromlineno in self.module.no_cover_lines
+                    scope_line_range(case_node)[0] in self.module.no_cover_lines
                     for case_node in branch_node.cases
                     if self._in_body(case_node.body, lineno)
                 )
@@ -401,18 +437,18 @@ class AstInfo:
             # the "try" branch of "Try" and "TryStar" nodes by checking that the
             # branch in which the line number is contained is in the cover lines.
             if (
-                isinstance(branch_node, If | For | While | Try | TryStar)
+                isinstance(branch_node, ast.If | ast.For | ast.While | ast.Try | TryStar)
                 and self._in_body(branch_node.body, lineno)
-                and branch_node.fromlineno in self.module.no_cover_lines
+                and start in self.module.no_cover_lines
             ):
                 return False
 
             # Handle the "except", "else" and "finally" branches of "Try" and "TryStar" nodes
             # by checking that the branch in which the line number is contained is in the
             # cover lines.
-            if isinstance(branch_node, Try | TryStar) and (  # noqa: PLR0916
+            if isinstance(branch_node, ast.Try | TryStar) and (  # noqa: PLR0916
                 any(
-                    handler_node.fromlineno in self.module.no_cover_lines
+                    scope_line_range(handler_node)[0] in self.module.no_cover_lines
                     for handler_node in branch_node.handlers
                     if self._in_body(handler_node.body, lineno)
                 )
@@ -439,8 +475,8 @@ class AstInfo:
             # branches, and if they were in the `no_cover_lines`, it would also influence
             # all the "elif" and "else" branches they contain.
             if (
-                isinstance(branch_node, If | For | While)
-                and (not isinstance(branch_node, If) or not branch_node.has_elif_block())
+                isinstance(branch_node, ast.If | ast.For | ast.While)
+                and (not isinstance(branch_node, ast.If) or not _has_elif_block(branch_node))
                 and self._in_body(branch_node.orelse, lineno)
                 and any(
                     else_lineno in self.module.no_cover_lines
@@ -464,17 +500,21 @@ class AstInfo:
             True if it should be covered, False otherwise.
             Defaults to True if there is no conditional statement at lineno.
         """
-        for branch_node in self.ast.nodes_of_class(If | For | While | MatchCase):
-            if branch_node.fromlineno == lineno or (
-                isinstance(branch_node, If | For | While)
+        for branch_node in nodes_of_class(self.ast, (ast.If, ast.For, ast.While, ast.match_case)):
+            start = scope_line_range(branch_node)[0]
+            if start == lineno or (
+                isinstance(branch_node, ast.If | ast.For | ast.While)
                 and lineno in self._else_lines(branch_node)
             ):
-                return self.should_cover_line(branch_node.fromlineno) and (
-                    isinstance(branch_node, MatchCase)
-                    or (isinstance(branch_node, If) and branch_node.has_elif_block())
-                    or all(
-                        self.should_cover_line(else_lineno)
-                        for else_lineno in self._else_lines(branch_node)
+                return self.should_cover_line(start) and (
+                    isinstance(branch_node, ast.match_case)
+                    or (isinstance(branch_node, ast.If) and _has_elif_block(branch_node))
+                    or (
+                        isinstance(branch_node, ast.If | ast.For | ast.While)
+                        and all(
+                            self.should_cover_line(else_lineno)
+                            for else_lineno in self._else_lines(branch_node)
+                        )
                     )
                 )
 
@@ -1230,7 +1270,6 @@ class InstrumentationTransformer:
 
         module_ast_info = ModuleAstInfo.from_path(
             code.co_filename,
-            module_name,
             to_cover_config=self._to_cover_config,
         )
 
