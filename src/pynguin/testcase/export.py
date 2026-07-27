@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, cast
 import libcst as cst
 
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
-from pynguin.testcase.execution import OutputSuppressionContext, _suppress_logging
+from pynguin.testcase.execution import OutputSuppressionContext, suppress_logging
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.fs_isolation import FilesystemIsolation
 from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
@@ -67,6 +67,7 @@ def _exec_statement_guarded(
         try:
             with (
                 OutputSuppressionContext(),
+                suppress_logging(),
                 FilesystemIsolation(),
             ):
                 if tracer is not None:

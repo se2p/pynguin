@@ -436,7 +436,7 @@ class ReturnTypeObserver(ExecutionObserver):
 _UNRESOLVED = object()
 
 
-def _find_call(
+def find_call(
     node: cst.SimpleStatementLine | cst.BaseCompoundStatement,
 ) -> cst.Call | None:
     """Return the top-level call of a statement node, if it wraps one.
@@ -461,7 +461,7 @@ def _find_call(
     return None
 
 
-def _map_args_to_params(
+def map_args_to_params(
     call: cst.Call, signature: inspect.Signature
 ) -> list[tuple[int, str, inspect.Parameter]]:
     """Map each call argument to the parameter it binds.
@@ -586,11 +586,11 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
         accessible = statement.accessible
         if not isinstance(accessible, gao.GenericCallableAccessibleObject):
             return node
-        call = _find_call(node)
+        call = find_call(node)
         if call is None:
             return node
         signature = accessible.inferred_signature.signature
-        mapping = _map_args_to_params(call, signature)
+        mapping = map_args_to_params(call, signature)
         if not mapping:
             return node
         new_args = list(call.args)

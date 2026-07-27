@@ -35,8 +35,8 @@ from pynguin.testcase.execution import (
     TestCaseExecutor,
     TypeTracingObserver,
     TypeTracingTestCaseExecutor,
-    _find_call,  # noqa: PLC2701
-    _map_args_to_params,  # noqa: PLC2701
+    find_call,
+    map_args_to_params,
 )
 from pynguin.utils.naming import get_module_alias
 
@@ -89,28 +89,28 @@ def guess_params_cluster_and_case():
 
 
 # --------------------------------------------------------------------------- #
-# Pure helpers: _find_call / _map_args_to_params
+# Pure helpers: find_call / map_args_to_params
 # --------------------------------------------------------------------------- #
 def _call_of(code: str) -> cst.Call:
-    call = _find_call(cst.parse_statement(code))
+    call = find_call(cst.parse_statement(code))
     assert call is not None
     return call
 
 
-def test_find_call_assign():
-    assert _find_call(cst.parse_statement("x = f(1)")) is not None
+def testfind_call_assign():
+    assert find_call(cst.parse_statement("x = f(1)")) is not None
 
 
-def test_find_call_expr():
-    assert _find_call(cst.parse_statement("f(1)")) is not None
+def testfind_call_expr():
+    assert find_call(cst.parse_statement("f(1)")) is not None
 
 
-def test_find_call_method_receiver():
-    assert _find_call(cst.parse_statement("x = obj.m(1)")) is not None
+def testfind_call_method_receiver():
+    assert find_call(cst.parse_statement("x = obj.m(1)")) is not None
 
 
-def test_find_call_no_call():
-    assert _find_call(cst.parse_statement("x = 1 + 2")) is None
+def testfind_call_no_call():
+    assert find_call(cst.parse_statement("x = 1 + 2")) is None
 
 
 def _signature(**kinds: inspect._ParameterKind) -> inspect.Signature:
@@ -123,7 +123,7 @@ def test_map_args_keyword():
         b=inspect.Parameter.POSITIONAL_OR_KEYWORD,
         c=inspect.Parameter.POSITIONAL_OR_KEYWORD,
     )
-    mapping = _map_args_to_params(_call_of("x = f(a=1, b=2, c=3)"), signature)
+    mapping = map_args_to_params(_call_of("x = f(a=1, b=2, c=3)"), signature)
     assert [(idx, name) for idx, name, _ in mapping] == [(0, "a"), (1, "b"), (2, "c")]
 
 
@@ -132,7 +132,7 @@ def test_map_args_positional_only():
         a=inspect.Parameter.POSITIONAL_ONLY,
         b=inspect.Parameter.POSITIONAL_ONLY,
     )
-    mapping = _map_args_to_params(_call_of("x = f(1, 2)"), signature)
+    mapping = map_args_to_params(_call_of("x = f(1, 2)"), signature)
     assert [(idx, name) for idx, name, _ in mapping] == [(0, "a"), (1, "b")]
 
 
@@ -141,19 +141,19 @@ def test_map_args_skips_self_for_positional():
         self=inspect.Parameter.POSITIONAL_OR_KEYWORD,
         a=inspect.Parameter.POSITIONAL_OR_KEYWORD,
     )
-    mapping = _map_args_to_params(_call_of("x = obj.m(1)"), signature)
+    mapping = map_args_to_params(_call_of("x = obj.m(1)"), signature)
     assert [(idx, name) for idx, name, _ in mapping] == [(0, "a")]
 
 
 def test_map_args_unknown_keyword_skipped():
     signature = _signature(a=inspect.Parameter.POSITIONAL_OR_KEYWORD)
-    mapping = _map_args_to_params(_call_of("x = f(a=1, zzz=2)"), signature)
+    mapping = map_args_to_params(_call_of("x = f(a=1, zzz=2)"), signature)
     assert [(idx, name) for idx, name, _ in mapping] == [(0, "a")]
 
 
 def test_map_args_star_skipped():
     signature = _signature(a=inspect.Parameter.POSITIONAL_OR_KEYWORD)
-    mapping = _map_args_to_params(_call_of("x = f(*args, a=1)"), signature)
+    mapping = map_args_to_params(_call_of("x = f(*args, a=1)"), signature)
     assert [(idx, name) for idx, name, _ in mapping] == [(1, "a")]
 
 

@@ -20,7 +20,7 @@ from pynguin.utils import randomness
 
 
 @contextlib.contextmanager
-def _suppress_logging():
+def suppress_logging():
     """Suppress all log messages during SUT execution.
 
     Yields:

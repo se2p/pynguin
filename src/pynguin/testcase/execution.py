@@ -36,7 +36,7 @@ from pynguin.testcase.execution_isolation import (
     OutputSuppressionContext,
     PatchRandomOnUnpickle,
     _make_deterministic,
-    _suppress_logging,  # noqa: F401  # re-export (private helper, kept out of __all__)
+    suppress_logging,
 )
 from pynguin.testcase.execution_observers import (
     ExecutionObserver,
@@ -46,8 +46,8 @@ from pynguin.testcase.execution_observers import (
     RemoteTypeTracingObserver,
     ReturnTypeObserver,
     TypeTracingObserver,
-    _find_call,  # noqa: F401  # re-export (private helper, kept out of __all__)
-    _map_args_to_params,  # noqa: F401  # re-export (private helper, kept out of __all__)
+    find_call,
+    map_args_to_params,
 )
 from pynguin.testcase.execution_result import ExecutionResult
 from pynguin.utils import randomness
@@ -61,8 +61,6 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 # Public API of this facade module: the executor classes defined here plus the
 # symbols re-exported from the focused ``pynguin.testcase`` execution modules.
-# (Private helpers re-exported for backwards compatibility keep their F401
-# suppression at the import site and are intentionally omitted here.)
 __all__ = [
     "AbstractTestCaseExecutor",
     "ExecutionObserver",
@@ -79,6 +77,9 @@ __all__ = [
     "TestCaseExecutor",
     "TypeTracingObserver",
     "TypeTracingTestCaseExecutor",
+    "find_call",
+    "map_args_to_params",
+    "suppress_logging",
 ]
 
 if TYPE_CHECKING:
