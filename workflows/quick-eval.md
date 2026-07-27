@@ -2,6 +2,11 @@
 description: Local coverage/regression evaluation for Pynguin changes via utils/quick_eval.py — diff a branch against a baseline (primary), or run/compare saved results manually.
 ---
 
+<!--
+SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+SPDX-License-Identifier: MIT
+-->
+
 # quick-eval — local coverage/regression evaluation for Pynguin
 
 Fast, local feedback loop for changes to Pynguin. Runs Pynguin over a set of
