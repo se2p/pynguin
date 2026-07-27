@@ -65,6 +65,15 @@ class TestCaseChromosome(chrom.Chromosome):
     def test_case(self, value: tc.TestCase) -> None:
         self._test_case = value
 
+    @property
+    def test_factory(self) -> tf.TestFactory | None:
+        """The test factory used to manipulate the wrapped test case.
+
+        Returns:
+            the test factory, if any.
+        """
+        return self._test_factory
+
     def num_mutations(self) -> int:
         """The number of mutations.
 
@@ -73,6 +82,10 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         # TODO(fk) what to do with this when crossover is used?
         return self._num_mutations
+
+    def register_mutation(self) -> None:
+        """Records that a mutation has been applied to this chromosome."""
+        self._num_mutations += 1
 
     def size(self) -> int:  # noqa: D102
         return self._test_case.size()

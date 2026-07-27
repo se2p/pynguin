@@ -13,13 +13,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import pynguin.ga.computations as ff
-import pynguin.ga.testcasechromosome as tcc
+from pynguin.ga.fitness_metrics import normalise
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
+
+    import pynguin.ga.computations as ff
+    import pynguin.ga.testcasechromosome as tcc
 
 
 class Archive(ABC):
@@ -396,7 +398,7 @@ class MIOArchive(Archive):
                     solution_clone.test_case.chop(chop_position)
                 covered_before = self._archive[target].is_covered
                 updated |= self._archive[target].add_solution(
-                    1.0 - ff.normalise(fitness_value), solution_clone
+                    1.0 - normalise(fitness_value), solution_clone
                 )
                 # The goal was covered with this solution
                 # TODO(fk) replace with goal.is_covered?

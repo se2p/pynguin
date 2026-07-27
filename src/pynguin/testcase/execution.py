@@ -34,20 +34,20 @@ from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.testcase.execution_isolation import (
     OutputSuppressionContext,
-    PatchRandomOnUnpickle,  # noqa: F401  # re-export (facade)
+    PatchRandomOnUnpickle,
     _make_deterministic,
-    _suppress_logging,  # noqa: F401  # re-export (facade)
+    _suppress_logging,  # noqa: F401  # re-export (private helper, kept out of __all__)
 )
 from pynguin.testcase.execution_observers import (
     ExecutionObserver,
-    RemoteAssertionExecutionObserver,  # noqa: F401  # re-export (facade)
+    RemoteAssertionExecutionObserver,
     RemoteExecutionObserver,
-    RemoteReturnTypeObserver,  # noqa: F401  # re-export (facade)
-    RemoteTypeTracingObserver,  # noqa: F401  # re-export (facade)
+    RemoteReturnTypeObserver,
+    RemoteTypeTracingObserver,
     ReturnTypeObserver,
     TypeTracingObserver,
-    _find_call,  # noqa: F401  # re-export (facade)
-    _map_args_to_params,  # noqa: F401  # re-export (facade)
+    _find_call,  # noqa: F401  # re-export (private helper, kept out of __all__)
+    _map_args_to_params,  # noqa: F401  # re-export (private helper, kept out of __all__)
 )
 from pynguin.testcase.execution_result import ExecutionResult
 from pynguin.utils import randomness
@@ -58,6 +58,28 @@ from pynguin.utils.exceptions import (
 from pynguin.utils.fs_isolation import FilesystemIsolation
 from pynguin.utils.naming import get_module_alias
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+# Public API of this facade module: the executor classes defined here plus the
+# symbols re-exported from the focused ``pynguin.testcase`` execution modules.
+# (Private helpers re-exported for backwards compatibility keep their F401
+# suppression at the import site and are intentionally omitted here.)
+__all__ = [
+    "AbstractTestCaseExecutor",
+    "ExecutionObserver",
+    "ExecutionResult",
+    "ModuleProvider",
+    "OutputSuppressionContext",
+    "PatchRandomOnUnpickle",
+    "RemoteAssertionExecutionObserver",
+    "RemoteExecutionObserver",
+    "RemoteReturnTypeObserver",
+    "RemoteTypeTracingObserver",
+    "ReturnTypeObserver",
+    "SubprocessTestCaseExecutor",
+    "TestCaseExecutor",
+    "TypeTracingObserver",
+    "TypeTracingTestCaseExecutor",
+]
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -310,6 +332,21 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
     @property
     def subject_properties(self) -> SubjectProperties:  # noqa: D102
         return self._subject_properties
+
+    def register_crash_revealing_hash(self, test_case_hash: str) -> int | None:
+        """Record a crash-revealing test-case hash.
+
+        Args:
+            test_case_hash: The hash of the crashing test case.
+
+        Returns:
+            The new number of distinct crash-revealing hashes if the hash was not
+            seen before, otherwise ``None``.
+        """
+        if test_case_hash in self._crash_revealing_hashes:
+            return None
+        self._crash_revealing_hashes.add(test_case_hash)
+        return len(self._crash_revealing_hashes)
 
     def set_instrument(self, instrument: bool) -> None:  # noqa: FBT001
         """Set if the test is to be instrumented as well.
@@ -632,5 +669,5 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
 # subprocess_executor imports TestCaseExecutor from this module, so this import must
 # stay below the TestCaseExecutor definition to avoid a circular-import failure.
 from pynguin.testcase.subprocess_executor import (  # noqa: E402
-    SubprocessTestCaseExecutor,  # noqa: F401  # re-export (facade)
+    SubprocessTestCaseExecutor,
 )

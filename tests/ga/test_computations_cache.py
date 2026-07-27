@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.ga.computations as ff
+from pynguin.ga.computation_cache import ComputationCache
 
 if TYPE_CHECKING:
     from pynguin.ga.computations import CoverageFunction, FitnessFunction
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def cache():
-    return ff.ComputationCache(MagicMock())
+    return ComputationCache(MagicMock())
 
 
 def test_computation_cache_empty(cache):

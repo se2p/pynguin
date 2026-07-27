@@ -41,11 +41,11 @@ def minimize_and_safe(
     test_case_hash = str(hash(test_case))
 
     # Store hash and track CrashRevealingSize output variable if new hash
-    if test_case_hash not in executor._crash_revealing_hashes:  # noqa: SLF001
-        executor._crash_revealing_hashes.add(test_case_hash)  # noqa: SLF001
+    crash_revealing_count = executor.register_crash_revealing_hash(test_case_hash)
+    if crash_revealing_count is not None:
         stat.track_output_variable(
             RuntimeVariable.CrashRevealingSize,
-            len(executor._crash_revealing_hashes),  # noqa: SLF001
+            crash_revealing_count,
         )
 
     safe_crash_test(test_case, hash_str=test_case_hash)

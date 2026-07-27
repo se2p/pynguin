@@ -17,6 +17,8 @@ import pytest
 from hypothesis import given
 
 import pynguin.ga.computations as ff
+from pynguin.ga.checked_coverage import compute_statement_checked_lines
+from pynguin.ga.fitness_metrics import normalise
 from pynguin.instrumentation.tracer import (
     ExecutedAssertion,
     ExecutionTrace,
@@ -31,16 +33,16 @@ from pynguin.utils.orderedset import OrderedSet
 
 def test_normalise_less_zero():
     with pytest.raises(RuntimeError):
-        ff.normalise(-1)
+        normalise(-1)
 
 
 def test_normalise_infinity():
-    assert ff.normalise(float("inf")) == 1.0
+    assert normalise(float("inf")) == 1.0
 
 
 @given(st.floats(min_value=0.0, max_value=float("inf"), exclude_min=False, exclude_max=True))
 def test_normalise(value):
-    assert ff.normalise(value) == value / (1.0 + value)
+    assert normalise(value) == value / (1.0 + value)
 
 
 @pytest.fixture
@@ -223,7 +225,7 @@ def test_assertion_checked_coverage_fully_covered(subject_properties_mock, trace
 
 
 def test_statement_checked_coverage_none(subject_properties_mock, trace_mock):
-    assert ff.compute_statement_checked_lines([], trace_mock, subject_properties_mock, {}) == set()
+    assert compute_statement_checked_lines([], trace_mock, subject_properties_mock, {}) == set()
 
 
 def test_statement_checked_coverage_half_covered(subject_properties_mock, trace_mock):
@@ -240,7 +242,7 @@ def test_statement_checked_coverage_half_covered(subject_properties_mock, trace_
     statements = [statement]
     with patch.object(DynamicSlicer, "slice") as slice_mock:
         slice_mock.return_value = [mock_instr_1]
-        assert ff.compute_statement_checked_lines(
+        assert compute_statement_checked_lines(
             statements, trace_mock, subject_properties_mock, {0: MagicMock()}
         ) == {0}
 
@@ -264,7 +266,7 @@ def test_statement_checked_coverage_fully_covered(subject_properties_mock, trace
     statements = [statement]
     with patch.object(DynamicSlicer, "slice") as slice_mock:
         slice_mock.return_value = [mock_instr_1, mock_instr_2]
-        assert ff.compute_statement_checked_lines(
+        assert compute_statement_checked_lines(
             statements, trace_mock, subject_properties_mock, {0: MagicMock()}
         ) == {0, 1}
 

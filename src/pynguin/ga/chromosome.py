@@ -9,10 +9,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
-import pynguin.ga.chromosomevisitor as cv
-import pynguin.ga.computations as ff
 from pynguin.analyses.generator import Selectable
+from pynguin.ga.computation_cache import ComputationCache
+
+if TYPE_CHECKING:
+    import pynguin.ga.chromosomevisitor as cv
+    import pynguin.ga.computations as ff
 
 
 class Chromosome(Selectable):  # noqa: PLR0904
@@ -27,7 +31,7 @@ class Chromosome(Selectable):  # noqa: PLR0904
             orig: Original, if we clone an existing chromosome.
         """
         if orig is None:
-            self.computation_cache = ff.ComputationCache(self)
+            self.computation_cache = ComputationCache(self)
             self.changed: bool = True
             self.distance: float = -1
             self.rank: int = -1

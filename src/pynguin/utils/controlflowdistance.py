@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-import pynguin.ga.computations as ff
+from pynguin.ga.fitness_metrics import normalise
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.tracer import SubjectProperties
@@ -105,7 +105,7 @@ class ControlFlowDistance:
         Returns:
             The resulting branch fitness
         """
-        return self._approach_level + ff.normalise(self._branch_distance)
+        return self._approach_level + normalise(self._branch_distance)
 
     def __str__(self) -> str:
         return f"approach = {self._approach_level}, branch distance = {self._branch_distance}"

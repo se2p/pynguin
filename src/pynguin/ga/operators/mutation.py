@@ -77,14 +77,15 @@ class TestCaseMutation(MutationOperator):
         ):
             changed = True
 
-        assert chromosome._test_factory, "Required for mutation"  # noqa: SLF001
-        if not chromosome._test_factory.has_call_on_sut(chromosome.test_case):  # noqa: SLF001
+        test_factory = chromosome.test_factory
+        assert test_factory, "Required for mutation"
+        if not test_factory.has_call_on_sut(chromosome.test_case):
             chromosome.test_case = backup
             chromosome._mutation_insert()  # noqa: SLF001
 
         if changed:
             chromosome.changed = True
-            chromosome._num_mutations += 1  # noqa: SLF001
+            chromosome.register_mutation()
 
     def _mutation_delete(self, chromosome: tcc.TestCaseChromosome) -> bool:
         last_mutatable_statement = chromosome.get_last_mutatable_statement()
@@ -101,10 +102,9 @@ class TestCaseMutation(MutationOperator):
         return changed
 
     def _delete_statement(self, chromosome: tcc.TestCaseChromosome, idx: int) -> bool:
-        assert chromosome._test_factory, "Mutation requires a test factory."  # noqa: SLF001
-        return chromosome._test_factory.delete_statement_gracefully(  # noqa: SLF001
-            chromosome.test_case, idx
-        )
+        test_factory = chromosome.test_factory
+        assert test_factory, "Mutation requires a test factory."
+        return test_factory.delete_statement_gracefully(chromosome.test_case, idx)
 
     def _mutation_change(self, chromosome: tcc.TestCaseChromosome) -> bool:
         last_mutatable_statement = chromosome.get_last_mutatable_statement()
@@ -141,13 +141,12 @@ class TestCaseMutation(MutationOperator):
         Returns:
             Whether the statement was changed.
         """
-        assert chromosome._test_factory, "Mutation requires a test factory."  # noqa: SLF001
+        test_factory = chromosome.test_factory
+        assert test_factory, "Mutation requires a test factory."
         if (
             randomness.next_float()
             < config.configuration.search_algorithm.change_statement_type_probability
-            and chromosome._test_factory.change_statement_type(  # noqa: SLF001
-                chromosome.test_case, position
-            )
+            and test_factory.change_statement_type(chromosome.test_case, position)
         ):
             # Replace the statement with one of a different type, keeping its
             # bound variable (Evosuite change_statement_type). On failure, fall
@@ -155,24 +154,18 @@ class TestCaseMutation(MutationOperator):
             return True
         if statement.accessible is None:
             # Primitive statement: regenerate the literal value.
-            return chromosome._test_factory.mutate_value(  # noqa: SLF001
-                chromosome.test_case, position
-            )
+            return test_factory.mutate_value(chromosome.test_case, position)
         if isinstance(statement.accessible, gao.GenericField):
             # Field statement: swap the accessed field, else re-pick the receiver.
-            return chromosome._test_factory.change_random_field_call(  # noqa: SLF001
+            return test_factory.change_random_field_call(
                 chromosome.test_case, position
-            ) or chromosome._test_factory.mutate_call(  # noqa: SLF001
-                chromosome.test_case, position
-            )
+            ) or test_factory.mutate_call(chromosome.test_case, position)
         # Call statement: first try to regenerate argument values (mirrors the
         # original statement.mutate() path), then fall back to replacing the
         # call with a different one.
-        return chromosome._test_factory.mutate_call(  # noqa: SLF001
+        return test_factory.mutate_call(
             chromosome.test_case, position
-        ) or chromosome._test_factory.change_random_call(  # noqa: SLF001
-            chromosome.test_case, position
-        )
+        ) or test_factory.change_random_call(chromosome.test_case, position)
 
     def _mutation_insert(self, chromosome: tcc.TestCaseChromosome) -> bool:
         """Insertion mutation operation.
@@ -193,7 +186,8 @@ class TestCaseMutation(MutationOperator):
             randomness.next_float() <= pow(alpha, exponent)
             and chromosome.size() < config.configuration.search_algorithm.chromosome_length
         ):
-            assert chromosome._test_factory, "Mutation requires a test factory."  # noqa: SLF001
+            test_factory = chromosome.test_factory
+            assert test_factory, "Mutation requires a test factory."
             max_position = chromosome.get_last_mutatable_statement()
             if max_position is None:
                 # No mutatable statement found, so start at the first position.
@@ -202,9 +196,7 @@ class TestCaseMutation(MutationOperator):
                 # Also include the position after the last mutatable statement.
                 max_position += 1
 
-            position = chromosome._test_factory.insert_random_statement(  # noqa: SLF001
-                chromosome.test_case, max_position
-            )
+            position = test_factory.insert_random_statement(chromosome.test_case, max_position)
             exponent += 1
             if 0 <= position < chromosome.size():
                 changed = True

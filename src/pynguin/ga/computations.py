@@ -13,11 +13,7 @@ import dataclasses
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from pynguin.ga.checked_coverage import (
-    compute_assertion_checked_coverage,
-    compute_statement_checked_lines,  # noqa: F401  # re-export (facade)
-)
-from pynguin.ga.computation_cache import ComputationCache  # noqa: F401  # re-export (facade)
+from pynguin.ga.checked_coverage import compute_assertion_checked_coverage
 from pynguin.ga.fitness_metrics import (
     analyze_results,
     compute_branch_coverage,
@@ -26,7 +22,6 @@ from pynguin.ga.fitness_metrics import (
     compute_checked_coverage_statement_fitness_is_covered,
     compute_line_coverage,
     compute_line_coverage_fitness_is_covered,
-    normalise,  # noqa: F401  # re-export (facade)
 )
 
 if TYPE_CHECKING:

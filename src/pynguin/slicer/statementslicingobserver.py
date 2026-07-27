@@ -13,7 +13,7 @@ from typing import Any
 
 import pynguin.testcase.execution as ex
 import pynguin.testcase.testcase as tc
-from pynguin.ga.computations import compute_statement_checked_lines
+from pynguin.ga.checked_coverage import compute_statement_checked_lines
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 
 

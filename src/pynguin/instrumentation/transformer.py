@@ -40,8 +40,6 @@ from bytecode.instr import Instr
 
 from pynguin.analyses.module import read_module_ast
 from pynguin.configuration import ToCoverConfiguration
-from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer, version
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -1351,3 +1349,14 @@ class InstrumentationTransformer:
                         cdg.graph.add_edge(pred, succ)
 
         return cdg
+
+
+# These imports are deliberately placed at the end of the module to break an
+# import cycle: ``controlflow`` and ``tracer`` both import
+# ``pynguin.instrumentation.version``, which imports the ``python3_*`` modules
+# that subclass the instrumentation adapters defined above. Importing them here
+# ensures those adapter classes already exist by the time ``version`` is entered,
+# regardless of which module first triggers the instrumentation import. Only used
+# at runtime inside methods (and in lazy annotations), so end-of-module is safe.
+from pynguin.instrumentation import controlflow as cf  # noqa: E402
+from pynguin.instrumentation import tracer, version  # noqa: E402

@@ -37,7 +37,7 @@ def splice_test_case_chromosomes(
         position1: Crossover split point for parent
         position2: Crossover split point for other
     """
-    assert parent._test_factory is not None, "Crossover requires a test factory."  # noqa: SLF001
+    assert parent.test_factory is not None, "Crossover requires a test factory."
 
     offspring_test_case = parent.test_case.clone()
     # Keep only the first `position1` statements of this parent.
@@ -49,7 +49,7 @@ def splice_test_case_chromosomes(
     offspring_test_case.append_test_case_from(other.test_case, position2)
 
     if offspring_test_case.size() < config.configuration.search_algorithm.chromosome_length:
-        parent._test_case = offspring_test_case  # noqa: SLF001
+        parent.test_case = offspring_test_case
         parent.changed = True
 
 
