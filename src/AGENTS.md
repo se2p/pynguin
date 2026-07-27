@@ -204,7 +204,6 @@ Contains the complete source code implementation of Pynguin, an automated unit t
 - `isort`, `black` - Code formatting for generated tests
 
 **Type System:**
-- `typing_inspect` - Runtime type inspection
 - `Deprecated` - Deprecation decorators
 
 **LLM (Optional):**

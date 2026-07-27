@@ -107,7 +107,7 @@ Pynguin (IPA: ˈpɪŋɡuiːn) is a research tool for automated generation of uni
 | `openai` | openai, python-dotenv | LLM-based test generation |
 | `numpy` | numpy | Numerical computation support |
 | `typing` | mypy, typing-extensions | Enhanced type checking |
-| `fandango-faker` | faker, fandango-fuzzer, xmltodict | Resource generation (test data) |
+| `fandango-faker` | faker, fandango-fuzzer | Resource generation (test data) |
 
 ### Development Dependencies
 

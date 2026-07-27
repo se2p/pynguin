@@ -16,8 +16,6 @@ import typing
 from inspect import isclass
 from typing import Any
 
-from typing_inspect import get_origin
-
 from pynguin.utils.orderedset import OrderedSet
 
 if typing.TYPE_CHECKING:
@@ -51,7 +49,7 @@ def is_collection_type(typ: type | None) -> bool:
     Returns:
         Whether the type is a collection type
     """
-    return typ in COLLECTIONS or get_origin(typ) in COLLECTIONS
+    return typ in COLLECTIONS or typing.get_origin(typ) in COLLECTIONS
 
 
 def is_ignorable_type(typ: type) -> bool:
