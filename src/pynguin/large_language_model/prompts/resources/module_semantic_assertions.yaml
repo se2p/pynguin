@@ -1,0 +1,61 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: 8000
+user_message_template: |
+  You are a test assertion expert.
+  Your task is to add meaningful assertions to EVERY test function in a whole unit-test
+  module, based on the module's documented behavior.
+
+  **SUT Documentation (module under test):**
+  {{ sut_context }}
+
+  **Current Test Module (ALL test functions):**
+  ```python
+  {{ module_test_code }}
+  ```
+
+  **CRITICAL: You MUST preserve ALL import statements from the input module.**
+  **CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+  **Do NOT remove the `module_0.` prefix — that will cause NameError.**
+
+  **CRITICAL - Keep EVERY test function. Do NOT drop, merge, or add test functions.**
+  **CRITICAL - Keep each test function's EXACT ORIGINAL NAME. Do NOT rename functions.**
+  **The number and names of `def test_...` functions in your output MUST match the input.**
+
+  **Critical Rules (apply to each test function independently):**
+
+  1. **Understand each method's contract from the documentation** — identify the return
+     type and any special behaviors or edge cases.
+
+  2. **Handling Expected Exceptions (Negative Testing):**
+     Analyse the test inputs to decide whether a test is a NEGATIVE test (expects failure).
+     Indicators: variable names containing `invalid_`, `none_`, `negative_`, `bad_`,
+     `wrong_`, `empty_`; clearly invalid values (`None`, `-1`, empty strings, type
+     mismatches); multiple `None` arguments.
+     - For NEGATIVE tests: wrap the call in `with pytest.raises(Exception):`.
+     - For POSITIVE tests: remove try/except, store the result and assert on it.
+
+  3. **Generate conservative assertions based on the return type** — only assert what you
+     can confidently verify from the documentation (e.g. `isinstance(result, str)` and
+     `len(result) > 0` for string returns, `isinstance(result, bool)` for booleans).
+
+  4. **Preserve ALL existing code and AAA structure:**
+     - Keep the `# Arrange` section unchanged.
+     - Keep the `# Act` section unchanged (unless converting try/except to pytest.raises).
+     - Keep variable names unchanged.
+     - Only add/modify assertions in the `# Assert` section.
+     - Never remove the AAA comment markers.
+
+  **Output Format:**
+  Return the complete module with ALL import statements and ALL original test functions
+  preserved, in the original order. Start with import statements, then the test functions.
+  Do NOT change function names, variable names, or the Arrange sections.
+  No explanations, no markdown prose.

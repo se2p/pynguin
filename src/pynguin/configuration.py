@@ -126,6 +126,20 @@ class MutationStrategy(str, enum.Enum):
     IEEE Transactions on SE 39.4 2013)"""
 
 
+class RefinementGranularity(str, enum.Enum):
+    """Granularity of the LLM readability & assertion refinement stages."""
+
+    COMBINED = "combined"
+    """One module-level prompt that does both readability and assertion refinement
+    (default; most token-efficient, highest output variance)."""
+
+    MODULE_SEPARATE = "module_separate"
+    """Two module-level prompts: readability first, then semantic assertions."""
+
+    PER_TEST = "per_test"
+    """Per-test readability and assertion prompts (previous behavior, most robust)."""
+
+
 class MinimizationDirection(str, enum.Enum):
     """Directions for test case minimization.
 
@@ -1069,6 +1083,14 @@ class LLMRefinementConfiguration:
 
     max_mutation_iterations: int = 3
     """Maximum iterations for mutation-driven assertion strengthening."""
+
+    refinement_granularity: RefinementGranularity = RefinementGranularity.COMBINED
+    """Whether readability refinement and semantic-assertion generation are done with a
+    single combined module-level prompt (``combined``, default; most token-efficient,
+    highest-variance), two separate module-level prompts (``module_separate``), or one
+    prompt per test (``per_test``; previous behavior, most robust). Repair and
+    mutation-strengthening are always per-test regardless of this setting. Any truncated
+    or unparseable module-level response falls back automatically to the per-test path."""
 
 
 @dataclasses.dataclass

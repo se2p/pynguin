@@ -13,6 +13,7 @@ import types
 
 import pytest
 
+import pynguin.configuration as config
 from pynguin.refinement import refiner as refiner_module
 from pynguin.refinement.refiner import (
     _attach_usage,  # noqa: PLC2701
@@ -273,6 +274,13 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
     monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
     monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    # This test exercises the per-test path (mocking _process_one_test), so pin the
+    # granularity to PER_TEST rather than the new COMBINED default.
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "refinement_granularity",
+        config.RefinementGranularity.PER_TEST,
+    )
 
     stats = refine_generated_tests(
         test_file_path=test_file,

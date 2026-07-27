@@ -223,6 +223,7 @@ max_dependencies = 10
 max_usage_examples = 3
 enable_mutation_strengthening = false
 max_mutation_iterations = 3
+refinement_granularity = "combined"
 
 [local_search]
 local_search = true
@@ -359,7 +360,8 @@ def expected_txt(tmp_path):
  'max_repair_iterations=2, max_tests=None, save_original=True, '
  'save_refined=True, enable_dependency_context=False, '
  'enable_usage_examples=False, max_dependencies=10, max_usage_examples=3, '
- 'enable_mutation_strengthening=False, max_mutation_iterations=3), '
+ 'enable_mutation_strengthening=False, max_mutation_iterations=3, '
+ "refinement_granularity=<RefinementGranularity.COMBINED: 'combined'>), "
  'ignore_modules=[], ignore_methods=[], '
  "element_visibility=<ElementVisibility.PUBLIC: 'PUBLIC'>, subprocess=False, "
  'subprocess_if_recommended=True, '
@@ -451,6 +453,8 @@ False
 None
 --llm_refinement.max_usage_examples
 3
+--llm_refinement.refinement_granularity
+COMBINED
 --llm_refinement.save_original
 True
 --llm_refinement.save_refined

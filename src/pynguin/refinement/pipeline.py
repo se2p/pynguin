@@ -14,6 +14,9 @@ from typing import Any
 
 import pynguin.configuration as config
 from pynguin.large_language_model.prompts import (
+    ModuleReadabilityRefinementPrompt,
+    ModuleRefinementPrompt,
+    ModuleSemanticAssertionsPrompt,
     MutationStrengthenPrompt,
     ReadabilityRefinementPrompt,
     RepairPrompt,
@@ -444,6 +447,66 @@ class TestRefiner:
         except Exception:  # noqa: BLE001
             return test_code
 
+    def refine_readability_module(self, module_code: str, sut_context: str) -> str:
+        """Refine readability of a whole test module in a single LLM request.
+
+        Args:
+            module_code: The whole test module (imports + all test functions).
+            sut_context: Formatted SUT documentation for the module.
+
+        Returns:
+            The refined module code, or a ``"# LLM error"`` sentinel on failure.
+            The original import block is restored on any non-sentinel output.
+        """
+        prompt_obj = ModuleReadabilityRefinementPrompt(
+            module_test_code=module_code,
+            sut_context=sut_context,
+        )
+        refined = self.llm_client.generate_from_prompt(prompt_obj)
+        if isinstance(refined, str) and refined.startswith(LLM_ERROR_PREFIX):
+            return refined
+        return _restore_import_block(refined, module_code)
+
+    def generate_semantic_assertions_module(self, module_code: str, sut_context: str) -> str:
+        """Add semantic assertions to a whole test module in a single LLM request.
+
+        Args:
+            module_code: The whole test module (imports + all test functions).
+            sut_context: Formatted SUT documentation for the module.
+
+        Returns:
+            The module code with assertions, or a ``"# LLM error"`` sentinel on failure.
+            The original import block is restored on any non-sentinel output.
+        """
+        prompt_obj = ModuleSemanticAssertionsPrompt(
+            module_test_code=module_code,
+            sut_context=sut_context,
+        )
+        improved = self.llm_client.generate_from_prompt(prompt_obj)
+        if isinstance(improved, str) and improved.startswith(LLM_ERROR_PREFIX):
+            return improved
+        return _restore_import_block(improved, module_code)
+
+    def refine_module_combined(self, module_code: str, sut_context: str) -> str:
+        """Refine readability *and* add assertions for a whole module in one LLM request.
+
+        Args:
+            module_code: The whole test module (imports + all test functions).
+            sut_context: Formatted SUT documentation for the module.
+
+        Returns:
+            The refined module code, or a ``"# LLM error"`` sentinel on failure.
+            The original import block is restored on any non-sentinel output.
+        """
+        prompt_obj = ModuleRefinementPrompt(
+            module_test_code=module_code,
+            sut_context=sut_context,
+        )
+        refined = self.llm_client.generate_from_prompt(prompt_obj)
+        if isinstance(refined, str) and refined.startswith(LLM_ERROR_PREFIX):
+            return refined
+        return _restore_import_block(refined, module_code)
+
     def repair_test_code(self, broken_code: str, error_message: str) -> str:
         """Attempt to fix broken test code.
 
@@ -514,6 +577,80 @@ class TestRefiner:
             )
 
         return current_code, mutation_stats, None
+
+    def build_module_sut_context(self) -> str:
+        """Build a module-level SUT context string from the module source code.
+
+        Used by the module-granularity refinement paths, which have no single focal
+        method.  Falls back to ``"Documentation unavailable."`` when the source cannot
+        be retrieved.  The context is truncated to ``max_context_chars`` to bound token
+        usage on large modules.
+
+        Returns:
+            The (possibly truncated) SUT module source, or a fallback string.
+        """
+        try:
+            module_source = inspect.getsource(self.module_under_test)
+        except Exception:  # noqa: BLE001
+            return "Documentation unavailable."
+        max_chars = config.configuration.large_language_model.max_context_chars
+        if max_chars and len(module_source) > max_chars:
+            module_source = module_source[:max_chars]
+        return module_source or "Documentation unavailable."
+
+    def finish_refined_test(
+        self,
+        original_code: str,
+        refined_code: str,
+        max_retries: int,
+    ) -> dict:
+        """Run the per-test finish stages on already-refined (module-level) code.
+
+        Given a single test that has already gone through module-level readability and/or
+        assertion refinement, this runs the same downstream machinery as the per-test
+        path: import restoration, mutation-based vacuous-assertion filtering, optional
+        mutation strengthening, and the iterative (per-broken-test) repair loop.
+
+        Args:
+            original_code: The original Pynguin-generated test (imports + one function).
+            refined_code: The refined single test extracted from the module response.
+            max_retries: Maximum number of repair attempts.
+
+        Returns:
+            The same result dict shape as :meth:`process_test_end_to_end`.
+        """
+        try:
+            # Structural analysis populates current_dependencies/current_usage_examples
+            # (no LLM call) so the per-test repair loop keeps its context quality, and
+            # yields the focal method for optional mutation strengthening.
+            analysis = self.structural_analysis(original_code)
+            focal_method = analysis.get("focal_method_name", "unknown")
+
+            current_code = _restore_import_block(refined_code, original_code)
+
+            mutation_stats: dict[str, Any] = {}
+            try:
+                current_code, mutation_stats = filter_vacuous_assertions(
+                    original_test=original_code,
+                    refined_test=current_code,
+                    module_under_test=self.module_under_test,
+                    max_mutants=10,
+                )
+            except Exception as e:  # noqa: BLE001
+                mutation_stats = {"error": str(e)}
+
+            ref_config = config.configuration.llm_refinement
+            if ref_config.enable_mutation_strengthening:
+                current_code = self._run_mutation_strengthening_loop(
+                    current_code=current_code,
+                    original_code=original_code,
+                    focal_method=focal_method,
+                    max_iterations=ref_config.max_mutation_iterations,
+                )
+
+            return self._run_repair_loop(original_code, current_code, mutation_stats, max_retries)
+        except Exception as e:  # noqa: BLE001
+            return {"success": False, "error": f"Pipeline exception: {e!s}", "iterations": 0}
 
     def _run_mutation_strengthening_loop(  # noqa: C901
         self,

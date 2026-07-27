@@ -64,6 +64,29 @@ Generates tests targeting specific uncovered callables.
 - Output: Tests specifically targeting those callables
 - Purpose: Coverage-guided test generation
 
+### Refinement Prompts (per-test)
+
+Used by `pynguin.refinement.pipeline` on one test function at a time.
+- **ReadabilityRefinementPrompt**: semantic naming + AAA restructuring (vars:
+  `sut_context`, `focal_method`, `test_code`).
+- **SemanticAssertionsPrompt**: infer behavior-based assertions (same vars).
+- **RepairPrompt** / **MutationStrengthenPrompt**: fix broken tests / strengthen
+  assertions against surviving mutants.
+
+### Module-Level Refinement Prompts
+
+Used by `pynguin.refinement.refiner` when `llm_refinement.refinement_granularity` is
+`combined` or `module_separate`.  Each takes the **whole** test module in one request
+(vars: `module_test_code`, `sut_context`) and has a raised `max_tokens` (8000) for
+whole-module output.  All three demand that every test function keep its **exact original
+name** so the refiner can split the response back and map functions by name.
+- **ModuleReadabilityRefinementPrompt**: readability of all tests (readability stage of
+  `module_separate`).
+- **ModuleSemanticAssertionsPrompt**: assertions for all tests (assertion stage of
+  `module_separate`).
+- **ModuleRefinementPrompt**: readability **and** assertions in a single pass
+  (`combined`, the default).
+
 ## Usage Context
 
 Called by:
