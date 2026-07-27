@@ -10,15 +10,15 @@
 
 """Provides version-specific functions for Python 3.13."""
 
-from opcode import opname
-from typing import ClassVar
+from __future__ import annotations
 
-from bytecode.cfg import BasicBlock
+from opcode import opname
+from typing import TYPE_CHECKING, ClassVar
+
 from bytecode.instr import _UNSET, UNSET, Compare, Instr
 
 from pynguin.instrumentation import PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation.controlflow import CFG, ArtificialInstr, BasicBlockNode
 from pynguin.instrumentation.version import python3_10, python3_11, python3_12
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
@@ -53,6 +53,9 @@ from pynguin.instrumentation.version.python3_12 import (
     get_branch_type,
     is_conditional_jump,
 )
+
+if TYPE_CHECKING:
+    from bytecode.cfg import BasicBlock
 
 __all__ = [
     "ACCESS_NAMES",
@@ -341,12 +344,12 @@ class CheckedCoverageInstrumentation(python3_12.CheckedCoverageInstrumentation):
 
     def generate_instructions(
         self,
-        cfg: CFG,
+        cfg: cf.CFG,
         code_object_id: int,
         instr: Instr,
         instr_original_index: int,
-        node: BasicBlockNode,
-    ) -> tuple[ArtificialInstr, ...]:
+        node: cf.BasicBlockNode,
+    ) -> tuple[cf.ArtificialInstr, ...]:
         """Generate instrumentation instructions.
 
         Args:
