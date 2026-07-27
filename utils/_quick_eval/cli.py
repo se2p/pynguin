@@ -52,7 +52,14 @@ def _add_task_selection(parser: argparse.ArgumentParser) -> None:
 def _add_run_options(parser: argparse.ArgumentParser) -> None:
     """Add the shared run-configuration flags (budget/seed/jobs/metrics)."""
     parser.add_argument(
-        "--budget", type=int, default=60, help="Time budget per module in seconds (default: 60)"
+        "--budget",
+        type=int,
+        default=120,
+        help=(
+            "Time budget per module in seconds (default: 120). Must exceed the 30s stall "
+            "window + 45s late-budget guard (=75s) for stall-triggered LLM calls to fire; "
+            "120s leaves headroom for the request round-trip and integration."
+        ),
     )
     parser.add_argument(
         "--timeout",
