@@ -77,22 +77,43 @@ poetry run python utils/quick_eval.py compare baseline.json current.json
   ```bash
   poetry run python utils/quick_eval.py compare-branch main --use-bundled-examples --mutation --budget 30
   ```
-- **LLM / LLMOSA** — add `--llm` to run the LLM configuration (LLMOSA + LLM
-  assertions, uncovered-target and stall-detection calls) and report LLM stats
-  (calls, input/output tokens, query time, parsed statements). Requires the LLM
-  credentials above:
+- **LLM / LLMOSA** — three mutually-exclusive modes select the LLM configuration and
+  add LLM stats (calls, input/output tokens, query time, parsed statements) to the
+  output. Both `--llm` and `--min-llm` require the LLM credentials above.
+  - *(no flag)* — **non-LLM**: pure SBST (DynaMOSA), the default.
+  - `--llm` — **full**: every combinable LLM feature — LLMOSA + pre-search
+    initial-population seeding + pre-search uncovered-targets call + stagnation-triggered
+    querying + in-search LLM assertion generation (`--assertion-generation LLM`).
+  - `--min-llm` — **minimal / paper-faithful**: the paper's cost-optimal *deployed*
+    configuration (`docs/evosuite-llm-paper-vs-pynguin.md`) — LLMOSA with
+    stagnation-triggered querying **only**, plus the post-processing refinement pipeline
+    (`llm_refinement.enabled`: readability + semantic assertions + repair). Pre-search
+    seeding and the uncovered-targets call stay **off**, since the paper finds the
+    cost–coverage optimum is stagnation-triggered injection alone.
+
+  Both modes inherit Pynguin's already paper-calibrated defaults (30 s stagnation window,
+  45 s late-budget guard, 2 repair iterations, 1 intervention, 64 000-char context, 30 s
+  timeout) and enable response caching.
   ```bash
+  # Full LLM:
   poetry run python utils/quick_eval.py run --rundefinition coverage-check --llm --budget 30
+  # Paper-faithful minimal LLM:
+  poetry run python utils/quick_eval.py run --rundefinition coverage-check --min-llm --budget 30
+  # Fair three-way comparison (non-LLM baseline vs. each mode):
+  poetry run python utils/quick_eval.py run --rundefinition coverage-check --save base.json --budget 60
+  poetry run python utils/quick_eval.py run --rundefinition coverage-check --min-llm --save min.json --budget 60
+  poetry run python utils/quick_eval.py run --rundefinition coverage-check --llm --save full.json --budget 60
+  poetry run python utils/quick_eval.py compare base.json min.json
   ```
-  **Start method / fair `--llm` comparisons (macOS only).** Pynguin picks the
+  **Start method / fair LLM comparisons (macOS only).** Pynguin picks the
   `multiprocess` start method per run: `fork` normally, but `spawn` when LLM
   features are active on macOS (`fork()` crashes there once the LLM client has
-  initialised Objective-C frameworks). `spawn` is correct but ~5–6× slower for
-  C-extension subjects (the subprocess executor re-instruments the SUT per spawn),
-  so a with/without-`--llm` comparison on macOS mixes substrates and is **not**
-  apples-to-apples. To compare fairly, pin both sides to the same method via the
-  `PYNGUIN_MP_START_METHOD={fork,spawn}` env var (must be `spawn` for the `--llm`
-  side on macOS):
+  initialised Objective-C frameworks). This applies to both `--llm` and `--min-llm`.
+  `spawn` is correct but ~5–6× slower for C-extension subjects (the subprocess executor
+  re-instruments the SUT per spawn), so comparing an LLM mode against the non-LLM
+  baseline on macOS mixes substrates and is **not** apples-to-apples. To compare fairly,
+  pin both sides to the same method via the `PYNGUIN_MP_START_METHOD={fork,spawn}` env
+  var (must be `spawn` for any LLM-enabled side on macOS):
   ```bash
   PYNGUIN_MP_START_METHOD=spawn poetry run python utils/quick_eval.py run --use-bundled-examples --save nollm.json --budget 60
   PYNGUIN_MP_START_METHOD=spawn poetry run python utils/quick_eval.py run --use-bundled-examples --llm --save llm.json --budget 60

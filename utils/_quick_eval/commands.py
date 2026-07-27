@@ -49,7 +49,7 @@ def cmd_run(args: argparse.Namespace, extra_args: list[str]) -> int:
         args.seed,
         jobs,
         include_mutation=args.mutation,
-        include_llm=args.llm,
+        llm_mode=args.llm_mode,
         timeout=args.timeout,
         extra_args=extra_args,
     )
@@ -105,7 +105,7 @@ def cmd_compare_branch(args: argparse.Namespace, extra_args: list[str]) -> int:
             jobs,
             python_exe=base_python,
             include_mutation=args.mutation,
-            include_llm=args.llm,
+            llm_mode=args.llm_mode,
             timeout=args.timeout,
             extra_args=extra_args,
         )
@@ -116,7 +116,7 @@ def cmd_compare_branch(args: argparse.Namespace, extra_args: list[str]) -> int:
             args.seed,
             jobs,
             include_mutation=args.mutation,
-            include_llm=args.llm,
+            llm_mode=args.llm_mode,
             timeout=args.timeout,
             extra_args=extra_args,
         )

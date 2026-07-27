@@ -45,27 +45,20 @@ def _build_output_vars(*, include_mutation: bool, include_llm: bool) -> str:
     return ",".join(parts)
 
 
-def _llm_cli_args() -> list[str]:
-    """Return the Pynguin CLI flags that enable and configure LLM test generation.
+# LLM evaluation modes selected by the CLI (see cli.py).
+LLM_MODE_NONE = "none"  # no LLM features (pure SBST)
+LLM_MODE_FULL = "full"  # every combinable LLM feature
+LLM_MODE_MIN = "min"  # the paper's cost-optimal stagnation-only config
+
+
+def _llm_credential_args() -> list[str]:
+    """Return the ``--api-key`` / ``--llm-url`` / ``--model-name`` flags from the env.
 
     API credentials are resolved from the environment (populated from the
     pynguin-experiments ``.env`` by the entry point) and passed explicitly so a
     malformed host environment variable cannot silently break the run.
     """
-    args = [
-        "--algorithm",
-        "LLMOSA",
-        "--large-language-model.enable-response-caching",
-        "True",
-        "--large-language-model.call-llm-for-uncovered-targets",
-        "True",
-        "--large-language-model.call-llm-on-stall-detection",
-        "True",
-        "--large-language-model.hybrid-initial-population",
-        "True",
-        "--assertion-generation",
-        "LLM",
-    ]
+    args: list[str] = []
     api_key = (
         os.environ.get("LLM_API_KEY")
         or os.environ.get("PYNGUIN_OPENAI_API_KEY")
@@ -80,6 +73,52 @@ def _llm_cli_args() -> list[str]:
     if model_name:
         args += ["--model-name", model_name.strip()]
     return args
+
+
+def _llm_cli_args(mode: str) -> list[str]:
+    """Return the Pynguin CLI flags that configure LLM test generation for ``mode``.
+
+    ``full`` enables every combinable LLM feature: the LLMOSA algorithm, pre-search
+    initial-population seeding, the pre-search uncovered-targets call, stagnation-
+    triggered querying, and in-search LLM assertion generation.
+
+    ``min`` mirrors the paper's cost-optimal *deployed* configuration
+    (docs/evosuite-llm-paper-vs-pynguin.md): stagnation-triggered querying **only**,
+    plus the post-processing refinement pipeline (readability + semantic assertions +
+    repair). Pre-search seeding and the pre-search uncovered-targets call stay OFF, since
+    the paper finds the cost-coverage optimum is stagnation-triggered injection alone.
+
+    Both modes keep Pynguin's already paper-calibrated timing/repair/context defaults
+    (30 s stagnation window, 45 s late-budget guard, 2 repair iterations, 1 intervention,
+    64 000-char context, 30 s request timeout) and enable response caching.
+    """
+    if mode == LLM_MODE_MIN:
+        args = [
+            "--algorithm",
+            "LLMOSA",
+            "--large-language-model.enable-response-caching",
+            "True",
+            "--large-language-model.call-llm-on-stall-detection",
+            "True",
+            "--llm-refinement.enabled",
+            "True",
+        ]
+    else:  # LLM_MODE_FULL
+        args = [
+            "--algorithm",
+            "LLMOSA",
+            "--large-language-model.enable-response-caching",
+            "True",
+            "--large-language-model.call-llm-for-uncovered-targets",
+            "True",
+            "--large-language-model.call-llm-on-stall-detection",
+            "True",
+            "--large-language-model.hybrid-initial-population",
+            "True",
+            "--assertion-generation",
+            "LLM",
+        ]
+    return args + _llm_credential_args()
 
 
 def _search_int(pattern: str, text: str) -> int | None:
@@ -231,7 +270,7 @@ def run_module(
     python_exe: str,
     *,
     include_mutation: bool = False,
-    include_llm: bool = False,
+    llm_mode: str = LLM_MODE_NONE,
     timeout: int = DEFAULT_TIMEOUT_S,
     extra_args: list[str] | None = None,
 ) -> ModuleResult:
@@ -240,6 +279,7 @@ def run_module(
     The timeout is a wall-clock limit for the whole run, not just the search phase;
     see DEFAULT_TIMEOUT_S.
     """
+    include_llm = llm_mode != LLM_MODE_NONE
     if not Path(task.project_path).exists():
         return ModuleResult(
             project=task.project,
@@ -274,7 +314,7 @@ def run_module(
             _build_output_vars(include_mutation=include_mutation, include_llm=include_llm),
         ]
         if include_llm:
-            cmd += _llm_cli_args()
+            cmd += _llm_cli_args(llm_mode)
         if extra_args:
             cmd += extra_args
 
@@ -373,7 +413,7 @@ def run_eval(
     *,
     python_exe: str = sys.executable,
     include_mutation: bool = False,
-    include_llm: bool = False,
+    llm_mode: str = LLM_MODE_NONE,
     timeout: int = DEFAULT_TIMEOUT_S,
     extra_args: list[str] | None = None,
 ) -> list[ModuleResult]:
@@ -390,7 +430,7 @@ def run_eval(
                 seed,
                 python_exe,
                 include_mutation=include_mutation,
-                include_llm=include_llm,
+                llm_mode=llm_mode,
                 timeout=timeout,
                 extra_args=extra_args,
             ): task

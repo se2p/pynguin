@@ -9,6 +9,7 @@ import argparse
 
 from . import DEFAULT_TIMEOUT_S
 from .commands import cmd_compare, cmd_compare_branch, cmd_run
+from .runner import LLM_MODE_FULL, LLM_MODE_MIN, LLM_MODE_NONE
 
 _DESCRIPTION = r"""Quick evaluation script for Pynguin — fast local coverage feedback.
 
@@ -69,11 +70,25 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Capture mutation score (uses Pynguin's built-in mutation analysis)",
     )
-    parser.add_argument(
+    llm_group = parser.add_mutually_exclusive_group()
+    llm_group.add_argument(
         "--llm",
-        action="store_true",
-        help="Use Large Language Model (LLM) features for test generation and evaluation",
+        dest="llm_mode",
+        action="store_const",
+        const=LLM_MODE_FULL,
+        help="Full LLM mode: enable every combinable LLM feature (LLMOSA, pre-search "
+        "seeding, uncovered-target + stall-detection calls, in-search LLM assertions)",
     )
+    llm_group.add_argument(
+        "--min-llm",
+        dest="llm_mode",
+        action="store_const",
+        const=LLM_MODE_MIN,
+        help="Minimal LLM mode: the paper's cost-optimal deployed config "
+        "(stagnation-triggered querying + refinement only; no pre-search seeding). "
+        "See docs/evosuite-llm-paper-vs-pynguin.md",
+    )
+    parser.set_defaults(llm_mode=LLM_MODE_NONE)
 
 
 def main(argv: list[str] | None = None) -> int:
