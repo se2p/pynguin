@@ -327,7 +327,13 @@ def run_module(
                 check=False,
             )
             exit_code = proc.returncode
-            error = proc.stderr[-500:] if proc.returncode != 0 and proc.stderr else None
+            # Pynguin writes tracebacks to stdout, not stderr, so a crash (e.g. a
+            # missing optional dependency) leaves stderr empty. Fall back to the tail
+            # of stdout so the failure reason is not silently lost as "no generated tests".
+            if proc.returncode != 0:
+                error = (proc.stderr or proc.stdout or "")[-500:] or None
+            else:
+                error = None
         except subprocess.TimeoutExpired:
             exit_code = -1
             error = f"timeout after {timeout}s"
@@ -337,6 +343,26 @@ def run_module(
             python_exe, tmpdir, task.module, timeout=min(timeout, _SUITE_TIMEOUT_S)
         )
     return _result_from_stats(task, stats, duration, exit_code, error, suite=suite)
+
+
+def ensure_llm_available(python_exe: str) -> None:
+    """Fail fast if an LLM mode is requested but the ``openai`` extra is not installed.
+
+    LLMOSA imports the ``openai`` client at algorithm-instantiation time and raises
+    ``ValueError`` if it is missing, which surfaces only as a per-module exit-2 crash
+    with no tests. Checking once up front avoids launching a fleet of runs that all
+    fail the same way.
+    """
+    proc = subprocess.run(  # noqa: S603
+        [python_exe, "-c", "import openai"],
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            "LLM mode requested but the 'openai' extra is not installed in the runner "
+            f"environment ({python_exe}). Install it with: poetry install --extras openai"
+        )
 
 
 def install_sut_dependencies(tasks: list[ModuleTask], python_exe: str) -> None:
@@ -418,6 +444,8 @@ def run_eval(
     extra_args: list[str] | None = None,
 ) -> list[ModuleResult]:
     """Run Pynguin on all tasks in parallel and return results."""
+    if llm_mode != LLM_MODE_NONE:
+        ensure_llm_available(python_exe)
     install_sut_dependencies(tasks, python_exe)
     ensure_runner_tools(python_exe)
     results: list[ModuleResult] = []
