@@ -266,7 +266,11 @@ def test_empty_function_is_dropped(test_cluster):
     assert result.test_cases == []
 
 
-def test_compound_statement_is_dropped(test_cluster):
+def test_compound_statement_is_admitted_whole(test_cluster):
+    # A compound block is admitted as one opaque, executable Statement (the
+    # CST-backed representation runs it natively). Its external read ``x`` is
+    # renamed to the fresh ``var_0`` bound earlier; the block-local ``y`` stays
+    # local (it is not exposed as a bound variable to later statements).
     code = """
 def test_foo():
     x = 1
@@ -276,8 +280,41 @@ def test_foo():
 """
     testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
     rendered = testcase.to_code()
-    assert "if" not in rendered
-    assert [s.bound_variable for s in testcase.statements()] == ["var_0", "var_1"]
+    assert "if var_0:" in rendered
+    assert "y = 2" in rendered
+    # x=1 -> var_0, the if-block (opaque, no binding), z=x -> var_1.
+    assert [s.bound_variable for s in testcase.statements()] == ["var_0", None, "var_1"]
+
+
+def test_compound_with_block_internal_binding_is_local(test_cluster):
+    # ``with ... as handle`` and the loop target ``line`` are bound *inside* the
+    # block, so they are not required to be in scope and the block is admitted.
+    code = """
+def test_foo():
+    path = "x"
+    with open(path) as handle:
+        for line in handle:
+            data = line
+"""
+    testcase, _total, parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    rendered = testcase.to_code()
+    assert "with open(var_0) as handle:" in rendered
+    assert "for line in handle:" in rendered
+    # path="x" -> var_0, plus the with-block admitted whole.
+    assert [s.bound_variable for s in testcase.statements()] == ["var_0", None]
+    assert parsed == 2
+
+
+def test_compound_statement_with_unknown_external_read_is_dropped(test_cluster):
+    # ``undefined_name`` is neither in scope nor bound inside the block, so the
+    # block cannot be admitted safely and is dropped.
+    code = """
+def test_foo():
+    for item in undefined_name:
+        y = item
+"""
+    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    assert testcase.size() == 0
 
 
 # ---------------------------------------------------------------------------
