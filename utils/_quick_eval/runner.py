@@ -151,6 +151,59 @@ def ensure_runner_tools(python_exe: str) -> None:
         )
 
 
+def _module_include_patterns(module: str) -> str:
+    """Return coverage.py ``--include`` patterns matching exactly the target module file.
+
+    A dotted module ``a.b.c`` lives at either ``a/b/c.py`` or, for a package, at
+    ``a/b/c/__init__.py``; only one exists for a given module, so matching both is
+    unambiguous. This keeps the measurement restricted to the *target* module: without
+    it, ``coverage run --source=<pkg>`` for a package target (e.g. ``cachetools``) also
+    counts every untargeted submodule, deflating the reported coverage.
+    """
+    rel = module.replace(".", "/")
+    return f"*/{rel}.py,*/{rel}/__init__.py"
+
+
+def _run_coverage_json(
+    python_exe: str, data_file: Path, json_file: Path, out: Path, *, include: str | None
+) -> dict:
+    """Write and load a coverage.py JSON report, optionally scoped by ``--include``."""
+    cmd = [
+        python_exe,
+        "-m",
+        "coverage",
+        "json",
+        "--data-file",
+        str(data_file),
+        "-o",
+        str(json_file),
+    ]
+    if include:
+        cmd += ["--include", include]
+    subprocess.run(  # noqa: S603
+        cmd, capture_output=True, text=True, timeout=60, check=True, cwd=str(out)
+    )
+    return json.loads(json_file.read_text(encoding="utf-8"))
+
+
+def _measure_scoped_coverage(
+    python_exe: str, data_file: Path, json_file: Path, module: str, out: Path
+) -> float:
+    """Return the combined line+branch fraction restricted to the target module's file.
+
+    ``coverage run --source=<module>`` traces the whole package when ``module`` is a
+    package name, so scope the *report* to just the target module's file. Fall back to
+    the unscoped total if the include pattern happens to match no files (e.g. an unusual
+    install layout), so the measurement is never worse than before.
+    """
+    data = _run_coverage_json(
+        python_exe, data_file, json_file, out, include=_module_include_patterns(module)
+    )
+    if not data.get("files"):
+        data = _run_coverage_json(python_exe, data_file, json_file, out, include=None)
+    return float(data["totals"]["percent_covered"]) / 100.0
+
+
 def _measure_generated_suite(
     python_exe: str, output_dir: str, module: str, timeout: int
 ) -> tuple[float | None, int | None, str | None]:
@@ -198,25 +251,7 @@ def _measure_generated_suite(
         return None, 0, "no tests collected"
     passed, failed = _parse_pytest_counts(proc.stdout)
     try:
-        subprocess.run(  # noqa: S603
-            [
-                python_exe,
-                "-m",
-                "coverage",
-                "json",
-                "--data-file",
-                str(data_file),
-                "-o",
-                str(json_file),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=True,
-            cwd=str(out),
-        )
-        totals = json.loads(json_file.read_text(encoding="utf-8"))["totals"]
-        coverage = float(totals["percent_covered"]) / 100.0
+        coverage = _measure_scoped_coverage(python_exe, data_file, json_file, module, out)
     except (subprocess.SubprocessError, OSError, ValueError, KeyError) as exc:
         return None, passed, f"coverage parse error: {exc}"
     return coverage, passed, (f"{failed} failed" if failed else None)
