@@ -1,6 +1,9 @@
-# This file is part of the Pynguin automated unit test generation framework.
-# Copyright (C) 2024-2026 Lukas Krodinger
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
 # SPDX-License-Identifier: MIT
+#
 
 """Provides caching mechanism for LLM responses."""
 
