@@ -169,6 +169,92 @@ class _RootNameCollector(cst.CSTVisitor):
         return True
 
 
+def _params_names(params: cst.Parameters) -> list[str]:
+    """Return the parameter names introduced by a ``Parameters`` node."""
+    groups = (params.params, params.kwonly_params, getattr(params, "posonly_params", ()))
+    names = [
+        param.name.value for group in groups for param in group if isinstance(param.name, cst.Name)
+    ]
+    names.extend(
+        star.name.value
+        for star in (params.star_arg, params.star_kwarg)
+        if isinstance(star, cst.Param) and isinstance(star.name, cst.Name)
+    )
+    return names
+
+
+class _BlockBindingCollector(cst.CSTVisitor):
+    """Collects the names *bound inside* a compound statement.
+
+    A compound statement admitted as a single opaque ``Statement`` (a ``for``/
+    ``with``/``if``/``try``/``while`` block) binds its own local names -- loop
+    and ``with ... as``/``except ... as`` targets, in-block assignments, walrus
+    targets, comprehension targets, and nested ``def``/``lambda`` parameters.
+    Those names are local to the block and must be subtracted from the block's
+    *read* names before scope-checking it against the surrounding test, so a
+    loop variable is not mistaken for an undefined external reference.
+    """
+
+    def __init__(self) -> None:
+        self.bound: set[str] = set()
+
+    @staticmethod
+    def collect(node: cst.CSTNode) -> set[str]:
+        """Collect the names bound inside *node*."""
+        collector = _BlockBindingCollector()
+        node.visit(collector)
+        return collector.bound
+
+    def _add_targets(self, node: cst.BaseExpression) -> None:
+        if isinstance(node, cst.Name):
+            self.bound.add(node.value)
+        elif isinstance(node, cst.Tuple | cst.List):
+            for element in node.elements:
+                self._add_targets(element.value)
+        elif isinstance(node, cst.StarredElement):
+            self._add_targets(node.value)
+
+    def visit_AssignTarget(self, node: cst.AssignTarget) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AugAssign(self, node: cst.AugAssign) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_NamedExpr(self, node: cst.NamedExpr) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_For(self, node: cst.For) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_CompFor(self, node: cst.CompFor) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AsName(self, node: cst.AsName) -> bool:  # noqa: N802
+        if isinstance(node.name, cst.Name):
+            self.bound.add(node.name.value)
+        else:
+            self._add_targets(node.name)
+        return True
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        self.bound.add(node.name.value)
+        self.bound.update(_params_names(node.params))
+        return True
+
+    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
+        self.bound.update(_params_names(node.params))
+        return True
+
+
 class _LocalRenamer(cst.CSTTransformer):
     """Renames bare ``Name`` leaves according to a mapping."""
 
@@ -767,6 +853,41 @@ class CstStatementDeserializer:
         )
         return 1, (1 if is_uninterpreted else 0)
 
+    def _handle_compound_statement(
+        self, line: cst.BaseCompoundStatement, state: _FunctionDeserializationState
+    ) -> tuple[int, int]:
+        """Admit a compound statement (``for``/``with``/``if``/``try``/``while``) whole.
+
+        The libcst-backed ``Statement`` stores a ``BaseCompoundStatement`` node
+        directly and the test executes as compiled source, so a compound block
+        runs natively and contributes coverage even though the genetic operators
+        treat it as opaque (they skip non-``SimpleStatementLine`` nodes). The block
+        is admitted only when every name it reads -- minus the names it binds
+        internally -- is already in scope; external references are renamed to the
+        fresh ``var_N`` names bound by earlier statements. Names bound *inside* the
+        block stay block-local and are not exposed to later statements.
+
+        Args:
+            line: The compound statement to admit.
+            state: The mutable per-function deserialization state.
+
+        Returns:
+            A tuple of (parsed delta, uninterpreted delta), each 0 or 1.
+        """
+        reads = _RootNameCollector.collect(line)
+        internal = _BlockBindingCollector.collect(line)
+        external = reads - internal
+        if not external <= state.known:
+            return 0, 0
+
+        node: cst.BaseCompoundStatement = line
+        if state.rename_map:
+            renamed = line.visit(_LocalRenamer(state.rename_map))
+            assert isinstance(renamed, cst.BaseCompoundStatement)
+            node = renamed
+        state.testcase.add_statement(tc.Statement(node=node))
+        return 1, 1
+
     def deserialize_function(self, fn: cst.FunctionDef) -> tuple[tc.TestCase, int, int, int]:
         """Deserialize a single ``test_*``/``seed_test_*`` function.
 
@@ -788,8 +909,17 @@ class CstStatementDeserializer:
         uninterpreted = 0
 
         for line in normalized.body:
+            if isinstance(line, cst.BaseCompoundStatement):
+                # A compound block (for/with/if/try/while) is admitted whole as an
+                # opaque, executable statement; the CST-backed representation runs
+                # it natively and the genetic operators skip it. See
+                # _handle_compound_statement.
+                parsed_delta, uninterpreted_delta = self._handle_compound_statement(line, state)
+                parsed += parsed_delta
+                uninterpreted += uninterpreted_delta
+                continue
             if not isinstance(line, cst.SimpleStatementLine):
-                continue  # Compound statement: unsupported shape, dropped.
+                continue  # Non-statement line (e.g. bare newline): nothing to admit.
             for small in line.body:
                 if isinstance(small, cst.Assert):
                     if not self._create_assertions:

@@ -53,6 +53,17 @@ def test_get_invalid_module(module_provider):
         module_provider.get_module("foo")
 
 
+def test_get_top_level_module_not_yet_imported(module_provider):
+    # A top-level (dotless) module absent from sys.modules is imported via the
+    # importlib fallback rather than raising. Regression: rsplit(".", 1) used to
+    # ValueError on a dotless name and mask it as ModuleNotImportedError, which
+    # broke execution of single-file SUTs such as ``untangle``.
+    sys.modules.pop("colorsys", None)
+    module = module_provider.get_module("colorsys")
+    assert module is not None
+    assert module.__name__ == "colorsys"
+
+
 def test_get_invalid_submodule(module_provider):
     with pytest.raises(ex.ModuleNotImportedError):
         module_provider.get_module("sys.foo")

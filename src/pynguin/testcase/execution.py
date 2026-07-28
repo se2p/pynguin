@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import contextlib
+import importlib
 import inspect
 import logging
 import sys
@@ -108,10 +109,18 @@ class ModuleProvider:
         if module is not None:
             return module
 
-        try:
-            package_name, submodule_name = module_name.rsplit(".", 1)
-        except ValueError as e:
-            raise ModuleNotImportedError(module_name) from e
+        if "." not in module_name:
+            # A top-level (dotless) module that is not (yet) in ``sys.modules``:
+            # there is no parent package to resolve it through, so import it
+            # directly. This covers single-file SUTs like ``untangle`` whose
+            # objects carry a ``__module__`` that has not been imported into the
+            # current execution namespace.
+            try:
+                return importlib.import_module(module_name)
+            except ImportError as e:
+                raise ModuleNotImportedError(module_name) from e
+
+        package_name, submodule_name = module_name.rsplit(".", 1)
 
         try:
             package = ModuleProvider.__get_imported_module(package_name)
