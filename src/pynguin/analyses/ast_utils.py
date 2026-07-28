@@ -1,6 +1,9 @@
-# This file is part of the Pynguin automated unit test generation framework.
-# Copyright (C) 2024 Lukas Krodinger
-# SPDX-License-Identifier: MIT
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
 
 """Utility functions for standard library ast nodes."""
 
