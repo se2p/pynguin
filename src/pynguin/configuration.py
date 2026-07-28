@@ -928,10 +928,12 @@ class LLMConfiguration:
     Only used as a fallback when ``stall_detection_window_seconds`` is <= 0; the
     time-based window is preferred because iteration duration varies widely."""
 
-    max_llm_interventions: int = 1
-    """The maximum number of allowed stall-triggered LLM interventions per run.  Set
-    to a higher value (or ``-1`` for unlimited, bounded only by the search budget) to
-    let the LLM fire repeatedly on each detected plateau."""
+    max_llm_interventions: int = -1
+    """The maximum number of allowed stall-triggered LLM interventions per run.
+    Defaults to ``-1`` (unlimited, bounded only by the search budget).  This is safe
+    because interventions are naturally rate-limited by the stall-detection window
+    and the late-budget guard, so they fire at most once per detected plateau.  Set
+    to a non-negative value to cap the number of interventions per run instead."""
 
     min_remaining_budget_for_llm: int = 45
     """Late-budget guard: suppress stall-triggered LLM queries when fewer than this

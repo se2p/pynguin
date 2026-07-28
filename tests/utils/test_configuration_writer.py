@@ -95,7 +95,7 @@ coverage_threshold = 1
 call_llm_on_stall_detection = false
 stall_detection_window_seconds = 30
 max_plateau_len = 25
-max_llm_interventions = 1
+max_llm_interventions = -1
 min_remaining_budget_for_llm = 45
 max_context_chars = 64000
 max_retries = 8
@@ -300,7 +300,7 @@ def expected_txt(tmp_path):
  'enable_response_caching=False, call_llm_for_uncovered_targets=False, '
  'coverage_threshold=1, call_llm_on_stall_detection=False, '
  'stall_detection_window_seconds=30, max_plateau_len=25, '
- 'max_llm_interventions=1, min_remaining_budget_for_llm=45, '
+ 'max_llm_interventions=-1, min_remaining_budget_for_llm=45, '
  'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
  "cache_dir='~/.cache/pynguin/llm'), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
@@ -422,7 +422,7 @@ False
 --large_language_model.max_context_chars
 64000
 --large_language_model.max_llm_interventions
-1
+-1
 --large_language_model.max_plateau_len
 25
 --large_language_model.max_retries
@@ -872,7 +872,7 @@ def expected_parameter_list() -> list[str]:
         "--coverage_threshold 1",
         "--call_llm_on_stall_detection False",
         "--max_plateau_len 25",
-        "--max_llm_interventions 1",
+        "--max_llm_interventions -1",
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
