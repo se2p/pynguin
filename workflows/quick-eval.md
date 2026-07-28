@@ -126,6 +126,34 @@ poetry run python utils/quick_eval.py compare baseline.json current.json
   ```
   On Linux both LLM and non-LLM use `fork`, so comparisons are fair with no override.
 
+### Coverage-only mode — `--no-assertions`
+
+When you only care about **coverage** (not assertion strength / mutation score), add
+`--no-assertions` to `run` / `compare-branch`. It makes the run coverage-focused by
+disabling everything that costs wall-clock without moving coverage:
+
+- **All assertion generation is turned off** (`--test-case-output.assertion-generation
+  NONE`), so the post-search mutation-analysis phase never runs. That phase re-executes
+  the suite against every mutant and, unbounded, can be killed before exporting any
+  tests on loop-heavy subjects (see `docs/hybrid-testgen-investigation.md`). Skipping it
+  makes runs export sooner and never time out in that phase.
+- **Non-coverage LLM requests are dropped** — under `--min-llm` the refinement pipeline
+  (`llm_refinement.enabled`: readability + semantic assertions + repair) is disabled;
+  under `--llm` the in-search LLM assertion generation is disabled. The coverage-driving
+  LLM calls stay on (LLMOSA, stagnation-triggered querying, and full mode's
+  uncovered-targets + initial-population seeding).
+
+Coverage is still measured on the exported suite exactly as before — assertions do not
+affect coverage — so this is the fastest way to compare a change's coverage impact.
+`--no-assertions` does **not** combine with `--mutation` (no assertions ⇒ no mutation
+score).
+```bash
+# Coverage-only, pure SBST:
+poetry run python utils/quick_eval.py run --use-bundled-examples --no-assertions --budget 60
+# Coverage-only, paper-faithful minimal LLM (refinement dropped):
+poetry run python utils/quick_eval.py run --rundefinition coverage-check --min-llm --no-assertions --budget 60
+```
+
 Any unrecognised flags are forwarded verbatim to the Pynguin CLI, e.g.:
 ```bash
 poetry run python utils/quick_eval.py run --use-bundled-examples --budget 30 \
@@ -175,6 +203,7 @@ apples-to-apples. Only a *reproducible* crash/regression is real.
 |------|---------|---------|
 | `--budget N` | `--maximum-search-time` per module (seconds) | 60 |
 | `--timeout N` | wall-clock kill limit per run (covers post-search work e.g. mutation) | 3600 |
+| `--no-assertions` | coverage-only: disable assertion generation + non-coverage LLM requests | off |
 | `--jobs N` | parallel worker processes | 10 |
 | `--seed N` | random seed | 0 |
 | `--save FILE` / `--save-baseline` / `--save-current` | archive results as JSON | — |

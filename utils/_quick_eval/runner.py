@@ -75,7 +75,7 @@ def _llm_credential_args() -> list[str]:
     return args
 
 
-def _llm_cli_args(mode: str) -> list[str]:
+def _llm_cli_args(mode: str, *, no_assertions: bool = False) -> list[str]:
     """Return the Pynguin CLI flags that configure LLM test generation for ``mode``.
 
     ``full`` enables every combinable LLM feature: the LLMOSA algorithm, pre-search
@@ -87,6 +87,12 @@ def _llm_cli_args(mode: str) -> list[str]:
     plus the post-processing refinement pipeline (readability + semantic assertions +
     repair). Pre-search seeding and the pre-search uncovered-targets call stay OFF, since
     the paper finds the cost-coverage optimum is stagnation-triggered injection alone.
+
+    When ``no_assertions`` is set (coverage-only mode) the LLM requests that do not
+    contribute to coverage are dropped: ``min``'s refinement pipeline (readability +
+    semantic assertions + repair) and ``full``'s in-search LLM assertion generation.
+    The coverage-driving calls (LLMOSA, stagnation-triggered querying, and full's
+    uncovered-targets + initial-population seeding) are kept.
 
     Both modes keep Pynguin's already paper-calibrated timing/repair/context defaults
     (30 s stagnation window, 45 s late-budget guard, 2 repair iterations, 1 intervention,
@@ -100,9 +106,9 @@ def _llm_cli_args(mode: str) -> list[str]:
             "True",
             "--large-language-model.call-llm-on-stall-detection",
             "True",
-            "--llm-refinement.enabled",
-            "True",
         ]
+        if not no_assertions:
+            args += ["--llm-refinement.enabled", "True"]
     else:  # LLM_MODE_FULL
         args = [
             "--algorithm",
@@ -115,10 +121,29 @@ def _llm_cli_args(mode: str) -> list[str]:
             "True",
             "--large-language-model.hybrid-initial-population",
             "True",
-            "--assertion-generation",
-            "LLM",
         ]
+        if not no_assertions:
+            args += ["--assertion-generation", "LLM"]
     return args + _llm_credential_args()
+
+
+def _assertion_cli_args(*, no_assertions: bool, budget: int) -> list[str]:
+    """Return the CLI flags governing the post-search assertion phase.
+
+    In coverage-only mode (``no_assertions``) all assertion generation is disabled
+    (``--test-case-output.assertion-generation NONE``), so the mutation-analysis phase
+    never runs and the suite exports as soon as the search ends.
+
+    Otherwise the mutation-based assertion-generation phase is bounded to the search
+    budget. It defaults to unlimited (-1); on loop-heavy subjects (mutants that introduce
+    infinite loops each cost a full per-test execution timeout) it can run far past the
+    search budget and be killed before exporting any tests, yielding a phantom
+    "no generated tests"/0% row that is an operational timeout, not a coverage ceiling.
+    Capping it lets the suite export instead of timing out.
+    """
+    if no_assertions:
+        return ["--test-case-output.assertion-generation", "NONE"]
+    return ["--test-case-output.maximum-mutation-time", str(max(budget, 60))]
 
 
 def _search_int(pattern: str, text: str) -> int | None:
@@ -271,6 +296,7 @@ def run_module(
     *,
     include_mutation: bool = False,
     llm_mode: str = LLM_MODE_NONE,
+    no_assertions: bool = False,
     timeout: int = DEFAULT_TIMEOUT_S,
     extra_args: list[str] | None = None,
 ) -> ModuleResult:
@@ -312,17 +338,10 @@ def run_module(
             "CSV",
             "--output-variables",
             _build_output_vars(include_mutation=include_mutation, include_llm=include_llm),
-            # Bound the mutation-based assertion-generation phase. It defaults to
-            # unlimited (-1); on loop-heavy subjects (mutants that introduce infinite
-            # loops each cost a full per-test execution timeout) it can run far past the
-            # search budget and be killed before exporting any tests, yielding a phantom
-            # "no generated tests"/0% row that is an operational timeout, not a coverage
-            # ceiling. Capping it lets the suite export instead of timing out.
-            "--test-case-output.maximum-mutation-time",
-            str(max(budget, 60)),
         ]
+        cmd += _assertion_cli_args(no_assertions=no_assertions, budget=budget)
         if include_llm:
-            cmd += _llm_cli_args(llm_mode)
+            cmd += _llm_cli_args(llm_mode, no_assertions=no_assertions)
         if extra_args:
             cmd += extra_args
 
@@ -448,6 +467,7 @@ def run_eval(
     python_exe: str = sys.executable,
     include_mutation: bool = False,
     llm_mode: str = LLM_MODE_NONE,
+    no_assertions: bool = False,
     timeout: int = DEFAULT_TIMEOUT_S,
     extra_args: list[str] | None = None,
 ) -> list[ModuleResult]:
@@ -467,6 +487,7 @@ def run_eval(
                 python_exe,
                 include_mutation=include_mutation,
                 llm_mode=llm_mode,
+                no_assertions=no_assertions,
                 timeout=timeout,
                 extra_args=extra_args,
             ): task
