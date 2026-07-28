@@ -90,13 +90,13 @@ def _exec_statement_guarded(
 
     thread = threading.Thread(target=_target, daemon=True)
     # Suppress logging from the *parent* thread rather than inside ``_target``.
-    # ``_suppress_logging`` flips the process-global ``logging.disable`` switch, so
+    # ``suppress_logging`` flips the process-global ``logging.disable`` switch, so
     # if the watchdog times out and its daemon thread leaks while still inside the
     # context, the restoring ``finally`` never runs and logging stays disabled for
     # the rest of the process, which breaks every later test (and real run)
     # that expects log output. Owning the suppression here guarantees the restore
     # runs even when the thread is abandoned, and still covers the exec window.
-    with _suppress_logging():
+    with suppress_logging():
         thread.start()
         thread.join(_STATEMENT_EXECUTION_TIMEOUT)
     if thread.is_alive() or aborted[0]:
