@@ -27,34 +27,45 @@ graph, deserialization is mostly "parse + validate + normalize" rather than
 
 ### deserializer.py
 
+- **`Disposition`** (enum): how a single statement was handled. Every
+  non-empty source statement is tagged with exactly one member, so the counts
+  form a partition: `ADMITTED`, `ADMITTED_UNRESOLVED_CALL`, `ADMITTED_IMPORT`,
+  `ADMITTED_COMPOUND`, `DROPPED_UNKNOWN_NAMES`, `DROPPED_UNSUPPORTED_SHAPE`,
+  `ASSERTION_LIFTED`, `ASSERTION_KEPT_RAW`, `ASSERTION_DROPPED`.
+- **`ParseStatus`** (enum): `OK` or `UNPARSEABLE`.
+- **`FunctionDeserialization`** (dataclass): one function's outcome —
+  `test_case: TestCase`, `counts: Counter[Disposition]`.
 - **`DeserializationResult`** (dataclass): the outcome of deserializing a
   chunk of LLM-emitted source — `test_cases: list[TestCase]`,
-  `total_statements`, `parsed_statements`, `uninterpreted_statements`.
+  `status: ParseStatus`, `counts: Counter[Disposition]` (aggregated across all
+  functions).
 - **`deserialize_code_to_testcases(test_file_contents, test_cluster, *,
-  create_assertions=None) -> DeserializationResult | None`**: the main entry
+  create_assertions=None) -> DeserializationResult`**: the main entry
   point. Runs `rewrite_tests()` first, then `cst.parse_module`s the joined
   result and hands every top-level `test_*`/`seed_test_*` `FunctionDef` to a
-  `CstStatementDeserializer`. Returns `None` only if the rewritten source
-  cannot be parsed as libcst at all; a test function that admits zero
-  statements is simply dropped rather than causing a `None` return.
-  `create_assertions` defaults to whether
+  `CstStatementDeserializer`. Returns a result with `status=UNPARSEABLE`
+  (empty `test_cases`/`counts`) only if the rewritten source cannot be parsed
+  as libcst at all; a test function that admits zero statements is simply
+  dropped. `create_assertions` defaults to whether
   `config.configuration.test_case_output.assertion_generation ==
   AssertionGenerator.LLM`.
 - **`CstStatementDeserializer(test_cluster, *, create_assertions)`**: per-test-
   function parser.
-  - `deserialize_function(fn) -> (TestCase, total, parsed, uninterpreted)`
-    walks the (already rewriter-normalized and SUT-alias-normalized) function
-    body. Only `SimpleStatementLine` children are admitted; compound
-    statements (`if`/`for`/`with`/...) are dropped outright.
+  - `deserialize_function(fn) -> FunctionDeserialization` walks the (already
+    rewriter-normalized and SUT-alias-normalized) function body, tagging each
+    statement with a `Disposition`. Compound statements (`if`/`for`/`with`/...)
+    are admitted whole as opaque executable blocks (`ADMITTED_COMPOUND`).
   - `Assign` with a single `Name` target: the bound type is inferred either
     from a literal RHS (`ast.literal_eval`) or by resolving a `Call` against
     `test_cluster.accessible_objects_under_test`
     (`GenericConstructor`/`GenericMethod`/`GenericFunction`); an unresolved
-    call is still admitted as raw CST but counted as "uninterpreted".
+    call is still admitted as raw CST but tagged `ADMITTED_UNRESOLVED_CALL`.
   - Statements that read names outside the current scope (builtins ∪
     `{"pytest"}` ∪ the SUT module alias ∪ `vars()` of the imported SUT module
     ∪ accessible-object names ∪ previously bound variables ∪ names bound by
-    kept non-SUT imports) are dropped.
+    kept non-SUT imports) are dropped (`DROPPED_UNKNOWN_NAMES`); assigns with
+    an unsupported shape (multi-target, non-`Name` target) are dropped as
+    `DROPPED_UNSUPPORTED_SHAPE`.
   - Every bound variable is renamed to a fresh `var_N` name
     (`TestCase.next_var_name()`); later references — and the binding
     statement's *own* assignment target — are renamed consistently via
@@ -67,10 +78,12 @@ graph, deserialization is mostly "parse + validate + normalize" rather than
     their local names into scope.
   - `assert` statements are lifted into `Assertion` objects (appended to the
     statement that bound the asserted variable) via the shared
-    `parse_assertion()` helper when `create_assertions` is set; unsupported
-    shapes are kept as raw (renamed) statements when every referenced name is
-    already known, otherwise dropped. `assert` never contributes to
-    `total_statements`.
+    `parse_assertion()` helper when `create_assertions` is set
+    (`ASSERTION_LIFTED`); unsupported shapes are kept as raw (renamed)
+    statements when every referenced name is already known
+    (`ASSERTION_KEPT_RAW`), otherwise dropped (`ASSERTION_DROPPED`). Asserts
+    are tracked under their own `ASSERTION_*` dispositions, never as
+    statements.
 - **`parse_assertion(node: cst.Assert | str, known_vars: Mapping[str, type |
   None]) -> tuple[str, Assertion] | None`**: module-level and shared with
   `pynguin.assertion.llmassertiongenerator`. Supports `assert x` (bare name),

@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import ast
 import builtins
+import collections
 import dataclasses
+import enum
 import importlib
 import logging
 from typing import TYPE_CHECKING, Any
@@ -44,14 +46,61 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class Disposition(enum.Enum):
+    """How a single LLM-emitted statement was handled during deserialization.
+
+    Every non-empty source statement is tagged with exactly one member, so the
+    membership counts are a partition of the input rather than overlapping
+    tallies. ``ADMITTED*`` members were added to the test case; ``DROPPED*``
+    members were discarded; ``ASSERTION*`` members describe how an ``assert``
+    line was treated (asserts are never admitted as statements).
+    """
+
+    #: Added to the test case and resolved against the test cluster.
+    ADMITTED = "admitted"
+    #: Added as raw CST; its call could not be resolved against the cluster.
+    ADMITTED_UNRESOLVED_CALL = "admitted_unresolved_call"
+    #: A non-SUT import kept as a raw statement.
+    ADMITTED_IMPORT = "admitted_import"
+    #: A compound block (``for``/``with``/``if``/``try``/``while``) kept whole.
+    ADMITTED_COMPOUND = "admitted_compound"
+    #: Dropped because it references a name that is not in scope.
+    DROPPED_UNKNOWN_NAMES = "dropped_unknown_names"
+    #: Dropped because its shape is unsupported (e.g. multi-target assign).
+    DROPPED_UNSUPPORTED_SHAPE = "dropped_unsupported_shape"
+    #: An ``assert`` lifted into an ``Assertion`` object.
+    ASSERTION_LIFTED = "assertion_lifted"
+    #: An ``assert`` of an unsupported shape kept as a raw statement.
+    ASSERTION_KEPT_RAW = "assertion_kept_raw"
+    #: An ``assert`` dropped because it references a name that is not in scope.
+    ASSERTION_DROPPED = "assertion_dropped"
+
+
+class ParseStatus(enum.Enum):
+    """Top-level outcome of deserializing an LLM response."""
+
+    #: The rewritten source parsed; per-statement outcomes are in ``counts``.
+    OK = "ok"
+    #: The rewritten source could not be parsed as libcst at all.
+    UNPARSEABLE = "unparseable"
+
+
+@dataclasses.dataclass
+class FunctionDeserialization:
+    """Outcome of deserializing a single ``test_*``/``seed_test_*`` function."""
+
+    test_case: tc.TestCase
+    counts: collections.Counter[Disposition]
+
+
 @dataclasses.dataclass
 class DeserializationResult:
     """Result of deserializing LLM-emitted source into test cases."""
 
     test_cases: list[tc.TestCase]
-    total_statements: int
-    parsed_statements: int
-    uninterpreted_statements: int
+    status: ParseStatus
+    #: Per-statement dispositions aggregated across all deserialized functions.
+    counts: collections.Counter[Disposition]
 
 
 # ---------------------------------------------------------------------------
@@ -291,32 +340,6 @@ def _imported_local_names(node: cst.Import | cst.ImportFrom) -> list[str]:
             if chain:
                 result.append(chain[0])
     return result
-
-
-def _count_statements(node: cst.CSTNode) -> int:
-    """Count all non-assert statements in *node*'s subtree (excluding *node*).
-
-    Args:
-        node: The node whose subtree should be counted.
-
-    Returns:
-        The number of non-assert statements.
-    """
-
-    class _Counter(cst.CSTVisitor):
-        def __init__(self) -> None:
-            self.count = 0
-
-        def on_visit(self, inner: cst.CSTNode) -> bool:
-            if isinstance(inner, cst.SimpleStatementLine):
-                self.count += sum(1 for small in inner.body if not isinstance(small, cst.Assert))
-            elif isinstance(inner, cst.BaseCompoundStatement):
-                self.count += 1
-            return True
-
-    counter = _Counter()
-    node.visit(counter)
-    return counter.count
 
 
 def _proper_type_to_raw(proper_type: Any) -> type | None:
@@ -760,7 +783,9 @@ class CstStatementDeserializer:
             return node, None, None, accessible, not resolved
         return None
 
-    def _handle_assert(self, small: cst.Assert, state: _FunctionDeserializationState) -> int:
+    def _handle_assert(
+        self, small: cst.Assert, state: _FunctionDeserializationState
+    ) -> Disposition:
         """Handle a single ``assert`` small-statement.
 
         Either lifts it into an ``Assertion`` attached to the statement that
@@ -773,7 +798,7 @@ class CstStatementDeserializer:
             state: The mutable per-function deserialization state.
 
         Returns:
-            The number of uninterpreted statements contributed (0 or 1).
+            The disposition describing how the assert was handled.
         """
         result = parse_assertion(small, state.bound_types_by_orig)
         if result is not None:
@@ -788,11 +813,11 @@ class CstStatementDeserializer:
                 if bound_stmt.bound_variable is not None:
                     assertion.source = bound_stmt.bound_variable
                 bound_stmt.assertions.append(assertion)
-            return 0
+            return Disposition.ASSERTION_LIFTED
 
         names = _RootNameCollector.collect(small)
         if not names <= state.known:
-            return 0
+            return Disposition.ASSERTION_DROPPED
 
         assert_node = cst.SimpleStatementLine(body=[small])
         # Kept raw asserts may reference variables bound by earlier
@@ -804,11 +829,11 @@ class CstStatementDeserializer:
             assert isinstance(renamed_assert, cst.SimpleStatementLine)
             assert_node = renamed_assert
         state.testcase.add_statement(tc.Statement(node=assert_node))
-        return 1
+        return Disposition.ASSERTION_KEPT_RAW
 
     def _handle_ordinary_statement(
         self, small: cst.BaseSmallStatement, state: _FunctionDeserializationState
-    ) -> tuple[int, int]:
+    ) -> Disposition:
         """Handle a non-assert, non-import small-statement.
 
         Args:
@@ -816,17 +841,17 @@ class CstStatementDeserializer:
             state: The mutable per-function deserialization state.
 
         Returns:
-            A tuple of (parsed delta, uninterpreted delta), each 0 or 1.
+            The disposition describing how the statement was handled.
         """
         admitted = self._admit_small_statement(small, state.bound_types_by_orig)
         if admitted is None:
-            return 0, 0
+            return Disposition.DROPPED_UNSUPPORTED_SHAPE
         node, bound_var, bound_type, accessible, is_uninterpreted = admitted
         names = _RootNameCollector.collect(node)
         if bound_var is not None:
             names.discard(bound_var)
         if not names <= state.known:
-            return 0, 0
+            return Disposition.DROPPED_UNKNOWN_NAMES
 
         new_bound = None
         if bound_var is not None:
@@ -851,11 +876,11 @@ class CstStatementDeserializer:
                 accessible=accessible,
             )
         )
-        return 1, (1 if is_uninterpreted else 0)
+        return Disposition.ADMITTED_UNRESOLVED_CALL if is_uninterpreted else Disposition.ADMITTED
 
     def _handle_compound_statement(
         self, line: cst.BaseCompoundStatement, state: _FunctionDeserializationState
-    ) -> tuple[int, int]:
+    ) -> Disposition:
         """Admit a compound statement (``for``/``with``/``if``/``try``/``while``) whole.
 
         The libcst-backed ``Statement`` stores a ``BaseCompoundStatement`` node
@@ -872,13 +897,13 @@ class CstStatementDeserializer:
             state: The mutable per-function deserialization state.
 
         Returns:
-            A tuple of (parsed delta, uninterpreted delta), each 0 or 1.
+            The disposition describing how the block was handled.
         """
         reads = _RootNameCollector.collect(line)
         internal = _BlockBindingCollector.collect(line)
         external = reads - internal
         if not external <= state.known:
-            return 0, 0
+            return Disposition.DROPPED_UNKNOWN_NAMES
 
         node: cst.BaseCompoundStatement = line
         if state.rename_map:
@@ -886,27 +911,24 @@ class CstStatementDeserializer:
             assert isinstance(renamed, cst.BaseCompoundStatement)
             node = renamed
         state.testcase.add_statement(tc.Statement(node=node))
-        return 1, 1
+        return Disposition.ADMITTED_COMPOUND
 
-    def deserialize_function(self, fn: cst.FunctionDef) -> tuple[tc.TestCase, int, int, int]:
+    def deserialize_function(self, fn: cst.FunctionDef) -> FunctionDeserialization:
         """Deserialize a single ``test_*``/``seed_test_*`` function.
 
         Args:
             fn: The function definition to deserialize.
 
         Returns:
-            A tuple of (test case, total statements, parsed statements,
-            uninterpreted statements). The test case may be empty if nothing
-            could be parsed.
+            The test case together with the per-statement disposition counts.
+            The test case may be empty if nothing could be parsed.
         """
-        total = _count_statements(fn.body)
         normalizer = _SutReferenceNormalizer(self._module_name, self._module_alias)
         normalized = fn.body.visit(normalizer)
         assert isinstance(normalized, cst.IndentedBlock)
 
         state = _FunctionDeserializationState(known=set(self._ambient_names))
-        parsed = 0
-        uninterpreted = 0
+        counts: collections.Counter[Disposition] = collections.Counter()
 
         for line in normalized.body:
             if isinstance(line, cst.BaseCompoundStatement):
@@ -914,9 +936,7 @@ class CstStatementDeserializer:
                 # opaque, executable statement; the CST-backed representation runs
                 # it natively and the genetic operators skip it. See
                 # _handle_compound_statement.
-                parsed_delta, uninterpreted_delta = self._handle_compound_statement(line, state)
-                parsed += parsed_delta
-                uninterpreted += uninterpreted_delta
+                counts[self._handle_compound_statement(line, state)] += 1
                 continue
             if not isinstance(line, cst.SimpleStatementLine):
                 continue  # Non-statement line (e.g. bare newline): nothing to admit.
@@ -924,23 +944,26 @@ class CstStatementDeserializer:
                 if isinstance(small, cst.Assert):
                     if not self._create_assertions:
                         continue
-                    uninterpreted += self._handle_assert(small, state)
+                    counts[self._handle_assert(small, state)] += 1
                     continue
 
                 if isinstance(small, cst.Import | cst.ImportFrom):
-                    parsed += 1
-                    uninterpreted += 1
                     state.known.update(_imported_local_names(small))
                     state.testcase.add_statement(
                         tc.Statement(node=cst.SimpleStatementLine(body=[small]))
                     )
+                    counts[Disposition.ADMITTED_IMPORT] += 1
                     continue
 
-                parsed_delta, uninterpreted_delta = self._handle_ordinary_statement(small, state)
-                parsed += parsed_delta
-                uninterpreted += uninterpreted_delta
+                counts[self._handle_ordinary_statement(small, state)] += 1
 
-        return state.testcase, total, parsed, uninterpreted
+        return FunctionDeserialization(state.testcase, counts)
+
+
+def _format_counts(counts: collections.Counter[Disposition]) -> str:
+    """Render non-zero dispositions as a compact ``key=n`` summary."""
+    non_zero = sorted((d.value, n) for d, n in counts.items() if n)
+    return ", ".join(f"{name}={n}" for name, n in non_zero) or "no statements"
 
 
 def deserialize_code_to_testcases(
@@ -948,7 +971,7 @@ def deserialize_code_to_testcases(
     test_cluster: TestCluster,
     *,
     create_assertions: bool | None = None,
-) -> DeserializationResult | None:
+) -> DeserializationResult:
     """Extract as many ``TestCase`` objects as possible from the given code.
 
     Args:
@@ -959,8 +982,9 @@ def deserialize_code_to_testcases(
             assertion generator is ``LLM``.
 
     Returns:
-        The deserialization result, or ``None`` if the code could not be
-        parsed at all.
+        The deserialization result. Its ``status`` is
+        :attr:`ParseStatus.UNPARSEABLE` (with empty ``test_cases`` and
+        ``counts``) if the rewritten code could not be parsed as libcst at all.
     """
     if create_assertions is None:
         create_assertions = (
@@ -974,29 +998,32 @@ def deserialize_code_to_testcases(
         module = cst.parse_module(joined)
     except BaseException as e:  # noqa: BLE001
         logger.error(e)
-        return None
+        return DeserializationResult([], ParseStatus.UNPARSEABLE, collections.Counter())
 
     deserializer = CstStatementDeserializer(test_cluster, create_assertions=create_assertions)
     test_cases: list[tc.TestCase] = []
-    total_statements = 0
-    parsed_statements = 0
-    uninterpreted_statements = 0
+    counts: collections.Counter[Disposition] = collections.Counter()
 
     for stmt_ in module.body:
         if not isinstance(stmt_, cst.FunctionDef):
             continue
         if not (stmt_.name.value.startswith(("test_", "seed_test_"))):
             continue
-        testcase, f_total, f_parsed, f_uninterpreted = deserializer.deserialize_function(stmt_)
-        total_statements += f_total
-        parsed_statements += f_parsed
-        uninterpreted_statements += f_uninterpreted
+        function_result = deserializer.deserialize_function(stmt_)
+        counts.update(function_result.counts)
+        testcase = function_result.test_case
         if testcase.size() > 0:
             test_cases.append(testcase)
-            logger.debug("Successfully imported %s.", stmt_.name.value)
+            logger.debug(
+                "Successfully imported %s (%s).",
+                stmt_.name.value,
+                _format_counts(function_result.counts),
+            )
         else:
-            logger.debug("Failed to parse %s.", stmt_.name.value)
+            logger.debug(
+                "Failed to parse %s (%s).",
+                stmt_.name.value,
+                _format_counts(function_result.counts),
+            )
 
-    return DeserializationResult(
-        test_cases, total_statements, parsed_statements, uninterpreted_statements
-    )
+    return DeserializationResult(test_cases, ParseStatus.OK, counts)

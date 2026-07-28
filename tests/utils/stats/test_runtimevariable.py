@@ -23,9 +23,15 @@ def test_llm_related_runtime_variables():
 
     # Test LLM test case statistics
     assert RuntimeVariable.TotalLTCs == "TotalLTCs"
-    assert RuntimeVariable.LLMTotalParsedStatements == "LLMTotalParsedStatements"
-    assert RuntimeVariable.LLMTotalStatements == "LLMTotalStatements"
-    assert RuntimeVariable.LLMUninterpretedStatements == "LLMUninterpretedStatements"
+    assert RuntimeVariable.LLMAdmitted == "LLMAdmitted"
+    assert RuntimeVariable.LLMAdmittedUnresolvedCall == "LLMAdmittedUnresolvedCall"
+    assert RuntimeVariable.LLMAdmittedImport == "LLMAdmittedImport"
+    assert RuntimeVariable.LLMAdmittedCompound == "LLMAdmittedCompound"
+    assert RuntimeVariable.LLMDroppedUnknownNames == "LLMDroppedUnknownNames"
+    assert RuntimeVariable.LLMDroppedUnsupportedShape == "LLMDroppedUnsupportedShape"
+    assert RuntimeVariable.LLMAssertionLifted == "LLMAssertionLifted"
+    assert RuntimeVariable.LLMAssertionKeptRaw == "LLMAssertionKeptRaw"
+    assert RuntimeVariable.LLMAssertionDropped == "LLMAssertionDropped"
 
     # Test LLM coverage statistics
     assert RuntimeVariable.CoverageBeforeLLMCall == "CoverageBeforeLLMCall"

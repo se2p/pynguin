@@ -40,7 +40,7 @@ def _build_output_vars(*, include_mutation: bool, include_llm: bool) -> str:
             "TotalLLMInputTokens",
             "TotalLLMOutputTokens",
             "LLMQueryTime",
-            "LLMTotalParsedStatements",
+            "LLMAdmitted",
         ]
     return ",".join(parts)
 

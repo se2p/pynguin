@@ -77,13 +77,16 @@ deserialization is "parse + validate + normalize" rather than reconstructing a
 separate statement class hierarchy or `VariableReference` graph.
 
 - **deserializer.py**: Convert LLM-emitted source to Pynguin `TestCase` objects
-  - `DeserializationResult` (dataclass): `test_cases`, `total_statements`,
-    `parsed_statements`, `uninterpreted_statements`
+  - `Disposition` (enum): how a single statement was handled; every statement
+    is tagged with exactly one member (see `parsing/AGENTS.md`)
+  - `ParseStatus` (enum): `OK` or `UNPARSEABLE`
+  - `DeserializationResult` (dataclass): `test_cases`, `status: ParseStatus`,
+    `counts: Counter[Disposition]`
   - `deserialize_code_to_testcases(test_file_contents, test_cluster, *,
-    create_assertions=None) -> DeserializationResult | None`: runs
-    `rewrite_tests()`, then libcst-parses the result and deserializes every
-    top-level `test_*`/`seed_test_*` function; returns `None` only if the
-    rewritten source cannot be parsed as libcst at all
+    create_assertions=None) -> DeserializationResult`: runs `rewrite_tests()`,
+    then libcst-parses the result and deserializes every top-level
+    `test_*`/`seed_test_*` function; returns a result with `status=UNPARSEABLE`
+    only if the rewritten source cannot be parsed as libcst at all
   - `CstStatementDeserializer(test_cluster, *, create_assertions)`: per-test-
     function parser (`deserialize_function`)
     - Resolves calls against `test_cluster.accessible_objects_under_test`
@@ -136,7 +139,7 @@ Comprehensive LLM usage tracking:
 - Input/output token counts
 - Query time (nanoseconds)
 - Responses without Python code
-- Parsed/unparsed statement counts
+- Per-`Disposition` statement counts (admitted/dropped/assertion buckets)
 
 ### Code Transformation Pipeline
 
@@ -176,9 +179,15 @@ Tracks to `RuntimeVariable`:
 - `TotalLLMInputTokens`
 - `TotalLLMOutputTokens`
 - `TotalCodelessLLMResponses`
-- `LLMTotalStatements`
-- `LLMTotalParsedStatements`
-- `LLMUninterpretedStatements`
+- `LLMAdmitted`
+- `LLMAdmittedUnresolvedCall`
+- `LLMAdmittedImport`
+- `LLMAdmittedCompound`
+- `LLMDroppedUnknownNames`
+- `LLMDroppedUnsupportedShape`
+- `LLMAssertionLifted`
+- `LLMAssertionKeptRaw`
+- `LLMAssertionDropped`
 
 ## Debugging Support
 
