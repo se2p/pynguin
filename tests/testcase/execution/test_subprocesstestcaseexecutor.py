@@ -160,6 +160,34 @@ def test_crashing_execution(
     assert exit_code != 0, "Expected a non-zero exit code due to segmentation fault"
 
 
+def test_auxiliary_executor_survives_sut_code_run_while_unpickling_results(
+    subject_properties: SubjectProperties,
+):
+    """An auxiliary executor must not be aborted by SUT code run during unpickling.
+
+    Auxiliary executors (assertion filtering, mutation analysis) are built from
+    :meth:`SubjectProperties.sharing_registries`, i.e. they own a *fresh* tracer, while
+    the instrumented module keeps a hard reference to the tracer installed by the import
+    hook.  Unpickling the subprocess results in the parent process runs SUT code, so the
+    stopped import-hook tracer must not raise ``TracingAbortedException`` there.
+    """
+    config.configuration.module_name = "tests.fixtures.instrumentation.unpickling"
+
+    with install_import_hook(config.configuration.module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
+        # The exception raised by the SUT travels back through the pipe; reconstructing
+        # it in the parent process executes the instrumented ``UnpicklingError.__init__``.
+        test_case = make_test_case(stmt("raise_error(5)"))
+        executor = SubprocessTestCaseExecutor(subject_properties.sharing_registries())
+
+        (result,) = executor.execute_multiple((test_case,))
+
+    assert result.get_first_position_of_thrown_exception() == 0
+
+
 def test_eof_error_during_receiving_results(
     default_test_case, subject_properties: SubjectProperties
 ):

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import enum
 import itertools
@@ -32,7 +33,7 @@ from pynguin.utils.statistics import stats as stat
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Callable, Collection, Generator, Iterable
 
     import pynguin.assertion.assertion_trace as at
     import pynguin.testcase.testcase as tc
@@ -151,7 +152,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             if has_results:
                 try:
-                    with self._subject_properties.instrumentation_tracer.temporarily_disable():
+                    with self._disable_tracing_while_unpickling():
                         receiving_connection.recv()
                 except (EOFError, OSError):
                     _LOGGER.error("Error during receiving results from subprocess")
@@ -315,7 +316,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
         else:
             try:
-                with self._subject_properties.instrumentation_tracer.temporarily_disable():
+                with self._disable_tracing_while_unpickling():
                     return_value: tuple[
                         ExecutionTracer,
                         ModuleProvider,
@@ -560,6 +561,32 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 exception,
             )
             return None
+
+    @contextlib.contextmanager
+    def _disable_tracing_while_unpickling(self) -> Generator[None, None, None]:
+        """Disable every tracer that unpickling the subprocess results can trigger.
+
+        Unpickling runs code of the instrumented module (``__init__``, ``__setstate__``,
+        …) in *this* process.  That code refers directly to the tracer installed by the
+        import hook, which is not this executor's tracer whenever the executor was built
+        from :meth:`SubjectProperties.sharing_registries` — as the assertion generator
+        does for filtering and mutation analysis.  Since the import-hook tracer is
+        stopped outside test-case execution, leaving it enabled makes it abort the whole
+        run instead of the runaway thread it is meant to kill.
+
+        Yields:
+            Once, with tracing disabled.
+        """
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(
+                self._subject_properties.instrumentation_tracer.temporarily_disable()
+            )
+            for finder in sys.meta_path:
+                if isinstance(finder, InstrumentationFinder):
+                    stack.enter_context(
+                        finder.subject_properties.instrumentation_tracer.temporarily_disable()
+                    )
+            yield
 
     @staticmethod
     def _replace_tracer(tracer: ExecutionTracer) -> None:
