@@ -312,6 +312,14 @@ def run_module(
             "CSV",
             "--output-variables",
             _build_output_vars(include_mutation=include_mutation, include_llm=include_llm),
+            # Bound the mutation-based assertion-generation phase. It defaults to
+            # unlimited (-1); on loop-heavy subjects (mutants that introduce infinite
+            # loops each cost a full per-test execution timeout) it can run far past the
+            # search budget and be killed before exporting any tests, yielding a phantom
+            # "no generated tests"/0% row that is an operational timeout, not a coverage
+            # ceiling. Capping it lets the suite export instead of timing out.
+            "--test-case-output.maximum-mutation-time",
+            str(max(budget, 60)),
         ]
         if include_llm:
             cmd += _llm_cli_args(llm_mode)
