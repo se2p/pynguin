@@ -92,7 +92,6 @@ Pynguin (IPA: ˈpɪŋɡuiːn) is a research tool for automated generation of uni
 
 ### Core Dependencies
 
-- **astroid** - Python AST analysis
 - **bytecode** - Python bytecode manipulation
 - **networkx** - Graph algorithms (for control flow)
 - **pytest** - Testing framework (used both for running Pynguin and generated tests)

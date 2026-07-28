@@ -10,13 +10,12 @@ These are based on the ``pydantic`` schema provided by ``TypeEvalPy``.
 
 from __future__ import annotations
 
+import ast
 import dataclasses
 import json
 import logging
 import typing
 from pathlib import Path
-
-from astroid.nodes import AsyncFunctionDef, FunctionDef
 
 import pynguin.configuration as config
 from pynguin.analyses.typesystem import (
@@ -37,13 +36,11 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 
 if typing.TYPE_CHECKING:
-    from astroid.nodes import Arguments, AssignName
-
     from pynguin.analyses.module import CallableData, SignatureInfo, TypeGuessingStats
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
     from pynguin.utils.orderedset import OrderedSet
 
-AstroidFunctionDef: typing.TypeAlias = AsyncFunctionDef | FunctionDef
+ASTFunctionDef: typing.TypeAlias = ast.AsyncFunctionDef | ast.FunctionDef
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -174,9 +171,27 @@ class _TypeExpansionVisitor(TypeVisitor[set[str]]):
         return {"<?>"}
 
 
+def _find_parameter_node(arguments: ast.arguments, name: str) -> ast.arg:
+    """Find the ``ast.arg`` node with the given name across all argument kinds."""
+    all_args: list[ast.arg] = [
+        *arguments.posonlyargs,
+        *arguments.args,
+        *arguments.kwonlyargs,
+    ]
+    if arguments.vararg is not None:
+        all_args.append(arguments.vararg)
+    if arguments.kwarg is not None:
+        all_args.append(arguments.kwarg)
+
+    for argument in all_args:
+        if argument.arg == name:
+            return argument
+    raise KeyError(f"Could not find an argument with name {name}")
+
+
 def convert_parameter(  # noqa: PLR0917
     file_name: str,
-    function_node: AstroidFunctionDef,
+    function_node: ASTFunctionDef,
     parameter_name: str,
     signature: InferredSignature,
     function_name: str,
@@ -195,12 +210,6 @@ def convert_parameter(  # noqa: PLR0917
     Returns:
         A schema function parameter object for the TypeEvalPy schema
     """
-
-    def find_parameter_node(arguments: Arguments, name: str) -> AssignName:
-        for argument in arguments.arguments:
-            if argument.name == name:
-                return argument
-        raise KeyError(f"Could not find an argument with name {name}")
 
     def format_parameter_types(sig: InferredSignature, param_name: str) -> list[str]:
         result: set[str] = set()
@@ -226,7 +235,7 @@ def convert_parameter(  # noqa: PLR0917
                     result.update(guessed)
         return sorted(result)
 
-    parameter_node = find_parameter_node(function_node.args, parameter_name)
+    parameter_node = _find_parameter_node(function_node.args, parameter_name)
     line_number = parameter_node.lineno
     col_offset = parameter_node.col_offset + 1  # TODO(sl): check if addition is correct
     types: list[str] = format_parameter_types(signature, parameter_name)
@@ -242,7 +251,7 @@ def convert_parameter(  # noqa: PLR0917
 
 def convert_return(
     file_name: str,
-    function_node: AstroidFunctionDef,
+    function_node: ASTFunctionDef,
     signature: InferredSignature,
     function_name: str,
     *,
