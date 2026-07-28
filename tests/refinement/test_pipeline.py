@@ -484,6 +484,24 @@ def test_process_end_to_end_fails_after_max_retries(refiner: TestRefiner):
     assert result["iterations"] == 2
 
 
+def test_process_end_to_end_timeout_abandons_refinement_without_repair(refiner: TestRefiner):
+    """A timed-out test is dropped at once instead of costing repair LLM calls."""
+    refiner.llm_client.generate_code.return_value = SIMPLE_TEST_CODE
+    refiner.llm_client.generate_code.reset_mock()
+
+    with patch(
+        "pynguin.refinement.pipeline.run_test",
+        return_value=(False, "TimeoutError: Execution exceeded the 5s time limit"),
+    ):
+        result = refiner.process_test_end_to_end(SIMPLE_TEST_CODE, max_retries=2)
+
+    assert result["success"] is False
+    assert "timed out" in result["error"]
+    assert result["iterations"] == 0
+    # Only the initial refinement request -- no repair round-trips.
+    assert refiner.llm_client.generate_code.call_count == 1
+
+
 # ===================================================================
 # process_test_end_to_end — assertion discard policy
 # ===================================================================

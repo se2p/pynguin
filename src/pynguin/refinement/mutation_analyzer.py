@@ -27,6 +27,11 @@ from pynguin.assertion.mutation_analysis.operators import (
     RelationalOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.refinement.validator import (
+    TestExecutionTimeoutError,
+    resolve_timeout,
+    time_limit,
+)
 
 if TYPE_CHECKING:
     import types
@@ -103,15 +108,19 @@ def _run_test_against_mutant(
     try:
         cleaned = textwrap.dedent(test_code.strip())
         compiled = compile(ast.parse(cleaned), "<test>", "exec")
-        exec(compiled, test_globals)  # noqa: S102
+        with time_limit(resolve_timeout(None)):
+            exec(compiled, test_globals)  # noqa: S102
 
-        # Find and call the test function
-        for name, obj in test_globals.items():
-            if callable(obj) and name.startswith("test_"):
-                obj()
-                break
+            # Find and call the test function
+            for name, obj in test_globals.items():
+                if callable(obj) and name.startswith("test_"):
+                    obj()
+                    break
 
         return False  # Test passed → mutant survived
+    except TestExecutionTimeoutError:
+        # The mutant made the test run away rather than fail; we cannot claim a kill.
+        return False
     except BaseException:  # noqa: BLE001
         return True  # Any exception → mutant killed (incl. pytest.fail)
     finally:

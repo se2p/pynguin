@@ -183,6 +183,8 @@ def _remove_failing_inferred_assertion(
 
 def _classify_error(error_msg: str) -> str:
     """Classify a validation error message into a coarse error type."""
+    if "TimeoutError" in error_msg:
+        return "Timeout Error"
     if "SyntaxError" in error_msg:
         return "SyntaxError"
     if "ImportError" in error_msg or "ModuleNotFoundError" in error_msg:
@@ -810,6 +812,17 @@ class TestRefiner:
                 )
 
             error_type = _classify_error(error_msg)
+
+            # A test that runs into its time limit will do so again on every repair
+            # attempt, so give up immediately rather than spending LLM calls (and
+            # another full timeout per validation) on it.
+            if error_type == "Timeout Error":
+                return {
+                    "success": False,
+                    "error": "Test execution timed out; skipping refinement.",
+                    "last_error_msg": error_msg,
+                    "iterations": iteration,
+                }
 
             if iteration >= max_retries:
                 return {
