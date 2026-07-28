@@ -42,14 +42,6 @@ user_message_template: |
      if the test is a NEGATIVE test
      (expects failure).**
 
-     **Indicators of Negative Tests:**
-     - Variable names containing: `invalid_`, `none_`, `negative_`, `bad_`, `wrong_`, `empty_`
-     - Values that are clearly invalid: `None`, `-1`
-       (when positive expected), empty strings,
-       mismatched types
-     - Multiple `None` values passed as arguments
-     - Type mismatches (e.g., passing string where int expected, or boolean where number expected)
-
      **For Negative Tests (expecting exceptions):**
      ```python
      # Use pytest.raises() context manager for negative tests

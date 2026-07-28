@@ -37,7 +37,6 @@ user_message_template: |
   2. **Import Errors:** Add missing imports (e.g., `import pytest`, `from module import ...`)
   3. **Name Errors:** Fix undefined variables or incorrect variable names
   4. **Assertion Errors:** Replace vacuous assertions (e.g., `pytest.fail()`) with meaningful checks
-  5. **Type Errors:** Ensure correct types are passed to functions
 
   **Requirements:**
   - Output ONLY the corrected Python test function code

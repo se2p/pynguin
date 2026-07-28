@@ -37,9 +37,6 @@ user_message_template: |
 
   2. **Handling Expected Exceptions (Negative Testing):**
      Analyse the test inputs to decide whether a test is a NEGATIVE test (expects failure).
-     Indicators: variable names containing `invalid_`, `none_`, `negative_`, `bad_`,
-     `wrong_`, `empty_`; clearly invalid values (`None`, `-1`, empty strings, type
-     mismatches); multiple `None` arguments.
      - For NEGATIVE tests: wrap the call in `with pytest.raises(Exception):`.
      - For POSITIVE tests: remove try/except, store the result and assert on it.
 
