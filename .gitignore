@@ -88,6 +88,7 @@ celerybeat-schedule
 
 # Environments
 .env
+.env.*
 .venv*
 env/
 venv/
@@ -126,3 +127,9 @@ sample/
 DIFF.md
 *.code-workspace
 .claude/
+
+# Local quick_eval scratch output (results/logs from ad-hoc evaluation runs)
+scratchpad_qe/
+
+# Reference paper (external artifact, not repo source)
+evosuite_search_llm.pdf
