@@ -69,7 +69,7 @@ _STAT_SPECS: tuple[_StatSpec, ...] = (
     _StatSpec("llm_input_tokens", ("TotalLLMInputTokens",), int),
     _StatSpec("llm_output_tokens", ("TotalLLMOutputTokens",), int),
     _StatSpec("llm_query_time_s", ("LLMQueryTime",), _ns_to_s),
-    _StatSpec("llm_parsed_stmts", ("LLMTotalParsedStatements",), int),
+    _StatSpec("llm_parsed_stmts", ("LLMAdmitted",), int),
 )
 
 

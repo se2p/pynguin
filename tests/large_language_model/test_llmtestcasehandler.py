@@ -6,6 +6,7 @@
 #
 """Tests for the LLMTestCaseHandler class."""
 
+from collections import Counter
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +14,10 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
+from pynguin.large_language_model.parsing.deserializer import (
+    DeserializationResult,
+    ParseStatus,
+)
 
 
 @pytest.fixture
@@ -57,14 +62,12 @@ def test_get_test_case_chromosomes_from_llm_results_none_returns_empty(handler):
     assert result == []
 
 
-def test_get_test_case_chromosomes_from_llm_results_deserialization_none(
-    handler, mock_model, test_cluster
-):
+def test_get_test_case_chromosomes_from_llm_results_unparseable(handler, mock_model, test_cluster):
     mock_model.extract_python_code_from_llm_output.return_value = "def test_x():\n    x = 1\n"
 
     with patch(
         "pynguin.large_language_model.llmtestcasehandler.deserialize_code_to_testcases",
-        return_value=None,
+        return_value=DeserializationResult([], ParseStatus.UNPARSEABLE, Counter()),
     ):
         result = handler.get_test_case_chromosomes_from_llm_results(
             "some LLM output", test_cluster, MagicMock(), [], []

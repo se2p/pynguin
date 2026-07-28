@@ -276,14 +276,32 @@ class RuntimeVariable(str, enum.Enum):
     # Total of LLM test cases tha are merged into the population
     TotalLTCs = "TotalLTCs"
 
-    # Number of parsed statements from LLM output
-    LLMTotalParsedStatements = "LLMTotalParsedStatements"
+    # LLM statements admitted to a test case and resolved against the cluster
+    LLMAdmitted = "LLMAdmitted"
 
-    # Total number of statements from LLM output
-    LLMTotalStatements = "LLMTotalStatements"
+    # LLM statements admitted as raw CST whose call could not be resolved
+    LLMAdmittedUnresolvedCall = "LLMAdmittedUnresolvedCall"
 
-    # Number of uninterpreted statements
-    LLMUninterpretedStatements = "LLMUninterpretedStatements"
+    # Non-SUT imports from LLM output kept as raw statements
+    LLMAdmittedImport = "LLMAdmittedImport"
+
+    # Compound blocks (for/with/if/try/while) from LLM output kept whole
+    LLMAdmittedCompound = "LLMAdmittedCompound"
+
+    # LLM statements dropped because they reference a name that is not in scope
+    LLMDroppedUnknownNames = "LLMDroppedUnknownNames"
+
+    # LLM statements dropped because their shape is unsupported
+    LLMDroppedUnsupportedShape = "LLMDroppedUnsupportedShape"
+
+    # LLM asserts lifted into Assertion objects
+    LLMAssertionLifted = "LLMAssertionLifted"
+
+    # LLM asserts of an unsupported shape kept as raw statements
+    LLMAssertionKeptRaw = "LLMAssertionKeptRaw"
+
+    # LLM asserts dropped because they reference a name that is not in scope
+    LLMAssertionDropped = "LLMAssertionDropped"
 
     # The coverage before LLM call for uncovered targets (initial coverage)
     CoverageBeforeLLMCall = "CoverageBeforeLLMCall"

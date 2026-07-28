@@ -6,6 +6,7 @@
 #
 """Tests for the LLM Deserializer."""
 
+from collections import Counter
 from unittest.mock import MagicMock, patch
 
 import libcst as cst
@@ -20,6 +21,8 @@ from pynguin.assertion.assertion import (
 )
 from pynguin.large_language_model.parsing.deserializer import (
     CstStatementDeserializer,
+    Disposition,
+    ParseStatus,
     deserialize_code_to_testcases,
     parse_assertion,
 )
@@ -48,7 +51,8 @@ def _deserialize_function(code: str, test_cluster, *, create_assertions: bool = 
     """Parse *code* directly with libcst (bypassing the rewriter) and deserialize it.
 
     Useful for tests that need precise control over the CST shape without the
-    rewriter's literal-hoisting rewriting the input first.
+    rewriter's literal-hoisting rewriting the input first. Returns the
+    ``FunctionDeserialization`` (``test_case`` plus per-``Disposition`` ``counts``).
     """
     fn = cst.parse_module(code).body[0]
     assert isinstance(fn, cst.FunctionDef)
@@ -74,28 +78,29 @@ def _deserialize_function(code: str, test_cluster, *, create_assertions: bool = 
 )
 def test_literal_assign_sets_bound_type(test_cluster, literal, expected_type):
     code = f"def test_foo():\n    a = {literal}\n"
-    testcase, total, parsed, uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
     assert testcase.size() == 1
     stmt = testcase.get_statement(0)
     assert stmt.bound_type is expected_type
     assert stmt.bound_variable == "var_0"
-    assert total == 1
-    assert parsed == 1
-    assert uninterpreted == 0
+    assert result.counts == Counter({Disposition.ADMITTED: 1})
 
 
 def test_deserialize_code_to_testcases_hoists_nonempty_collections(test_cluster):
     """Through the full pipeline, the rewriter hoists list/dict elements first.
 
     So the final collection assignment's RHS is no longer a pure literal and
-    its bound_type is None (but the statement is still admitted).
+    its bound_type is None (but the statement is still admitted, and counted as
+    an unresolved-call admit because its RHS is neither a literal nor a
+    resolvable call).
     """
     code = """
 def test_foo():
     e = [1, 2]
 """
     result = deserialize_code_to_testcases(code, test_cluster)
-    assert result is not None
+    assert result.status is ParseStatus.OK
     testcase = result.test_cases[0]
     statements = testcase.statements()
     # var_0 = 1, var_1 = 2, e = [var_0, var_1]
@@ -103,7 +108,7 @@ def test_foo():
     assert statements[0].bound_type is int
     assert statements[1].bound_type is int
     assert statements[2].bound_type is None
-    assert result.uninterpreted_statements >= 1
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +123,7 @@ def test_foo():
     y = x
     z = y
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     assert [s.bound_variable for s in testcase.statements()] == ["var_0", "var_1", "var_2"]
     source = testcase.to_code()
     assert "x" not in source
@@ -140,7 +145,7 @@ def test_bound_statement_own_target_is_renamed_not_just_later_references(test_cl
 def test_foo():
     original_name = 42
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.bound_variable == "var_0"
     assert testcase.to_code() == "var_0 = 42\n"
@@ -191,12 +196,11 @@ def test_call_resolution_generic_constructor(test_cluster):
     ctor = _make_constructor("Foo", _Foo)
     test_cluster.accessible_objects_under_test = [ctor]
     code = "def test_foo():\n    a = Foo()\n"
-    testcase, _total, parsed, uninterpreted = _deserialize_function(code, test_cluster)
-    stmt = testcase.get_statement(0)
+    result = _deserialize_function(code, test_cluster)
+    stmt = result.test_case.get_statement(0)
     assert stmt.bound_type is _Foo
     assert stmt.accessible is ctor
-    assert parsed == 1
-    assert uninterpreted == 0
+    assert result.counts == Counter({Disposition.ADMITTED: 1})
 
 
 def test_call_resolution_generic_method(test_cluster):
@@ -204,7 +208,7 @@ def test_call_resolution_generic_method(test_cluster):
     method = _make_method(_Foo.__name__, "bar", str)
     test_cluster.accessible_objects_under_test = [ctor, method]
     code = "def test_foo():\n    a = Foo()\n    b = a.bar()\n"
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     method_stmt = testcase.get_statement(1)
     assert method_stmt.bound_type is str
     assert method_stmt.accessible is method
@@ -215,20 +219,19 @@ def test_call_resolution_generic_function(test_cluster):
     func = _make_function("myfunc", int)
     test_cluster.accessible_objects_under_test = [func]
     code = "def test_foo():\n    a = myfunc()\n"
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.bound_type is int
     assert stmt.accessible is func
 
 
-def test_call_resolution_unresolved_call_is_uninterpreted(test_cluster):
+def test_call_to_unknown_name_is_dropped(test_cluster):
     test_cluster.accessible_objects_under_test = []
     code = "def test_foo():\n    a = some_unknown_call()\n"
-    testcase, _total, parsed, uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
     # names not in scope -> dropped entirely
-    assert testcase.size() == 0
-    assert parsed == 0
-    assert uninterpreted == 0
+    assert result.test_case.size() == 0
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
 
 
 # ---------------------------------------------------------------------------
@@ -243,26 +246,33 @@ def test_incomplete():
     x = some_unknown_func()
     y = var_0
 """
-    testcase, total, parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
     assert testcase.size() == 2
-    assert parsed < total
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+    # var_0 = 2 resolves as a literal; y = var_0 is admitted but unresolved
+    # (its RHS is a bare name, not a literal or a resolvable call).
+    assert result.counts[Disposition.ADMITTED] == 1
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 1
     rendered = testcase.to_code()
     assert "some_unknown_func" not in rendered
 
 
-def test_deserializer_handles_invalid_code_returns_none(test_cluster):
+def test_deserializer_handles_invalid_code_returns_unparseable(test_cluster):
     with patch(
         "pynguin.large_language_model.parsing.deserializer.rewrite_tests",
         return_value={"test_x": "def test_x(:"},
     ):
         result = deserialize_code_to_testcases("irrelevant source", test_cluster)
-    assert result is None
+    assert result.status is ParseStatus.UNPARSEABLE
+    assert result.test_cases == []
+    assert result.counts == Counter()
 
 
 def test_empty_function_is_dropped(test_cluster):
     code = "def test_empty():\n    pass\n"
     result = deserialize_code_to_testcases(code, test_cluster)
-    assert result is not None
+    assert result.status is ParseStatus.OK
     assert result.test_cases == []
 
 
@@ -278,12 +288,14 @@ def test_foo():
         y = 2
     z = x
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
     rendered = testcase.to_code()
     assert "if var_0:" in rendered
     assert "y = 2" in rendered
     # x=1 -> var_0, the if-block (opaque, no binding), z=x -> var_1.
     assert [s.bound_variable for s in testcase.statements()] == ["var_0", None, "var_1"]
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
 
 
 def test_compound_with_block_internal_binding_is_local(test_cluster):
@@ -296,13 +308,15 @@ def test_foo():
         for line in handle:
             data = line
 """
-    testcase, _total, parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
     rendered = testcase.to_code()
     assert "with open(var_0) as handle:" in rendered
     assert "for line in handle:" in rendered
     # path="x" -> var_0, plus the with-block admitted whole.
     assert [s.bound_variable for s in testcase.statements()] == ["var_0", None]
-    assert parsed == 2
+    assert result.counts[Disposition.ADMITTED] == 1
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
 
 
 def test_compound_statement_with_unknown_external_read_is_dropped(test_cluster):
@@ -313,8 +327,9 @@ def test_foo():
     for item in undefined_name:
         y = item
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
-    assert testcase.size() == 0
+    result = _deserialize_function(code, test_cluster)
+    assert result.test_case.size() == 0
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
 
 
 # ---------------------------------------------------------------------------
@@ -329,9 +344,10 @@ def test_foo():
     x = True
     assert x
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
-    stmt = testcase.get_statement(0)
+    result = _deserialize_function(code, test_cluster)
+    stmt = result.test_case.get_statement(0)
     assert stmt.assertions == [ObjectAssertion("var_0", value=True)]
+    assert result.counts[Disposition.ASSERTION_LIFTED] == 1
 
 
 def test_assertion_equality_with_literal_becomes_object_assertion(test_cluster):
@@ -340,7 +356,7 @@ def test_foo():
     x = 5
     assert x == 5
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [ObjectAssertion("var_0", 5)]
 
@@ -351,7 +367,7 @@ def test_foo():
     x = 5.0
     assert x == 5.0
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [FloatAssertion("var_0", 5.0)]
 
@@ -362,7 +378,7 @@ def test_foo():
     x = 5
     assert isinstance(x, int)
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [IsInstanceAssertion("var_0", "builtins", "int")]
 
@@ -374,7 +390,7 @@ def test_foo():
     x = mymodule_.Foo()
     assert isinstance(x, mymodule_.Foo)
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [IsInstanceAssertion("var_0", "mymodule", "Foo")]
 
@@ -385,7 +401,7 @@ def test_foo():
     x = [1, 2]
     assert len(x) == 2
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [CollectionLengthAssertion("var_0", 2)]
 
@@ -396,7 +412,7 @@ def test_foo():
     x = 5
     assert x == 5 or unknown_thing == 1
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [ObjectAssertion("var_0", 5)]
 
@@ -407,7 +423,7 @@ def test_foo():
     x = 5
     assert unknown_thing == 1 or x == 5
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    testcase = _deserialize_function(code, test_cluster).test_case
     stmt = testcase.get_statement(0)
     assert stmt.assertions == [ObjectAssertion("var_0", 5)]
 
@@ -418,11 +434,12 @@ def test_foo():
     x = 5
     assert callable(x)
 """
-    testcase, _total, _parsed, uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
     assert testcase.size() == 2
     assert testcase.get_statement(1).bound_variable is None
     assert testcase.get_statement(1).assertions == []
-    assert uninterpreted == 1
+    assert result.counts[Disposition.ASSERTION_KEPT_RAW] == 1
     # And the raw assert must be renamed consistently with the bound variable.
     assert testcase.to_code() == "var_0 = 5\nassert callable(var_0)\n"
 
@@ -433,9 +450,11 @@ def test_foo():
     x = 5
     assert some_unknown_predicate(x)
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
     assert testcase.size() == 1
     assert "assert" not in testcase.to_code()
+    assert result.counts[Disposition.ASSERTION_DROPPED] == 1
 
 
 def test_create_assertions_false_drops_all_asserts(test_cluster):
@@ -444,21 +463,26 @@ def test_foo():
     x = 5
     assert x
 """
-    testcase, _total, _parsed, _uninterpreted = _deserialize_function(
-        code, test_cluster, create_assertions=False
-    )
+    result = _deserialize_function(code, test_cluster, create_assertions=False)
+    testcase = result.test_case
     assert testcase.size() == 1
     assert testcase.get_statement(0).assertions == []
+    # A skipped assert is not tallied under any assertion disposition.
+    assert result.counts[Disposition.ASSERTION_LIFTED] == 0
+    assert result.counts[Disposition.ASSERTION_KEPT_RAW] == 0
+    assert result.counts[Disposition.ASSERTION_DROPPED] == 0
 
 
-def test_assert_does_not_count_toward_total_statements(test_cluster):
+def test_assert_is_not_counted_as_a_statement(test_cluster):
     code = """
 def test_foo():
     x = 5
     assert x
 """
-    _testcase, total, _parsed, _uninterpreted = _deserialize_function(code, test_cluster)
-    assert total == 1
+    result = _deserialize_function(code, test_cluster)
+    # The assert is tracked as a lifted assertion, not as a statement.
+    assert result.counts[Disposition.ADMITTED] == 1
+    assert result.counts[Disposition.ASSERTION_LIFTED] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -474,7 +498,7 @@ def test_foo():
     x = m.f(1)
 """
     result = deserialize_code_to_testcases(code, test_cluster)
-    assert result is not None
+    assert result.status is ParseStatus.OK
     rendered = result.test_cases[0].to_code()
     assert "import" not in rendered
     assert "bar_.f(" in rendered
@@ -488,7 +512,7 @@ def test_foo():
     x = baz(1)
 """
     result = deserialize_code_to_testcases(code, test_cluster)
-    assert result is not None
+    assert result.status is ParseStatus.OK
     rendered = result.test_cases[0].to_code()
     assert "import" not in rendered
     assert "bar_.baz(" in rendered
@@ -501,12 +525,11 @@ def test_foo():
     import math
     x = math.pi
 """
-    testcase, total, parsed, uninterpreted = _deserialize_function(code, test_cluster)
-    rendered = testcase.to_code()
+    result = _deserialize_function(code, test_cluster)
+    rendered = result.test_case.to_code()
     assert "import math" in rendered
-    assert parsed >= 2
-    assert uninterpreted >= 1
-    assert total >= 1
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 1
 
 
 # ---------------------------------------------------------------------------

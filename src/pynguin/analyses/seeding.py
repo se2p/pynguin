@@ -189,7 +189,7 @@ def parse_seed_module(
             continue
         if not node.name.value.startswith(("test_", "seed_test_")):
             continue
-        testcase, _total, _parsed, _uninterpreted = deserializer.deserialize_function(node)
+        testcase = deserializer.deserialize_function(node).test_case
         if testcase.size() > 0:
             testcases.append(testcase)
             logger.debug("Successfully imported %s.", node.name.value)

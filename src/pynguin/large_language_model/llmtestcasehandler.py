@@ -17,6 +17,8 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.module import TestCluster
 from pynguin.ga.computations import CoverageFunction, FitnessFunction
 from pynguin.large_language_model.parsing.deserializer import (
+    Disposition,
+    ParseStatus,
     deserialize_code_to_testcases,
 )
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
@@ -24,6 +26,20 @@ from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 _logger = logging.getLogger(__name__)
+
+# Single source of truth mapping each statement disposition to the runtime
+# variable it is reported under. Adding/removing a bucket is a one-line change.
+_DISPOSITION_STATISTICS: dict[Disposition, RuntimeVariable] = {
+    Disposition.ADMITTED: RuntimeVariable.LLMAdmitted,
+    Disposition.ADMITTED_UNRESOLVED_CALL: RuntimeVariable.LLMAdmittedUnresolvedCall,
+    Disposition.ADMITTED_IMPORT: RuntimeVariable.LLMAdmittedImport,
+    Disposition.ADMITTED_COMPOUND: RuntimeVariable.LLMAdmittedCompound,
+    Disposition.DROPPED_UNKNOWN_NAMES: RuntimeVariable.LLMDroppedUnknownNames,
+    Disposition.DROPPED_UNSUPPORTED_SHAPE: RuntimeVariable.LLMDroppedUnsupportedShape,
+    Disposition.ASSERTION_LIFTED: RuntimeVariable.LLMAssertionLifted,
+    Disposition.ASSERTION_KEPT_RAW: RuntimeVariable.LLMAssertionKeptRaw,
+    Disposition.ASSERTION_DROPPED: RuntimeVariable.LLMAssertionDropped,
+}
 
 
 class LLMTestCaseHandler:
@@ -89,7 +105,7 @@ class LLMTestCaseHandler:
             llm_test_cases_str, test_cluster=test_cluster
         )
 
-        if deserialization_result is None:
+        if deserialization_result.status is ParseStatus.UNPARSEABLE:
             _logger.error(
                 "Failed to deserialize test cases %s",
                 llm_test_cases_str,
@@ -103,16 +119,8 @@ class LLMTestCaseHandler:
         )
         save_llm_tests_to_file(tests_source_code, "deserializer_llm_test_cases.py")
 
-        stat.track_output_variable(
-            RuntimeVariable.LLMTotalParsedStatements, deserialization_result.parsed_statements
-        )
-        stat.track_output_variable(
-            RuntimeVariable.LLMTotalStatements, deserialization_result.total_statements
-        )
-        stat.track_output_variable(
-            RuntimeVariable.LLMUninterpretedStatements,
-            deserialization_result.uninterpreted_statements,
-        )
+        for disposition, runtime_variable in _DISPOSITION_STATISTICS.items():
+            stat.track_output_variable(runtime_variable, deserialization_result.counts[disposition])
 
         for test_case in test_cases:
             test_case_chromosome = _create_test_case_chromosome(
