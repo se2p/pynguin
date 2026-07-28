@@ -77,6 +77,15 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Capture mutation score (uses Pynguin's built-in mutation analysis)",
     )
+    parser.add_argument(
+        "--no-assertions",
+        action="store_true",
+        help="Coverage-only mode: disable all assertion generation "
+        "(--test-case-output.assertion-generation NONE) and non-coverage LLM requests "
+        "(LLM refinement). Skips the post-search mutation-assertion phase entirely, so "
+        "runs export faster and are measured purely on exported-suite coverage. Does not "
+        "combine with --mutation (no assertions means no mutation score).",
+    )
     llm_group = parser.add_mutually_exclusive_group()
     llm_group.add_argument(
         "--llm",
