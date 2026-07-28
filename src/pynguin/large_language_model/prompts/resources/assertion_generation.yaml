@@ -1,0 +1,32 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+user_message_template: |
+  ### Task
+  Extend the pytest test function below by APPENDING new `assert` statements that capture
+  the observed behaviour of the module under test.
+
+  ### Rules
+  - Do NOT remove, reorder, or change any existing statement — the only permitted change
+    is storing the return value of an existing call in a new variable so you can assert
+    on it.
+  - Only APPEND `assert` statements at the end of the function body.
+  - Do NOT add new calls to functions, methods, or constructors.
+  - Only assert on values already produced by the existing code.
+  - Keep the function name and signature unchanged.
+
+  ### Test function
+  ```python
+  {{ test_case_code }}
+  ```
+
+  ### Module source code
+  ```python
+  {{ module_code }}
+  ```
+
+  ### Output
+  Return only the complete updated test function as a single ```python code block.

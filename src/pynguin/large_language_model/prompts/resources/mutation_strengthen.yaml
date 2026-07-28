@@ -1,0 +1,44 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: 2000
+user_message_template: |
+  You are a test assertion expert. A unit test suite has been generated, but some mutant versions of the module under test survived.
+  Your task is to strengthen the unit test by adding meaningful assertions that will fail when executed against these mutated behaviors, thereby killing the mutants.
+
+  **Module Code:**
+  ```python
+  {{ module_code }}
+  ```
+
+  **Current Test Code:**
+  ```python
+  {{ test_code }}
+  ```
+
+  **Surviving Mutants:**
+  The following mutations were applied to the module under test, but the current test suite did not catch (kill) them.
+  {{ surviving_mutants }}
+
+  **CRITICAL: You MUST preserve ALL import statements from the input test code.**
+  **CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+  **Do NOT remove the `module_0.` prefix — that will cause NameError.**
+
+  **Your Task:**
+  Analyze the surviving mutants and the focal method '{{ focal_method }}'.
+  Add specific, meaningful assertions to the # Assert section of the test function(s) that would fail under the mutated operator/replacement.
+  Note that some mutants may be equivalent and thus undetectable, but add assertions for all detectable cases.
+  Do NOT change function names, variable names, or the Arrange section of the tests.
+  Do NOT weaken coverage.
+
+  **Output Format:**
+  Return the complete test code with all import statements and all original code preserved.
+  Start with import statements, then the test function.
+  No explanations, no markdown prose.

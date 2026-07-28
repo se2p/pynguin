@@ -25,6 +25,7 @@ from pynguin.refinement.mutation_analyzer import (
     _run_test_against_mutant,  # noqa: PLC2701
     _vacuous_stats,  # noqa: PLC2701
     filter_vacuous_assertions,
+    get_surviving_mutants,
 )
 
 
@@ -241,3 +242,41 @@ def test_filter_vacuous_assertions_removes_non_contributing_assertion(monkeypatc
     assert stats["assertions_removed"] == 1
     assert stats["assertions_kept"] == 0
     assert stats["avg_per_test_contribution"] == 0.0
+
+
+def test_get_surviving_mutants(monkeypatch):
+    module = types.ModuleType("module_0")
+    module.__file__ = "dummy.py"
+    # Mock _create_mutants to return a mock mutant
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer._create_mutants",
+        lambda *_args, **_kwargs: ([("mutant_module", "mutations")], None),
+    )
+    # Mock _killed_set to return empty (mutant survived)
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer._killed_set",
+        lambda *_args, **_kwargs: set(),
+    )
+    survivors = get_surviving_mutants("def test_x(): pass", module)
+    assert len(survivors) == 1
+    assert survivors[0] == ("mutant_module", "mutations")
+
+
+def test_get_surviving_mutants_excludes_failed_builds(monkeypatch):
+    # Regression: mutants that failed to build (module is None) are skipped by
+    # _killed_set and must not be reported as survivors.
+    module = types.ModuleType("module_0")
+    module.__file__ = "dummy.py"
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer._create_mutants",
+        lambda *_args, **_kwargs: (
+            [(None, "mutations"), ("mutant_module", "mutations")],
+            None,
+        ),
+    )
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer._killed_set",
+        lambda *_args, **_kwargs: set(),
+    )
+    survivors = get_surviving_mutants("def test_x(): pass", module)
+    assert survivors == [("mutant_module", "mutations")]

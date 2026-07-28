@@ -126,6 +126,20 @@ class MutationStrategy(str, enum.Enum):
     IEEE Transactions on SE 39.4 2013)"""
 
 
+class RefinementGranularity(str, enum.Enum):
+    """Granularity of the LLM readability & assertion refinement stages."""
+
+    COMBINED = "combined"
+    """One module-level prompt that does both readability and assertion refinement
+    (default; most token-efficient, highest output variance)."""
+
+    MODULE_SEPARATE = "module_separate"
+    """Two module-level prompts: readability first, then semantic assertions."""
+
+    PER_TEST = "per_test"
+    """Per-test readability and assertion prompts (previous behavior, most robust)."""
+
+
 class MinimizationDirection(str, enum.Enum):
     """Directions for test case minimization.
 
@@ -873,12 +887,12 @@ class LLMConfiguration:
     llm_url: str = ""
     """Base URL for the LLM API endpoint (leave empty for default OpenAI)."""
 
-    temperature: float = 0.8
-    """The temperature to use when querying the model.
-    The value must be from [0.0, 1.0]."""
-
     hybrid_initial_population: bool = False
-    """Whether to include the LLM test cases in the initial population."""
+    """Whether to include the LLM test cases in the initial population (pre-search
+    seeding).  Empirically, seeding spends token budget up front and delays the
+    search without improving final coverage; the cost-coverage optimum is to leave
+    this off and rely on ``call_llm_on_stall_detection`` (stagnation-triggered
+    querying) instead."""
 
     llm_test_case_percentage: float = 0.5
     """The percentage of LLM test cases in on the initial population. The value must
@@ -888,20 +902,59 @@ class LLMConfiguration:
     """Whether to enable caching for responses of the model."""
 
     call_llm_for_uncovered_targets: bool = False
-    """Whether to call the LLM for the uncovered targets initially."""
+    """Whether to call the LLM for the uncovered targets once, before the search
+    iterations start.  Like seeding, this front-loads token cost; prefer
+    ``call_llm_on_stall_detection`` for the recommended stagnation-only setup."""
 
     coverage_threshold: float = 1
     """The coverage threshold when to call the LLM for low-coverage targets.
     The value must be from [0.0, 1.0]."""
 
     call_llm_on_stall_detection: bool = False
-    """Whether to call the LLM for the uncovered targets in coverage stalls."""
+    """Whether to query the LLM for uncovered targets when the search stalls
+    (stagnation-triggered querying).  This is the recommended integration mode: keep
+    ``hybrid_initial_population`` and ``call_llm_for_uncovered_targets`` off and
+    enable this so the GA covers easy goals first and the LLM is only spent to break
+    through plateaus."""
+
+    stall_detection_window_seconds: int = 30
+    """Wall-clock seconds without a coverage gain before the search is considered
+    stalled and the LLM is queried (only used when ``call_llm_on_stall_detection`` is
+    enabled).  Roughly 10% of a standard 300s budget.  Set to <= 0 to fall back to
+    the iteration-count based ``max_plateau_len`` heuristic instead."""
 
     max_plateau_len: int = 25
-    """The number of iterations to allow before soliciting the LLM."""
+    """The number of iterations without a coverage change before soliciting the LLM.
+    Only used as a fallback when ``stall_detection_window_seconds`` is <= 0; the
+    time-based window is preferred because iteration duration varies widely."""
 
-    max_llm_interventions: int = 1
-    """The maximum number of allowed LLM interventions."""
+    max_llm_interventions: int = -1
+    """The maximum number of allowed stall-triggered LLM interventions per run.
+    Defaults to ``-1`` (unlimited, bounded only by the search budget).  This is safe
+    because interventions are naturally rate-limited by the stall-detection window
+    and the late-budget guard, so they fire at most once per detected plateau.  Set
+    to a non-negative value to cap the number of interventions per run instead."""
+
+    min_remaining_budget_for_llm: int = 45
+    """Late-budget guard: suppress stall-triggered LLM queries when fewer than this
+    many seconds of search time remain, to avoid spending tokens on a query that
+    cannot return and be integrated in time.  Only applies when a maximum search time
+    is configured; set to <= 0 to disable the guard."""
+
+    max_context_chars: int = 64000
+    """Maximum number of characters of module source code sent to the LLM.  Coverage
+    gains saturate beyond this budget while token consumption keeps growing, so the
+    source is truncated to this length.  Set to <= 0 to disable truncation."""
+
+    max_retries: int = 8
+    """The maximum number of retries for LLM requests."""
+
+    request_timeout: float | None = 30.0
+    """The timeout for LLM requests in seconds (``None`` disables the timeout).  A
+    30s timeout keeps query latency low during active evolutionary search."""
+
+    cache_dir: str = "~/.cache/pynguin/llm"
+    """The directory to store cached responses."""
 
 
 @dataclasses.dataclass
@@ -1001,8 +1054,10 @@ class LLMRefinementConfiguration:
     enabled: bool = False
     """Enable LLM-based test refinement."""
 
-    max_repair_iterations: int = 3
-    """Maximum number of iterations to attempt test repair."""
+    max_repair_iterations: int = 2
+    """Maximum number of iterations to attempt test repair.  Capping the multi-turn
+    syntax/type repair loop at 2 trades a tiny amount of test salvage for markedly
+    lower latency and token usage."""
 
     max_tests: int | None = None
     """Maximum number of tests to refine (None = all tests)."""
@@ -1012,6 +1067,32 @@ class LLMRefinementConfiguration:
 
     save_refined: bool = True
     """Save the refined test file with _refined suffix."""
+
+    enable_dependency_context: bool = False
+    """Enable retrieving dependent class/method signatures to include in prompt context."""
+
+    enable_usage_examples: bool = False
+    """Enable retrieving usage examples from the codebase to include in prompt context."""
+
+    max_dependencies: int = 10
+    """Maximum number of dependencies to collect context for."""
+
+    max_usage_examples: int = 3
+    """Maximum number of usage examples to collect context for."""
+
+    enable_mutation_strengthening: bool = False
+    """Enable mutation-driven assertion strengthening."""
+
+    max_mutation_iterations: int = 3
+    """Maximum iterations for mutation-driven assertion strengthening."""
+
+    refinement_granularity: RefinementGranularity = RefinementGranularity.COMBINED
+    """Whether readability refinement and semantic-assertion generation are done with a
+    single combined module-level prompt (``combined``, default; most token-efficient,
+    highest-variance), two separate module-level prompts (``module_separate``), or one
+    prompt per test (``per_test``; previous behavior, most robust). Repair and
+    mutation-strengthening are always per-test regardless of this setting. Any truncated
+    or unparseable module-level response falls back automatically to the per-test path."""
 
 
 @dataclasses.dataclass

@@ -1,0 +1,37 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+user_message_template: |
+  ### Task
+  Improve the branch coverage of the pytest test below by mutating exactly one statement:
+  the statement at position {{ position }} of the test case (the line numbers are shown in
+  the test source below).
+
+  ### Instructions
+  - Change only the statement at position {{ position }}; leave every other statement
+    unchanged.
+  - Pick a change that can actually increase coverage of one of the partially covered
+    branches listed below.
+  - Return the ENTIRE test, not just the mutated statement.
+  - Wrap the test in a class so it can be parsed reliably.
+  - Use pytest only; do not use the `unittest` module.
+
+  ### Partially covered lines (line: covered/existing branches)
+  {% for line in branch_coverage -%}
+  {{ line }}
+  {% endfor %}
+  ### Test source code
+  ```python
+  {{ test_case_code }}
+  ```
+
+  ### Module source code
+  ```python
+  {{ module_code }}
+  ```
+
+  ### Output
+  Return only the whole updated test class as a single ```python code block.

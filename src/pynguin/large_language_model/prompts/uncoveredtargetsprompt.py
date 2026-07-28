@@ -7,6 +7,7 @@
 """Provides class prompt for generating tests for a module."""
 
 from pynguin.large_language_model.prompts.prompt import Prompt
+from pynguin.large_language_model.request import RenderedRequest
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
@@ -18,11 +19,14 @@ from pynguin.utils.generic.genericaccessibleobject import (
 class UncoveredTargetsPrompt(Prompt):
     """Implementation prompt for generating tests for a module."""
 
+    _resource_name = "uncovered_targets"
+
     def __init__(
         self,
         callables: list[GenericCallableAccessibleObject],
         module_code: str,
         module_path: str,
+        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
     ):
         """Initializes the prompt.
 
@@ -31,11 +35,18 @@ class UncoveredTargetsPrompt(Prompt):
                 uncovered callables.
             module_path (str): Path to the module.
             module_code (str): Source code of the module.
+            diagnostics (dict): Optional per-callable diagnostic hints describing why
+                a target is uncovered (e.g. never reached, one-sided branch). Used to
+                give the LLM a targeted "problem card" per callable.
         """
-        super().__init__(module_code, module_path)
         self.callables: list[GenericCallableAccessibleObject] = callables
         self.module_path = module_path
         self.module_code = module_code
+        self.diagnostics: dict[GenericCallableAccessibleObject, str] = diagnostics or {}
+        super().__init__()
+
+    def _template_vars(self) -> list[str]:
+        return ["uncovered_targets", "module_code", "module_path"]
 
     def build_callables_prompt_section(self) -> list[str]:
         """Generates a list of function headers and their signatures.
@@ -63,19 +74,23 @@ class UncoveredTargetsPrompt(Prompt):
             else:
                 continue  # Skip unknown callable types
 
+            diagnostic = self.diagnostics.get(gao)
+            if diagnostic:
+                callable_list_item += f" [hint: {diagnostic}]"
+
             callables_list.append(callable_list_item)
 
         return callables_list
 
-    def build_prompt(self) -> str:
-        """Builds the prompt message."""
-        callables_list = self.build_callables_prompt_section()
-        callables_section = "\n".join(callables_list)
+    def render_request(self) -> RenderedRequest:
+        """Builds the rendered request.
 
-        return (
-            f"Write unit tests for the following callables that "
-            f" Pynguin failed to cover:\n"
-            f"{callables_section}\n"
-            f"Module path: `{self.module_path}`\n"
-            f"Module source code: `{self.module_code}`"
+        Returns:
+            The rendered request.
+        """
+        callables_list = self.build_callables_prompt_section()
+        return self.render(
+            uncovered_targets=callables_list,
+            module_code=self.module_code,
+            module_path=self.module_path,
         )

@@ -1,0 +1,51 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: 8000
+user_message_template: |
+  You are refining a whole Python unit-test module in a SINGLE pass: improve readability
+  AND add meaningful assertions to EVERY test function, while preserving behavior.
+
+  **SUT Documentation (module under test):**
+  {{ sut_context }}
+
+  **Current Test Module (ALL test functions):**
+  ```python
+  {{ module_test_code }}
+  ```
+
+  **CRITICAL: You MUST preserve ALL import statements from the input module.**
+  **CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+  **Do NOT remove the `module_0.` prefix — that will cause NameError.**
+
+  **CRITICAL - Keep EVERY test function. Do NOT drop, merge, or add test functions.**
+  **CRITICAL - Keep each test function's EXACT ORIGINAL NAME. Do NOT rename functions.**
+  **The number and names of `def test_...` functions in your output MUST match the input.**
+
+  **Do BOTH of the following for each test function independently:**
+
+  **A) Readability**
+  1. Rename generic variables (bool_0, int_0, str_0) to meaningful names.
+  2. Add clear `# Arrange`, `# Act`, `# Assert` section markers (do not skip empty ones).
+  3. Add a brief (1-2 line) docstring explaining what the test verifies.
+  4. Keep the exact same logic and control flow.
+
+  **B) Assertions**
+  1. Decide from the inputs whether each test is POSITIVE or NEGATIVE.
+     - NEGATIVE: wrap the call in `with pytest.raises(Exception):`.
+     - POSITIVE: remove try/except, store the result and add conservative assertions
+       (only assert what the documentation confidently supports, e.g.
+       `isinstance(result, str)`).
+  2. Only add/modify assertions in the `# Assert` section; do not weaken existing checks.
+
+  **Output Format:**
+  Return the complete refined module WITH ALL IMPORT STATEMENTS from the original.
+  Include imports at the top, then every test function in the original order, each keeping
+  its exact original name. No explanations, no markdown prose.

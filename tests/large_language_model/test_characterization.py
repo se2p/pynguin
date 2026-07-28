@@ -1,0 +1,206 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+"""Characterization tests to pin exact LLM prompt messages/structures."""
+
+from unittest.mock import MagicMock
+
+from pynguin.large_language_model.prompts.assertiongenerationprompt import AssertionGenerationPrompt
+from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
+from pynguin.large_language_model.prompts.mutationstrengthenprompt import MutationStrengthenPrompt
+from pynguin.large_language_model.prompts.readabilityrefinementprompt import (
+    ReadabilityRefinementPrompt,
+)
+from pynguin.large_language_model.prompts.repairprompt import RepairPrompt
+from pynguin.large_language_model.prompts.semanticassertionsprompt import SemanticAssertionsPrompt
+from pynguin.large_language_model.prompts.testcasegenerationprompt import TestCaseGenerationPrompt
+from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
+    TypeAndSubtypeInferencePrompt,
+)
+from pynguin.large_language_model.prompts.typeinferenceprompt import TypeInferencePrompt
+from pynguin.large_language_model.prompts.uncoveredtargetsprompt import UncoveredTargetsPrompt
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+)
+from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.report import CoverageEntry, LineAnnotation
+
+
+class DummyClassForInference:
+    def dummy_method(self, x: int) -> str:
+        """Dummy docstring."""
+        return str(x)
+
+
+def dummy_function(a: str, b: float):
+    """Function docstring."""
+    return f"{a} {b}"
+
+
+def test_test_case_generation_prompt_characterization():
+    prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
+    assert "You are TestGenAI" in prompt.system_message
+    assert "pytest framework only" in prompt.system_message
+    assert "```python" in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "Write a pytest test suite" in user_prompt
+    assert "from a.b.c import" in user_prompt
+    assert "Module path: `example/path.py`" in user_prompt
+    assert "def foo():\n    pass" in user_prompt
+    assert "Return only the test suite as a single ```python code block." in user_prompt
+
+
+def test_assertion_generation_prompt_characterization():
+    prompt = AssertionGenerationPrompt("def test_foo():\n    assert True", "def foo():\n    pass")
+    user_prompt = prompt.build_prompt()
+    assert "APPENDING new `assert` statements" in user_prompt
+    assert "Do NOT add new calls" in user_prompt
+    assert "def test_foo():\n    assert True" in user_prompt
+    assert "def foo():\n    pass" in user_prompt
+    assert "Return only the complete updated test function" in user_prompt
+
+
+def test_uncovered_targets_prompt_characterization():
+    func_gao = MagicMock(spec=GenericFunction)
+    func_gao.is_method.return_value = False
+    func_gao.is_function.return_value = True
+    func_gao.is_constructor.return_value = False
+    func_gao.function_name = "dummy_func"
+    func_gao.inferred_signature = "(a: str) -> None"
+
+    method_gao = MagicMock(spec=GenericMethod)
+    method_gao.is_method.return_value = True
+    method_gao.is_function.return_value = False
+    method_gao.is_constructor.return_value = False
+    method_gao.method_name = "dummy_meth"
+    method_gao.owner.name = "DummyClass"
+    method_gao.inferred_signature = "(self, x: int) -> bool"
+
+    constructor_gao = MagicMock(spec=GenericConstructor)
+    constructor_gao.is_method.return_value = False
+    constructor_gao.is_function.return_value = False
+    constructor_gao.is_constructor.return_value = True
+    constructor_gao.owner.name = "DummyClass"
+    constructor_gao.inferred_signature = "(self)"
+
+    callables = [func_gao, method_gao, constructor_gao]
+    prompt = UncoveredTargetsPrompt(callables, "def source():\n    pass", "dummy/module.py")
+    user_prompt = prompt.build_prompt()
+
+    assert "Pynguin failed to cover the following callables" in user_prompt
+    assert "- The function dummy_func(a: str) -> None" in user_prompt
+    assert "- The method dummy_meth of class DummyClass(self, x: int) -> bool" in user_prompt
+    assert "- The constructor of the class DummyClass(self)" in user_prompt
+    assert "Module path: `dummy/module.py`" in user_prompt
+    assert "def source():\n    pass" in user_prompt
+
+
+def test_local_search_prompt_characterization():
+    branch_coverage = [
+        LineAnnotation(
+            line_no=10,
+            total=CoverageEntry(covered=1, existing=2),
+            branches=CoverageEntry(covered=1, existing=2),
+            branchless_code_objects=CoverageEntry(covered=0, existing=0),
+            lines=CoverageEntry(covered=0, existing=0),
+        ),
+        LineAnnotation(
+            line_no=15,
+            total=CoverageEntry(covered=0, existing=2),
+            branches=CoverageEntry(covered=0, existing=2),
+            branchless_code_objects=CoverageEntry(covered=0, existing=0),
+            lines=CoverageEntry(covered=0, existing=0),
+        ),
+    ]
+    prompt = LocalSearchPrompt(
+        test_case_code="def test_foo():\n    assert True",
+        position=2,
+        module_code="def foo(x):\n    if x > 0:\n        return 1\n    return 2",
+        branch_coverage=branch_coverage,
+    )
+    user_prompt = prompt.build_prompt()
+
+    # The statement position in local search prompt adds 2 to the position passed.
+    assert "the statement at position 4" in user_prompt
+    assert "Partially covered lines" in user_prompt
+    assert "Line 10: Covered 1 of 2" in user_prompt
+    # Line 15 is not included because covered is 0 (branch_coverage filter covered > 0)
+    assert "Line 15:" not in user_prompt
+    assert "1: def test_foo():\n2:     assert True" in user_prompt
+    assert "def foo(x):\n    if x > 0:\n        return 1\n    return 2" in user_prompt
+
+
+def test_type_inference_prompt_characterization():
+    subtypes = OrderedSet(["email", "url"])
+    prompt = TypeInferencePrompt(dummy_function, subtypes=subtypes)
+    user_prompt = prompt.build_user_prompt()
+
+    assert (
+        "You are tasked with inferring parameter types for a given Python function." in user_prompt
+    )
+    assert "Known string subtypes:\nemail, url" in user_prompt
+    assert "Function signature:\n(a: str, b: float)" in user_prompt
+    assert "Docstring:\nFunction docstring." in user_prompt
+    assert "Function body:\ndef dummy_function(a: str, b: float):" in user_prompt
+
+
+def test_type_and_subtype_inference_prompt_characterization():
+    subtypes = OrderedSet(["email", "url"])
+    prompt = TypeAndSubtypeInferencePrompt(dummy_function, subtypes=subtypes)
+    user_prompt = prompt.build_user_prompt()
+
+    assert (
+        "You are tasked with inferring parameter types and string subtypes for a given Python"
+        in user_prompt
+    )
+    assert "Known string subtypes:\nemail, url" in user_prompt
+    assert "Function signature:\n(a: str, b: float)" in user_prompt
+    assert "Docstring:\nFunction docstring." in user_prompt
+    assert "Function body:\ndef dummy_function(a: str, b: float):" in user_prompt
+
+
+def test_repair_prompt_characterization():
+    prompt = RepairPrompt("def test_x():\n    pass", "SyntaxError: invalid syntax")
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are a Python test repair expert." in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+    assert "SyntaxError: invalid syntax" in user_prompt
+
+
+def test_readability_refinement_prompt_characterization():
+    prompt = ReadabilityRefinementPrompt("sut context doc", "focal_func", "def test_x():\n    pass")
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are refactoring a Python unit test" in user_prompt
+    assert "sut context doc" in user_prompt
+    assert "focal_func" in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+
+
+def test_semantic_assertions_prompt_characterization():
+    prompt = SemanticAssertionsPrompt("sut context doc", "focal_func", "def test_x():\n    pass")
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are a test assertion expert." in user_prompt
+    assert "sut context doc" in user_prompt
+    assert "focal_func" in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+
+
+def test_mutation_strengthen_prompt_characterization():
+    prompt = MutationStrengthenPrompt(
+        "module code", "def test_x():\n    pass", "survivor list", "focal_func"
+    )
+    assert "You are an expert Python developer." in prompt.system_message
+    user_prompt = prompt.build_prompt()
+    assert "You are a test assertion expert." in user_prompt
+    assert "module code" in user_prompt
+    assert "def test_x():\n    pass" in user_prompt
+    assert "survivor list" in user_prompt
+    assert "focal_func" in user_prompt

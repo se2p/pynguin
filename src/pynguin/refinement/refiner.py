@@ -17,7 +17,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
+from pynguin.configuration import RefinementGranularity
+from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
 from pynguin.refinement.pipeline import TestRefiner
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -220,6 +223,159 @@ def _process_one_test(
         return _TestOutcome(func_text=ast.unparse(func), failed=True)
 
 
+def _slice_function_source(module_code: str, node: ast.FunctionDef) -> str:
+    """Return the raw source text of a function (with decorators, comments preserved)."""
+    lines = module_code.split("\n")
+    start = node.lineno - 1  # 0-based
+    if node.decorator_list:
+        start = node.decorator_list[0].lineno - 1
+    end = node.end_lineno or node.lineno  # 1-based inclusive
+    return "\n".join(lines[start:end]).rstrip()
+
+
+def _assemble_module_blob(import_block: str, funcs: list[ast.FunctionDef]) -> str:
+    """Assemble the original tests into a single module string for batched generation."""
+    body = "\n\n\n".join(ast.unparse(func) for func in funcs)
+    prefix = import_block.rstrip("\n")
+    if prefix:
+        return prefix + "\n\n\n" + body
+    return body
+
+
+def _generate_module(
+    refiner: TestRefiner,
+    module_blob: str,
+    sut_context: str,
+    granularity: RefinementGranularity,
+) -> str:
+    """Run the batched module-level generation, returning the refined module or a sentinel."""
+    if granularity == RefinementGranularity.COMBINED:
+        return refiner.refine_module_combined(module_blob, sut_context)
+    # MODULE_SEPARATE: readability first, then assertions on the readability output.
+    readable = refiner.refine_readability_module(module_blob, sut_context)
+    if isinstance(readable, str) and readable.startswith(LLM_ERROR_PREFIX):
+        return readable
+    return refiner.generate_semantic_assertions_module(readable, sut_context)
+
+
+def _index_refined_functions(module_code: str) -> dict[str, ast.FunctionDef] | None:
+    """Parse a refined module and index its top-level functions by name.
+
+    Returns ``None`` when the module is unparseable (e.g. a truncated response).
+    """
+    try:
+        tree = ast.parse(module_code)
+    except SyntaxError:
+        return None
+    return {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+
+
+def _outcome_from_result(func: ast.FunctionDef, original_code: str, result: dict) -> _TestOutcome:
+    """Build a :class:`_TestOutcome` from a pipeline result dict."""
+    if result.get("success"):
+        refined_code = result["final_code"]
+        refined_metrics = compute_metrics(refined_code)
+        original_metrics = compute_metrics(original_code)
+        _LOGGER.info("Successfully refined %s (iterations: %d)", func.name, result["iterations"])
+        return _TestOutcome(
+            func_text=_extract_function_text(refined_code),
+            processed=True,
+            refined=True,
+            iterations=result["iterations"],
+            readability_original=original_metrics.get("aggregate", 0.0),
+            readability_refined=refined_metrics.get("aggregate", 0.0),
+            mutation_stats=result.get("mutation_stats", {}) or {},
+        )
+    _LOGGER.warning("Failed to refine %s: %s", func.name, result.get("error", "Unknown"))
+    return _TestOutcome(func_text=ast.unparse(func), processed=True, failed=True)
+
+
+def _process_module(
+    refiner: TestRefiner,
+    import_block: str,
+    test_functions: list[ast.FunctionDef],
+    granularity: RefinementGranularity,
+    max_repair_iterations: int,
+) -> list[_TestOutcome]:
+    """Refine a whole module in one/two batched LLM requests, then finish per-test.
+
+    Assembles all ``test_functions`` into one module blob, runs the batched module-level
+    generation (combined or separate), splits the refined module back into per-function
+    code, and runs the per-test mutation-filter + repair loop on each.  Any test that is
+    missing, unparseable, or came from a truncated/failed response falls back to the
+    per-test path (:func:`_process_one_test`) so no test is silently dropped.
+    """
+    module_blob = _assemble_module_blob(import_block, test_functions)
+    sut_context = refiner.build_module_sut_context()
+
+    refined_module = _generate_module(refiner, module_blob, sut_context, granularity)
+
+    refined_index: dict[str, ast.FunctionDef] | None = None
+    if isinstance(refined_module, str) and refined_module.startswith(LLM_ERROR_PREFIX):
+        _LOGGER.warning(
+            "Module-level refinement failed (%s); falling back to per-test refinement "
+            "for all %d tests.",
+            refined_module,
+            len(test_functions),
+        )
+    else:
+        refined_index = _index_refined_functions(refined_module)
+        if refined_index is None:
+            _LOGGER.warning(
+                "Module-level response was unparseable (likely truncated); falling back "
+                "to per-test refinement for all %d tests.",
+                len(test_functions),
+            )
+
+    outcomes: list[_TestOutcome] = []
+    for func in test_functions:
+        original_code = import_block + ast.unparse(func)
+        refined_func = refined_index.get(func.name) if refined_index is not None else None
+
+        if refined_func is None:
+            # Missing / renamed / truncated / whole-module failure → per-test fallback.
+            if refined_index is not None:
+                _LOGGER.warning(
+                    "Test %s missing from module-level response; falling back to per-test "
+                    "refinement.",
+                    func.name,
+                )
+            outcomes.append(_process_one_test(refiner, import_block, func, max_repair_iterations))
+            continue
+
+        refined_single = import_block + _slice_function_source(refined_module, refined_func)
+        try:
+            result = refiner.finish_refined_test(
+                original_code=original_code,
+                refined_code=refined_single,
+                max_retries=max_repair_iterations,
+            )
+            outcomes.append(_outcome_from_result(func, original_code, result))
+        except Exception as e:
+            _LOGGER.exception("Error finishing module-refined test %s: %s", func.name, e)
+            outcomes.append(_process_one_test(refiner, import_block, func, max_repair_iterations))
+
+    return outcomes
+
+
+def _accumulate_outcome(
+    stats: dict[str, Any], mutation: _MutationAccumulator, outcome: _TestOutcome
+) -> None:
+    """Fold a single test outcome into the running statistics."""
+    if outcome.processed:
+        stats["tests_processed"] += 1
+    if outcome.refined:
+        stats["tests_refined"] += 1
+        stats["repair_iterations"] += outcome.iterations
+        # Accumulate readability only for successfully refined tests so the delta is a
+        # like-for-like comparison.
+        stats["readability_original"] += outcome.readability_original
+        stats["readability_refined"] += outcome.readability_refined
+        mutation.add(stats, outcome.mutation_stats)
+    if outcome.failed:
+        stats["failed_tests"] += 1
+
+
 def _finalize_readability(stats: dict[str, Any]) -> None:
     """Average the accumulated readability scores over the refined tests."""
     if stats["tests_refined"] > 0:
@@ -386,24 +542,32 @@ def refine_generated_tests(
         mutation = _MutationAccumulator()
         refined_tests: list[str] = []
 
-        # Process each test function (up to max_tests).
+        # Process test functions (up to max_tests) according to the configured
+        # refinement granularity.  ``per_test`` refines each function independently;
+        # ``combined`` / ``module_separate`` refine the whole module in one/two batched
+        # requests and then finish (mutation-filter + repair) per test.
         limit = max_tests if max_tests is not None else len(test_functions)
-        for idx, func in enumerate(test_functions[:limit], 1):
-            _LOGGER.info("Processing test %d/%d: %s", idx, len(test_functions), func.name)
-            outcome = _process_one_test(refiner, import_block, func, max_repair_iterations)
+        selected = test_functions[:limit]
+        granularity = config.configuration.llm_refinement.refinement_granularity
+
+        if granularity == RefinementGranularity.PER_TEST:
+            outcomes = [
+                _process_one_test(refiner, import_block, func, max_repair_iterations)
+                for func in selected
+            ]
+        else:
+            _LOGGER.info(
+                "Processing %d tests with %s module-level refinement",
+                len(selected),
+                granularity.value,
+            )
+            outcomes = _process_module(
+                refiner, import_block, selected, granularity, max_repair_iterations
+            )
+
+        for outcome in outcomes:
             refined_tests.append(outcome.func_text)
-            if outcome.processed:
-                stats["tests_processed"] += 1
-            if outcome.refined:
-                stats["tests_refined"] += 1
-                stats["repair_iterations"] += outcome.iterations
-                # Accumulate readability only for successfully refined tests so
-                # the delta is a like-for-like comparison.
-                stats["readability_original"] += outcome.readability_original
-                stats["readability_refined"] += outcome.readability_refined
-                mutation.add(stats, outcome.mutation_stats)
-            if outcome.failed:
-                stats["failed_tests"] += 1
+            _accumulate_outcome(stats, mutation, outcome)
 
         _finalize_readability(stats)
         mutation.finalize(stats)

@@ -10,10 +10,11 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
+from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.orderedset import OrderedSet
 
 
-class BaseInferencePrompt:
+class BaseInferencePrompt(Prompt):
     """Base class for type inference prompts."""
 
     def __init__(
@@ -26,7 +27,8 @@ class BaseInferencePrompt:
             subtypes: list of known string subtypes (e.g., "email", "url", etc.)
         """
         self.callable_obj = callable_obj
-        self.subtypes: OrderedSet[str] = subtypes or []  # type: ignore[assignment]
+        self.subtypes: OrderedSet[str] = subtypes or OrderedSet()
+        super().__init__()
 
     def _get_src_code(self, func: Callable[..., Any]) -> str:
         """Get the source code of a function."""

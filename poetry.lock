@@ -1957,7 +1957,7 @@ files = [
     {file = "pyyaml-6.0.3-cp39-cp39-win_amd64.whl", hash = "sha256:2e71d11abed7344e42a8849600193d15b6def118602c4c176f748e4583246007"},
     {file = "pyyaml-6.0.3.tar.gz", hash = "sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f"},
 ]
-markers = {main = "python_version < \"3.13\""}
+markers = {main = "python_version < \"3.13\" or extra == \"openai\""}
 
 [[package]]
 name = "pyyaml-ft"
@@ -2850,10 +2850,10 @@ files = [
 [extras]
 fandango-faker = ["faker", "fandango-fuzzer"]
 numpy = ["numpy"]
-openai = ["openai", "python-dotenv"]
+openai = ["openai", "python-dotenv", "pyyaml"]
 typing = ["mypy", "typing-extensions"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.15"
-content-hash = "0ef9a8783a4dfa77141f1d47512d925c82da1ea4e39cc680b4f532bbeda2cd5a"
+content-hash = "bc6b461adf14f81bfb10afab4dcebde69a2fd0f8b34193b77bb8716e9fc3a773"

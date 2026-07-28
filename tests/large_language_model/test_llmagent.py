@@ -21,7 +21,7 @@ from pynguin.utils.openai_key_resolver import is_api_key_present, require_api_ke
 )
 def test_extract_python_code_valid():
     llm_output = "Some text\n```python\nprint('Hello, world!')\n```"
-    expected_code = "\nprint('Hello, world!')\n"
+    expected_code = "print('Hello, world!')\n"
     model = LLMAgent()
     assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 
@@ -32,7 +32,7 @@ def test_extract_python_code_valid():
 )
 def test_extract_python_code_multiple_blocks():
     llm_output = "Text\n```python\nprint('Hello')\n```\nMore text\n```python\nprint('World')\n```"
-    expected_code = "\nprint('Hello')\n\n\nprint('World')\n"
+    expected_code = "print('Hello')\n\nprint('World')\n"
     model = LLMAgent()
     assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 

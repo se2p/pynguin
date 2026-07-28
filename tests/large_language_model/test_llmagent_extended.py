@@ -14,14 +14,35 @@ import pytest
 import pynguin.configuration as config
 from pynguin.large_language_model.llmagent import (
     LLMAgent,
+    _truncate_to_context_budget,  # noqa: PLC2701
     get_module_source_code,
     get_part_of_source_code,
     save_prompt_info_to_file,
     shorten_line_annotations,
 )
 from pynguin.large_language_model.prompts.prompt import Prompt
+from pynguin.large_language_model.request import RenderedRequest
 from pynguin.utils.report import CoverageEntry, LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+
+def test_truncate_to_context_budget_truncates_over_limit(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "max_context_chars", 10)
+    out = _truncate_to_context_budget("y" * 50)
+    assert out.startswith("y" * 10)
+    assert "truncated" in out
+    assert len(out) < 50 + 60  # marker only, not the full source
+
+
+def test_truncate_to_context_budget_keeps_small_source(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "max_context_chars", 10)
+    assert _truncate_to_context_budget("abc") == "abc"
+
+
+def test_truncate_to_context_budget_disabled(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "max_context_chars", 0)
+    source = "z" * 100
+    assert _truncate_to_context_budget(source) == source
 
 
 def test_save_prompt_info_to_file(tmp_path, monkeypatch):
@@ -89,7 +110,6 @@ def test_llm_agent_init_with_caching(monkeypatch):
     # Mock the configuration
     monkeypatch.setattr(config.configuration.large_language_model, "enable_response_caching", True)
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "test-model")
-    monkeypatch.setattr(config.configuration.large_language_model, "temperature", 0.5)
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
@@ -117,7 +137,6 @@ def test_query_with_cache_hit(monkeypatch):
     # Mock the configuration
     monkeypatch.setattr(config.configuration.large_language_model, "enable_response_caching", True)
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "test-model")
-    monkeypatch.setattr(config.configuration.large_language_model, "temperature", 0.5)
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
@@ -125,10 +144,13 @@ def test_query_with_cache_hit(monkeypatch):
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
-    # Create a mock prompt
+    # Create a mock prompt whose rendered request carries the user content.
     mock_prompt = MagicMock(spec=Prompt)
-    mock_prompt.build_prompt.return_value = "Test prompt"
-    mock_prompt.system_message = "System message"
+    mock_prompt.render_request.return_value = RenderedRequest(
+        messages=[{"role": "user", "content": "Test prompt"}],
+        model="test-model",
+        temperature=0.5,
+    )
 
     # Create a mock cache
     mock_cache = MagicMock()
@@ -145,7 +167,9 @@ def test_query_with_cache_hit(monkeypatch):
     result = agent.query(mock_prompt)
 
     # Check that the cache was used and the result is correct
-    mock_cache.get.assert_called_once_with("Test prompt")
+    assert mock_cache.get.call_count == 1
+    called_request = mock_cache.get.call_args[0][0]
+    assert called_request.messages[-1]["content"] == "Test prompt"
     assert result == "Cached response"
     assert agent.llm_calls_counter == 0  # Counter should not increment on cache hit
 
@@ -155,7 +179,6 @@ def test_query_with_openai_error(monkeypatch):
     # Mock the configuration
     monkeypatch.setattr(config.configuration.large_language_model, "enable_response_caching", True)
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "test-model")
-    monkeypatch.setattr(config.configuration.large_language_model, "temperature", 0.5)
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "test_api_key")
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
@@ -166,8 +189,11 @@ def test_query_with_openai_error(monkeypatch):
 
     # Create a mock prompt
     mock_prompt = MagicMock(spec=Prompt)
-    mock_prompt.build_prompt.return_value = "Test prompt"
-    mock_prompt.system_message = "System message"
+    mock_prompt.render_request.return_value = RenderedRequest(
+        messages=[{"role": "user", "content": "Test prompt"}],
+        model="test-model",
+        temperature=0.5,
+    )
 
     # Create a mock cache that returns None (cache miss)
     mock_cache = MagicMock()
@@ -194,7 +220,6 @@ def test_query_successful_response(monkeypatch):
     # Mock the configuration
     monkeypatch.setattr(config.configuration.large_language_model, "enable_response_caching", True)
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "test-model")
-    monkeypatch.setattr(config.configuration.large_language_model, "temperature", 0.5)
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "test_api_key")
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
@@ -205,8 +230,11 @@ def test_query_successful_response(monkeypatch):
 
     # Create a mock prompt
     mock_prompt = MagicMock(spec=Prompt)
-    mock_prompt.build_prompt.return_value = "Test prompt"
-    mock_prompt.system_message = "System message"
+    mock_prompt.render_request.return_value = RenderedRequest(
+        messages=[{"role": "user", "content": "Test prompt"}],
+        model="test-model",
+        temperature=0.5,
+    )
 
     # Create a mock cache that returns None (cache miss)
     mock_cache = MagicMock()
@@ -308,9 +336,10 @@ def test_extract_python_code_no_code(monkeypatch):
     # Call the method with text that doesn't contain Python code blocks
     result = agent.extract_python_code_from_llm_output("This is just text, no code here.")
 
-    # Check that the result is the original text and the counter was incremented
-    assert result == "This is just text, no code here."
-    assert agent.llm_calls_with_no_python_code == 1
+    # Prose that is not valid Python yields no extracted code. The codeless-response
+    # metric is now counted once in the client, not recomputed here.
+    assert not result
+    assert agent.llm_calls_with_no_python_code == 0
 
 
 def test_extract_python_code_none_input(monkeypatch):

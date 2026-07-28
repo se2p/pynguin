@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 try:
     from pydantic import SecretStr
 
-    from pynguin.utils.llm import OpenAI
+    from pynguin.large_language_model.client import OpenAIClient
 
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -38,11 +38,9 @@ import pynguin.configuration as config
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
 from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
     TypeAndSubtypeInferencePrompt,
-    get_type_and_subtype_inference_system_prompt,
 )
 from pynguin.large_language_model.prompts.typeinferenceprompt import (
     TypeInferencePrompt,
-    get_inference_system_prompt,
 )
 from pynguin.utils.llm import LLMProvider
 from pynguin.utils.orderedset import OrderedSet
@@ -53,6 +51,7 @@ if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import (
         TypeSystem,
     )
+    from pynguin.large_language_model.request import RenderedRequest
 
 from copy import deepcopy
 
@@ -110,9 +109,8 @@ class LLMInference(InferenceProvider):
         ])
         match provider:
             case LLMProvider.OPENAI:
-                self._model = OpenAI(
+                self._model = OpenAIClient(
                     api_key=SecretStr(config.configuration.large_language_model.api_key),
-                    system_prompt=get_inference_system_prompt(),
                     model=config.configuration.large_language_model.model_name,
                 )
             case _:
@@ -173,28 +171,28 @@ class LLMInference(InferenceProvider):
     # ---- prompt building ----
     def _build_prompt_map(
         self, funcs: Sequence[Callable[..., Any]]
-    ) -> OrderedDict[Callable[..., Any], str]:
-        prompts: OrderedDict[Callable[..., Any], str] = OrderedDict()
+    ) -> OrderedDict[Callable[..., Any], RenderedRequest]:
+        prompts: OrderedDict[Callable[..., Any], RenderedRequest] = OrderedDict()
         for func in funcs:
             try:
                 prompt = TypeInferencePrompt(func, subtypes=self._subtypes)
-                prompts[func] = prompt.build_user_prompt()
+                prompts[func] = prompt.render_request()
             except Exception as exc:  # noqa: BLE001, PERF203
                 _LOGGER.error("Skipping callable %r due to prompt build failure: %s", func, exc)
         return prompts
 
     # ---- LLM I/O (parallel) ----
-    def _send_prompt(self, prompt: str) -> str:
-        return self._model.chat(prompt) or ""
+    def _send_prompt(self, prompt: RenderedRequest) -> str:
+        return self._model.send(prompt) or ""
 
     def _send_prompts(
-        self, prompts: Mapping[Callable[..., Any], str]
+        self, prompts: Mapping[Callable[..., Any], RenderedRequest]
     ) -> OrderedDict[Callable[..., Any], str]:
         coro = self._gather_prompts_async(prompts)
         return self._run_coro(coro)
 
     async def _gather_prompts_async(
-        self, prompts: Mapping[Callable[..., Any], str]
+        self, prompts: Mapping[Callable[..., Any], RenderedRequest]
     ) -> OrderedDict[Callable[..., Any], str]:
         sem = asyncio.Semaphore(self._max_parallel_calls)
         tasks = [
@@ -215,7 +213,7 @@ class LLMInference(InferenceProvider):
     async def _prompt_worker(
         self,
         func: Callable[..., Any],
-        prompt: str,
+        prompt: RenderedRequest,
         sem: asyncio.Semaphore,
     ) -> tuple[Callable[..., Any], str]:
         async with sem:
@@ -363,9 +361,8 @@ class LLMInferenceWithSubtypes(LLMInference):
         ])
         match provider:
             case LLMProvider.OPENAI:
-                self._model = OpenAI(
+                self._model = OpenAIClient(
                     api_key=SecretStr(config.configuration.large_language_model.api_key),
-                    system_prompt=get_type_and_subtype_inference_system_prompt(),
                     model=config.configuration.large_language_model.model_name,
                 )
             case _:
@@ -420,13 +417,13 @@ class LLMInferenceWithSubtypes(LLMInference):
 
     def _build_prompt_map(
         self, funcs: Sequence[Callable[..., Any]]
-    ) -> OrderedDict[Callable[..., Any], str]:
+    ) -> OrderedDict[Callable[..., Any], RenderedRequest]:
         """Build prompt map using the enhanced TypeAndSubtypeInferencePrompt."""
-        prompts: OrderedDict[Callable[..., Any], str] = OrderedDict()
+        prompts: OrderedDict[Callable[..., Any], RenderedRequest] = OrderedDict()
         for func in funcs:
             try:
                 prompt = TypeAndSubtypeInferencePrompt(func, subtypes=self._subtypes)
-                prompts[func] = prompt.build_user_prompt()
+                prompts[func] = prompt.render_request()
             except Exception as exc:  # noqa: BLE001, PERF203
                 _LOGGER.error("Skipping callable %r due to prompt build failure: %s", func, exc)
         return prompts

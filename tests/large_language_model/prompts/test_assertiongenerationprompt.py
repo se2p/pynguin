@@ -103,4 +103,4 @@ def test_actual_assertiongenerationprompt_coverage():
 
     # Force coverage of line 28 by calling build_prompt
     result = prompt.build_prompt()
-    assert "Write assertions for the following test case:" in result
+    assert "APPENDING new `assert` statements" in result

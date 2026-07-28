@@ -1,0 +1,16 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+system_message: |
+  You are a senior Python developer specialized in testing with the pytest framework.
+  Generate tests in pytest style. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+user_message_template: |
+  Generate pytest test cases for the following Python code:
+
+  ```python
+  {{ sut_code }}
+  ```

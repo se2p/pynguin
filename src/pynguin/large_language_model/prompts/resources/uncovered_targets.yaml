@@ -1,0 +1,35 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+user_message_template: |
+  ### Task
+  Pynguin failed to cover the following callables. Write additional pytest tests that
+  specifically exercise them, covering their statements and branches.
+
+  ### Uncovered callables
+  {% for target in uncovered_targets -%}
+  {{ target }}
+  {% endfor %}
+  ### Instructions
+  - Use pytest only; do not use the `unittest` module.
+  - Derive imports from the module path: for `a/b/c.py`, import via `from a.b.c import ...`.
+  - Focus each test on reaching an uncovered callable and its branches, including error
+    paths via `with pytest.raises(...)`.
+  - When a callable has a `[hint: ...]` note, use it: it diagnoses why the search could
+    not cover the callable (e.g. it was never reached, or a branch only took one
+    outcome). Address the hint directly — construct valid inputs to reach it, or vary
+    one input/state axis to flip an unobserved branch.
+  - Write test functions named `test_<callable>_<scenario>`.
+
+  ### Module under test
+  - Module path: `{{ module_path }}`
+  - Module source code:
+  ```python
+  {{ module_code }}
+  ```
+
+  ### Output
+  Return only the new tests as a single ```python code block.

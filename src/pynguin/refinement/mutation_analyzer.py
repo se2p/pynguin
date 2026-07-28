@@ -438,3 +438,32 @@ def filter_vacuous_assertions(
         )
 
     return filtered_test, stats
+
+
+def get_surviving_mutants(
+    test_code: str,
+    module_under_test: types.ModuleType | None,
+    max_mutants: int = 10,
+) -> list[tuple[types.ModuleType, Any]]:
+    """Return the list of mutants that survived (were not killed by) the test code.
+
+    Returns:
+        List of tuples of (mutant_module, mutations) for surviving mutants.
+    """
+    if not module_under_test or not hasattr(module_under_test, "__file__"):
+        return []
+    mutants, mutant_error = _create_mutants(module_under_test, max_mutants)
+    if mutant_error is not None or not mutants:
+        return []
+
+    module_name = module_under_test.__name__
+    killed_indices = _killed_set(test_code, mutants, module_name)
+
+    survivors = []
+    for idx, mutant in enumerate(mutants):
+        mutant_module, _mutations = mutant
+        # Mutants that failed to build (``mutant_module is None``) are not real
+        # survivors; ``_killed_set`` skips them, so exclude them explicitly here.
+        if mutant_module is not None and idx not in killed_indices:
+            survivors.append(mutant)
+    return survivors

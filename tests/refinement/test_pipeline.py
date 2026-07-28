@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import pynguin.configuration as config
+from pynguin.assertion.mutation_analysis.operators.base import Mutation
 from pynguin.refinement.pipeline import (
     TestRefiner,
     _remove_failing_inferred_assertion,  # noqa: PLC2701
@@ -78,6 +80,9 @@ def refiner(dummy_module: types.ModuleType) -> TestRefiner:
     with patch("pynguin.refinement.pipeline.LLMClient") as mock_llm_cls:
         instance = mock_llm_cls.return_value
         instance.generate_code.return_value = SIMPLE_TEST_CODE
+        instance.generate_from_prompt.side_effect = lambda prompt: instance.generate_code(
+            prompt.build_prompt()
+        )
         instance.get_usage.return_value = {
             "calls": 0,
             "input_tokens": 0,
@@ -851,3 +856,54 @@ def test_process_end_to_end_failure_result_keys(refiner: TestRefiner):
     assert result["success"] is False
     assert "error" in result
     assert "iterations" in result
+
+
+def test_mutation_strengthening_loop(refiner: TestRefiner, monkeypatch):
+    # Set enable_mutation_strengthening config to True
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "enable_mutation_strengthening",
+        True,
+    )
+    # Mock get_surviving_mutants to return survivors first, then empty
+    survivors_mock_calls = 0
+
+    def mock_get_survivors(*_args, **_kwargs):
+        nonlocal survivors_mock_calls
+        survivors_mock_calls += 1
+        if survivors_mock_calls == 1:
+            m = Mutation(
+                node=ast.parse("x = 1").body[0],
+                replacement_node=ast.parse("x = 2").body[0],
+                operator=type("MockOp", (), {"MockVisitor": None}),
+                visitor_name="MockVisitor",
+            )
+            return [("mutant_module", [m])]
+        return []
+
+    monkeypatch.setattr(
+        "pynguin.refinement.pipeline.get_surviving_mutants",
+        mock_get_survivors,
+    )
+
+    # Mock llm_client.generate_from_prompt to return strengthened code
+    refiner.llm_client.generate_from_prompt.side_effect = lambda prompt: (
+        "import module_0\ndef test_add():\n    assert add(1, 1) == 2\n"
+        if "MutationStrengthenPrompt" in type(prompt).__name__
+        else refiner.llm_client.generate_code(prompt.build_prompt())
+    )
+
+    with (
+        patch("pynguin.refinement.pipeline.run_test", return_value=(True, "passed")),
+        patch(
+            "pynguin.refinement.pipeline.check_coverage_preservation",
+            return_value=(True, {}),
+        ),
+    ):
+        strengthened = refiner._run_mutation_strengthening_loop(
+            current_code="import module_0\ndef test_add():\n    pass\n",
+            original_code="import module_0\ndef test_add():\n    pass\n",
+            focal_method="add",
+            max_iterations=1,
+        )
+        assert "assert add(1, 1) == 2" in strengthened

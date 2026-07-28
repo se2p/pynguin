@@ -55,13 +55,15 @@ def test_init_routes_api_key_through_shared_config(monkeypatch):
     seen: dict[str, object] = {}
 
     class _FakeClient:
-        def __init__(self, model_name=None):
-            seen["model_name"] = model_name
+        def __init__(self):
+            seen["constructed"] = True
 
     monkeypatch.setattr(llm_judge_module, "LLMClient", _FakeClient)
     judge = LLMJudge(api_key="k-test", model="my-model")
     assert config.configuration.large_language_model.api_key == "k-test"
-    assert seen["model_name"] == "my-model"
+    # The judge no longer passes its own model to the client; the model name is
+    # resolved from the shared configuration via the rendered prompt request.
+    assert seen["constructed"] is True
     assert judge.model == "my-model"
 
 

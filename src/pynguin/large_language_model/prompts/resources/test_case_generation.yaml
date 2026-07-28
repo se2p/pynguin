@@ -1,0 +1,39 @@
+# This file is part of Pynguin.
+#
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+user_message_template: |
+  ### Task
+  Write a pytest test suite for the Python module below, aiming for 100% statement and
+  branch coverage.
+
+  ### Instructions
+  - Use pytest only; do not use the `unittest` module.
+  - Derive imports from the module path: for a module path `a/b/c.py`, import the module
+    under test as `from a.b.c import ...` (drop the `.py` suffix and turn path separators
+    into dots).
+  - Write test functions named `test_<function>_<scenario>`.
+  - Cover edge cases: empty inputs, `None`, boundary values, and invalid types.
+  - Exercise error paths with `with pytest.raises(...)`.
+
+  ### Module under test
+  - Module path: `{{ module_path }}`
+  - Module source code:
+  ```python
+  {{ module_code }}
+  ```
+  {% if dependencies %}
+  ### Dependency Signatures
+  Below are signatures and docstrings of dependencies and helper classes/functions referenced by the module under test:
+  {{ dependencies }}
+  {% endif %}
+  {% if usage_examples %}
+  ### Usage Examples
+  Below are real call-site usage examples of functions/classes in the codebase:
+  {{ usage_examples }}
+  {% endif %}
+
+  ### Output
+  Return only the test suite as a single ```python code block.

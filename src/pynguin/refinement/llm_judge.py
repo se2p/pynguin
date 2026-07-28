@@ -200,7 +200,7 @@ Replace X with your score (1-5) for each dimension."""
         # so that LLMClient (which reuses Pynguin's key handling) picks it up.
         if api_key is not None:
             config.configuration.large_language_model.api_key = api_key
-        self.client = LLMClient(model_name=model)
+        self.client = LLMClient()
 
         self.model = model
         self.provider = "openai"
