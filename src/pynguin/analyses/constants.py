@@ -298,14 +298,10 @@ def collect_static_constants(
                     exception,
                 )
 
-    # When the module(s) under test are known, restrict discovery to their top-level
-    # package(s) -- "the project" -- rather than every package found under project_path.
-    # This keeps seeding relevant when project_path is broader than the SUT (e.g. a shared
-    # site-packages directory, a monorepo, or vendored dependencies): without it, an
-    # installed word2number tested from site-packages harvests ~180k constants from every
-    # installed package and its own vocabulary becomes statistically unreachable. Scoping
-    # to the top-level package still collects the whole project (sibling modules included),
-    # not just the target module. With no module names known, fall back to all packages.
+    # Scope discovery to the top-level package(s) of the module(s) under test, so a
+    # project_path broader than the SUT (shared site-packages, monorepo, vendored deps)
+    # does not drown the SUT's constants in those of unrelated packages. With no module
+    # names known, fall back to all packages.
     top_level_packages = {name.split(".")[0] for name in (module_names or ())}
 
     # Check modules discovered via packages, scoped to the project when known
