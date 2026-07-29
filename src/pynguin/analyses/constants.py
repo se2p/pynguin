@@ -298,8 +298,16 @@ def collect_static_constants(
                     exception,
                 )
 
-    # Check all modules discovered via packages
+    # Scope discovery to the top-level package(s) of the module(s) under test, so a
+    # project_path broader than the SUT (shared site-packages, monorepo, vendored deps)
+    # does not drown the SUT's constants in those of unrelated packages. With no module
+    # names known, fall back to all packages.
+    top_level_packages = {name.split(".")[0] for name in (module_names or ())}
+
+    # Check modules discovered via packages, scoped to the project when known
     for module in _find_modules_with_constants(project_path):
+        if top_level_packages and module.split("/")[0] not in top_level_packages:
+            continue
         _parse_file(path / module)
 
     # Check all modules explicitly specified
