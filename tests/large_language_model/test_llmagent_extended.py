@@ -113,7 +113,7 @@ def test_llm_agent_init_with_caching(monkeypatch):
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -140,7 +140,7 @@ def test_query_with_cache_hit(monkeypatch):
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -183,7 +183,7 @@ def test_query_with_openai_error(monkeypatch):
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -224,7 +224,7 @@ def test_query_successful_response(monkeypatch):
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -276,7 +276,7 @@ def test_clear_cache(monkeypatch):
 
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -323,7 +323,7 @@ def test_extract_python_code_no_code(monkeypatch):
     """Test extract_python_code_from_llm_output with no Python code blocks."""
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -346,7 +346,7 @@ def test_extract_python_code_none_input(monkeypatch):
     """Test extract_python_code_from_llm_output with None input."""
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
@@ -364,7 +364,7 @@ def test_log_and_track_llm_stats(monkeypatch):
     """Test _log_and_track_llm_stats method."""
     # Mock require_api_key and OpenAI client to avoid actual API calls
     monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.require_api_key", _mock_require_api_key
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
 
