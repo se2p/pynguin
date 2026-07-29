@@ -161,6 +161,8 @@ type_tracing_kept_guesses = 2
 wrap_var_param_type_probability = 0.7
 negate_type = 0.1
 skip_optional_parameter_probability = 0.7
+callable_argument_probability = 0.25
+callable_invocation_probability = 0.25
 max_attempts = 1000
 insertion_uut = 0.5
 max_size = 100
@@ -329,8 +331,9 @@ def expected_txt(tmp_path):
  'object_reuse_probability=0.9, none_weight=0, any_weight=0, '
  'original_type_weight=5, type_tracing_weight=10, type_tracing_kept_guesses=2, '
  'wrap_var_param_type_probability=0.7, negate_type=0.1, '
- 'skip_optional_parameter_probability=0.7, max_attempts=1000, '
- 'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0, '
+ 'skip_optional_parameter_probability=0.7, callable_argument_probability=0.25, '
+ 'callable_invocation_probability=0.25, max_attempts=1000, insertion_uut=0.5, '
+ 'max_size=100, use_random_object_for_call=0.0, '
  'generate_field_statements=False), '
  'generator_selection=GeneratorSelectionConfiguration(generator_selection_algorithm=<Selection.RANK_SELECTION: '
  "'RANK_SELECTION'>, generator_selection_bias=1.7, generator_any_distance=30, "
@@ -682,6 +685,10 @@ True
 0
 --test_creation.bytes_length
 20
+--test_creation.callable_argument_probability
+0.25
+--test_creation.callable_invocation_probability
+0.25
 --test_creation.collection_reference_probability
 0.5
 --test_creation.collection_size

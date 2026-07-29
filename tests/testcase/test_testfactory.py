@@ -1110,3 +1110,175 @@ def test_change_statement_type_no_accessible_available(type_system):
     test_case = make_test_case(int_stmt("var_0", 1))
     with mock.patch.object(tf.randomness, "next_float", return_value=1.0):
         assert factory.change_statement_type(test_case, 0) is False
+
+
+# ---------------------------------------------------------------------------
+# Callable arguments / construct-then-invoke (higher-order SUTs)
+# ---------------------------------------------------------------------------
+
+
+def _callable_function(type_system) -> gao.GenericFunction:
+    """A function whose single parameter is annotated ``Callable``."""
+    params = [Parameter("converter", Parameter.POSITIONAL_OR_KEYWORD)]
+    param_types = {"converter": Instance(TypeInfo(collections.abc.Callable))}
+    return gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(params, param_types, AnyType(), type_system),
+    )
+
+
+def test_callable_annotated_parameter_is_satisfiable():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    value, cursor = factory._resolve_arg_value(
+        test_case, Instance(TypeInfo(collections.abc.Callable)), collections.abc.Callable, 0, 0
+    )
+    assert isinstance(value, cst.Name)
+    assert cursor == 1
+    stmt_ = test_case.get_statement(0)
+    assert stmt_.bound_variable == value.value
+    # The emitted value must be usable where a callable is expected.
+    assert tf._holds_callable(stmt_.bound_type)
+    cst.parse_module(test_case.to_code())
+
+
+def test_callable_parameter_can_select_a_cluster_function(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    config.configuration.module_name = SomeType.__module__
+    function = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, AnyType(), type_system),
+    )
+    cluster.accessible_objects_under_test = [function]
+    factory = tf.TestFactory(cluster)
+    alias = tf.get_module_alias(SomeType.__module__)
+    rendered = {
+        cst.Module(body=[]).code_for_node(expr)
+        for expr, _bound in factory._callable_value_candidates()
+    }
+    assert f"{alias}.simple_function" in rendered
+    assert "str" in rendered  # builtin class
+    assert "len" in rendered  # builtin function
+
+
+def test_callable_parameter_can_synthesize_a_lambda():
+    factory = tf.TestFactory(_bare_cluster())
+    expr, bound_type = factory._lambda_candidate()
+    code = cst.Module(body=[]).code_for_node(expr)
+    assert code.startswith("lambda *args, **kwargs:")
+    assert tf._holds_callable(bound_type)
+
+
+def test_callable_argument_reuses_an_existing_callable_variable():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(assign("var_0", "str", bound_type=type))
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+        name, cursor = factory._emit_callable_statement(test_case, 1)
+    assert name == "var_0"
+    assert cursor == 1
+    assert test_case.size() == 1
+
+
+def test_any_parameter_receives_a_callable_when_the_draw_succeeds():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+        value, cursor = factory._resolve_arg_value(test_case, AnyType(), None, 0, 0)
+    assert isinstance(value, cst.Name)
+    assert cursor == 1
+    assert tf._holds_callable(test_case.get_statement(0).bound_type)
+
+
+def test_any_parameter_keeps_literal_generation_when_the_draw_fails():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    with mock.patch.object(tf.randomness, "next_float", return_value=1.0):
+        _value, cursor = factory._resolve_arg_value(test_case, AnyType(), None, 0, 0)
+    assert cursor == 0
+    assert test_case.size() == 0
+
+
+def test_none_typed_parameter_never_receives_a_callable():
+    # NoneType has no raw type either, but passing None is what keeps the
+    # None-guarded branches of a SUT reachable.
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+        value, _cursor = factory._resolve_arg_value(test_case, NoneType(), None, 0, 0)
+    assert isinstance(value, cst.Name)
+    assert value.value == "None"
+
+
+def test_satisfy_params_fills_callable_annotated_parameter(type_system):
+    factory = tf.TestFactory(_bare_cluster())
+    accessible = _callable_function(type_system)
+    test_case = tc.TestCase()
+    args, cursor = factory._satisfy_params(test_case, accessible.inferred_signature, 0, 0)
+    assert len(args) == 1
+    assert cursor == 1
+    assert isinstance(args[0].value, cst.Name)
+    assert tf._holds_callable(test_case.get_statement(0).bound_type)
+
+
+def test_regen_args_keeps_callable_annotated_parameter_callable(type_system):
+    factory = tf.TestFactory(_bare_cluster())
+    accessible = _callable_function(type_system)
+    test_case = make_test_case(assign("var_0", "str", bound_type=type))
+    args = factory._regen_args_in_place(test_case, accessible.inferred_signature, 1)
+    assert len(args) == 1
+    rendered = cst.Module(body=[]).code_for_node(args[0].value)
+    assert rendered == "var_0" or "lambda" in rendered or rendered.isidentifier()
+
+
+def test_construct_then_invoke_adds_an_invocation_statement():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(call_stmt("var_0", "f()"))
+    with (
+        mock.patch.object(tf.randomness, "next_float", return_value=0.0),
+        mock.patch.object(tf.randomness, "choice", side_effect=operator.itemgetter(0)),
+    ):
+        factory._maybe_invoke_result(test_case, 0, 0)
+    assert test_case.size() > 1
+    invocation = test_case.get_statement(test_case.size() - 1)
+    code = cst.Module(body=[]).code_for_node(invocation.node)
+    assert code.strip().split("=", 1)[1].strip().startswith("var_0(")
+    cst.parse_module(test_case.to_code())
+
+
+def test_construct_then_invoke_skips_non_callable_bound_types():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(int_stmt("var_0", 1))
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+        factory._maybe_invoke_result(test_case, 0, 0)
+    assert test_case.size() == 1
+
+
+def test_construct_then_invoke_respects_its_probability():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(call_stmt("var_0", "f()"))
+    with mock.patch.object(tf.randomness, "next_float", return_value=1.0):
+        factory._maybe_invoke_result(test_case, 0, 0)
+    assert test_case.size() == 1
+
+
+def test_emit_accessible_may_invoke_its_result(type_system):
+    # A function with an unannotated return value: the closure-returning shape
+    # that construct-then-invoke targets.
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, AnyType(), type_system),
+    )
+    test_case = tc.TestCase()
+    with (
+        mock.patch.object(tf.randomness, "next_float", return_value=0.0),
+        mock.patch.object(tf.randomness, "choice", side_effect=operator.itemgetter(0)),
+    ):
+        position = factory._emit_accessible(test_case, accessible, 0, 0)
+    assert position >= 0
+    assert test_case.size() > position + 1
+    assert "simple_function()" in test_case.to_code()
+    cst.parse_module(test_case.to_code())

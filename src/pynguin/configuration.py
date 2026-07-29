@@ -676,6 +676,19 @@ class TestCreationConfiguration:
     skip_optional_parameter_probability: float = 0.7
     """Probability to skip an optional parameter, i.e., do not fill such a parameter."""
 
+    callable_argument_probability: float = 0.25
+    """Probability to satisfy a parameter of unknown (``Any``) type with a callable
+    value -- a cluster function, a class, a builtin such as ``str``, or a synthesized
+    ``lambda`` -- instead of a literal. Parameters that are explicitly annotated as
+    ``Callable`` always receive a callable value, independent of this setting.
+    Expects values in [0,1]."""
+
+    callable_invocation_probability: float = 0.25
+    """Probability to follow a statement whose value may be a callable (an unannotated
+    or ``Callable``-typed return value) with a statement that invokes it. This is what
+    reaches the body of a closure returned by a higher-order function.
+    Expects values in [0,1]."""
+
     max_attempts: int = 1000
     """Number of attempts when generating an object before giving up"""
 

@@ -15,8 +15,10 @@ It emits :mod:`libcst` nodes directly and refers to variables by *name*
 
 from __future__ import annotations
 
+import collections.abc
 import inspect
 import logging
+import types
 from typing import TYPE_CHECKING, Literal
 
 import libcst as cst
@@ -24,7 +26,7 @@ import libcst as cst
 import pynguin.configuration as config
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
-from pynguin.analyses.typesystem import Instance, ProperType, TupleType
+from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TupleType
 from pynguin.testcase import literalgen
 from pynguin.testcase.testcase import MLStatementInfo, Statement
 from pynguin.utils import randomness
@@ -33,8 +35,6 @@ from pynguin.utils.naming import get_module_alias
 from pynguin.utils.pynguinml import ndarray_cst
 
 if TYPE_CHECKING:
-    import types
-
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.typesystem import InferredSignature
@@ -62,6 +62,66 @@ _BUILTIN_CLASS_POOL: tuple[type, ...] = (
     tuple,
     object,
 )
+
+# Raw types that denote "any callable" rather than a constructible class.  A
+# parameter resolving to one of these can never be satisfied by a generator, so
+# it is served with a callable *value* instead.
+_CALLABLE_RAWS: frozenset[type] = frozenset({
+    collections.abc.Callable,  # type: ignore[arg-type]
+    types.FunctionType,  # also covers types.LambdaType
+    types.BuiltinFunctionType,
+    types.MethodType,
+    types.BuiltinMethodType,
+})
+
+# Builtin functions usable as a callable argument.  Restricted to permissive
+# single-argument builtins, so that the SUT calling them with a generated value
+# has a realistic chance of succeeding.  Builtin *classes* (``str``, ``int``,
+# ...) are callable too and come in via :meth:`TestFactory._class_literal_candidates`.
+_BUILTIN_FUNCTION_POOL: tuple[str, ...] = ("len", "repr", "abs", "sorted", "hash", "bool")
+
+# Return types a synthesized ``lambda *args, **kwargs: <literal>`` may produce.
+_LAMBDA_RESULT_TYPES: tuple[type, ...] = (str, int, bool, list)
+
+# Probability that a callable argument is a freshly synthesized lambda rather
+# than a reference to an existing function or class.
+_LAMBDA_PROBABILITY = 0.3
+
+# Number of arguments a construct-then-invoke statement passes to the callable it
+# invokes.  One argument is by far the most common shape for the converters and
+# wrappers that higher-order functions return.
+_INVOCATION_ARITIES: tuple[int, ...] = (0, 1, 1, 1, 2)
+
+
+def _is_callable_raw(raw: type | None) -> bool:
+    """Return whether *raw* denotes "any callable" rather than a concrete class.
+
+    Args:
+        raw: The concrete Python class for a parameter type, or ``None``.
+
+    Returns:
+        True if a parameter of this type must be satisfied with a callable value.
+    """
+    return raw is not None and raw in _CALLABLE_RAWS
+
+
+def _holds_callable(raw: type | None) -> bool:
+    """Return whether instances of *raw* are callable.
+
+    Args:
+        raw: The bound type of a statement, or ``None`` if it is unknown.
+
+    Returns:
+        True if a variable of this type can be called.  ``None`` (an unknown
+        bound type) yields False; use it only where "unknown" is handled
+        separately.
+    """
+    if raw is None:
+        return False
+    try:
+        return issubclass(raw, collections.abc.Callable)  # type: ignore[arg-type]
+    except TypeError:
+        return False
 
 
 def _raw_type_or_none(raw: type | types.UnionType) -> type | None:
@@ -736,6 +796,10 @@ class TestFactory:
         )
         insert_pos = min(cursor, test_case.size())
         test_case.insert_statement(insert_pos, statement)
+        if depth == 0:
+            # Only for top-level insertions: a dependency statement's position is
+            # the caller's cursor, and appending after it would desynchronise it.
+            self._maybe_invoke_result(test_case, insert_pos, depth)
         return insert_pos
 
     def _build_constructor(
@@ -1032,6 +1096,12 @@ class TestFactory:
         Returns:
             A tuple of (CST expression, updated cursor).
         """
+        if self._wants_callable_value(param_type, raw):
+            # A ``Callable`` parameter has no generator in the cluster; it needs a
+            # callable *value* (a function, a class, or a lambda) instead.
+            emitted = self._emit_callable_statement(test_case, cursor)
+            if emitted is not None:
+                return cst.Name(emitted[0]), emitted[1]
         var_name, cursor = self._create_or_reuse_var(test_case, param_type, raw, cursor, depth)
         if var_name is not None:
             return cst.Name(var_name), cursor
@@ -1200,6 +1270,205 @@ class TestFactory:
             ),
         )
         return True
+
+    # ------------------------------------------------------------------
+    # Callable values (higher-order arguments)
+    # ------------------------------------------------------------------
+
+    def _callable_value_candidates(self) -> list[tuple[cst.BaseExpression, type]]:
+        """Return the expressions that may be passed where a callable is expected.
+
+        Every class is callable, so the class-literal pool (builtin classes plus
+        the classes of the module under test) is reused as-is.  On top of that
+        come a few permissive builtin functions and every module-level function
+        of the module under test -- the latter are the ones that actually match
+        the converter/predicate shape a higher-order SUT expects.
+
+        Returns:
+            A list of (expression, bound type) pairs.
+        """
+        candidates: list[tuple[cst.BaseExpression, type]] = [
+            (expr, type) for expr in self._class_literal_candidates()
+        ]
+        candidates.extend(
+            (cst.Name(name), types.BuiltinFunctionType) for name in _BUILTIN_FUNCTION_POOL
+        )
+        alias = self._module_alias()
+        for accessible in self._test_cluster.accessible_objects_under_test:
+            if not isinstance(accessible, gao.GenericFunction):
+                continue
+            name = _function_call_name(accessible)
+            if name is None:
+                continue
+            candidates.append((
+                cst.Attribute(value=cst.Name(alias), attr=cst.Name(name)),
+                types.FunctionType,
+            ))
+        return candidates
+
+    def _lambda_candidate(self) -> tuple[cst.BaseExpression, type]:
+        """Build a permissive ``lambda *args, **kwargs: <literal>`` expression.
+
+        The star-parameters make the lambda accept whatever the SUT calls it
+        with, so it never fails on arity; only the returned literal varies.
+
+        Returns:
+            A tuple of (lambda expression, bound type).
+        """
+        result_type = randomness.choice(_LAMBDA_RESULT_TYPES)
+        node = cst.Lambda(
+            params=cst.Parameters(
+                star_arg=cst.Param(name=cst.Name("args"), star="*"),
+                star_kwarg=cst.Param(name=cst.Name("kwargs"), star="**"),
+            ),
+            body=literalgen.generate_literal(result_type, self._constant_provider),
+        )
+        return node, types.FunctionType
+
+    def _callable_value_expr(self) -> tuple[cst.BaseExpression, type]:
+        """Choose one callable-valued expression.
+
+        Returns:
+            A tuple of (expression, bound type).
+        """
+        candidates = self._callable_value_candidates()
+        if not candidates or randomness.next_float() < _LAMBDA_PROBABILITY:
+            return self._lambda_candidate()
+        return randomness.choice(candidates)
+
+    def _emit_callable_statement(
+        self, test_case: tc.TestCase, position: int
+    ) -> tuple[str, int] | None:
+        """Insert a ``var_N = <callable>`` statement at *position*.
+
+        An already bound callable variable is reused with probability
+        ``object_reuse_probability`` -- passing the *same* converter to several
+        calls is the realistic usage of a higher-order API.
+
+        Args:
+            test_case: The test case to extend.
+            position: The cursor position at which to insert.
+
+        Returns:
+            A tuple of (variable name, updated cursor), or ``None`` if no
+            callable value could be produced.
+        """
+        existing = self._find_callable_variable(test_case, position)
+        if (
+            existing is not None
+            and randomness.next_float()
+            < config.configuration.test_creation.object_reuse_probability
+        ):
+            return existing, position
+
+        expr, bound_type = self._callable_value_expr()
+        var_name = test_case.next_var_name()
+        node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                    value=expr,
+                )
+            ]
+        )
+        test_case.insert_statement(
+            position, Statement(node=node, bound_variable=var_name, bound_type=bound_type)
+        )
+        return var_name, position + 1
+
+    @staticmethod
+    def _find_callable_variable(test_case: tc.TestCase, position: int) -> str | None:
+        """Return a variable bound to a callable value before *position*.
+
+        Args:
+            test_case: The test case to scan.
+            position: Only consider statements before this index.
+
+        Returns:
+            A matching variable name, or ``None``.
+        """
+        candidates = [
+            statement.bound_variable
+            for idx, statement in enumerate(test_case.statements())
+            if idx < position
+            and statement.bound_variable is not None
+            and _holds_callable(statement.bound_type)
+        ]
+        if not candidates:
+            return None
+        return randomness.choice(candidates)
+
+    def _wants_callable_value(self, param_type: ProperType, raw: type | None) -> bool:
+        """Return whether a parameter should receive a callable value.
+
+        Explicitly ``Callable``-typed parameters always do.  ``Any`` parameters
+        do so with probability ``callable_argument_probability``: an unannotated
+        converter or predicate parameter is indistinguishable from any other
+        untyped parameter, so the only way to reach a higher-order SUT is to try
+        a callable now and then.  ``None`` is deliberately excluded even though
+        it also has no raw type -- passing ``None`` is what keeps the
+        None-guarded branches of the SUT reachable.
+
+        Args:
+            param_type: The ProperType of the parameter.
+            raw: The concrete Python class for the parameter type, or ``None``.
+
+        Returns:
+            True if a callable value should be generated.
+        """
+        if _is_callable_raw(raw):
+            return True
+        return (
+            isinstance(param_type, AnyType)
+            and randomness.next_float()
+            < config.configuration.test_creation.callable_argument_probability
+        )
+
+    def _maybe_invoke_result(self, test_case: tc.TestCase, position: int, depth: int) -> None:
+        """Possibly append a statement invoking the value bound at *position*.
+
+        Higher-order functions return a closure whose body is only executed when
+        that closure is called; without this follow-up statement those branches
+        stay unreachable.  Only values that *may* be callable are considered:
+        a callable bound type, or an unknown one (an unannotated return value,
+        which is the usual case for the closure-returning functions this
+        targets).
+
+        Args:
+            test_case: The test case to extend.
+            position: The index of the statement producing the value.
+            depth: Current recursion depth for argument creation.
+        """
+        statement = test_case.get_statement(position)
+        if statement.bound_variable is None:
+            return
+        if statement.bound_type is not None and not _holds_callable(statement.bound_type):
+            return
+        if (
+            randomness.next_float()
+            >= config.configuration.test_creation.callable_invocation_probability
+        ):
+            return
+
+        cursor = position + 1
+        args: list[cst.Arg] = []
+        for _ in range(randomness.choice(_INVOCATION_ARITIES)):
+            value, cursor = self._resolve_arg_value(test_case, ANY, None, cursor, depth + 1)
+            args.append(cst.Arg(value=value))
+
+        var_name = test_case.next_var_name()
+        node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                    value=cst.Call(func=cst.Name(statement.bound_variable), args=args),
+                )
+            ]
+        )
+        test_case.insert_statement(
+            min(cursor, test_case.size()),
+            Statement(node=node, bound_variable=var_name, bound_type=None),
+        )
 
     # ------------------------------------------------------------------
     # Reference-carrying collection literals
@@ -1528,6 +1797,20 @@ class TestFactory:
                 continue
 
             raw = _proper_type_to_raw(param_type)
+            if self._wants_callable_value(param_type, raw):
+                # No new statements may be inserted here, so a callable argument
+                # is either an already bound one or an inline expression.
+                reused = self._find_callable_variable(test_case, position)
+                args.append(
+                    self._as_arg(
+                        name,
+                        cst.Name(reused)
+                        if reused is not None and randomness.next_bool()
+                        else self._callable_value_expr()[0],
+                        positional_only=is_positional_only,
+                    )
+                )
+                continue
             existing = self._find_variable_of_type(test_case, raw, position)
             if existing is None and (
                 raw is None
@@ -1554,12 +1837,25 @@ class TestFactory:
             else:
                 value = self._fallback_literal_value(raw, self._reference_pool(test_case, position))
 
-            if is_positional_only:
-                args.append(cst.Arg(value=value))
-            else:
-                args.append(cst.Arg(keyword=cst.Name(name), value=value))
+            args.append(self._as_arg(name, value, positional_only=is_positional_only))
 
         return args
+
+    @staticmethod
+    def _as_arg(name: str, value: cst.BaseExpression, *, positional_only: bool) -> cst.Arg:
+        """Wrap *value* into a positional or keyword argument node.
+
+        Args:
+            name: The parameter name to use as keyword.
+            value: The argument expression.
+            positional_only: Whether the parameter must be passed positionally.
+
+        Returns:
+            The argument node.
+        """
+        if positional_only:
+            return cst.Arg(value=value)
+        return cst.Arg(keyword=cst.Name(name), value=value)
 
     def _fallback_literal_value(
         self,
