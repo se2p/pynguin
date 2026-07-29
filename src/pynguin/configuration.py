@@ -951,7 +951,19 @@ class LLMConfiguration:
 
     request_timeout: float | None = 30.0
     """The timeout for LLM requests in seconds (``None`` disables the timeout).  A
-    30s timeout keeps query latency low during active evolutionary search."""
+    30s timeout keeps query latency low during active evolutionary search.  Callers
+    that issue large batch requests outside the search (notably LLM refinement, see
+    ``LLMRefinementConfiguration.request_timeout``) override this per request."""
+
+    max_request_time: float = 300.0
+    """Total wall-clock budget (in seconds) for a single logical LLM request, covering
+    every retry attempt and the backoff waits between them.
+
+    Without this bound the worst case is emergent and very large: ``max_retries``
+    attempts, each costing a full ``request_timeout``, separated by exponential
+    backoff.  A retry is only started when the budget can still accommodate it, so a
+    request that keeps timing out fails fast instead of consuming the whole run.
+    Set to <= 0 to disable the bound."""
 
     cache_dir: str = "~/.cache/pynguin/llm"
     """The directory to store cached responses."""
@@ -1061,6 +1073,15 @@ class LLMRefinementConfiguration:
 
     max_tests: int | None = None
     """Maximum number of tests to refine (None = all tests)."""
+
+    request_timeout: float | None = 180.0
+    """Per-attempt timeout (in seconds) for refinement LLM requests.
+
+    Refinement is batch post-processing, not latency-sensitive in-search querying, and
+    its module-level prompt carries the whole generated suite.  Such a request cannot
+    complete within the search-calibrated ``large_language_model.request_timeout``
+    (30s), so it would time out by construction and then be retried until the run's
+    wall-clock is gone.  ``None`` falls back to the shared timeout."""
 
     save_original: bool = True
     """Save the original unrefined test file."""
