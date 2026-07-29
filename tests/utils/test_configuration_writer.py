@@ -107,6 +107,8 @@ random_string_weight = 0.3
 faker_string_weight = 0.3
 fandango_string_weight = 0.4
 fandango_faker_string_weight = 0.0
+token_assembly_probability = 0.2
+max_assembled_tokens = 4
 
 [seeding]
 seed = {SEED}
@@ -305,7 +307,8 @@ def expected_txt(tmp_path):
  "cache_dir='~/.cache/pynguin/llm'), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
  'faker_string_weight=0.3, fandango_string_weight=0.4, '
- 'fandango_faker_string_weight=0.0), '
+ 'fandango_faker_string_weight=0.0, token_assembly_probability=0.2, '
+ 'max_assembled_tokens=4), '
  'seeding=SeedingConfiguration(seed={SEED}, '
  'constant_seeding=True, initial_population_seeding=False, '
  "initial_population_data='', seeded_testcases_reuse_probability=0.9, "
@@ -640,8 +643,12 @@ True
 0.0
 --string_statement.fandango_string_weight
 0.4
+--string_statement.max_assembled_tokens
+4
 --string_statement.random_string_weight
 0.3
+--string_statement.token_assembly_probability
+0.2
 --subprocess
 False
 --subprocess_if_recommended
@@ -866,6 +873,8 @@ def expected_parameter_list() -> list[str]:
         "--faker_string_weight 0.3",
         "--fandango_string_weight 0.4",
         "--fandango_faker_string_weight 0.0",
+        "--token_assembly_probability 0.2",
+        "--max_assembled_tokens 4",
         "--llm_test_case_percentage 0.5",
         "--enable_response_caching False",
         "--call_llm_for_uncovered_targets False",

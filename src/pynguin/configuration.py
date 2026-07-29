@@ -821,6 +821,18 @@ class StringStatementConfiguration:
     fandango_faker_string_weight: float = 0.0
     """Probability use the Fandango + Faker generator for string statement generation."""
 
+    token_assembly_probability: float = 0.2
+    """Probability to build a string by concatenating several seeded string constants.
+
+    Modules whose branches depend on token-structured inputs (``"two thousand"``,
+    ``"2h32m"``, ``"P1Y2M10D"``) define their vocabulary as string literals, so the
+    tokens end up in the constant pool but are never combined.  Assembling them lets
+    the search reach those branches.  Only applies when at least two distinct string
+    constants were seeded."""
+
+    max_assembled_tokens: int = 4
+    """Upper bound on the number of seeded tokens concatenated into one string."""
+
 
 @dataclasses.dataclass
 class StoppingConfiguration:

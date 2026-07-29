@@ -26,7 +26,7 @@ import pynguin.configuration as config
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Collection, Sequence
 
     from pynguin.analyses.constants import ConstantProvider
 
@@ -53,6 +53,10 @@ _PRIMITIVE_ELEMENT_TYPES: tuple[type, ...] = (int, str, bool, float)
 
 # Special integer boundary values used during generation (20 % chance).
 _SPECIAL_INT_VALUES: tuple[int, ...] = (-1, 0, 1, 2, 3)
+
+# Separators tried when concatenating seeded string tokens.  Seeded single-char
+# constants are considered in addition, so SUT-specific delimiters are covered.
+_TOKEN_SEPARATORS: tuple[str, ...] = ("", " ", ",", ":", "-", ".")
 
 # Ordered mapping from abstract ABC to the concrete builtin it maps to.
 # Mapping/MutableMapping must appear before the Sequence-like ABCs because
@@ -419,8 +423,56 @@ def _gen_complex(constant_provider: ConstantProvider) -> cst.BaseExpression:
     return _complex_to_cst(complex(real, imag))
 
 
+def _token_separator(pool: Collection[str]) -> str:
+    """Choose a separator for joining seeded string tokens.
+
+    Half of the time a seeded single-character constant is used, so that a
+    delimiter the module under test defines itself (``'-'`` in an ISO date,
+    ``':'`` in a duration) is preferred over the generic fallbacks.
+
+    Args:
+        pool: All seeded string constants.
+
+    Returns:
+        The separator to join tokens with; may be the empty string.
+    """
+    single_char = tuple(value for value in pool if len(value) == 1)
+    if single_char and randomness.next_bool():
+        return randomness.choice(single_char)
+    return randomness.choice(_TOKEN_SEPARATORS)
+
+
+def _assemble_seeded_tokens(constant_provider: ConstantProvider) -> str | None:
+    """Build a multi-token string by concatenating seeded string constants.
+
+    Args:
+        constant_provider: Provider supplying the seeded string tokens.
+
+    Returns:
+        The assembled string, or ``None`` when fewer than two string constants
+        are seeded or the provider does not hand out a token.
+    """
+    pool = constant_provider.get_all_constants_for(str)
+    if len(pool) < 2:
+        return None
+    count = randomness.next_int(
+        2, max(3, config.configuration.string_statement.max_assembled_tokens + 1)
+    )
+    tokens: list[str] = []
+    for _ in range(count):
+        token = constant_provider.get_constant_for(str)
+        if token is None:
+            return None
+        tokens.append(token)
+    return _token_separator(pool).join(tokens)
+
+
 def _gen_str(constant_provider: ConstantProvider) -> cst.BaseExpression:
     """Generate a string literal CST node.
+
+    With probability ``string_statement.token_assembly_probability`` the value is
+    assembled from several seeded string constants; otherwise the usual single
+    seeded constant or a random string is produced.
 
     Args:
         constant_provider: Provider that may supply seeded string values.
@@ -430,6 +482,11 @@ def _gen_str(constant_provider: ConstantProvider) -> cst.BaseExpression:
     """
     tc = config.configuration.test_creation
     seed_prob = config.configuration.seeding.seeded_primitives_reuse_probability
+    assembly_prob = config.configuration.string_statement.token_assembly_probability
+    if randomness.next_float() < assembly_prob:
+        assembled = _assemble_seeded_tokens(constant_provider)
+        if assembled is not None:
+            return cst.SimpleString(repr(assembled))
     if randomness.next_float() < seed_prob:
         seeded = constant_provider.get_constant_for(str)
         if seeded is not None:

@@ -140,6 +140,22 @@ class ConstantProvider(abc.ABC):
             A constant or None, if there is no constant  # noqa: DAR202
         """
 
+    def get_all_constants_for(self, tp_: type[T]) -> OrderedSet[T]:
+        """Provide every constant value of the given type this provider knows.
+
+        Unlike :meth:`get_constant_for`, this ignores any per-provider selection
+        probability; it reports the full vocabulary reachable through this
+        provider.  Used by generation strategies that need to inspect the pool
+        itself, e.g. to pick a plausible separator between seeded tokens.
+
+        Args:
+            tp_: The type to retrieve
+
+        Returns:
+            All constants of the given type; empty when there are none.
+        """
+        return OrderedSet()
+
 
 class EmptyConstantProvider(ConstantProvider):
     """Empty provider."""
@@ -168,6 +184,14 @@ class DelegatingConstantProvider(ConstantProvider, ABC):
         if self._pool.has_constant_for(tp_) and randomness.next_float() < self._probability:
             return self._pool.get_constant_for(tp_)
         return self._delegate.get_constant_for(tp_)
+
+    def get_all_constants_for(self, tp_: type[T]) -> OrderedSet[T]:  # noqa: D102
+        delegated = self._delegate.get_all_constants_for(tp_)
+        if not delegated:
+            return self._pool.get_all_constants_for(tp_)
+        constants: OrderedSet[T] = OrderedSet(self._pool.get_all_constants_for(tp_))
+        constants.update(delegated)
+        return constants
 
 
 class DynamicConstantProvider(DelegatingConstantProvider):
