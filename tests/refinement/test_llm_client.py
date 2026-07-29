@@ -13,12 +13,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.large_language_model.client as client_mod
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.refinement import llm_client as llm_client_module
 from pynguin.refinement.llm_client import (
     LLMClient,
     _extract_code,  # noqa: PLC2701
+    _refinement_timeout,  # noqa: PLC2701
 )
 
 pytestmark = pytest.mark.skipif(
@@ -88,6 +90,35 @@ def test_extract_code_from_plain_block():
 
 def test_extract_code_without_block_returns_stripped_text():
     assert _extract_code("  just text  ") == "just text"
+
+
+# ---------------------------------------------------------------------------
+# request timeout
+# ---------------------------------------------------------------------------
+
+
+def test_refinement_timeout_uses_the_refinement_specific_value():
+    config.configuration.llm_refinement.request_timeout = 180.0
+    config.configuration.large_language_model.request_timeout = 30.0
+    assert _refinement_timeout() == 180.0
+
+
+def test_refinement_timeout_falls_back_to_the_shared_value():
+    config.configuration.llm_refinement.request_timeout = None
+    config.configuration.large_language_model.request_timeout = 30.0
+    assert _refinement_timeout() == 30.0
+
+
+def test_refinement_requests_do_not_use_the_search_timeout(client, mock_openai_client):
+    """The search-calibrated 30s timeout must not bound a batch refinement request."""
+    config.configuration.llm_refinement.request_timeout = 180.0
+    config.configuration.large_language_model.request_timeout = 30.0
+    config.configuration.large_language_model.enable_response_caching = False
+    _patch_create(mock_openai_client, lambda **_kw: _make_response("```python\nx = 1\n```"))
+
+    client.generate_code("refine this")
+
+    assert mock_openai_client.chat.completions.create.call_args.kwargs["timeout"] == 180.0
 
 
 # ---------------------------------------------------------------------------

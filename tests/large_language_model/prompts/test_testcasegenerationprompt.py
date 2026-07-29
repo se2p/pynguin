@@ -70,8 +70,9 @@ def test_prompt_parameter_overrides(monkeypatch):
     assert rendered.temperature == 0.0
     assert rendered.max_tokens is None
 
-    # 2. A prompt-specific YAML (refinement) overrides max_tokens; temperature is
-    #    intentionally not set there, so it inherits the default (0.0).
+    # 2. A prompt-specific YAML (refinement) sets neither temperature nor max_tokens,
+    #    so both inherit the defaults.  No prompt caps its output: truncation cuts code
+    #    off mid-token, which is unrecoverable rather than merely shorter.
     class DummyRefinementPrompt(Prompt):
         _resource_name = "refinement"
 
@@ -81,7 +82,7 @@ def test_prompt_parameter_overrides(monkeypatch):
     ref_prompt = DummyRefinementPrompt()
     rendered_ref = ref_prompt.render(prompt="fix this")
     assert rendered_ref.temperature == 0.0
-    assert rendered_ref.max_tokens == 2000
+    assert rendered_ref.max_tokens is None
 
     # 3. Model always follows the run configuration, even for refinement;
     #    temperature stays the resolved YAML value regardless of run config.

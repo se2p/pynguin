@@ -19,6 +19,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+import pynguin.configuration as config
 from pynguin.large_language_model.client import OpenAIClient
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.llm import extract_code
@@ -73,6 +74,19 @@ else:  # pragma: no cover - exercised only without the optional openai extra
     _RATE_LIMIT_ERRORS = ()
     _TIMEOUT_ERRORS = ()
     _API_ERRORS = ()
+
+
+def _refinement_timeout() -> float | None:
+    """Return the per-attempt timeout for refinement requests.
+
+    Returns:
+        The configured refinement timeout, falling back to the shared
+        ``large_language_model.request_timeout`` when it is unset.
+    """
+    configured = config.configuration.llm_refinement.request_timeout
+    if configured is None:
+        return config.configuration.large_language_model.request_timeout
+    return configured
 
 
 class LLMClient:
@@ -171,7 +185,7 @@ class LLMClient:
 
         start = time.perf_counter()
         try:
-            response_text = self._client.send(request)
+            response_text = self._client.send(request, timeout=_refinement_timeout())
             if response_text is None:
                 return f"{LLM_ERROR_PREFIX}: request failed"
             return _extract_code(response_text)

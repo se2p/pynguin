@@ -100,6 +100,7 @@ min_remaining_budget_for_llm = 45
 max_context_chars = 64000
 max_retries = 8
 request_timeout = 30.0
+max_request_time = 300.0
 cache_dir = "~/.cache/pynguin/llm"
 
 [string_statement]
@@ -215,6 +216,7 @@ enable_inline_pragma_no_cover = true
 [llm_refinement]
 enabled = false
 max_repair_iterations = 2
+request_timeout = 180.0
 save_original = true
 save_refined = true
 enable_dependency_context = false
@@ -302,7 +304,7 @@ def expected_txt(tmp_path):
  'stall_detection_window_seconds=30, max_plateau_len=25, '
  'max_llm_interventions=-1, min_remaining_budget_for_llm=45, '
  'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
- "cache_dir='~/.cache/pynguin/llm'), "
+ "max_request_time=300.0, cache_dir='~/.cache/pynguin/llm'), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
  'faker_string_weight=0.3, fandango_string_weight=0.4, '
  'fandango_faker_string_weight=0.0), '
@@ -357,8 +359,8 @@ def expected_txt(tmp_path):
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), '
  'llm_refinement=LLMRefinementConfiguration(enabled=False, '
- 'max_repair_iterations=2, max_tests=None, save_original=True, '
- 'save_refined=True, enable_dependency_context=False, '
+ 'max_repair_iterations=2, max_tests=None, request_timeout=180.0, '
+ 'save_original=True, save_refined=True, enable_dependency_context=False, '
  'enable_usage_examples=False, max_dependencies=10, max_usage_examples=3, '
  'enable_mutation_strengthening=False, max_mutation_iterations=3, '
  "refinement_granularity=<RefinementGranularity.COMBINED: 'combined'>), "
@@ -425,6 +427,8 @@ False
 -1
 --large_language_model.max_plateau_len
 25
+--large_language_model.max_request_time
+300.0
 --large_language_model.max_retries
 8
 --large_language_model.min_remaining_budget_for_llm
@@ -455,6 +459,8 @@ None
 3
 --llm_refinement.refinement_granularity
 COMBINED
+--llm_refinement.request_timeout
+180.0
 --llm_refinement.save_original
 True
 --llm_refinement.save_refined

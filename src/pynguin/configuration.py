@@ -951,7 +951,14 @@ class LLMConfiguration:
 
     request_timeout: float | None = 30.0
     """The timeout for LLM requests in seconds (``None`` disables the timeout).  A
-    30s timeout keeps query latency low during active evolutionary search."""
+    30s timeout keeps query latency low during active evolutionary search.  Callers
+    that issue large batch requests outside the search (notably LLM refinement, see
+    ``LLMRefinementConfiguration.request_timeout``) override this per request."""
+
+    max_request_time: float = 300.0
+    """Total wall-clock budget (in seconds) for a single logical LLM request, covering
+    every retry attempt and the backoff waits between them.  A retry is only started
+    when the budget can still accommodate it.  Set to <= 0 to disable the bound."""
 
     cache_dir: str = "~/.cache/pynguin/llm"
     """The directory to store cached responses."""
@@ -1061,6 +1068,12 @@ class LLMRefinementConfiguration:
 
     max_tests: int | None = None
     """Maximum number of tests to refine (None = all tests)."""
+
+    request_timeout: float | None = 180.0
+    """Per-attempt timeout (in seconds) for refinement LLM requests.  Refinement is
+    batch post-processing whose module-level prompt carries the whole generated suite,
+    so it needs more time than the search-calibrated
+    ``large_language_model.request_timeout``.  ``None`` falls back to that value."""
 
     save_original: bool = True
     """Save the original unrefined test file."""

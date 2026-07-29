@@ -57,6 +57,33 @@ def _is_temperature_unsupported_error(exc: Exception) -> bool:
     return "temperature" in str(exc).lower()
 
 
+def _retry_fits_in_budget(
+    *,
+    budget: float,
+    elapsed: float,
+    wait: float,
+    timeout: float | None,
+) -> bool:
+    """Whether another retry attempt still fits within the request's time budget.
+
+    Args:
+        budget: Total wall-clock budget for the logical request; <= 0 disables it.
+        elapsed: Seconds already spent on this logical request.
+        wait: The backoff wait that would precede the next attempt.
+        timeout: The per-attempt timeout, or *None* when attempts are unbounded.
+
+    Returns:
+        True if the backoff plus another full attempt would stay within the budget.
+    """
+    if budget <= 0:
+        return True
+    if timeout is None:
+        # An unbounded attempt can never be guaranteed to fit; allow it only while
+        # the budget has not been spent yet.
+        return elapsed + wait < budget
+    return elapsed + wait + timeout <= budget
+
+
 def extract_python_code(text: str | None) -> str:
     """Extracts Python code blocks from LLM markdown output.
 
@@ -167,6 +194,10 @@ class OpenAIClient(LLMClient):
         kwargs: dict[str, Any] = {"api_key": self._api_key.get_secret_value()}
         if llm_url:
             kwargs["base_url"] = llm_url
+        # The SDK retries internally by default (2 retries = 3 attempts), which would
+        # multiply with the retry loop in ``send`` and make a single logical request
+        # cost ``max_retries * 3 * request_timeout``.  Retrying is this class's job.
+        kwargs["max_retries"] = 0
         self._client = openai.OpenAI(**kwargs)
 
     @property
@@ -211,11 +242,15 @@ class OpenAIClient(LLMClient):
         self._time_seconds = 0.0
         self._calls_with_no_python_code = 0
 
-    def send(self, request: RenderedRequest) -> str | None:  # noqa: C901, PLR0914, PLR0915
+    def send(  # noqa: C901, PLR0914, PLR0915
+        self, request: RenderedRequest, timeout: float | None = None
+    ) -> str | None:
         """Sends a query to OpenAI with retry policy, timeout, and usage tracking.
 
         Args:
             request: The RenderedRequest payload.
+            timeout: Per-attempt timeout in seconds overriding the configured
+                ``request_timeout``; *None* uses the configured value.
 
         Returns:
             The response string, or None if failed.
@@ -227,7 +262,10 @@ class OpenAIClient(LLMClient):
 
         max_attempts = config.configuration.large_language_model.max_retries
         base_backoff = 2.0
-        timeout = config.configuration.large_language_model.request_timeout
+        if timeout is None:
+            timeout = config.configuration.large_language_model.request_timeout
+        request_budget = config.configuration.large_language_model.max_request_time
+        request_started = time.perf_counter()
 
         # Count one logical request, regardless of how many retry attempts it takes.
         self._calls += 1
@@ -333,6 +371,19 @@ class OpenAIClient(LLMClient):
                 )
                 if attempt >= max_attempts:
                     _logger.error("LLM retries exhausted.")
+                    raise
+                if not _retry_fits_in_budget(
+                    budget=request_budget,
+                    elapsed=time.perf_counter() - request_started,
+                    wait=wait,
+                    timeout=timeout,
+                ):
+                    _logger.error(
+                        "LLM request budget of %.0fs exhausted after %d attempt(s); "
+                        "giving up instead of retrying.",
+                        request_budget,
+                        attempt,
+                    )
                     raise
                 self._retries += 1
                 time.sleep(wait)
