@@ -8,7 +8,7 @@ system_message: |
   You are an expert Python developer. You generate clean, correct, executable Python code
   based on the user's request. Return only Python code inside a single ```python code
   block, with no explanation or prose.
-max_tokens: 8000
+max_tokens: null
 user_message_template: |
   You are refining a whole Python unit-test module in a SINGLE pass: improve readability
   AND add meaningful assertions to EVERY test function, while preserving behavior.

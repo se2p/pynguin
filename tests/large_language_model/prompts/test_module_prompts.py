@@ -46,10 +46,11 @@ def test_module_prompt_render_interpolates_and_is_deterministic(prompt_cls):
     assert _SUT_CONTEXT in user_content
     assert "def test_case_0():" in user_content
 
-    # Deterministic (temperature 0.0) and a raised token budget for whole-module output.
+    # Deterministic (temperature 0.0) and no output cap: a capped whole-module response
+    # is cut off mid-code, fails to parse, and silently degrades to per-test refinement
+    # for the entire suite -- the opposite of what the batched path exists to do.
     assert request.temperature == 0.0
-    assert request.max_tokens is not None
-    assert request.max_tokens >= 8000
+    assert request.max_tokens is None
 
 
 @pytest.mark.parametrize("prompt_cls", _MODULE_PROMPT_CLASSES)
