@@ -44,6 +44,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
+from pynguin.refinement.validator import resolve_timeout, time_limit
 
 if TYPE_CHECKING:
     import types
@@ -132,9 +133,10 @@ def _measure_coverage_pynguin(
     )
     with tracer.temporarily_enable():
         try:
-            exec(compiled, scope)  # noqa: S102
-            if func_name and func_name in scope and callable(scope[func_name]):
-                scope[func_name]()
+            with time_limit(resolve_timeout(None)):
+                exec(compiled, scope)  # noqa: S102
+                if func_name and func_name in scope and callable(scope[func_name]):
+                    scope[func_name]()
         except BaseException as exc:  # noqa: BLE001
             # Catch BaseException because Pynguin's
             # TracingAbortedException inherits from BaseException.
@@ -245,12 +247,13 @@ def _measure_coverage_settrace(
         old_trace = sys.gettrace()
         sys.settrace(_tracer)
         try:
-            exec(compiled, scope)  # noqa: S102
-            if func_name and func_name in scope and callable(scope[func_name]):
-                scope[func_name]()
+            with time_limit(resolve_timeout(None)):
+                exec(compiled, scope)  # noqa: S102
+                if func_name and func_name in scope and callable(scope[func_name]):
+                    scope[func_name]()
         finally:
             sys.settrace(old_trace)
-    except Exception as exc:  # noqa: BLE001
+    except BaseException as exc:  # noqa: BLE001
         # Executing generated test code may raise anything; degrade gracefully.
         sys.settrace(None)
         if not executed_lines:
