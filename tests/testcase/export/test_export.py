@@ -630,6 +630,41 @@ def test_per_statement_exceptions_records_real_exception():
     assert result[1] is TypeError
 
 
+def test_per_statement_exceptions_binds_bare_public_names():
+    """A statement calling a public SUT name *bare* (no alias) re-executes cleanly.
+
+    The rendered file does ``from <module> import simple_function``, so LLM-generated
+    statements call ``simple_function(...)`` bare. The re-execution namespace must mirror
+    those imports; otherwise the bare name raises a spurious ``NameError`` and the correct
+    statement is mis-recorded as raising.
+    """
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt("simple_function(float_0)"),
+    )
+
+    result = writer._per_statement_exceptions(test_case, module_name, None)
+
+    assert result == [None, None]
+
+
+def test_per_statement_exceptions_bare_name_real_exception_still_recorded():
+    """Binding public names must not suppress a genuine exception from a bare call."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt("simple_function(float_0, extra_bad_arg=1)"),
+    )
+
+    result = writer._per_statement_exceptions(test_case, module_name, None)
+
+    assert result[0] is None
+    assert result[1] is TypeError
+
+
 def test_per_statement_exceptions_timeout_marks_remaining_clean(monkeypatch):
     monkeypatch.setattr(export, "_STATEMENT_EXECUTION_TIMEOUT", 0.05)
     writer = TestSuiteWriter()
