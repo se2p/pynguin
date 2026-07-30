@@ -42,7 +42,7 @@ def dummy_test_cluster():
             "def test_case_0():\n"
             "    float_0 = 1.1\n"
             "    var_0 = module_0.positional_only(float_0)\n",
-            "var_0 = 1.1\nvar_1 = parameters_.positional_only(var_0)\n",
+            "float_0 = 1.1\nvar_0 = parameters_.positional_only(float_0)\n",
         ),
         (
             "def test_case_0():\n"
@@ -56,20 +56,20 @@ def dummy_test_cluster():
             "    var_0 = module_0.all_params(float_0, int_0, *list_0, "
             "param4=str_0, **dict_0)\n",
             (
-                "var_0 = 1.1\n"
-                "var_1 = 42\n"
-                "var_2 = []\n"
-                'var_3 = "test"\n'
-                'var_4 = b"key"\n'
-                'var_5 = "value"\n'
-                "var_6 = {var_4: var_5}\n"
-                "var_7 = parameters_.all_params(var_0, var_1, *var_2, "
-                "param4=var_3, **var_6)\n"
+                "float_0 = 1.1\n"
+                "int_0 = 42\n"
+                "list_0 = []\n"
+                'str_0 = "test"\n'
+                'bytes_0 = b"key"\n'
+                'str_1 = "value"\n'
+                "dict_0 = {bytes_0: str_1}\n"
+                "var_0 = parameters_.all_params(float_0, int_0, *list_0, "
+                "param4=str_0, **dict_0)\n"
             ),
         ),
         (
             "def test_case_0():\n    float_0 = 1.1\n    module_0.positional_only(float_0)\n",
-            "var_0 = 1.1\nparameters_.positional_only(var_0)\n",
+            "float_0 = 1.1\nparameters_.positional_only(float_0)\n",
         ),
     ],
 )
