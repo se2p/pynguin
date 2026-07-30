@@ -52,7 +52,7 @@ def test_extract_test_cases_from_llm_output(handler, mock_model, tmp_path):
 
     assert "def test_something" in result
     mock_model.extract_python_code_from_llm_output.assert_called_once_with("LLM raw output")
-    assert (tmp_path / "rewritten_llm_test_cases.py").exists()
+    assert (tmp_path / "extracted_llm_test_cases.py").exists()
 
 
 def test_get_test_case_chromosomes_from_llm_results_none_returns_empty(handler):

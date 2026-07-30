@@ -314,7 +314,11 @@ class _LocalRenamer(cst.CSTTransformer):
         self, original_node: cst.Name, updated_node: cst.Name
     ) -> cst.Name:
         new = self._rename.get(updated_node.value)
-        return updated_node.with_changes(value=new) if new is not None else updated_node
+        return (
+            updated_node.with_changes(value=new)
+            if new is not None and new != updated_node.value
+            else updated_node
+        )
 
 
 def _imported_local_names(node: cst.Import | cst.ImportFrom) -> list[str]:
@@ -855,7 +859,10 @@ class CstStatementDeserializer:
 
         new_bound = None
         if bound_var is not None:
-            new_bound = state.testcase.next_var_name()
+            if bound_var not in state.bound_types_by_orig:
+                new_bound = bound_var
+            else:
+                new_bound = state.testcase.next_var_name()
             state.rename_map[bound_var] = new_bound
             state.known.add(bound_var)
             state.bound_types_by_orig[bound_var] = bound_type

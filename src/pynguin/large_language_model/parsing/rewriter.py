@@ -17,13 +17,6 @@ import re
 import sys
 from typing import Any
 
-from pynguin.large_language_model.parsing.helpers import (
-    has_bound_variables,
-    has_call,
-    is_expr_or_stmt,
-    key_in_dict,
-)
-
 logger = logging.getLogger(__name__)
 
 
@@ -79,35 +72,15 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         return new_varname
 
     def replace_with_varname(self, node):
-        """Returns an ast.Name node.
-
-         To replace `node` with, or no-op if `node` is already a name.
+        """Returns the node directly without hoisting sub-expressions into assignments.
 
         Args:
             node: an ast Node.
 
         Returns:
-            an ast.Name node to replace `node` with.
+            the node itself.
         """
-        if isinstance(node, ast.Name):
-            return node
-        if isinstance(node, ast.Constant) and key_in_dict(node.value, self.constant_dict):
-            varname = self.constant_dict[node.value]
-        elif self.replace_only_free_subnodes and has_bound_variables(node, self._bound_variables):
-            return node
-        else:
-            varname = self.generate_new_varname()
-            if isinstance(node, ast.Constant):
-                self.constant_dict[node.value] = varname
-            target = ast.Name(varname, ctx=ast.Store())
-            target.lineno = 1
-            target.col_offset = 0
-            assign_decl = ast.Assign(targets=[target], value=node)
-            assign_decl.lineno = 1
-            assign_decl.col_offset = 0
-            self.stmts_to_add.append(assign_decl)
-
-        return ast.Name(varname, ctx=ast.Load())
+        return node
 
     def enter_new_block_scope(self):
         """Call when entering a new variable name scope."""
@@ -164,13 +137,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         return new_body
 
     def generic_visit(self, node):
-        """A generic visit.
-
-        Returns an ast node of the same type as `node`, but with any ast.AST
-        nodes replaced with ast.Name nodes.
-
-        The core difference with the standard generic_visitor is that nodes
-        are replaced with var names after visiting.
+        """A generic visit without subnode hoisting.
 
         Args:
             node: the node to visit.
@@ -178,28 +145,10 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         Returns:
             the transformed node.
         """
-        field_assign = {}
-        for field, value in ast.iter_fields(node):
-            if isinstance(value, list):
-                new_value_lst = []
-                for item in value:
-                    if is_expr_or_stmt(item):
-                        new_item = self.visit(item)
-                        item_name = self.replace_with_varname(new_item)
-                        new_value_lst.append(item_name)
-                    else:
-                        new_value_lst.append(item)
-                field_assign[field] = new_value_lst
-            elif is_expr_or_stmt(value):
-                new_value = self.visit(value)
-                value_name = self.replace_with_varname(new_value)
-                field_assign[field] = value_name
-            else:
-                field_assign[field] = value
-        return node.__class__(**field_assign)
+        return super().generic_visit(node)
 
     def visit_only_calls_subnodes(self, node):
-        """Same as above but only visits subnodes which contain function calls.
+        """Same as generic_visit without hoisting.
 
         Args:
             node: the node to visit.
@@ -207,31 +156,10 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         Returns:
             the transformed node.
         """
-        field_assign = {}
-        for field, value in ast.iter_fields(node):
-            if isinstance(value, list):
-                new_value_lst = []
-                for item in value:
-                    if is_expr_or_stmt(item) and has_call(item):
-                        new_item = self.visit(item)
-                        item_name = self.replace_with_varname(new_item)
-                        new_value_lst.append(item_name)
-                    else:
-                        new_value_lst.append(item)
-                field_assign[field] = new_value_lst
-            elif is_expr_or_stmt(value) and has_call(value):
-                new_value = self.visit(value)
-                value_name = self.replace_with_varname(new_value)
-                field_assign[field] = value_name
-            else:
-                field_assign[field] = value
-        return node.__class__(**field_assign)
+        return self.generic_visit(node)
 
     def visit_Call(self, call: ast.Call):  # noqa: N802
         """Visit a call.
-
-        When visiting a call expression, allow the callee to be
-        an ast.Attribute of one level, i.e. q.foo().
 
         Args:
             call: the call node to visit.
@@ -240,27 +168,14 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
             the transformed node.
         """
         func = self.visit(call.func)
-        if not isinstance(func, ast.Attribute):
-            func = self.replace_with_varname(func)
-        new_args = []
-        for arg in call.args:
-            if isinstance(arg, ast.Starred):
-                new_args.append(self.visit(arg))
-            else:
-                arg_value = self.visit(arg)
-                new_args.append(self.replace_with_varname(arg_value))
-        new_kwargs = []
-        for kwarg in call.keywords:
-            kwarg_value = self.visit(kwarg.value)
-            kwarg_value = self.replace_with_varname(kwarg_value)
-            new_kwargs.append(ast.keyword(arg=kwarg.arg, value=kwarg_value))
-
+        new_args = [self.visit(arg) for arg in call.args]
+        new_kwargs = [
+            ast.keyword(arg=kwarg.arg, value=self.visit(kwarg.value)) for kwarg in call.keywords
+        ]
         return ast.Call(func=func, args=new_args, keywords=new_kwargs)
 
     def visit_Subscript(self, subscript: ast.Subscript):  # noqa: N802
-        """Subscripts can be both element accesses in a list, or a parameterization.
-
-        Don't separate the LHS into its own variable if it's an attribute reference.
+        """Visit subscript expression.
 
         Args:
             subscript: the subscript node to visit.
@@ -268,42 +183,16 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         Returns:
             the transformed node.
         """
-        if isinstance(subscript.slice, ast.Tuple):
-            new_slice_elts = []
-            for elem in subscript.slice.elts:
-                new_elem = self.visit(elem)
-                if isinstance(elem, ast.Slice):
-                    new_slice_elts.append(new_elem)
-                else:
-                    new_slice_elts.append(self.replace_with_varname(new_elem))
-            new_slice = ast.Tuple(elts=new_slice_elts, ctx=ast.Load())
-        elif isinstance(subscript.slice, ast.Slice):
-            new_slice = self.visit(subscript.slice)
-        else:
-            new_slice = self.visit(subscript.slice)
-            new_slice = self.replace_with_varname(new_slice)
-
+        new_slice = self.visit(subscript.slice)
         new_value = self.visit(subscript.value)
-
         return ast.Subscript(value=new_value, slice=new_slice, ctx=subscript.ctx)
 
     def visit_UnaryOp(self, node):  # noqa: N802
         """Visits unary op."""
-        if isinstance(node.operand, ast.Constant):
-            return node
         return self.generic_visit(node)
 
-    def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:  # noqa: N802
-        """When visiting attribute nodes, keep repeated dereferences.
-
-         If they are just attribute/field accesses, but separate calls
-        into their own functions. This may get us into trouble with separating
-        out field/property accesses, but it saves us from stripping out modules
-        into variables.
-
-        E.g.
-            typed_ast._ast3.parse(var_0) should not be transformed
-            ast_0.fix_stuff().foo() should have ast_0.fix_stuff() put into a new var
+    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:  # noqa: N802
+        """When visiting attribute nodes, remove self. prefix.
 
         Args:
             node: the attribute node to visit.
@@ -312,20 +201,13 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
             the transformed node.
         """
         if isinstance(node.value, ast.Name) and node.value.id == "self":
-            return self.replace_with_varname(ast.Name(id=node.attr, ctx=node.ctx))
+            return ast.Name(id=node.attr, ctx=node.ctx)
 
         value_visited = self.visit(node.value)
-        if isinstance(node.value, ast.Attribute):
-            node.value = value_visited
-        else:
-            node.value = self.replace_with_varname(value_visited)
-        return node
+        return ast.Attribute(value=value_visited, attr=node.attr, ctx=node.ctx)
 
     def visit_Assign(self, assign: ast.Assign):  # noqa: N802
         """When visiting an assignment statement.
-
-         The right hand side expression does not need to become
-         a variable reference.
 
         Args:
             assign: the assign node to visit.
@@ -340,9 +222,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         return ast.Assign(targets=assign.targets, value=new_rhs, type_comment=assign.type_comment)
 
     def visit_AnnAssign(self, node: ast.AnnAssign):  # noqa: N802
-        """Convert annotated assigns as well to the correct format.
-
-         but stripping their type annotations.
+        """Convert annotated assigns to regular assigns.
 
         Args:
             node: the node to visit.
@@ -357,9 +237,6 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
     def visit_AugAssign(self, node):  # noqa: N802
         """Convert augmented assigns to regular assigns.
 
-        Right now `statement_deserializer` wouldn't support the
-        operations on the RHS anyway, but worth a try.
-
         Args:
             node: the node to visit.
 
@@ -373,7 +250,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         return ast.Assign(targets=[new_aug_assign.target], value=rhs_binop)
 
     def visit_NamedExpr(self, node: ast.NamedExpr):  # noqa: N802
-        """Transform walrus expressions to regular assigns + uses (x := 3).
+        """Transform walrus expressions to regular assigns + uses.
 
         Args:
             node: the node to visit.
@@ -386,11 +263,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         return node.target
 
     def visit_Expr(self, expr: ast.Expr):  # noqa: N802
-        """A standalone ast.Expr node is an expression as statement.
-
-        The value field stores the actual expr object. Again,
-        we don't want to replace that whole expression with a variable reference,
-        instead create an assignment statement to contain the expr.
+        """Visit an Expr statement.
 
         Args:
             expr: the node to visit.
@@ -401,16 +274,13 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         if isinstance(expr.value, ast.NamedExpr):
             rhs = self.visit(expr.value.value)
             return ast.Assign(targets=[expr.value.target], value=rhs)
-        # Don't mess with awaits/yields
         if type(expr.value) in {ast.Await, ast.Yield, ast.YieldFrom}:
             return expr
         rhs = self.visit(expr.value)
-        return ast.Assign(targets=[ast.Name(id=self.generate_new_varname())], value=rhs)
+        return ast.Expr(value=rhs)
 
     def visit_Assert(self, assert_node: ast.Assert):  # noqa: N802
-        """We want the test's upper level comparators to remain.
-
-        But extract the sub-expressions into variables when they contain calls.
+        """Visit Assert statement.
 
         Args:
             assert_node: the node to visit.
@@ -418,39 +288,8 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         Returns:
             the transformed node.
         """
-        # First visit the test expression to extract any sub-expressions
         new_test = self.visit(assert_node.test)
-
-        # Always extract the entire test expression into a temporary variable
-        # only skip if it's already a simple variable name (not a complex expression)
-        if isinstance(new_test, ast.Name):
-            return ast.Assert(new_test)
-
-        # Generate a variable for the assertion test
-        var_name = self.generate_new_varname()
-
-        # Create assignment: var_X = test_expression
-        target = ast.Name(var_name, ctx=ast.Store())
-        # Set minimal required attributes
-        target.lineno = 1
-        target.col_offset = 0
-
-        assign_stmt = ast.Assign(targets=[target], value=new_test)
-        assign_stmt.lineno = 1
-        assign_stmt.col_offset = 0
-
-        self.stmts_to_add.append(assign_stmt)
-
-        # Return assertion with just the variable
-        var_ref = ast.Name(var_name, ctx=ast.Load())
-        var_ref.lineno = 1
-        var_ref.col_offset = 0
-
-        result = ast.Assert(var_ref)
-        result.lineno = 1
-        result.col_offset = 0
-
-        return result
+        return ast.Assert(test=new_test, msg=assert_node.msg)
 
     def visit_FunctionDef(self, fn_def_node: ast.FunctionDef):  # noqa: N802
         """Reformat the test in fn_def_node.
@@ -840,7 +679,7 @@ class TestClassRewriter(ast.NodeTransformer):
     def collect_set_up_vars(self, set_up_node: ast.FunctionDef):
         """Collects variables from `setUp` function, removes `self.` prefix.
 
-        and stores them with unique var_<counter> names.
+        and stores them with their original attribute names.
         """
         for stmt in set_up_node.body:
             if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
@@ -850,10 +689,8 @@ class TestClassRewriter(ast.NodeTransformer):
                     and isinstance(target.value, ast.Name)
                     and target.value.id == "self"
                 ):
-                    var_name = f"var_{self.counter}"
+                    var_name = target.attr
                     self.var_mapping[target.attr] = var_name
-                    self.counter += 1
-                    # Create a new assignment with the counter-based variable
                     new_target = ast.Name(id=var_name, ctx=ast.Store())
                     self.set_up_vars.append(ast.Assign(targets=[new_target], value=stmt.value))
 
