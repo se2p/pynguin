@@ -6,11 +6,9 @@
 #
 """Helper function for LLM parser."""
 
-import ast
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 
 def add_line_numbers(original: str) -> str:

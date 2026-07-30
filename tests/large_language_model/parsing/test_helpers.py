@@ -6,10 +6,7 @@
 #
 """Tests for the helpers module."""
 
-import ast
-
 from pynguin.large_language_model.parsing.helpers import add_line_numbers
-
 
 
 def test_add_line_numbers():
