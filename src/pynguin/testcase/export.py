@@ -145,6 +145,25 @@ def _xfail_decorator() -> cst.Decorator:
     )
 
 
+def _public_sut_names(module: object, module_alias: str) -> list[str]:
+    """Return the SUT module's public names, sorted.
+
+    These are exactly the names the rendered test file imports via
+    ``from <module> import <names>`` (see ``TestSuiteWriter.write``). Underscore-prefixed
+    names and the module alias are excluded so the alias binding is never shadowed. The
+    re-execution namespace binds the same names, so statements that call a function by its
+    bare imported name (as LLM-generated tests do) resolve instead of raising ``NameError``.
+
+    Args:
+        module: The imported SUT module.
+        module_alias: The alias the SUT module is imported under.
+
+    Returns:
+        The sorted list of public names.
+    """
+    return sorted(name for name in dir(module) if not name.startswith("_") and name != module_alias)
+
+
 def _is_expected_exception(stmt: Statement, exc_type: type[BaseException]) -> bool:
     """Check whether ``exc_type`` is declared as expected by the statement's callable.
 
@@ -215,6 +234,13 @@ class TestSuiteWriter:
             "__builtins__": __builtins__,
             "pytest": pytest,
         }
+        # Mirror the rendered test's ``from <module> import <public names>`` so statements
+        # that use bare imported names (as LLM-generated tests do) re-execute correctly
+        # instead of raising a spurious NameError. ``setdefault`` keeps the alias/pytest
+        # keys and any statement-local variables accumulated across statements.
+        for name in _public_sut_names(module, module_alias):
+            with contextlib.suppress(Exception):
+                namespace.setdefault(name, getattr(module, name))
         results: list[type[BaseException] | None] = []
 
         tracer = subject_properties.instrumentation_tracer if subject_properties else None
@@ -448,10 +474,10 @@ class TestSuiteWriter:
         try:
             sut_mod = importlib.import_module(module_name)
             # Exclude any name that equals module_alias to avoid shadowing
-            # e.g. `from first import first` would overwrite `import first as first`
-            public_names = sorted(
-                n for n in dir(sut_mod) if not n.startswith("_") and n != module_alias
-            )
+            # e.g. `from first import first` would overwrite `import first as first`.
+            # The same names are bound in the re-execution namespace (see
+            # ``_per_statement_exceptions``) so the two sites cannot drift.
+            public_names = _public_sut_names(sut_mod, module_alias)
         except Exception:  # noqa: BLE001
             public_names = []
         if public_names:
