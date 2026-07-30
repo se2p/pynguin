@@ -21,7 +21,6 @@ from pynguin.large_language_model.parsing.deserializer import (
     ParseStatus,
     deserialize_code_to_testcases,
 )
-from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -56,15 +55,12 @@ class LLMTestCaseHandler:
             llm_output: The output from the LLM containing test cases.
 
         Returns:
-            The extracted test cases.
+            The extracted Python test case code.
         """
         python_code = self._model.extract_python_code_from_llm_output(llm_output)
         _logger.debug("Extracted Python code: %s.", python_code)
-        generated_tests: dict[str, str] = rewrite_tests(python_code)
-        tests_with_line_breaks = "\n\n".join(generated_tests.values())
-        _logger.debug("Rewritten tests: %s.", tests_with_line_breaks)
-        save_llm_tests_to_file(tests_with_line_breaks, "rewritten_llm_test_cases.py")
-        return tests_with_line_breaks
+        save_llm_tests_to_file(python_code, "extracted_llm_test_cases.py")
+        return python_code
 
     def get_test_case_chromosomes_from_llm_results(
         self,
