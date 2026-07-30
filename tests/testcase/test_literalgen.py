@@ -26,8 +26,14 @@ from hypothesis import strategies as st
 
 import pynguin.configuration as config
 import pynguin.testcase.literalgen as lg
-from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
+from pynguin.analyses.constants import (
+    ConstantPool,
+    ConstantProvider,
+    DelegatingConstantProvider,
+    EmptyConstantProvider,
+)
 from pynguin.utils import randomness
+from pynguin.utils.orderedset import OrderedSet
 
 _MODULE = cst.Module(body=[])
 
@@ -525,3 +531,95 @@ def test_mutate_collection_can_insert_reference():
             found = True
             break
     assert found
+
+
+# ---------------------------------------------------------------------------
+# Token assembly for strings
+# ---------------------------------------------------------------------------
+
+_TOKENS = ("two", "thousand", "hundred", " ")
+
+
+def _seeded_string_provider(*values: str) -> ConstantProvider:
+    """Build a provider whose pool holds exactly *values*."""
+    pool = ConstantPool()
+    for value in values:
+        pool.add_constant(value)
+    return DelegatingConstantProvider(pool, EmptyConstantProvider(), 1.0)
+
+
+def test_gen_str_assembles_multiple_seeded_tokens():
+    config.configuration.string_statement.token_assembly_probability = 1.0
+    config.configuration.seeding.seeded_primitives_reuse_probability = 0.0
+    provider = _seeded_string_provider(*_TOKENS)
+    seen_multi_token = False
+    for _ in range(40):
+        value = _eval(lg._gen_str(provider))
+        assert isinstance(value, str)
+        # The value is a join of pool tokens, so removing them all leaves at most
+        # the separator characters; every assembled value contains >= 2 tokens.
+        contained = [token for token in _TOKENS if token in value]
+        assert contained
+        if len(value) > max(len(token) for token in contained):
+            seen_multi_token = True
+    assert seen_multi_token
+
+
+def test_gen_str_assembly_respects_max_assembled_tokens():
+    config.configuration.string_statement.token_assembly_probability = 1.0
+    config.configuration.string_statement.max_assembled_tokens = 2
+    provider = _seeded_string_provider("ab", "cd")
+    for _ in range(40):
+        value = _eval(lg._gen_str(provider))
+        # Exactly two two-char tokens plus an at most one-char separator.
+        assert 4 <= len(value) <= 5
+
+
+def test_gen_str_assembly_falls_back_when_pool_too_small():
+    config.configuration.string_statement.token_assembly_probability = 1.0
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    provider = _seeded_string_provider("only")
+    for _ in range(20):
+        assert _eval(lg._gen_str(provider)) == "only"
+
+
+def test_gen_str_assembly_falls_back_on_empty_pool():
+    config.configuration.string_statement.token_assembly_probability = 1.0
+    for _ in range(20):
+        assert isinstance(_eval(lg._gen_str(EmptyConstantProvider())), str)
+
+
+def test_gen_str_no_assembly_when_probability_zero():
+    config.configuration.string_statement.token_assembly_probability = 0.0
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    provider = _seeded_string_provider(*_TOKENS)
+    for _ in range(40):
+        assert _eval(lg._gen_str(provider)) in _TOKENS
+
+
+def test_assemble_seeded_tokens_none_when_provider_yields_nothing():
+    class _EmptyHandOut(ConstantProvider):
+        """Knows constants but never hands one out."""
+
+        def get_constant_for(self, tp_):
+            return None
+
+        def get_all_constants_for(self, tp_):
+            return OrderedSet(["a", "b"])
+
+    assert lg._assemble_seeded_tokens(_EmptyHandOut()) is None
+
+
+def test_token_separator_uses_seeded_single_char_and_fallbacks():
+    pool = ("thousand", "P")
+    seen_seeded = False
+    seen_fallback = False
+    for _ in range(40):
+        separator = lg._token_separator(pool)
+        assert len(separator) <= 1
+        if separator == "P":
+            seen_seeded = True
+        elif separator in lg._TOKEN_SEPARATORS:
+            seen_fallback = True
+    assert seen_seeded
+    assert seen_fallback

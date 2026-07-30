@@ -9,6 +9,7 @@ import pytest
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.constants import (
     ConstantPool,
+    DelegatingConstantProvider,
     DynamicConstantProvider,
     EmptyConstantProvider,
     RestrictedConstantPool,
@@ -57,6 +58,19 @@ def test_get_all_constants(pool):
     pool.add_constant(42)
     pool.add_constant(5)
     assert pool.get_all_constants_for(int) == OrderedSet([42, 5])
+
+
+def test_empty_provider_has_no_constants():
+    assert EmptyConstantProvider().get_all_constants_for(str) == OrderedSet()
+
+
+def test_delegating_provider_unions_all_constants(pool):
+    pool.add_constant("thousand")
+    delegate_pool = ConstantPool()
+    delegate_pool.add_constant("hundred")
+    delegate = DelegatingConstantProvider(delegate_pool, EmptyConstantProvider(), 1.0)
+    provider = DelegatingConstantProvider(pool, delegate, 1.0)
+    assert provider.get_all_constants_for(str) == OrderedSet(["thousand", "hundred"])
 
 
 def test_len(pool):
