@@ -3,7 +3,8 @@
 #  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
-#
+#  SPDX-FileCopyrightText: 2026 Aditya Sinha
+#  SPDX-License-Identifier: MIT
 """Provides classes for handling fitness functions for branch coverage."""
 
 from __future__ import annotations
@@ -393,7 +394,12 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
 
 
 class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
-    """A statement coverage fitness implementation for test cases."""
+    """A line coverage fitness implementation for test cases.
+
+    This implementation is non-binary:
+    - 0.0 if the line is covered
+    - >0.0 if not covered, based on an approximation of control-flow distance
+    """
 
     def __init__(  # noqa: D107
         self, executor: AbstractTestCaseExecutor, goal: LineCoverageGoal
@@ -404,7 +410,33 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
     def compute_fitness(  # noqa: D102
         self, individual: tcc.TestCaseChromosome
     ) -> float:
-        return 0 if self.compute_is_covered(individual) else 1
+        result = self._run_test_case_chromosome(individual)
+
+        # If covered → optimal fitness
+        if self._goal.is_covered(result):
+            return 0.0
+
+        # Otherwise → return non-binary distance
+        return 1.0 + self._approximate_distance(result)
+
+    def _approximate_distance(self, result: ExecutionResult) -> float:
+        """Estimate how far execution was from reaching this line.
+
+        This is a lightweight approximation based on execution trace information.
+        It provides a non-binary signal without requiring full control-flow analysis.
+        """
+        try:
+            trace = result.execution_trace
+
+            # If nothing executed → maximum penalty
+            if not trace.executed_code_objects:
+                return 1.0
+
+            # Use number of executed code objects as rough distance signal
+            return float(len(trace.executed_code_objects))
+        except (AttributeError, TypeError):
+            # Fallback to safe non-zero value
+            return 1.0
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
@@ -418,6 +450,15 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def __repr__(self) -> str:
         return f"LineCoverageTestFitness(executor={self._executor}, goal={self._goal})"
+
+    @property
+    def goal(self) -> LineCoverageGoal:
+        """Provides the line-coverage goal of this fitness function.
+
+        Returns:
+            The attached line-coverage goal
+        """
+        return self._goal
 
 
 class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
@@ -446,6 +487,15 @@ class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def __repr__(self) -> str:
         return f"CheckedCoverageTestFitness(executor={self._executor}, goal={self._goal})"
+
+    @property
+    def goal(self) -> CheckedCoverageGoal:
+        """Provides the checked-coverage goal of this fitness function.
+
+        Returns:
+            The attached checked-coverage goal
+        """
+        return self._goal
 
 
 def create_branch_coverage_fitness_functions(
