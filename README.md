@@ -169,4 +169,4 @@ its license was changed with version 0.30.0.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=se2p/pynguin&type=Date)](https://star-history.com/#se2p/pynguin)
+[![Star History Chart](https://star-history.dera.page/svg?repos=se2p/pynguin&type=Date)](https://star-history.dera.page/#se2p/pynguin)
