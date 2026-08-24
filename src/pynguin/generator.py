@@ -730,7 +730,7 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
-            _export_chromosome(
+            exported_test_file = _export_chromosome(
                 generation_result,
                 sut_uses_random=test_cluster.sut_uses_random,
                 subject_properties=executor.subject_properties,
@@ -740,11 +740,14 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
             if config.configuration.llm_refinement.enabled:
                 from pynguin.refinement.refiner import refine_generated_tests  # noqa: PLC0415
 
-                module_name = config.configuration.module_name.replace(".", "_")
-                test_file_path = (
-                    Path(config.configuration.test_case_output.output_path).resolve()
-                    / f"test_{module_name}.py"
-                )
+                # Use the path the exporter actually wrote. Reconstructing it as
+                # f"test_{module_name.replace('.', '_')}.py" does not match the
+                # exporter, which names the file after the LAST component of the
+                # dotted module name: module "a.b.c" exports to "test_c.py", not
+                # "test_a_b_c.py". Refinement therefore raised FileNotFoundError
+                # and silently no-op'd (tests_processed=0) for every module inside
+                # a package -- i.e. for essentially every real subject.
+                test_file_path = exported_test_file
 
                 try:
                     _LOGGER.info("Starting LLM-based test refinement for %s", test_file_path)
@@ -1179,7 +1182,7 @@ def _export_chromosome(
     *,
     sut_uses_random: bool = False,
     subject_properties: SubjectProperties | None = None,
-) -> None:
+) -> Path:
     """Export the given chromosome.
 
     Args:
@@ -1208,3 +1211,4 @@ def _export_chromosome(
         subject_properties=subject_properties,
     )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)
+    return Path(target_file)
