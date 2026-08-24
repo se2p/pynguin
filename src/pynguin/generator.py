@@ -740,13 +740,6 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
             if config.configuration.llm_refinement.enabled:
                 from pynguin.refinement.refiner import refine_generated_tests  # noqa: PLC0415
 
-                # Use the path the exporter actually wrote. Reconstructing it as
-                # f"test_{module_name.replace('.', '_')}.py" does not match the
-                # exporter, which names the file after the LAST component of the
-                # dotted module name: module "a.b.c" exports to "test_c.py", not
-                # "test_a_b_c.py". Refinement therefore raised FileNotFoundError
-                # and silently no-op'd (tests_processed=0) for every module inside
-                # a package -- i.e. for essentially every real subject.
                 test_file_path = exported_test_file
 
                 try:
