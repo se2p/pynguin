@@ -730,7 +730,7 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
-            _export_chromosome(
+            exported_test_file = _export_chromosome(
                 generation_result,
                 sut_uses_random=test_cluster.sut_uses_random,
                 subject_properties=executor.subject_properties,
@@ -740,11 +740,7 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
             if config.configuration.llm_refinement.enabled:
                 from pynguin.refinement.refiner import refine_generated_tests  # noqa: PLC0415
 
-                module_name = config.configuration.module_name.replace(".", "_")
-                test_file_path = (
-                    Path(config.configuration.test_case_output.output_path).resolve()
-                    / f"test_{module_name}.py"
-                )
+                test_file_path = exported_test_file
 
                 try:
                     _LOGGER.info("Starting LLM-based test refinement for %s", test_file_path)
@@ -1179,7 +1175,7 @@ def _export_chromosome(
     *,
     sut_uses_random: bool = False,
     subject_properties: SubjectProperties | None = None,
-) -> None:
+) -> Path:
     """Export the given chromosome.
 
     Args:
@@ -1208,3 +1204,4 @@ def _export_chromosome(
         subject_properties=subject_properties,
     )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)
+    return Path(target_file)

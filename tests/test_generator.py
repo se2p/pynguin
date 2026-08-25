@@ -17,6 +17,7 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generator as gen
 from pynguin.configuration import CoverageMetric
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -475,3 +476,32 @@ def test_patch_random_is_idempotent():
     fn_after_first = random.Random.seed
     gen._patch_random()
     assert random.Random.seed is fn_after_first
+
+
+def test_export_chromosome_returns_path_written_by_exporter(tmp_path):
+    """``_export_chromosome`` returns the file the exporter actually wrote.
+
+    The exporter names the file after the *last* component of the dotted module
+    name, so ``a.b.c`` becomes ``test_c.py``. Callers must use the returned path
+    instead of rebuilding it from the full dotted name, which would yield a
+    ``test_a_b_c.py`` that never exists -- LLM refinement did exactly that and
+    silently no-op'd with a ``FileNotFoundError`` for every module in a package.
+    """
+    module_name = "tests.fixtures.accessibles.accessible"
+    gen.set_configuration(
+        config.Configuration(
+            algorithm=config.Algorithm.DYNAMOSA,
+            module_name=module_name,
+            test_case_output=config.TestCaseOutputConfiguration(
+                output_path=str(tmp_path), format_with_black=False
+            ),
+            project_path=str(tmp_path),
+        )
+    )
+
+    exported = gen._export_chromosome(tsc.TestSuiteChromosome())
+
+    assert exported is not None
+    assert exported.name == "test_accessible.py"
+    assert exported.exists()
+    assert not (tmp_path / "test_tests_fixtures_accessibles_accessible.py").exists()
