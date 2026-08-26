@@ -1267,6 +1267,11 @@ def test_change_statement_type_no_accessible_available(type_system):
 # ---------------------------------------------------------------------------
 
 
+def _two_arg_function(a, b):
+    """A module-level function requiring two positional arguments."""
+    return a, b
+
+
 def _callable_function(type_system) -> gao.GenericFunction:
     """A function whose single parameter is annotated ``Callable``."""
     params = [Parameter("converter", Parameter.POSITIONAL_OR_KEYWORD)]
@@ -1309,7 +1314,15 @@ def test_callable_parameter_can_select_a_cluster_function(type_system):
     }
     assert f"{alias}.simple_function" in rendered
     assert "str" in rendered  # builtin class
-    assert "len" in rendered  # builtin function
+    assert "repr" in rendered  # builtin function
+
+
+def test_builtin_function_pool_excludes_non_permissive_functions():
+    # ``len``/``sorted`` require an iterable and raise TypeError on the scalar
+    # values (int, bool, ...) a higher-order SUT typically calls a converter
+    # with; they must not be offered as callable-argument candidates.
+    assert "len" not in tf._BUILTIN_FUNCTION_POOL
+    assert "sorted" not in tf._BUILTIN_FUNCTION_POOL
 
 
 def test_callable_parameter_can_synthesize_a_lambda():
@@ -1318,6 +1331,110 @@ def test_callable_parameter_can_synthesize_a_lambda():
     code = cst.Module(body=[]).code_for_node(expr)
     assert code.startswith("lambda *args, **kwargs:")
     assert tf._holds_callable(bound_type)
+
+
+def test_callable_signature_hint_extracts_arity_and_return_type():
+    param_type = Instance(
+        TypeInfo(collections.abc.Callable),
+        (Instance(TypeInfo(int)), Instance(TypeInfo(int))),
+    )
+    arity, return_raw = tf._callable_signature_hint(param_type, collections.abc.Callable)
+    assert arity == 1
+    assert return_raw is int
+
+
+def test_callable_signature_hint_unknown_for_bare_callable():
+    arity, return_raw = tf._callable_signature_hint(
+        Instance(TypeInfo(collections.abc.Callable)), collections.abc.Callable
+    )
+    assert arity is None
+    assert return_raw is None
+
+
+def test_lambda_candidate_uses_declared_return_type_when_known():
+    factory = tf.TestFactory(_bare_cluster())
+    expr, bound_type = factory._lambda_candidate(return_raw=int)
+    assert isinstance(expr, cst.Lambda)
+    rendered = cst.Module(body=[]).code_for_node(expr.body)
+    assert int(rendered) is not None  # raises ValueError if not an int literal
+    assert tf._holds_callable(bound_type)
+
+
+def test_lambda_candidate_falls_back_when_return_type_unknown():
+    factory = tf.TestFactory(_bare_cluster())
+    expr, bound_type = factory._lambda_candidate(return_raw=None)
+    assert isinstance(expr, cst.Lambda)
+    assert tf._holds_callable(bound_type)
+
+
+def test_lambda_candidate_falls_back_for_non_literal_return_type():
+    # A return type outside literalgen.LITERAL_TYPES (e.g. a custom SUT class)
+    # must not be passed to generate_literal; fall back to the random pool.
+    factory = tf.TestFactory(_bare_cluster())
+    expr, _bound_type = factory._lambda_candidate(return_raw=SomeType)
+    assert isinstance(expr, cst.Lambda)
+
+
+def test_callable_value_candidates_filters_incompatible_arity(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    config.configuration.module_name = SomeType.__module__
+    one_arg = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            [Parameter("z", Parameter.POSITIONAL_OR_KEYWORD)],
+            {"z": AnyType()},
+            AnyType(),
+            type_system,
+        ),
+    )
+    two_arg = gao.GenericFunction(
+        function=_two_arg_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            [
+                Parameter("a", Parameter.POSITIONAL_OR_KEYWORD),
+                Parameter("b", Parameter.POSITIONAL_OR_KEYWORD),
+            ],
+            {"a": AnyType(), "b": AnyType()},
+            AnyType(),
+            type_system,
+        ),
+    )
+    cluster.accessible_objects_under_test = [one_arg, two_arg]
+    factory = tf.TestFactory(cluster)
+    alias = tf.get_module_alias(SomeType.__module__)
+    rendered = {
+        cst.Module(body=[]).code_for_node(expr)
+        for expr, _bound in factory._callable_value_candidates(arity=1)
+    }
+    assert f"{alias}.simple_function" in rendered
+    assert f"{alias}._two_arg_function" not in rendered
+
+
+def test_callable_value_candidates_keeps_all_when_arity_unknown(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    config.configuration.module_name = SomeType.__module__
+    two_arg = gao.GenericFunction(
+        function=_two_arg_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            [
+                Parameter("a", Parameter.POSITIONAL_OR_KEYWORD),
+                Parameter("b", Parameter.POSITIONAL_OR_KEYWORD),
+            ],
+            {"a": AnyType(), "b": AnyType()},
+            AnyType(),
+            type_system,
+        ),
+    )
+    cluster.accessible_objects_under_test = [two_arg]
+    factory = tf.TestFactory(cluster)
+    alias = tf.get_module_alias(SomeType.__module__)
+    rendered = {
+        cst.Module(body=[]).code_for_node(expr)
+        for expr, _bound in factory._callable_value_candidates(arity=None)
+    }
+    assert f"{alias}._two_arg_function" in rendered
 
 
 def test_callable_argument_reuses_an_existing_callable_variable():

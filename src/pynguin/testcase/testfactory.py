@@ -79,7 +79,10 @@ _CALLABLE_RAWS: frozenset[type] = frozenset({
 # single-argument builtins, so that the SUT calling them with a generated value
 # has a realistic chance of succeeding.  Builtin *classes* (``str``, ``int``,
 # ...) are callable too and come in via :meth:`TestFactory._class_literal_candidates`.
-_BUILTIN_FUNCTION_POOL: tuple[str, ...] = ("len", "repr", "abs", "sorted", "hash", "bool")
+# ``len`` and ``sorted`` are deliberately excluded: both require an iterable and
+# raise ``TypeError`` on the scalar values (``int``, ``bool``, ...) a higher-order
+# SUT typically passes to a converter/predicate callback.
+_BUILTIN_FUNCTION_POOL: tuple[str, ...] = ("repr", "abs", "hash", "bool")
 
 # Return types a synthesized ``lambda *args, **kwargs: <literal>`` may produce.
 _LAMBDA_RESULT_TYPES: tuple[type, ...] = (str, int, bool, list)
@@ -161,6 +164,32 @@ def _proper_type_to_raw(typ: ProperType | None) -> type | None:
     if isinstance(typ, TupleType):
         return tuple
     return None
+
+
+def _callable_signature_hint(
+    param_type: ProperType, raw: type | None
+) -> tuple[int | None, type | None]:
+    """Best-effort extraction of (arity, return type) from a ``Callable`` hint.
+
+    ``typing.Callable[[int], int]`` is converted to
+    ``Instance(Callable, (int_type, ..., return_type))`` -- the trailing arg is
+    always the return type, the rest are parameter types.  ``Callable`` (bare)
+    or ``Callable[..., X]`` carry no/unusable parameter-type information, so
+    the arity is reported as unknown in that case.
+
+    Args:
+        param_type: The ProperType of the parameter.
+        raw: The concrete Python class for the type (may be ``None``).
+
+    Returns:
+        A tuple of (arity, return type raw class); either element is ``None``
+        when it could not be determined.
+    """
+    if not _is_callable_raw(raw) or not isinstance(param_type, Instance) or not param_type.args:
+        return None, None
+    *param_types, return_type = param_type.args
+    arity = None if any(isinstance(pt, AnyType) for pt in param_types) else len(param_types)
+    return arity, _proper_type_to_raw(return_type)
 
 
 def _field_rhs(stmt: Statement) -> cst.Attribute | None:
@@ -1223,7 +1252,7 @@ class TestFactory:
         if self._wants_callable_value(param_type, raw):
             # A ``Callable`` parameter has no generator in the cluster; it needs a
             # callable *value* (a function, a class, or a lambda) instead.
-            emitted = self._emit_callable_statement(test_case, cursor)
+            emitted = self._emit_callable_statement(test_case, cursor, param_type, raw)
             if emitted is not None:
                 return cst.Name(emitted[0]), emitted[1]
         var_name, cursor = self._create_or_reuse_var(test_case, param_type, raw, cursor, depth)
@@ -1399,14 +1428,52 @@ class TestFactory:
     # Callable values (higher-order arguments)
     # ------------------------------------------------------------------
 
-    def _callable_value_candidates(self) -> list[tuple[cst.BaseExpression, type]]:
+    @staticmethod
+    def _arity_compatible(accessible: gao.GenericFunction, arity: int | None) -> bool:
+        """Return whether *accessible* can plausibly be called with *arity* args.
+
+        Args:
+            accessible: The candidate module-level function.
+            arity: The number of positional arguments the SUT will call the
+                candidate with, or ``None`` if unknown (in which case every
+                candidate is considered compatible).
+
+        Returns:
+            True if calling the candidate with *arity* positional arguments
+            would not raise ``TypeError`` due to a mismatched argument count.
+        """
+        if arity is None:
+            return True
+        parameters = accessible.inferred_signature.signature.parameters.values()
+        if any(param.kind == inspect.Parameter.VAR_POSITIONAL for param in parameters):
+            return True
+        positional_kinds = {
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        }
+        required = sum(
+            1
+            for param in parameters
+            if param.default is inspect.Parameter.empty and param.kind in positional_kinds
+        )
+        maximum = sum(1 for param in parameters if param.kind in positional_kinds)
+        return required <= arity <= maximum
+
+    def _callable_value_candidates(
+        self, arity: int | None = None
+    ) -> list[tuple[cst.BaseExpression, type]]:
         """Return the expressions that may be passed where a callable is expected.
 
         Every class is callable, so the class-literal pool (builtin classes plus
         the classes of the module under test) is reused as-is.  On top of that
         come a few permissive builtin functions and every module-level function
-        of the module under test -- the latter are the ones that actually match
-        the converter/predicate shape a higher-order SUT expects.
+        of the module under test whose arity is compatible with *arity* -- the
+        latter are the ones that actually match the converter/predicate shape a
+        higher-order SUT expects.
+
+        Args:
+            arity: The number of positional arguments the SUT is known to call
+                the callable with, or ``None`` if unknown.
 
         Returns:
             A list of (expression, bound type) pairs.
@@ -1421,6 +1488,8 @@ class TestFactory:
         for accessible in self._test_cluster.accessible_objects_under_test:
             if not isinstance(accessible, gao.GenericFunction):
                 continue
+            if not self._arity_compatible(accessible, arity):
+                continue
             name = _function_call_name(accessible)
             if name is None:
                 continue
@@ -1430,16 +1499,27 @@ class TestFactory:
             ))
         return candidates
 
-    def _lambda_candidate(self) -> tuple[cst.BaseExpression, type]:
+    def _lambda_candidate(self, return_raw: type | None = None) -> tuple[cst.BaseExpression, type]:
         """Build a permissive ``lambda *args, **kwargs: <literal>`` expression.
 
         The star-parameters make the lambda accept whatever the SUT calls it
         with, so it never fails on arity; only the returned literal varies.
 
+        Args:
+            return_raw: The declared return type of the ``Callable`` this
+                lambda substitutes for, when known and literal-generatable.
+                Used instead of a random pick so the SUT does not immediately
+                fail on the returned value's type (e.g. comparing a synthesized
+                ``list`` where an ``int`` was declared).
+
         Returns:
             A tuple of (lambda expression, bound type).
         """
-        result_type = randomness.choice(_LAMBDA_RESULT_TYPES)
+        result_type = (
+            return_raw
+            if return_raw in literalgen.LITERAL_TYPES
+            else randomness.choice(_LAMBDA_RESULT_TYPES)
+        )
         node = cst.Lambda(
             params=cst.Parameters(
                 star_arg=cst.Param(name=cst.Name("args"), star="*"),
@@ -1449,19 +1529,33 @@ class TestFactory:
         )
         return node, types.FunctionType
 
-    def _callable_value_expr(self) -> tuple[cst.BaseExpression, type]:
+    def _callable_value_expr(
+        self, param_type: ProperType | None = None, raw: type | None = None
+    ) -> tuple[cst.BaseExpression, type]:
         """Choose one callable-valued expression.
+
+        Args:
+            param_type: The ProperType of the ``Callable``-typed parameter this
+                value is for, when known.
+            raw: The concrete Python class for *param_type*, when known.
 
         Returns:
             A tuple of (expression, bound type).
         """
-        candidates = self._callable_value_candidates()
+        arity, return_raw = (
+            _callable_signature_hint(param_type, raw) if param_type is not None else (None, None)
+        )
+        candidates = self._callable_value_candidates(arity)
         if not candidates or randomness.next_float() < _LAMBDA_PROBABILITY:
-            return self._lambda_candidate()
+            return self._lambda_candidate(return_raw)
         return randomness.choice(candidates)
 
     def _emit_callable_statement(
-        self, test_case: tc.TestCase, position: int
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        param_type: ProperType | None = None,
+        raw: type | None = None,
     ) -> tuple[str, int] | None:
         """Insert a ``var_N = <callable>`` statement at *position*.
 
@@ -1472,6 +1566,9 @@ class TestFactory:
         Args:
             test_case: The test case to extend.
             position: The cursor position at which to insert.
+            param_type: The ProperType of the ``Callable``-typed parameter this
+                value is for, when known.
+            raw: The concrete Python class for *param_type*, when known.
 
         Returns:
             A tuple of (variable name, updated cursor), or ``None`` if no
@@ -1485,7 +1582,7 @@ class TestFactory:
         ):
             return existing, position
 
-        expr, bound_type = self._callable_value_expr()
+        expr, bound_type = self._callable_value_expr(param_type, raw)
         var_name = test_case.next_var_name()
         node = cst.SimpleStatementLine(
             body=[
@@ -1946,7 +2043,7 @@ class TestFactory:
                         name,
                         cst.Name(reused)
                         if reused is not None and randomness.next_bool()
-                        else self._callable_value_expr()[0],
+                        else self._callable_value_expr(param_type, raw)[0],
                         positional_only=is_positional_only,
                     )
                 )
