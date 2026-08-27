@@ -985,14 +985,14 @@ class LLMConfiguration:
     every retry attempt and the backoff waits between them.  A retry is only started
     when the budget can still accommodate it.  Set to <= 0 to disable the bound."""
 
-    enable_thinking: bool | None = None
+    enable_thinking: bool | None = False
     """Whether to request reasoning ("thinking") output from a reasoning model, sent
     to the API as ``extra_body={"chat_template_kwargs": {"enable_thinking": ...}}``.
-    ``None`` (default) omits the field and leaves the provider's default behaviour
-    unchanged, so non-reasoning models and other providers are unaffected.  Set to
-    ``False`` to suppress reasoning output: reasoning models otherwise spend the bulk
-    of their tokens on a discarded reasoning trace, driving up latency until requests
-    exceed ``request_timeout``."""
+    Defaults to ``False``, suppressing reasoning output: reasoning models otherwise
+    spend the bulk of their tokens on a discarded reasoning trace, driving up latency
+    until requests exceed ``request_timeout``.  Set to ``None`` to omit the field
+    entirely and leave the provider's default behaviour unchanged, e.g. for a
+    non-reasoning model or a provider that rejects unknown ``extra_body`` keys."""
 
     cache_dir: str = "~/.cache/pynguin/llm"
     """The directory to store cached responses."""

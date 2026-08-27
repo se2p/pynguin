@@ -101,6 +101,7 @@ max_context_chars = 64000
 max_retries = 8
 request_timeout = 30.0
 max_request_time = 300.0
+enable_thinking = false
 cache_dir = "~/.cache/pynguin/llm"
 
 [string_statement]
@@ -308,7 +309,8 @@ def expected_txt(tmp_path):
  'stall_detection_window_seconds=30, max_plateau_len=25, '
  'max_llm_interventions=-1, min_remaining_budget_for_llm=45, '
  'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
- "max_request_time=300.0, cache_dir='~/.cache/pynguin/llm'), "
+ 'max_request_time=300.0, enable_thinking=False, '
+ "cache_dir='~/.cache/pynguin/llm'), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
  'faker_string_weight=0.3, fandango_string_weight=0.4, '
  'fandango_faker_string_weight=0.0, token_assembly_probability=0.2, '
@@ -422,6 +424,8 @@ False
 --large_language_model.coverage_threshold
 1
 --large_language_model.enable_response_caching
+False
+--large_language_model.enable_thinking
 False
 --large_language_model.hybrid_initial_population
 False

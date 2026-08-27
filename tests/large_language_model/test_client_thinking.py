@@ -44,7 +44,7 @@ def _request(*, enable_thinking: bool | None) -> RenderedRequest:
     )
 
 
-def test_enable_thinking_unset_omits_extra_body(monkeypatch):
+def test_enable_thinking_explicit_none_omits_extra_body(monkeypatch):
     client = _make_client(monkeypatch)
     create = MagicMock(return_value=_make_response("```python\nx = 1\n```"))
     client._client.chat.completions.create = create
@@ -52,6 +52,22 @@ def test_enable_thinking_unset_omits_extra_body(monkeypatch):
     client.send(_request(enable_thinking=None))
 
     assert "extra_body" not in create.call_args.kwargs
+
+
+def test_enable_thinking_defaults_to_false(monkeypatch):
+    client = _make_client(monkeypatch)
+    create = MagicMock(return_value=_make_response("```python\nx = 1\n```"))
+    client._client.chat.completions.create = create
+
+    request = RenderedRequest(
+        messages=[{"role": "user", "content": "hi"}], model="test-model", temperature=0.5
+    )
+
+    client.send(request)
+
+    assert create.call_args.kwargs["extra_body"] == {
+        "chat_template_kwargs": {"enable_thinking": False}
+    }
 
 
 def test_enable_thinking_false_sets_extra_body(monkeypatch):
