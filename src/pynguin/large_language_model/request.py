@@ -33,6 +33,12 @@ class RenderedRequest:
     stop: list[str] | None = None
     """Up to 4 sequences where the API will stop generating further tokens."""
 
+    enable_thinking: bool | None = False
+    """Whether to request reasoning ("thinking") output from the model via
+    ``chat_template_kwargs``. Defaults to ``False``, suppressing reasoning output.
+    ``None`` omits the field from the request entirely, leaving the provider's
+    default behaviour unchanged."""
+
     def cache_key(self) -> str:
         """Computes a stable SHA-256 hash key of the request for caching.
 
@@ -45,6 +51,7 @@ class RenderedRequest:
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "stop": self.stop,
+            "enable_thinking": self.enable_thinking,
         }
         serialized = json.dumps(data, sort_keys=True)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

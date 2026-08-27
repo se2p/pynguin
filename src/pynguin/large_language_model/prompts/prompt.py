@@ -144,6 +144,7 @@ class Prompt(abc.ABC):
             temperature=temperature,
             max_tokens=self._config.max_tokens,
             stop=self._config.stop,
+            enable_thinking=config.configuration.large_language_model.enable_thinking,
         )
 
     def render_request(self) -> RenderedRequest:

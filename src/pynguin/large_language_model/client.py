@@ -290,6 +290,10 @@ class OpenAIClient(LLMClient):
                 }
                 if timeout is not None:
                     kwargs["timeout"] = timeout
+                if request.enable_thinking is not None:
+                    kwargs["extra_body"] = {
+                        "chat_template_kwargs": {"enable_thinking": request.enable_thinking}
+                    }
 
                 response = self._client.chat.completions.create(**kwargs)
 

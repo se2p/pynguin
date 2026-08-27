@@ -78,6 +78,27 @@ def test_cache_key_variation_miss(temp_cache_dir):
     assert cache.get(req2) is None  # should miss due to different temperature
 
 
+def test_cache_key_varies_with_enable_thinking(temp_cache_dir):
+    cache = LLMCache(cache_dir=temp_cache_dir)
+
+    req1 = RenderedRequest(
+        messages=[{"role": "user", "content": "hello"}],
+        model="gpt-test",
+        temperature=0.5,
+        enable_thinking=None,
+    )
+    req2 = RenderedRequest(
+        messages=[{"role": "user", "content": "hello"}],
+        model="gpt-test",
+        temperature=0.5,
+        enable_thinking=False,  # differs only in enable_thinking
+    )
+
+    cache.set(req1, "response1")
+    assert cache.get(req1) == "response1"
+    assert cache.get(req2) is None  # should miss: thinking changes response content
+
+
 def test_cache_clear(temp_cache_dir):
     cache = LLMCache(cache_dir=temp_cache_dir)
 
