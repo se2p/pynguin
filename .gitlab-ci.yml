@@ -168,6 +168,7 @@ pre-commit:
   image: python:3.10-bookworm
   retry: 2
   script:
+    - git config --global http.version HTTP/1.1
     - git config --global credential.https://github.com.helper "" || true
     - poetry run pre-commit run --all-files
   needs: []
