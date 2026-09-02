@@ -15,6 +15,7 @@ cache:
     - .venv/
     - .cache/pip
     - .cache/pypoetry
+    - .cache/pre-commit
 
 stages:
   - build
@@ -33,6 +34,7 @@ variables:
   # secret detection only runs for branch pipelines by default but we run jobs
   # in merge request context
   AST_ENABLE_MR_PIPELINES: "true"
+  PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
 
 before_script:
   - python --version
@@ -164,7 +166,9 @@ memory-profile:
 pre-commit:
   stage: lint
   image: python:3.10-bookworm
+  retry: 2
   script:
+    - git config --global credential.https://github.com.helper "" || true
     - poetry run pre-commit run --all-files
   needs: []
 
