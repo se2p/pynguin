@@ -95,6 +95,9 @@ Dummy = enum.Enum("Dummy", "a")
         ({1}, "assert var_0 == {1}"),
         ({"foo": ["nope", 1, False, None]}, "assert var_0 == {'foo': ['nope', 1, False, None]}"),
         ({"a": 1}, "assert var_0 == {'a': 1}"),
+        (complex(1, 2), "assert var_0 == (1+2j)"),
+        (complex(0, 1), "assert var_0 == 1j"),
+        (complex(-1.5, 2.5), "assert var_0 == (-1.5+2.5j)"),
         (Dummy.a, "assert var_0 == Dummy.a"),
         ({Dummy.a: False}, "assert var_0 == {Dummy.a: False}"),
     ],
@@ -102,6 +105,15 @@ Dummy = enum.Enum("Dummy", "a")
 def test_object_assertion(value, expected):
     assertion = ass.ObjectAssertion("var_0", value)
     assert render(assertion) == expected
+
+
+def test_object_assertion_fallback_unparseable_repr():
+    obj = object()
+    assertion = ass.ObjectAssertion("var_0", obj)
+    # Default repr(object()) is '<object object at 0x...>' which fails parse_expression
+    # and falls back to a string literal representation.
+    rendered = render(assertion)
+    assert rendered == f"assert var_0 == '{obj!r}'"
 
 
 # --- TypeNameAssertion --------------------------------------------------------
