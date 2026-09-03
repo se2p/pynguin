@@ -163,7 +163,7 @@ def _value_to_cst(value: Any) -> cst.BaseExpression:  # noqa: C901
     if isinstance(value, bytes):
         return cst.SimpleString(repr(value))
     if isinstance(value, complex):
-        return cst.SimpleString(repr(value))
+        return cst.parse_expression(repr(value))
     if tu.is_enum(type(value)):
         # EnumClass.MEMBER
         class_name = type(value).__name__
@@ -196,7 +196,10 @@ def _value_to_cst(value: Any) -> cst.BaseExpression:  # noqa: C901
                 for k, v in value.items()
             ]
         )
-    return cst.SimpleString(repr(value))
+    try:
+        return cst.parse_expression(repr(value))
+    except Exception:  # noqa: BLE001
+        return cst.SimpleString(repr(repr(value)))
 
 
 def _type_name_assertion_to_cst(assertion: ass.TypeNameAssertion) -> cst.SimpleStatementLine:
