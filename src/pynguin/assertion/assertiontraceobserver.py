@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import copy
+import keyword
 import logging
 import threading
 from collections.abc import Sized
@@ -22,6 +23,7 @@ import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
 import pynguin.utils.typetracing as tt
+from pynguin.analyses.module import MODULE_BLACKLIST
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.naming import get_module_alias
@@ -42,6 +44,47 @@ _LOGGER = logging.getLogger(__name__)
 # current namespace -- either the root name is unknown, or an attribute
 # access along the chain raised.
 _UNRESOLVED = object()
+
+
+def _is_blacklisted_module(module_name: str | None) -> bool:
+    """Check whether a module name matches MODULE_BLACKLIST or user-ignored modules.
+
+    Args:
+        module_name: The name of the module to check.
+
+    Returns:
+        True, if the module is blacklisted.
+    """
+    if not module_name:
+        return False
+    sut_module = config.configuration.module_name
+    if sut_module and (module_name == sut_module or module_name.startswith(f"{sut_module}.")):
+        return False
+    blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
+    blacklist.discard("builtins")
+    return module_name in blacklist or module_name.split(".")[0] in blacklist
+
+
+def _is_blacklisted_value(value: Any) -> bool:
+    """Check if a value originates from a blacklisted module.
+
+    Primitives, collections, None, and values belonging to the SUT module are
+    never considered blacklisted.
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        True, if the value originates from a blacklisted module.
+    """
+    if value is None:
+        return False
+    typ = type(value)
+    if is_primitive_type(typ) or is_collection_type(typ):
+        return False
+    if _is_blacklisted_module(getattr(typ, "__module__", None)):
+        return True
+    return bool(_is_blacklisted_module(getattr(value, "__module__", None)))
 
 
 class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
@@ -137,6 +180,8 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         watch_list = self._assertion_local_state.watch_list
 
         value = tt.unwrap(namespace.get(bound_variable))
+        if _is_blacklisted_value(value):
+            return
         if is_primitive_type(type(value)):
             # Primitives won't change, so we only check them once.
             self._check_reference(namespace, bound_variable, position, trace)
@@ -153,10 +198,15 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         module_alias = get_module_alias(config.configuration.module_name)
         module = namespace.get(module_alias)
         if isinstance(module, ModuleType):
-            for field, field_value in vars(module).items():
-                if self._should_ignore(field, field_value):
-                    continue
-                self._check_reference(namespace, f"{module_alias}.{field}", position, trace)
+            try:
+                dict_items = vars(module).items()
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(err)
+            else:
+                for field, field_value in dict_items:
+                    if self._should_ignore(field, field_value):
+                        continue
+                    self._check_reference(namespace, f"{module_alias}.{field}", position, trace)
 
         self._check_static_class_fields(namespace, watch_list, position, trace)
 
@@ -191,7 +241,12 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             if not self._is_static_field_owner(seen_type):
                 continue
             class_source = ".".join([module_alias, *seen_type.__qualname__.split(".")])
-            for field, field_value in vars(seen_type).items():
+            try:
+                dict_items = vars(seen_type).items()
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(err)
+                continue
+            for field, field_value in dict_items:
                 if self._should_ignore(field, field_value):
                     continue
                 self._check_reference(namespace, f"{class_source}.{field}", position, trace)
@@ -230,6 +285,8 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         (``staticmethod``/``classmethod``/``property`` objects), which would
         otherwise fall through to a harmless-but-noisy ``TypeNameAssertion`` on
         e.g. ``builtins.classmethod``.
+        Invalid identifiers, Python keywords, non-string field names, and
+        values originating from blacklisted modules are also skipped.
 
         Args:
             field: The attribute's name.
@@ -239,10 +296,14 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             True, if the attribute should not be asserted on.
         """
         return (
-            field.startswith("_")
+            not isinstance(field, str)
+            or not field.isidentifier()
+            or keyword.iskeyword(field)
+            or field.startswith("_")
             or field.endswith("__")
             or callable(attr_value)
             or isinstance(attr_value, ModuleType | staticmethod | classmethod | property)
+            or _is_blacklisted_value(attr_value)
         )
 
     @staticmethod
@@ -326,6 +387,8 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             depth: The current recursion depth.
             max_depth: The maximum recursion depth.
         """
+        if _is_blacklisted_value(value):
+            return
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(source, value))
             return
@@ -385,7 +448,12 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         if depth < max_depth and hasattr(value, "__dict__"):
             # Reference is a complex object; try to assert something on its
             # public fields (one recursion step).
-            for field, field_value in vars(value).items():
+            try:
+                dict_items = vars(value).items()
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(err)
+                return
+            for field, field_value in dict_items:
                 if self._should_ignore(field, field_value):
                     continue
                 self._check_value(
