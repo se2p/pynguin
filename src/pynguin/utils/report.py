@@ -356,14 +356,14 @@ def render_xml_coverage_report(  # noqa: PLR0914
 
 def _get_line_to_branch_coverage(subject_properties, trace):
     line_to_branch_coverage = {}
-    for predicate in subject_properties.coverage_predicates:
+    for predicate, values in subject_properties.coverage_predicates.items():
         lineno = subject_properties.existing_predicates[predicate].line_no
         if lineno not in line_to_branch_coverage:
             line_to_branch_coverage[lineno] = CoverageEntry()
-        line_to_branch_coverage[lineno] += CoverageEntry(existing=2)
-        if (predicate, 0.0) in trace.true_distances.items():
+        line_to_branch_coverage[lineno] += CoverageEntry(existing=len(values))
+        if True in values and (predicate, 0.0) in trace.true_distances.items():
             line_to_branch_coverage[lineno] += CoverageEntry(covered=1)
-        if (predicate, 0.0) in trace.false_distances.items():
+        if False in values and (predicate, 0.0) in trace.false_distances.items():
             line_to_branch_coverage[lineno] += CoverageEntry(covered=1)
     return line_to_branch_coverage
 

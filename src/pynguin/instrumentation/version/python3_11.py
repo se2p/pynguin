@@ -443,12 +443,12 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         if (
             ast_info is not None
             and isinstance(maybe_jump.lineno, int)
-            and not ast_info.should_cover_conditional_statement(maybe_jump.lineno)
+            and not ast_info.should_track_conditional_statement(maybe_jump.lineno)
         ):
             return
 
         if ast_info is not None and not any(
-            not isinstance(instr.lineno, int) or ast_info.should_cover_line(instr.lineno)
+            not isinstance(instr.lineno, int) or ast_info.should_track_line(instr.lineno)
             for instr in node.original_instructions
         ):
             return
@@ -580,12 +580,11 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         instr: Instr,
         instr_index: int,
     ) -> None:
-        predicate_id = self._subject_properties.register_predicate(
-            tracer.PredicateMetaData(
-                line_no=instr.lineno,  # type: ignore[arg-type]
-                code_object_id=code_object_id,
-                node=node,
-            )
+        is_goal = ast_info is None or ast_info.should_cover_conditional_statement(
+            instr.lineno  # type: ignore[arg-type]
+        )
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno, is_goal=is_goal
         )
 
         node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(

@@ -28,6 +28,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.slicer.executedinstruction as ei
 import pynguin.utils.typetracing as tt
 from pynguin.instrumentation import PynguinCompare, version
+from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import (
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     import pynguin.testcase.testcase as stmt
-    from pynguin.instrumentation.controlflow import CFG, BasicBlockNode, ControlDependenceGraph
+    from pynguin.instrumentation.controlflow import CFG, ControlDependenceGraph
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
@@ -452,10 +453,10 @@ class SubjectProperties:
     # Maps all known ids of predicates to meta information
     existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
-    # Subset of existing_predicates that are actual search goals.
+    # Subset of existing_predicates that are actual search goals, mapping to target branch values.
     # Tracking-only predicates (registered to provide branch-distance gradient
     # toward a line-range target) are in existing_predicates but not here.
-    coverage_predicates: set[int] = field(default_factory=set)
+    coverage_predicates: dict[int, set[bool]] = field(default_factory=dict)
 
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
@@ -515,6 +516,7 @@ class SubjectProperties:
             code_object_counter=self.code_object_counter,
             existing_code_objects=self.existing_code_objects,
             existing_predicates=self.existing_predicates,
+            coverage_predicates=self.coverage_predicates,
             existing_lines=self.existing_lines,
         )
         props._line_control_dependencies = self._line_control_dependencies
@@ -562,7 +564,7 @@ class SubjectProperties:
         predicate_id = len(self.existing_predicates)
         self.existing_predicates[predicate_id] = meta
         if is_goal:
-            self.coverage_predicates.add(predicate_id)
+            self.coverage_predicates[predicate_id] = {True, False}
         return predicate_id
 
     def register_line(self, meta: LineMetaData) -> int:
@@ -581,6 +583,77 @@ class SubjectProperties:
             index = list(self.existing_lines.values()).index(meta)
             line_id = list(self.existing_lines.keys())[index]
         return line_id
+
+    def _add_controlling_predicates_for_node(
+        self, code_object_id: int, code_meta: CodeObjectMetaData, node: BasicBlockNode
+    ) -> set[int]:
+        added: set[int] = set()
+        dependencies = code_meta.cdg.get_control_dependencies(node)
+        for dep in dependencies:
+            for pid, meta in self.existing_predicates.items():
+                if meta.code_object_id == code_object_id and meta.node == dep.node:
+                    if pid not in self.coverage_predicates:
+                        self.coverage_predicates[pid] = set()
+                    if dep.branch_value not in self.coverage_predicates[pid]:
+                        self.coverage_predicates[pid].add(dep.branch_value)
+                        added.add(pid)
+        return added
+
+    def ensure_controlling_predicates_for_lines(
+        self, target_lines: Iterable[int] | None = None
+    ) -> set[int]:
+        """Ensure controlling predicates are in coverage_predicates for pure statement lines.
+
+        For target lines that do not have a direct goal predicate in `coverage_predicates`,
+        this method maps the line to its basic block in the CFG and finds the controlling
+        predicates via the CDG, adding them to `coverage_predicates`.
+
+        Args:
+            target_lines: Target line numbers to check. If None, uses line numbers from
+                `existing_lines`.
+
+        Returns:
+            The set of predicate IDs that were added to coverage_predicates.
+        """
+        if target_lines is None:
+            target_lines_set = {
+                meta.line_number
+                for meta in self.existing_lines.values()
+                if isinstance(meta.line_number, int)
+            }
+        else:
+            target_lines_set = set(target_lines)
+
+        if not target_lines_set:
+            return set()
+
+        covered_by_goal_pred = {
+            meta.line_no
+            for pid in self.coverage_predicates
+            if (meta := self.existing_predicates.get(pid)) is not None
+            and isinstance(meta.line_no, int)
+        }
+
+        uncovered_lines = target_lines_set - covered_by_goal_pred
+        if not uncovered_lines:
+            return set()
+
+        added_predicates: set[int] = set()
+        for code_object_id, code_meta in self.existing_code_objects.items():
+            for node in code_meta.cfg.graph.nodes:
+                if not isinstance(node, BasicBlockNode):
+                    continue
+                original_instructions = getattr(node, "original_instructions", None)
+                if not original_instructions:
+                    continue
+                node_lines = {
+                    instr.lineno for instr in original_instructions if isinstance(instr.lineno, int)
+                }
+                if node_lines & uncovered_lines:
+                    added_predicates.update(
+                        self._add_controlling_predicates_for_node(code_object_id, code_meta, node)
+                    )
+        return added_predicates
 
     def validate_execution_trace(self, execution_trace: ExecutionTrace) -> None:
         """Validate the execution trace.

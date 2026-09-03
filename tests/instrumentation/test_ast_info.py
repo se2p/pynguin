@@ -492,37 +492,37 @@ def test_get_scope_line_one_definition_not_shadowed_by_module(tmp_path):
 
 
 def test_parse_line_ranges_single():
-    result = frozenset(ModuleAstInfo._parse_line_ranges(["42"]))
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["42"]))
     assert result == {42}
 
 
 def test_parse_line_ranges_range():
-    result = frozenset(ModuleAstInfo._parse_line_ranges(["10-12"]))
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["10-12"]))
     assert result == {10, 11, 12}
 
 
 def test_parse_line_ranges_multiple():
-    result = frozenset(ModuleAstInfo._parse_line_ranges(["5", "10-12"]))
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["5", "10-12"]))
     assert result == {5, 10, 11, 12}
 
 
 def test_parse_line_ranges_invalid_reversed():
-    result = frozenset(ModuleAstInfo._parse_line_ranges(["20-10"]))
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["20-10"]))
     assert result == set()
 
 
 def test_parse_line_ranges_invalid_format():
-    result = frozenset(ModuleAstInfo._parse_line_ranges(["abc"]))
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["abc"]))
     assert result == set()
 
 
 @pytest.mark.parametrize(
     "scope_line, expected",
     [
-        (8, True),   # not_covered1 spans 8-12, overlaps with range 9-11
-        (14, False), # not_covered2 spans 14-18, no overlap
-        (20, False), # not_covered3 spans 20-25, no overlap
-        (27, False), # covered spans 27-28, no overlap
+        (8, True),  # not_covered1 spans 8-12, overlaps with range 9-11
+        (14, False),  # not_covered2 spans 14-18, no overlap
+        (20, False),  # not_covered3 spans 20-25, no overlap
+        (27, False),  # covered spans 27-28, no overlap
     ],
 )
 def test_ast_info_only_cover_line_ranges_should_be_covered(scope_line, expected):
@@ -549,7 +549,7 @@ def test_ast_info_only_cover_line_ranges_should_be_covered(scope_line, expected)
         (9, True),
         (10, True),
         (11, True),
-        (12, False), # inside function but outside range
+        (12, False),  # inside function but outside range
     ],
 )
 def test_ast_info_only_cover_line_ranges_should_cover_line(lineno, expected):

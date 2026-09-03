@@ -36,8 +36,6 @@ from pynguin.configuration import ToCoverConfiguration
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
 
-    from typing_extensions import Self
-
     from pynguin.analyses.constants import DynamicConstantProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -219,7 +217,7 @@ class ModuleAstInfo:
                 )
 
     @classmethod
-    def _parse_line_ranges(cls, line_ranges: Collection[str]) -> Iterable[int]:
+    def parse_line_ranges(cls, line_ranges: Collection[str]) -> Iterable[int]:
         """Parse line range strings into individual line numbers.
 
         Accepts single lines (e.g. '42') and inclusive ranges (e.g. '10-20').
@@ -284,18 +282,15 @@ class ModuleAstInfo:
         cls,
         module_path: str,
         to_cover_config: ToCoverConfiguration,
-    ) -> Self | None:
-        """Create an AstInfo from a module path.
+    ) -> ModuleAstInfo | None:
+        """Parses the module AST and creates an AstInfo object.
 
         Args:
-            module_path: The path of the module.
-            to_cover_config: the configuration of which code elements are used as coverage goals.
-
-        Raises:
-            ValueError: if a line is in both only_cover and no_cover sets.
+            module_path: Path to the module file.
+            to_cover_config: Configuration for coverage.
 
         Returns:
-            The AstInfo of the module path, or None.
+            ModuleAstInfo object or None if the file cannot be read or parsed.
         """
         try:
             module_ast, source_code = read_module_ast(module_path)
@@ -303,7 +298,9 @@ class ModuleAstInfo:
             return None
 
         only_cover_lines = frozenset(cls._find_lines_in_ast(module_ast, to_cover_config.only_cover))
-        only_cover_line_ranges = frozenset(cls._parse_line_ranges(to_cover_config.only_cover_line_ranges))
+        only_cover_line_ranges = frozenset(
+            cls.parse_line_ranges(to_cover_config.only_cover_line_ranges)
+        )
 
         no_cover_lines = frozenset((
             *cls._find_lines_in_ast(module_ast, to_cover_config.no_cover),
@@ -634,6 +631,7 @@ class AstInfo:
                 )
 
         return True
+
 
 class InstrumentationAdapter(Protocol):
     """Protocol for byte-code instrumentation adapters.

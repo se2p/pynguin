@@ -12,8 +12,10 @@ import math
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.utils.controlflowdistance as cfd
+from pynguin.instrumentation import transformer
 from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
@@ -383,15 +385,19 @@ class BranchGoalPool:
     def _compute_branch_goals(
         subject_properties: SubjectProperties,
     ) -> dict[int, list[BranchGoal]]:
+        parsed_target_lines = set(
+            transformer.ModuleAstInfo.parse_line_ranges(
+                config.configuration.to_cover.only_cover_line_ranges
+            )
+        )
+        subject_properties.ensure_controlling_predicates_for_lines(parsed_target_lines or None)
         goal_map: dict[int, list[BranchGoal]] = {}
-        for predicate_id in subject_properties.coverage_predicates:
+        for predicate_id, values in subject_properties.coverage_predicates.items():
             meta = subject_properties.existing_predicates[predicate_id]
-            entry: list[BranchGoal] = []
+            entry: list[BranchGoal] = [
+                BranchGoal(meta.code_object_id, predicate_id, value=val) for val in values
+            ]
             goal_map[predicate_id] = entry
-            entry.extend((
-                BranchGoal(meta.code_object_id, predicate_id, value=True),
-                BranchGoal(meta.code_object_id, predicate_id, value=False),
-            ))
         return goal_map
 
 
