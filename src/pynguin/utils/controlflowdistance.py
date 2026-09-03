@@ -215,3 +215,69 @@ def get_non_root_control_flow_distance(
 
 def _predicate_fitness(predicate: int, branch_distances: dict[int, float]) -> float:
     return branch_distances.get(predicate, inf)
+
+
+def get_line_control_flow_distance(
+    result: ExecutionResult,
+    line_id: int,
+    subject_properties: SubjectProperties,
+) -> ControlFlowDistance:
+    """Computes the control flow distance for a line.
+
+    Args:
+        result: the execution result.
+        line_id: The line id for which we want to get the distance.
+        subject_properties: the subject properties
+
+    Returns:
+        The control flow distance.
+    """
+    line_meta = subject_properties.existing_lines.get(line_id)
+    if line_meta is None:
+        return ControlFlowDistance(approach_level=1, branch_distance=0.0)
+
+    code_object_id = line_meta.code_object_id
+    code_object_meta = subject_properties.existing_code_objects.get(code_object_id)
+    if code_object_meta is None:
+        return ControlFlowDistance(approach_level=1, branch_distance=0.0)
+
+    trace = result.execution_trace
+    try:
+        is_root_dep, branch_deps = subject_properties.get_line_control_dependencies(line_id)
+    except (ValueError, TypeError, AttributeError):
+        is_root_dep, branch_deps = True, ()
+
+    candidates: list[ControlFlowDistance] = []
+
+    if is_root_dep:
+        if code_object_id in trace.executed_code_objects:
+            candidates.append(ControlFlowDistance(approach_level=1, branch_distance=0.0))
+        else:
+            approach = (
+                2
+                if code_object_id in subject_properties.branch_less_code_objects
+                else code_object_meta.cfg.diameter + 1
+            )
+            candidates.append(ControlFlowDistance(approach_level=approach, branch_distance=0.0))
+
+    for predicate_id, branch_value in branch_deps:
+        branch_dist = get_non_root_control_flow_distance(
+            result,
+            predicate_id,
+            branch_value,
+            subject_properties,
+        )
+        if branch_dist.approach_level == 0 and branch_dist.branch_distance == 0.0:
+            candidates.append(ControlFlowDistance(approach_level=1, branch_distance=0.0))
+        else:
+            candidates.append(
+                ControlFlowDistance(
+                    approach_level=branch_dist.approach_level + 1,
+                    branch_distance=branch_dist.branch_distance,
+                )
+            )
+
+    if not candidates:
+        return ControlFlowDistance(approach_level=1, branch_distance=0.0)
+
+    return min(candidates)

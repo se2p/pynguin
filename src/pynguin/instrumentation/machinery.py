@@ -89,7 +89,10 @@ def build_transformer(
         An instrumentation transformer.
     """
     adapters: list[InstrumentationAdapter] = []
-    if config.CoverageMetric.BRANCH in coverage_metrics:
+    if (
+        config.CoverageMetric.BRANCH in coverage_metrics
+        or config.CoverageMetric.LINE in coverage_metrics
+    ):
         adapters.append(BranchCoverageInstrumentation(subject_properties))
     if config.CoverageMetric.LINE in coverage_metrics:
         adapters.append(LineCoverageInstrumentation(subject_properties))

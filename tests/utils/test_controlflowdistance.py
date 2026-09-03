@@ -9,6 +9,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import importlib
 import math
 from unittest.mock import MagicMock
 
@@ -16,9 +17,16 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import given
 
-from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
+import pynguin.configuration as config
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTrace, LineMetaData, SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.utils.controlflowdistance import ControlFlowDistance, get_root_control_flow_distance
+from pynguin.utils.controlflowdistance import (
+    ControlFlowDistance,
+    get_line_control_flow_distance,
+    get_root_control_flow_distance,
+)
+from tests.fixtures.branchcoverage import singlebranches
 
 
 @pytest.fixture(scope="module")
@@ -125,3 +133,83 @@ def test_calculate_control_flow_distance_for_root(
 
     distance = get_root_control_flow_distance(execution_result, 0, subject_properties)
     assert distance == ControlFlowDistance(approach_level=approach_level, branch_distance=0.0)
+
+
+def test_get_line_control_flow_distance_unknown_line(subject_properties: SubjectProperties):
+    execution_result = MagicMock(ExecutionResult)
+    distance = get_line_control_flow_distance(execution_result, 999, subject_properties)
+    assert distance == ControlFlowDistance(approach_level=1, branch_distance=0.0)
+
+
+def test_get_line_control_flow_distance_unknown_code_object(subject_properties: SubjectProperties):
+    execution_result = MagicMock(ExecutionResult)
+    subject_properties.existing_lines[0] = LineMetaData(0, "test.py", 10)
+    distance = get_line_control_flow_distance(execution_result, 0, subject_properties)
+    assert distance == ControlFlowDistance(approach_level=1, branch_distance=0.0)
+
+
+@pytest.mark.parametrize(
+    "executed_code_objects, expected_approach",
+    [
+        pytest.param([0], 1),
+        pytest.param([], 2),
+    ],
+)
+def test_get_line_control_flow_distance_branchless(
+    executed_code_objects,
+    expected_approach,
+    subject_properties: SubjectProperties,
+):
+    execution_result = MagicMock(ExecutionResult)
+    execution_trace = MagicMock(ExecutionTrace)
+    execution_trace.executed_code_objects = set(executed_code_objects)
+    execution_result.execution_trace = execution_trace
+
+    subject_properties.register_code_object(0, MagicMock())
+    subject_properties.existing_lines[0] = LineMetaData(0, "test.py", 10)
+
+    distance = get_line_control_flow_distance(execution_result, 0, subject_properties)
+    assert distance == ControlFlowDistance(approach_level=expected_approach, branch_distance=0.0)
+
+
+def test_get_line_control_flow_distance_with_branches(subject_properties: SubjectProperties):
+    module_name = "tests.fixtures.branchcoverage.singlebranches"
+    with (
+        install_import_hook(
+            module_name,
+            subject_properties,
+            coverage_metrics=(config.CoverageMetric.BRANCH, config.CoverageMetric.LINE),
+        ),
+        subject_properties.instrumentation_tracer,
+    ):
+        importlib.reload(singlebranches)
+
+    # Line 10 (root dependent in `first`), Line 11 (True branch), Line 12 (False branch)
+    line_11_id = next(
+        lid for lid, meta in subject_properties.existing_lines.items() if meta.line_number == 11
+    )
+
+    # 1. Empty execution trace (first() was not called)
+    res_empty = ExecutionResult()
+    dist_empty = get_line_control_flow_distance(res_empty, line_11_id, subject_properties)
+    assert dist_empty.approach_level > 1
+
+    # 2. Trace from first(-5): True branch has distance 6.0
+    res_neg5 = ExecutionResult()
+    with subject_properties.instrumentation_tracer:
+        singlebranches.first(-5)
+    res_neg5.execution_trace = subject_properties.instrumentation_tracer.get_trace()
+    dist_neg5 = get_line_control_flow_distance(res_neg5, line_11_id, subject_properties)
+    assert dist_neg5.approach_level == 1
+    assert dist_neg5.branch_distance == pytest.approx(6.0)
+
+    # 3. Trace from first(-1): True branch has distance 2.0 (closer!)
+    subject_properties.instrumentation_tracer.reset()
+    res_neg1 = ExecutionResult()
+    with subject_properties.instrumentation_tracer:
+        singlebranches.first(-1)
+    res_neg1.execution_trace = subject_properties.instrumentation_tracer.get_trace()
+    dist_neg1 = get_line_control_flow_distance(res_neg1, line_11_id, subject_properties)
+    assert dist_neg1.approach_level == 1
+    assert dist_neg1.branch_distance == pytest.approx(2.0)
+    assert dist_neg1 < dist_neg5

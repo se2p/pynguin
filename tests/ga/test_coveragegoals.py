@@ -35,7 +35,9 @@ if TYPE_CHECKING:
 
 @contextlib.contextmanager
 def _instrumented_executor(
-    module_name: str, subject_properties: SubjectProperties
+    module_name: str,
+    subject_properties: SubjectProperties,
+    coverage_metrics: set[config.CoverageMetric] | None = None,
 ) -> Iterator[TestCaseExecutor]:
     """Install the import hook, load *module_name* instrumented, yield an executor.
 
@@ -44,7 +46,7 @@ def _instrumented_executor(
     recorded, and the executor runs afterwards while the import hook is still active.
     """
     config.configuration.module_name = module_name
-    with install_import_hook(module_name, subject_properties):
+    with install_import_hook(module_name, subject_properties, coverage_metrics=coverage_metrics):
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)
             importlib.reload(module)
@@ -487,3 +489,144 @@ def _get_lines_data_for_plus_module():
 
 def _get_empty_test() -> tcc.TestCaseChromosome:
     return _chromosome()
+
+
+def test_line_coverage_goal_get_distance_covered(subject_properties: SubjectProperties):
+    goal = bg.LineCoverageGoal(code_object_id=0, line_id=5)
+    result = ExecutionResult()
+    result.execution_trace.covered_line_ids.add(5)
+    distance = goal.get_distance(result, subject_properties)
+    assert distance == cfd.ControlFlowDistance(0, 0.0)
+
+
+def test_line_coverage_goal_get_distance_uncovered(subject_properties: SubjectProperties):
+    goal = bg.LineCoverageGoal(code_object_id=0, line_id=5)
+    result = ExecutionResult()
+    with mock.patch(
+        "pynguin.utils.controlflowdistance.get_line_control_flow_distance",
+        return_value=cfd.ControlFlowDistance(approach_level=1, branch_distance=3.5),
+    ) as mock_get_dist:
+        distance = goal.get_distance(result, subject_properties)
+        mock_get_dist.assert_called_once_with(result, 5, subject_properties)
+        assert distance == cfd.ControlFlowDistance(approach_level=1, branch_distance=3.5)
+
+
+def test_checked_coverage_goal(subject_properties: SubjectProperties):
+    goal1 = bg.CheckedCoverageGoal(code_object_id=1, line_id=42)
+    goal2 = bg.CheckedCoverageGoal(code_object_id=1, line_id=42)
+    goal3 = bg.CheckedCoverageGoal(code_object_id=1, line_id=99)
+
+    assert goal1.line_id == 42
+    assert goal1 == goal2
+    assert goal1 != goal3
+    assert goal1 != "other"
+    assert hash(goal1) == hash(goal2)
+    assert str(goal1) == "Checked Coverage Goal42"
+    assert repr(goal1) == "CheckedCoverageGoal(42)"
+
+    result = ExecutionResult()
+    assert not goal1.is_covered(result)
+    result.execution_trace.checked_lines.add(42)
+    assert goal1.is_covered(result)
+
+    dist_cov = goal1.get_distance(result, subject_properties)
+    assert dist_cov == cfd.ControlFlowDistance(0, 0.0)
+
+    result_uncov = ExecutionResult()
+    with mock.patch(
+        "pynguin.utils.controlflowdistance.get_line_control_flow_distance",
+        return_value=cfd.ControlFlowDistance(approach_level=2, branch_distance=1.0),
+    ) as mock_get_dist:
+        dist_uncov = goal1.get_distance(result_uncov, subject_properties)
+        mock_get_dist.assert_called_once_with(result_uncov, 42, subject_properties)
+        assert dist_uncov == cfd.ControlFlowDistance(approach_level=2, branch_distance=1.0)
+
+
+def test_line_coverage_test_fitness_properties(executor_mock: MagicMock):
+    goal = bg.LineCoverageGoal(code_object_id=0, line_id=1)
+    fitness_fn = bg.LineCoverageTestFitness(executor_mock, goal)
+    assert fitness_fn.goal is goal
+    assert not fitness_fn.is_maximisation_function()
+    assert str(fitness_fn) == f"LineCoverageTestFitness for {goal}"
+    assert repr(fitness_fn) == f"LineCoverageTestFitness(executor={executor_mock}, goal={goal})"
+
+
+def test_statement_checked_coverage_test_fitness(
+    executor_mock: MagicMock,
+    subject_properties: SubjectProperties,
+):
+    executor_mock.subject_properties = subject_properties
+    goal = bg.CheckedCoverageGoal(code_object_id=0, line_id=1)
+    fitness_fn = bg.StatementCheckedCoverageTestFitness(executor_mock, goal)
+    assert fitness_fn.goal is goal
+    assert not fitness_fn.is_maximisation_function()
+    assert str(fitness_fn) == f"CheckedCoverageTestFitness for {goal}"
+    assert repr(fitness_fn) == f"CheckedCoverageTestFitness(executor={executor_mock}, goal={goal})"
+
+    result = ExecutionResult()
+    result.execution_trace.checked_lines.add(1)
+    with mock.patch.object(fitness_fn, "_run_test_case_chromosome", return_value=result):
+        chrom = _get_empty_test()
+        assert fitness_fn.compute_is_covered(chrom)
+        assert fitness_fn.compute_fitness(chrom) == 0.0
+
+    result_uncov = ExecutionResult()
+    with mock.patch.object(fitness_fn, "_run_test_case_chromosome", return_value=result_uncov):
+        chrom = _get_empty_test()
+        assert not fitness_fn.compute_is_covered(chrom)
+        assert fitness_fn.compute_fitness(chrom) > 0.0
+
+
+def test_create_checked_coverage_fitness_functions(
+    executor_mock: MagicMock,
+    subject_properties: SubjectProperties,
+):
+    subject_properties.existing_lines = _get_lines_data_for_plus_module()
+    executor_mock.subject_properties = subject_properties
+    goals = bg.create_checked_coverage_fitness_functions(executor_mock)
+    assert len(goals) == 8
+    assert all(isinstance(g, bg.StatementCheckedCoverageTestFitness) for g in goals)
+
+
+def test_line_coverage_branch_distance_guidance(subject_properties: SubjectProperties):
+    module_name = "tests.fixtures.branchcoverage.singlebranches"
+    with _instrumented_executor(
+        module_name,
+        subject_properties,
+        coverage_metrics={config.CoverageMetric.BRANCH, config.CoverageMetric.LINE},
+    ) as executor:
+        alias = get_module_alias(module_name)
+        # Line 11 is inside `if a > 0: return 42`
+        line_11_id = next(
+            lid for lid, meta in subject_properties.existing_lines.items() if meta.line_number == 11
+        )
+        line_goal = bg.LineCoverageGoal(code_object_id=1, line_id=line_11_id)
+        fitness_fn = bg.LineCoverageTestFitness(executor, line_goal)
+
+        # 1. Test case calling first(-5): True branch distance is 6.0
+        chrom_neg5 = _chromosome(
+            int_stmt("int_0", -5),
+            call_stmt("var_0", f"{alias}.first(int_0)", bound_type=int),
+        )
+        fit_neg5 = fitness_fn.compute_fitness(chrom_neg5)
+        expected_neg5 = 1.0 + 6.0 / (1.0 + 6.0)
+        assert fit_neg5 == pytest.approx(expected_neg5)
+
+        # 2. Test case calling first(-1): True branch distance is 2.0 (closer!)
+        chrom_neg1 = _chromosome(
+            int_stmt("int_0", -1),
+            call_stmt("var_0", f"{alias}.first(int_0)", bound_type=int),
+        )
+        fit_neg1 = fitness_fn.compute_fitness(chrom_neg1)
+        expected_neg1 = 1.0 + 2.0 / (1.0 + 2.0)
+        assert fit_neg1 == pytest.approx(expected_neg1)
+        assert fit_neg1 < fit_neg5
+
+        # 3. Test case calling first(1): Covers line 11!
+        chrom_pos1 = _chromosome(
+            int_stmt("int_0", 1),
+            call_stmt("var_0", f"{alias}.first(int_0)", bound_type=int),
+        )
+        fit_pos1 = fitness_fn.compute_fitness(chrom_pos1)
+        assert fit_pos1 == 0.0
+        assert fitness_fn.compute_is_covered(chrom_pos1)
