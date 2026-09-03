@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import re
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -253,3 +254,87 @@ def test_run_test_suite_chromosome_cache(executor_mock: MagicMock):
     assert test_case0.computation_cache._fitness_cache == {}
     assert test_case1.computation_cache._fitness_cache == {}
     assert test_case2.computation_cache._fitness_cache == {"foo": "bar"}
+
+
+@pytest.mark.parametrize(
+    "coverage_func_cls",
+    [
+        ff.TestSuiteBranchCoverageFunction,
+        ff.TestSuiteLineCoverageFunction,
+        ff.TestSuiteStatementCheckedCoverageFunction,
+        ff.TestSuiteAssertionCheckedCoverageFunction,
+    ],
+)
+def test_test_suite_coverage_function_empty_subject_properties(
+    executor_mock: MagicMock, coverage_func_cls: type[ff.TestSuiteCoverageFunction]
+):
+    executor_mock.subject_properties = SubjectProperties()
+    result = ExecutionResult()
+    result.execution_trace = ExecutionTrace()
+    executor_mock.execute_multiple.return_value = [result]
+
+    cov_func = coverage_func_cls(executor_mock)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(MagicMock()))
+
+    with pytest.raises(
+        RuntimeError, match=re.escape("No subject properties found to compute coverage.")
+    ):
+        cov_func.compute_coverage(suite)
+
+
+@pytest.mark.parametrize(
+    "coverage_func_cls",
+    [
+        ff.TestCaseBranchCoverageFunction,
+        ff.TestCaseLineCoverageFunction,
+        ff.TestCaseStatementCheckedCoverageFunction,
+        ff.TestCaseAssertionCheckedCoverageFunction,
+    ],
+)
+def test_test_case_coverage_function_empty_subject_properties(
+    executor_mock: MagicMock, coverage_func_cls: type[ff.TestCaseCoverageFunction]
+):
+    executor_mock.subject_properties = SubjectProperties()
+    result = ExecutionResult()
+    result.execution_trace = ExecutionTrace()
+    executor_mock.execute.return_value = result
+
+    cov_func = coverage_func_cls(executor_mock)
+    test_case = tcc.TestCaseChromosome(MagicMock())
+
+    with pytest.raises(
+        RuntimeError, match=re.escape("No subject properties found to compute coverage.")
+    ):
+        cov_func.compute_coverage(test_case)
+
+
+def test_test_suite_statement_checked_coverage_with_lines(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {0: MagicMock(), 1: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.checked_lines = {0}
+    result.execution_trace = trace
+    executor_mock.execute_multiple.return_value = [result]
+
+    cov_func = ff.TestSuiteStatementCheckedCoverageFunction(executor_mock)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(MagicMock()))
+    assert cov_func.compute_coverage(suite) == 0.5
+
+
+def test_test_case_statement_checked_coverage_with_lines(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {0: MagicMock(), 1: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.checked_lines = {0}
+    result.execution_trace = trace
+    executor_mock.execute.return_value = result
+
+    cov_func = ff.TestCaseStatementCheckedCoverageFunction(executor_mock)
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    assert cov_func.compute_coverage(test_case) == 0.5

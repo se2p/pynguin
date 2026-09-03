@@ -31,7 +31,10 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def executor():
-    return MagicMock(TestCaseExecutor)
+    mock = MagicMock(TestCaseExecutor)
+    mock.subject_properties.branch_less_code_objects = [0]
+    mock.subject_properties.existing_lines = {0: MagicMock()}
+    return mock
 
 
 def test_generate_sequences(executor, monkeypatch):

@@ -310,6 +310,9 @@ class CoverageFunction:
 
         Returns:
             The computed coverage.
+
+        Raises:
+            RuntimeError: If there are no subject properties to compute coverage for.
         """
 
 
@@ -371,11 +374,10 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
         existing = len(self._executor.subject_properties.existing_lines)
 
         if existing == 0:
-            # Nothing to cover => everything is covered.
-            coverage = 1.0
-        else:
-            covered = len(merged_trace.checked_lines)
-            coverage = covered / existing
+            raise RuntimeError("No subject properties found to compute coverage.")
+
+        covered = len(merged_trace.checked_lines)
+        coverage = covered / existing
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
 
@@ -390,11 +392,10 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
         existing = len(self._executor.subject_properties.existing_lines)
 
         if existing == 0:
-            # Nothing to cover => everything is covered.
-            coverage = 1.0
-        else:
-            covered = len(merged_trace.checked_lines)
-            coverage = covered / existing
+            raise RuntimeError("No subject properties found to compute coverage.")
+
+        covered = len(merged_trace.checked_lines)
+        coverage = covered / existing
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
 

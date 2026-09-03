@@ -193,6 +193,9 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
 
     Returns:
         The computed coverage value
+
+    Raises:
+        RuntimeError: If there are no subject properties to compute coverage for.
     """
     covered = len(
         trace.executed_code_objects.intersection(subject_properties.branch_less_code_objects)
@@ -207,7 +210,10 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
     covered += len([v for v in trace.true_distances.values() if v == 0.0])
     covered += len([v for v in trace.false_distances.values() if v == 0.0])
 
-    coverage = 1.0 if existing == 0 else covered / existing
+    if existing == 0:
+        raise RuntimeError("No subject properties found to compute coverage.")
+
+    coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage
 
@@ -221,14 +227,16 @@ def compute_line_coverage(trace: ExecutionTrace, subject_properties: SubjectProp
 
     Returns:
         The computed coverage value
+
+    Raises:
+        RuntimeError: If there are no subject properties to compute coverage for.
     """
     existing = len(subject_properties.existing_lines)
 
     if existing == 0:
-        # Nothing to cover => everything is covered.
-        coverage = 1.0
-    else:
-        covered = len(trace.covered_line_ids)
-        coverage = covered / existing
+        raise RuntimeError("No subject properties found to compute coverage.")
+
+    covered = len(trace.covered_line_ids)
+    coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage
