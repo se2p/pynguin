@@ -27,6 +27,7 @@ from types import ModuleType
 from unittest import mock
 from unittest.mock import MagicMock
 
+import libcst as cst
 import pytest
 
 import pynguin.assertion.assertion as ass
@@ -51,6 +52,20 @@ class _WithInvalidAndBlacklistedFields:
         self.__dict__["ann"] = __future__.annotations
         self.__dict__["t_var"] = typing.TypeVar("T")
         self.__dict__["pub_valid"] = 42
+
+
+class ReprAssertablePoint:  # noqa: PLW1641
+    """An object fulfilling the __repr__ contract."""
+
+    def __init__(self, x: int, y: int) -> None:  # noqa: D107
+        self.x = x
+        self.y = y
+
+    def __repr__(self) -> str:
+        return f"ReprAssertablePoint({self.x}, {self.y})"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ReprAssertablePoint) and (self.x, self.y) == (other.x, other.y)
 
 
 class _Custom:
@@ -232,6 +247,48 @@ def test_assertable_collection_records_object_assertion():
     statement = b.assign("var_0", "[1, 2, 3]", bound_type=list)
     observer.after_statement_execution(statement, None, {"var_0": [1, 2, 3]}, None)
     assert _assertions_at(observer, 0) == []
+
+
+def test_repr_assertable_object_records_object_assertion():
+    observer = ato.RemoteAssertionTraceObserver()
+    value = ReprAssertablePoint(1, 2)
+    statement = b.assign("var_0", "ReprAssertablePoint(1, 2)", bound_type=ReprAssertablePoint)
+    namespace = {"var_0": value, "ReprAssertablePoint": ReprAssertablePoint}
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    assert len(recorded) == 1
+    assert isinstance(recorded[0], ass.ObjectAssertion)
+    assert recorded[0].source == "var_0"
+    assert recorded[0].object == ReprAssertablePoint(1, 2)
+
+    cst_node = ato.assertion_to_cst(recorded[0])
+    assert cst_node is not None
+    assert cst.Module(body=[cst_node]).code == "assert var_0 == ReprAssertablePoint(1, 2)\n"
+
+
+def test_repr_assertable_nested_in_field():
+    observer = ato.RemoteAssertionTraceObserver()
+
+    class Container:
+        def __init__(self) -> None:
+            self.pt = ReprAssertablePoint(3, 4)
+
+    value = Container()
+    statement = b.assign("var_0", "Container()", bound_type=Container)
+    namespace = {
+        "var_0": value,
+        "Container": Container,
+        "ReprAssertablePoint": ReprAssertablePoint,
+    }
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    assert any(isinstance(a, ass.TypeNameAssertion) for a in recorded)
+    obj_ass = next((a for a in recorded if isinstance(a, ass.ObjectAssertion)), None)
+    assert obj_ass is not None
+    assert obj_ass.source == "var_0.pt"
+    assert obj_ass.object == ReprAssertablePoint(3, 4)
 
 
 def test_non_builtins_object_records_type_name_assertion():

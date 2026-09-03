@@ -9,14 +9,20 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import enum
 import inspect
 import numbers
+import sys
 import types
 import typing
 from inspect import isclass
 from typing import Any
 
+import libcst as cst
+
+import pynguin.configuration as config
+from pynguin.utils.naming import get_module_alias
 from pynguin.utils.orderedset import OrderedSet
 
 if typing.TYPE_CHECKING:
@@ -190,20 +196,108 @@ def is_enum(value: Any) -> bool:
     return issubclass(value, enum.Enum)
 
 
-def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
+def _build_eval_namespace(namespace: dict[str, Any] | None) -> dict[str, Any]:
+    eval_ns: dict[str, Any] = {"__builtins__": __builtins__}
+    mod_name = config.configuration.module_name
+    alias = get_module_alias(mod_name) if mod_name else None
+
+    if namespace is not None:
+        eval_ns.update({k: v for k, v in namespace.items() if not k.startswith("_")})
+        if alias and alias in namespace:
+            eval_ns[alias] = namespace[alias]
+        return eval_ns
+
+    if not mod_name or mod_name not in sys.modules:
+        return eval_ns
+
+    mod = sys.modules[mod_name]
+    if alias:
+        eval_ns[alias] = mod
+    for name in dir(mod):
+        if not name.startswith("_") and name != alias:
+            with contextlib.suppress(Exception):
+                eval_ns[name] = getattr(mod, name)
+    return eval_ns
+
+
+def is_repr_assertable(obj: Any, namespace: dict[str, Any] | None = None) -> bool:
+    """Check whether an object can be asserted on by recreating it from its __repr__.
+
+    An object fulfills the __repr__ contract if:
+    1. It implements a custom __repr__ (not inherited from object.__repr__).
+    2. It implements a custom __eq__ (not inherited from object.__eq__).
+    3. Its repr() produces a valid Python expression parseable by libcst.
+    4. The object can be copied with copy.deepcopy.
+    5. Evaluating repr() in the given namespace (or test export namespace) recreates
+       an object of the same type that compares equal to the original object.
+
+    Args:
+        obj: The object to check.
+        namespace: Optional execution namespace.
+
+    Returns:
+        True if the object can be asserted on via its repr.
+    """
+    tp_ = type(obj)
+    if tp_.__repr__ is object.__repr__ or tp_.__eq__ is object.__eq__:
+        return False
+
+    try:
+        repr_str = repr(obj)
+    except Exception:  # noqa: BLE001
+        return False
+
+    if not repr_str.strip() or (repr_str.startswith("<") and repr_str.endswith(">")):
+        return False
+
+    try:
+        cst.parse_expression(repr_str)
+    except Exception:  # noqa: BLE001
+        return False
+
+    try:
+        copy.deepcopy(obj)
+    except Exception:  # noqa: BLE001
+        return False
+
+    eval_ns = _build_eval_namespace(namespace)
+    try:
+        recreated = eval(repr_str, eval_ns)  # noqa: S307
+    except Exception:  # noqa: BLE001
+        return False
+
+    try:
+        if type(recreated) is not tp_:
+            return False
+        if not (recreated == obj and obj == recreated):
+            return False
+    except Exception:  # noqa: BLE001
+        return False
+
+    return True
+
+
+def is_assertable(
+    obj: Any,
+    recursion_depth: int = 0,
+    namespace: dict[str, Any] | None = None,
+) -> bool:
     """Returns whether we can generate an assertion using an exact comparison value.
 
     Primitives (except float) are assertable.
     Enum values are assertable.
     List, sets, dicts and tuples composed only of assertable objects are also
     assertable.
+    Objects that fulfill the __repr__ contract (where eval(repr(obj)) recreates
+    an equal object in the execution environment) are also assertable.
 
     Objects that are accepted by this function must be constructable in
-    `pynguin.assertion.assertion_to_ast._create_assertable_object`
+    `pynguin.assertion.assertion_to_ast._value_to_cst`
 
     Args:
         obj: The object to check for assertability.
         recursion_depth: Avoid endless recursion for nested structures.
+        namespace: Optional execution namespace.
 
     Returns:
         True, if we can assert on the given value.
@@ -219,13 +313,14 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
     if is_enum(tp_) or is_primitive_type(tp_) or is_none_type(tp_):
         return True
     if is_set(tp_) or is_list(tp_) or is_tuple(tp_):
-        return all(is_assertable(elem, recursion_depth + 1) for elem in obj)
+        return all(is_assertable(elem, recursion_depth + 1, namespace) for elem in obj)
     if is_dict(tp_):
         return all(
-            is_assertable(key, recursion_depth + 1) and is_assertable(value, recursion_depth + 1)
+            is_assertable(key, recursion_depth + 1, namespace)
+            and is_assertable(value, recursion_depth + 1, namespace)
             for key, value in obj.items()
         )
-    return False
+    return is_repr_assertable(obj, namespace=namespace)
 
 
 def get_class_that_defined_method(method: object) -> object | None:

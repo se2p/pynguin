@@ -360,7 +360,15 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         if resolved is _UNRESOLVED:
             return
         value = tt.unwrap(resolved)
-        self._check_value(source, value, position, trace, depth=depth, max_depth=max_depth)
+        self._check_value(
+            source,
+            value,
+            position,
+            trace,
+            namespace=namespace,
+            depth=depth,
+            max_depth=max_depth,
+        )
 
     def _check_value(
         self,
@@ -369,6 +377,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         position: int,
         trace: at.AssertionTrace,
         *,
+        namespace: dict[str, Any] | None = None,
         depth: int,
         max_depth: int,
     ) -> None:
@@ -384,6 +393,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             position: The position of the test case after which the assertions
                 are made.
             trace: The assertion trace where the observed assertions are stored.
+            namespace: The shared execution namespace.
             depth: The current recursion depth.
             max_depth: The maximum recursion depth.
         """
@@ -392,12 +402,18 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(source, value))
             return
-        if is_assertable(value):
+        if is_assertable(value, namespace=namespace):
             trace.add_entry(position, ass.ObjectAssertion(source, copy.deepcopy(value)))
             return
 
         self._check_type_and_recurse(
-            source, value, position, trace, depth=depth, max_depth=max_depth
+            source,
+            value,
+            position,
+            trace,
+            namespace=namespace,
+            depth=depth,
+            max_depth=max_depth,
         )
 
     def _check_type_and_recurse(
@@ -407,6 +423,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         position: int,
         trace: at.AssertionTrace,
         *,
+        namespace: dict[str, Any] | None = None,
         depth: int,
         max_depth: int,
     ) -> None:
@@ -419,6 +436,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             position: The position of the test case after which the assertions
                 are made.
             trace: The assertion trace where the observed assertions are stored.
+            namespace: The shared execution namespace.
             depth: The current recursion depth.
             max_depth: The maximum recursion depth.
         """
@@ -461,6 +479,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                     tt.unwrap(field_value),
                     position,
                     trace,
+                    namespace=namespace,
                     depth=depth + 1,
                     max_depth=max_depth,
                 )

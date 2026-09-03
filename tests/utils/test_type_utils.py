@@ -7,10 +7,15 @@
 import enum
 import functools
 import inspect
+import sys
+import types
+from dataclasses import dataclass
+from typing import NamedTuple
 from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import (
     get_class_that_defined_method,
@@ -28,6 +33,7 @@ from pynguin.utils.type_utils import (
     is_numeric,
     is_optional_parameter,
     is_primitive_type,
+    is_repr_assertable,
     is_set,
     is_string,
     is_tuple,
@@ -365,3 +371,143 @@ def test_get_class_that_defined_method():
     assert get_class_that_defined_method(_DefiningBase.Nested.nested_norm) == _DefiningBase.Nested
     assert get_class_that_defined_method(_DefiningBase.Nested.nested_cls_m) == _DefiningBase.Nested
     assert get_class_that_defined_method(None) is None
+
+
+# --- Repr-based Assertability -------------------------------------------------
+
+
+@dataclass
+class DummyPoint:
+    x: int
+    y: int
+
+
+class DummyNamedTuple(NamedTuple):
+    a: int
+    b: str
+
+
+class DummyReprEq:  # noqa: PLW1641
+    def __init__(self, val: int) -> None:  # noqa: D107
+        self.val = val
+
+    def __repr__(self) -> str:
+        return f"DummyReprEq({self.val})"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, DummyReprEq) and self.val == other.val
+
+
+class DummyNoEq:
+    def __init__(self, val: int) -> None:  # noqa: D107
+        self.val = val
+
+    def __repr__(self) -> str:
+        return f"DummyNoEq({self.val})"
+
+
+class DummyAngleRepr:  # noqa: PLW1641
+    def __init__(self, val: int) -> None:  # noqa: D107
+        self.val = val
+
+    def __repr__(self) -> str:
+        return f"<DummyAngleRepr {self.val}>"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, DummyAngleRepr) and self.val == other.val
+
+
+class DummySyntaxErrorRepr:  # noqa: PLW1641
+    def __repr__(self) -> str:
+        return "def invalid syntax("
+
+    def __eq__(self, other: object) -> bool:
+        return True
+
+
+class DummyRaisingRepr:  # noqa: PLW1641
+    def __repr__(self) -> str:
+        raise RuntimeError("boom")
+
+    def __eq__(self, other: object) -> bool:
+        return True
+
+
+class DummyDifferentTypeRepr:  # noqa: PLW1641
+    def __repr__(self) -> str:
+        return "42"
+
+    def __eq__(self, other: object) -> bool:
+        return other == 42
+
+
+class DummyUncopyable:  # noqa: PLW1641
+    def __repr__(self) -> str:
+        return "DummyUncopyable()"
+
+    def __deepcopy__(self, memo: dict) -> None:
+        raise TypeError("uncopyable")
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, DummyUncopyable)
+
+
+class DummyEqRaising:  # noqa: PLW1641
+    def __repr__(self) -> str:
+        return "DummyEqRaising()"
+
+    def __eq__(self, other: object) -> bool:
+        raise RuntimeError("cannot compare")
+
+
+class _PrivateDummy:  # noqa: PLW1641
+    def __init__(self, val: int) -> None:
+        self.val = val
+
+    def __repr__(self) -> str:
+        return f"_PrivateDummy({self.val})"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _PrivateDummy) and self.val == other.val
+
+
+@pytest.mark.parametrize(
+    "obj, namespace, expected",
+    [
+        (DummyPoint(1, 2), {"DummyPoint": DummyPoint}, True),
+        (DummyNamedTuple(1, "x"), {"DummyNamedTuple": DummyNamedTuple}, True),
+        (DummyReprEq(42), {"DummyReprEq": DummyReprEq}, True),
+        (object(), {"object": object}, False),
+        (DummyNoEq(1), {"DummyNoEq": DummyNoEq}, False),
+        (DummyAngleRepr(1), {"DummyAngleRepr": DummyAngleRepr}, False),
+        (DummySyntaxErrorRepr(), {"DummySyntaxErrorRepr": DummySyntaxErrorRepr}, False),
+        (DummyRaisingRepr(), {"DummyRaisingRepr": DummyRaisingRepr}, False),
+        (DummyDifferentTypeRepr(), {"DummyDifferentTypeRepr": DummyDifferentTypeRepr}, False),
+        (DummyUncopyable(), {"DummyUncopyable": DummyUncopyable}, False),
+        (DummyEqRaising(), {"DummyEqRaising": DummyEqRaising}, False),
+        (_PrivateDummy(1), {"_PrivateDummy": _PrivateDummy}, False),
+        (DummyPoint(1, 2), {}, False),  # Not defined in namespace
+    ],
+)
+def test_is_repr_assertable(obj, namespace, expected):
+    assert is_repr_assertable(obj, namespace=namespace) is expected
+
+
+def test_is_assertable_custom_objects():
+    ns = {"DummyPoint": DummyPoint}
+    p = DummyPoint(1, 2)
+    assert is_assertable(p, namespace=ns) is True
+    assert is_assertable([p, p], namespace=ns) is True
+    assert is_assertable({"key": p}, namespace=ns) is True
+    assert is_assertable((p,), namespace=ns) is True
+    assert is_assertable([p, DummyNoEq(1)], namespace=ns) is False
+
+
+def test_is_repr_assertable_namespace_none_with_sys_modules(monkeypatch):
+    mod = types.ModuleType("dummy_test_module")
+    mod.DummyPoint = DummyPoint  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "dummy_test_module", mod)
+    monkeypatch.setattr(config.configuration, "module_name", "dummy_test_module")
+
+    p = DummyPoint(1, 2)
+    assert is_repr_assertable(p, namespace=None) is True

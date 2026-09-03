@@ -116,6 +116,22 @@ def test_object_assertion_fallback_unparseable_repr():
     assert rendered == f"assert var_0 == '{obj!r}'"
 
 
+def test_object_assertion_custom_repr():
+    class CustomPoint:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
+        def __repr__(self):
+            return f"CustomPoint({self.x}, {self.y})"
+
+    assertion = ass.ObjectAssertion("var_0", CustomPoint(1, 2))
+    assert render(assertion) == "assert var_0 == CustomPoint(1, 2)"
+
+    nested_assertion = ass.ObjectAssertion("var_0", [CustomPoint(1, 2)])
+    assert render(nested_assertion) == "assert var_0 == [CustomPoint(1, 2)]"
+
+
 # --- TypeNameAssertion --------------------------------------------------------
 
 
