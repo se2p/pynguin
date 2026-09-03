@@ -264,7 +264,7 @@ def install_import_hook(
             max_constant_length=1,
         )
     if coverage_metrics is None:
-        coverage_metrics = set(config.configuration.statistics_output.coverage_metrics)
+        coverage_metrics = set(config.configuration.search_algorithm.coverage_metrics)
     if to_cover_config is None:
         to_cover_config = config.configuration.to_cover
 

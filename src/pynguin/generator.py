@@ -326,14 +326,8 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
 
 def _verify_config() -> None:
     """Verify the configuration and raise an exception if something is invalid/not supported."""
-    coverage_metrics = config.configuration.statistics_output.coverage_metrics
-    if config.configuration.algorithm in {
-        config.Algorithm.DYNAMOSA,
-        config.Algorithm.LLDYNAMOSA,
-    } and any(m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH):
-        raise ConfigurationException(
-            "DynaMosa currently only supports branch coverage as coverage criterion."
-        )
+    # Currently all configured combinations of algorithms and coverage metrics are supported.
+    pass
 
 
 def _check_sut_uses_random(new_module_names: set[str]) -> bool:
@@ -456,7 +450,7 @@ def _track_sut_data(subject_properties: SubjectProperties, test_cluster: ModuleT
         RuntimeVariable.McCabeCodeObject, json.dumps(cyclomatic_complexities)
     )
     test_cluster.track_statistics_values(stat.track_output_variable)
-    if config.CoverageMetric.BRANCH in config.configuration.statistics_output.coverage_metrics:
+    if config.CoverageMetric.BRANCH in config.configuration.search_algorithm.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportBranchCoverage,
             ff.compute_branch_coverage(
@@ -464,7 +458,7 @@ def _track_sut_data(subject_properties: SubjectProperties, test_cluster: ModuleT
                 subject_properties,
             ),
         )
-    if config.CoverageMetric.LINE in config.configuration.statistics_output.coverage_metrics:
+    if config.CoverageMetric.LINE in config.configuration.search_algorithm.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportLineCoverage,
             ff.compute_line_coverage(
@@ -554,7 +548,7 @@ def _track_final_metrics(
     """
     output_variables = config.configuration.statistics_output.output_variables
     # Alias for shorter lines
-    cov_metrics = config.configuration.statistics_output.coverage_metrics
+    cov_metrics = config.configuration.search_algorithm.coverage_metrics
     metrics_for_reinstrumenation: set[config.CoverageMetric] = set(cov_metrics)
 
     to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
@@ -667,7 +661,7 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
     # traces slices for test cases after execution
-    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    coverage_metrics = config.configuration.search_algorithm.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
         from pynguin.slicer.statementslicingobserver import (  # noqa: PLC0415
             RemoteStatementSlicingObserver,

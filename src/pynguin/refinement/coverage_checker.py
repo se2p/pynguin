@@ -102,7 +102,7 @@ def _measure_coverage_pynguin(
     tracer = subject_properties.instrumentation_tracer
 
     # Determine which coverage metric to compute
-    coverage_metrics = set(config.configuration.statistics_output.coverage_metrics)
+    coverage_metrics = set(config.configuration.search_algorithm.coverage_metrics)
     use_branch = config.CoverageMetric.BRANCH in coverage_metrics
 
     # Prepare a fresh trace (includes import trace)

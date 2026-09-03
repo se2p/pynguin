@@ -173,7 +173,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         coverage_report: CoverageReport = get_coverage_report(
             solutions_test_suite,
             self.executor.subject_properties,
-            set(config.configuration.statistics_output.coverage_metrics),
+            set(config.configuration.search_algorithm.coverage_metrics),
         )
         line_annotations: list[LineAnnotation] = coverage_report.line_annotations
 

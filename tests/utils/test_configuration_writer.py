@@ -60,7 +60,6 @@ report_dir = "{REPORT_DIR}"
 statistics_backend = "CSV"
 timeline_interval = 1000000000
 timeline_interpolation = true
-coverage_metrics = [ "BRANCH",]
 output_variables = [ "TargetModule", "Coverage",]
 configuration_id = ""
 run_id = ""
@@ -188,6 +187,7 @@ min_initial_tests = 1
 max_initial_tests = 10
 population = 10
 chromosome_length = 48
+coverage_metrics = [ "BRANCH",]
 chop_max_length = true
 elite = 1
 crossover_rate = 0.648
@@ -292,7 +292,6 @@ def expected_txt(tmp_path):
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
  "statistics_backend=<StatisticsBackend.CSV: 'CSV'>, "
  'timeline_interval=1000000000, timeline_interpolation=True, '
- "coverage_metrics=[<CoverageMetric.BRANCH: 'BRANCH'>], "
  "output_variables=[TargetModule, Coverage], configuration_id='', run_id='', "
  "project_name='', create_coverage_report=False, type_guess_top_n=10, "
  'store_test_before_execution=False), '
@@ -349,8 +348,9 @@ def expected_txt(tmp_path):
  'generator_hierarchy_penalty=1.0, generator_any_type_penalty=100.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
  'max_initial_tests=10, population=10, chromosome_length=48, '
- 'chop_max_length=True, elite=1, crossover_rate=0.648, '
- 'test_insertion_probability=0.1, test_delete_probability=0.3333333333333333, '
+ "coverage_metrics=[<CoverageMetric.BRANCH: 'BRANCH'>], chop_max_length=True, "
+ 'elite=1, crossover_rate=0.648, test_insertion_probability=0.1, '
+ 'test_delete_probability=0.3333333333333333, '
  'test_change_probability=0.3333333333333333, '
  'test_insert_probability=0.3333333333333333, '
  'statement_insertion_probability=0.5, random_perturbation=0.2, '
@@ -548,6 +548,8 @@ False
 True
 --search_algorithm.chromosome_length
 48
+--search_algorithm.coverage_metrics
+BRANCH
 --search_algorithm.crossover_rate
 0.648
 --search_algorithm.elite
@@ -608,8 +610,6 @@ False
 0.2
 --seeding.seeded_testcases_reuse_probability
 0.9
---statistics_output.coverage_metrics
-BRANCH
 --statistics_output.create_coverage_report
 False
 --statistics_output.output_variables

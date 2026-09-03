@@ -49,7 +49,7 @@ def test_testsuite_statement_checked_coverage_calculation(
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=plus_three_test))
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -72,7 +72,7 @@ def test_testcase_statement_checked_coverage_calculation(
     module_name = "tests.fixtures.linecoverage.plus"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=plus_three_test)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -115,7 +115,7 @@ def test_only_void_function(setter_test, subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_test)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -163,7 +163,7 @@ def test_getter_before_setter(getter_setter_test, subject_properties: SubjectPro
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=getter_setter_test)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -209,7 +209,7 @@ def test_getter_after_setter(setter_getter_test, subject_properties: SubjectProp
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_getter_test)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -263,7 +263,7 @@ def test_unbound_statement_records_no_criterion(subject_properties: SubjectPrope
         _make_statement("var_0 = plus_0.plus_three(int_0)", bound_variable="var_0", bound_type=int)
     )
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -302,7 +302,7 @@ def test_exception_abort_stops_criterion_collection(subject_properties: SubjectP
     )
 
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 

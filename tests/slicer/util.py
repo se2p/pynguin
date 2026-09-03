@@ -174,7 +174,7 @@ def slice_function_at_return(function: Callable[[], Any]) -> list[UniqueInstruct
 
 
 def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
+    config.configuration.search_algorithm.coverage_metrics = [config.CoverageMetric.CHECKED]
     subject_properties = SubjectProperties()
     with install_import_hook(
         module_name,

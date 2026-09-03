@@ -152,14 +152,12 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         subject_properties = self.executor.subject_properties
         active_first_lines: set[int] = set()
         for fitness in self._goals_manager.current_goals:
-            # current_goals is typed as OrderedSet[FitnessFunction] by _GoalsManager
-            # itself, but is always populated with BranchCoverageTestFitness.
-            branch_fitness = cast("bg.BranchCoverageTestFitness", fitness)
-            code_object_meta = subject_properties.existing_code_objects.get(
-                branch_fitness.goal.code_object_id
-            )
-            if code_object_meta is not None:
-                active_first_lines.add(code_object_meta.code_object.co_firstlineno)
+            goal = getattr(fitness, "goal", None)
+            code_object_id = getattr(goal, "code_object_id", None)
+            if code_object_id is not None:
+                code_object_meta = subject_properties.existing_code_objects.get(code_object_id)
+                if code_object_meta is not None:
+                    active_first_lines.add(code_object_meta.code_object.co_firstlineno)
 
         eligible: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
         for gao in self.test_cluster.accessible_objects_under_test:
@@ -206,7 +204,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         coverage_report: CoverageReport = get_coverage_report(
             solutions_test_suite,
             self.executor.subject_properties,
-            set(config.configuration.statistics_output.coverage_metrics),
+            set(config.configuration.search_algorithm.coverage_metrics),
         )
         line_annotations: list[LineAnnotation] = coverage_report.line_annotations
 

@@ -148,7 +148,7 @@ def test__track_final_metrics_reload_failure_does_not_discard_suite():
     # return a non-None set so run_pynguin proceeds to export the suite instead
     # of returning FINAL_METRICS_TRACKING_FAILED.
     config.configuration.statistics_output.output_variables = []
-    config.configuration.statistics_output.coverage_metrics = {config.CoverageMetric.BRANCH}
+    config.configuration.search_algorithm.coverage_metrics = {config.CoverageMetric.BRANCH}
     algorithm = MagicMock(
         test_suite_coverage_functions=[ff.TestSuiteBranchCoverageFunction(MagicMock())]
     )
@@ -426,16 +426,12 @@ def test_verify_config(tmp_path, algorithm):
         module_name="example",
         test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
         project_path=str(tmp_path),
-        statistics_output=config.StatisticsOutputConfiguration(
+        search_algorithm=config.SearchAlgorithmConfiguration(
             coverage_metrics=[CoverageMetric.LINE, CoverageMetric.BRANCH]
         ),
     )
     gen.set_configuration(configuration)
-    with pytest.raises(
-        gen.ConfigurationException,
-        match=r"DynaMosa currently only supports branch coverage as coverage criterion",
-    ):
-        gen._verify_config()
+    gen._verify_config()
 
 
 def test_check_sut_uses_random_false_when_random_not_loaded():

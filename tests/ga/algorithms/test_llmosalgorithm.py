@@ -201,7 +201,7 @@ def test_target_uncovered_callables(mock_get_coverage_report, llmosa_algorithm):
 
     with patch("pynguin.ga.algorithms.llmosalgorithm.config") as mock_config:
         mock_config.configuration.large_language_model.coverage_threshold = 0.8
-        mock_config.configuration.statistics_output.coverage_metrics = ["branch"]
+        mock_config.configuration.search_algorithm.coverage_metrics = ["branch"]
 
         # Execute
         result = llmosa_algorithm.target_uncovered_callables()
@@ -255,7 +255,7 @@ def test_coverage_in_range(mock_get_coverage_report, llmosa_algorithm):
 
     with patch("pynguin.ga.algorithms.llmosalgorithm.config") as mock_config:
         mock_config.configuration.large_language_model.coverage_threshold = 0.8
-        mock_config.configuration.statistics_output.coverage_metrics = ["branch"]
+        mock_config.configuration.search_algorithm.coverage_metrics = ["branch"]
 
         # Define the coverage_in_range function directly in the test
         def coverage_in_range(start_line, end_line):
@@ -343,7 +343,7 @@ def test_calculate_gao_coverage_map(
 
     with patch("pynguin.ga.algorithms.llmosalgorithm.config") as mock_config:
         mock_config.configuration.large_language_model.coverage_threshold = 0.8
-        mock_config.configuration.statistics_output.coverage_metrics = ["branch"]
+        mock_config.configuration.search_algorithm.coverage_metrics = ["branch"]
 
         # Define the coverage_in_range function directly in the test
         def coverage_in_range(start_line, end_line):
