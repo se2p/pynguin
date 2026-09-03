@@ -268,7 +268,11 @@ def _is_blacklisted(element: Any) -> bool:
             ):
                 # Allow some builtin types
                 return False
-            return element.__module__ in module_blacklist
+            return (
+                not isinstance(element.__module__, str)
+                or not element.__module__
+                or element.__module__ in module_blacklist
+            )
         if _is_function(element):
             # Some modules can be run standalone using a main function or provide a small
             # set of tests ('test'). We don't want to include those functions.
@@ -277,7 +281,8 @@ def _is_blacklisted(element: Any) -> bool:
             # Unwrap so cache-wrapped functions are checked against their real name/module.
             func = inspect.unwrap(element)
             return (
-                func.__module__ is None
+                not isinstance(func.__module__, str)
+                or not func.__module__
                 or func.__module__ in module_blacklist
                 or func.__qualname__.startswith((
                     "main",
@@ -1895,13 +1900,19 @@ def __analyse_included_classes(
             LOGGER.info("Skipping class that has a property __module__: %s", current)
             continue
 
+        if not current.__module__ or not isinstance(current.__module__, str):
+            LOGGER.info("Skipping class with invalid __module__: %s", current)
+            continue
+
         # Skip some C-extension modules that are not publicly accessible.
         try:
             results = parse_results[current.__module__]
-        except ModuleNotFoundError as error:
-            if getattr(current, "__file__", None) is None or Path(current.__file__).suffix in {
+        except (ModuleNotFoundError, ValueError) as error:
+            current_file = getattr(current, "__file__", None)
+            if current_file is None or Path(str(current_file)).suffix in {
                 ".so",
                 ".pyd",
+                ".dylib",
             }:
                 LOGGER.info("C-extension module not found: %s", current.__module__)
                 continue
@@ -1946,11 +1957,19 @@ def __analyse_included_functions(
         if current in seen_functions:
             continue
         seen_functions.add(current)
+        if not current.__module__ or not isinstance(current.__module__, str):
+            LOGGER.info("Skipping function with invalid __module__: %s", current)
+            continue
+        try:
+            syntax_tree = parse_results[current.__module__].syntax_tree
+        except (ModuleNotFoundError, ValueError):
+            LOGGER.info("C-extension module not found for function: %s", current.__module__)
+            syntax_tree = None
         __analyse_function(
             func_name=current.__qualname__,
             func=current,
             type_inference_provider=type_inference_provider,
-            module_tree=parse_results[current.__module__].syntax_tree,
+            module_tree=syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
@@ -1972,7 +1991,7 @@ def __check_c_modules(
 
     # If the whole module file looks like a binary extension:
     module_file = getattr(module, "__file__", "")
-    if module_file and Path(module_file).suffix in {".so", ".pyd"}:
+    if module_file and Path(module_file).suffix in {".so", ".pyd", ".dylib"}:
         if not _c_is_whitelisted(module):
             non_whitelisted_modules.add(module.__name__)
         return non_whitelisted_modules
@@ -1983,7 +2002,7 @@ def __check_c_modules(
     # results), which would otherwise raise "dictionary changed size during
     # iteration" while iterating the live ``__dict__``.
     for element in list(vars(module).values()):
-        if inspect.isfunction(element) or inspect.isclass(element):
+        if inspect.isroutine(element) or inspect.isclass(element):
             try:
                 inspect.getsource(element)
                 # Source is available => likely pure Python.
