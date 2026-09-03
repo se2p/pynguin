@@ -71,6 +71,28 @@ class LineCoverageGoal(AbstractCoverageGoal):
     def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         return self._line_id in result.execution_trace.covered_line_ids
 
+    def get_distance(
+        self,
+        result: ExecutionResult,
+        subject_properties: SubjectProperties,
+    ) -> cfd.ControlFlowDistance:
+        """Computes the control-flow distance of an execution result for this line.
+
+        Args:
+            result: The execution result
+            subject_properties: The subject properties
+
+        Returns:
+            The control-flow distance
+        """
+        if self.is_covered(result):
+            return cfd.ControlFlowDistance()
+        return cfd.get_line_control_flow_distance(
+            result,
+            self._line_id,
+            subject_properties,
+        )
+
     def __str__(self) -> str:
         return f"Line Coverage Goal{self._line_id}"
 
@@ -106,6 +128,28 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
 
     def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         return self._line_id in result.execution_trace.checked_lines
+
+    def get_distance(
+        self,
+        result: ExecutionResult,
+        subject_properties: SubjectProperties,
+    ) -> cfd.ControlFlowDistance:
+        """Computes the control-flow distance of an execution result for this checked line.
+
+        Args:
+            result: The execution result
+            subject_properties: The subject properties
+
+        Returns:
+            The control-flow distance
+        """
+        if self.is_covered(result):
+            return cfd.ControlFlowDistance()
+        return cfd.get_line_control_flow_distance(
+            result,
+            self._line_id,
+            subject_properties,
+        )
 
     def __str__(self) -> str:
         return f"Checked Coverage Goal{self._line_id}"
@@ -401,10 +445,21 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
+    @property
+    def goal(self) -> LineCoverageGoal:
+        """Provides the line-coverage goal of this fitness function.
+
+        Returns:
+            The attached line-coverage goal
+        """
+        return self._goal
+
     def compute_fitness(  # noqa: D102
         self, individual: tcc.TestCaseChromosome
     ) -> float:
-        return 0 if self.compute_is_covered(individual) else 1
+        result = self._run_test_case_chromosome(individual)
+        distance = self._goal.get_distance(result, self._executor.subject_properties)
+        return distance.get_resulting_branch_fitness()
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
@@ -429,10 +484,21 @@ class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
+    @property
+    def goal(self) -> CheckedCoverageGoal:
+        """Provides the checked-coverage goal of this fitness function.
+
+        Returns:
+            The attached checked-coverage goal
+        """
+        return self._goal
+
     def compute_fitness(  # noqa: D102
         self, individual: tcc.TestCaseChromosome
     ) -> float:
-        return 0 if self.compute_is_covered(individual) else 1
+        result = self._run_test_case_chromosome(individual)
+        distance = self._goal.get_distance(result, self._executor.subject_properties)
+        return distance.get_resulting_branch_fitness()
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)

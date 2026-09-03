@@ -455,6 +455,12 @@ class SubjectProperties:
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
+    # Cache for line control dependencies:
+    # line_id -> (is_root_dependent, ((predicate_id, branch_value), ...))
+    _line_control_dependencies: dict[int, tuple[bool, tuple[tuple[int, bool], ...]]] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+
     @property
     def branch_less_code_objects(self) -> Iterable[int]:
         """Get the existing code objects that do not contain a branch.
@@ -479,6 +485,7 @@ class SubjectProperties:
         self.existing_code_objects.clear()
         self.existing_predicates.clear()
         self.existing_lines.clear()
+        self._line_control_dependencies.clear()
         self.instrumentation_tracer.reset()
 
     def sharing_registries(self) -> SubjectProperties:
@@ -498,12 +505,14 @@ class SubjectProperties:
         Returns:
             Subject properties sharing this instance's registries, with a fresh tracer.
         """
-        return SubjectProperties(
+        props = SubjectProperties(
             code_object_counter=self.code_object_counter,
             existing_code_objects=self.existing_code_objects,
             existing_predicates=self.existing_predicates,
             existing_lines=self.existing_lines,
         )
+        props._line_control_dependencies = self._line_control_dependencies
+        return props
 
     def create_code_object_id(self) -> int:
         """Create a new code object ID.
@@ -593,6 +602,73 @@ class SubjectProperties:
             The line numbers.
         """
         return OrderedSet([self.existing_lines[line_id].line_number for line_id in line_ids])
+
+    def get_line_control_dependencies(
+        self, line_id: int
+    ) -> tuple[bool, tuple[tuple[int, bool], ...]]:
+        """Provides the control dependencies for a given line.
+
+        Args:
+            line_id: The line id
+
+        Returns:
+            A tuple of (is_root_dependent, tuple of (predicate_id, branch_value))
+        """
+        if line_id not in self._line_control_dependencies:
+            self._line_control_dependencies[line_id] = self._compute_line_control_dependencies(
+                line_id
+            )
+        return self._line_control_dependencies[line_id]
+
+    def _compute_line_control_dependencies(
+        self, line_id: int
+    ) -> tuple[bool, tuple[tuple[int, bool], ...]]:
+        line_meta = self.existing_lines.get(line_id)
+        if line_meta is None:
+            return True, ()
+
+        code_object_meta = self.existing_code_objects.get(line_meta.code_object_id)
+        if code_object_meta is None or line_meta.code_object_id in self.branch_less_code_objects:
+            return True, ()
+
+        nodes = [
+            node
+            for node in code_object_meta.cfg.basic_block_nodes
+            if any(instr.lineno == line_meta.line_number for instr in node.instructions)
+        ]
+        if not nodes:
+            return True, ()
+
+        return self._extract_dependencies_from_nodes(
+            code_object_meta, line_meta.code_object_id, nodes
+        )
+
+    def _extract_dependencies_from_nodes(
+        self,
+        code_object_meta: CodeObjectMetaData,
+        code_object_id: int,
+        nodes: list[BasicBlockNode],
+    ) -> tuple[bool, tuple[tuple[int, bool], ...]]:
+        is_root = False
+        branch_deps: list[tuple[int, bool]] = []
+        nodes_predicates = {
+            meta.node: pred_id
+            for pred_id, meta in self.existing_predicates.items()
+            if meta.code_object_id == code_object_id
+        }
+
+        for node in nodes:
+            if code_object_meta.cdg.is_control_dependent_on_root(node):
+                is_root = True
+            for cd in code_object_meta.cdg.get_control_dependencies(node):
+                pred_id = nodes_predicates.get(cd.node)
+                if pred_id is not None:
+                    branch_deps.append((pred_id, cd.branch_value))
+
+        if not branch_deps and not is_root:
+            is_root = True
+
+        return is_root, tuple(branch_deps)
 
 
 class AbstractExecutionTracer(ABC):  # noqa: PLR0904
