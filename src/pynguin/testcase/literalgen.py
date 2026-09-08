@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 import libcst as cst
 
 import pynguin.configuration as config
+from pynguin.testcase.collection_tracker import is_safe_key
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -851,6 +852,35 @@ def _mutate_tuple(
     return expr.with_changes(elements=_tuple_elements(elems))
 
 
+def _prune_unused_dict_element(
+    delems: list[cst.BaseDictElement],
+    accessed_keys: set[object],
+) -> list[cst.BaseDictElement] | None:
+    """Find and remove a randomly chosen unused dict element if any exist.
+
+    Args:
+        delems: Current dict elements.
+        accessed_keys: Keys accessed during test execution.
+
+    Returns:
+        Updated list of dict elements with one unused element removed, or None.
+    """
+    unused_indices: list[int] = []
+    for i, elem in enumerate(delems):
+        if isinstance(elem, cst.DictElement):
+            parsed_key = parse_literal(elem.key, None)
+            is_valid_key = parsed_key is not None or (
+                isinstance(elem.key, cst.Name) and elem.key.value == "None"
+            )
+            if is_valid_key and parsed_key not in accessed_keys:
+                unused_indices.append(i)
+
+    if unused_indices:
+        idx_to_remove = randomness.choice(unused_indices)
+        return delems[:idx_to_remove] + delems[idx_to_remove + 1 :]
+    return None
+
+
 def _mutate_dict(
     expr: cst.BaseExpression,
     constant_provider: ConstantProvider,
@@ -879,26 +909,20 @@ def _mutate_dict(
 
     if collection_trace is not None:
         if collection_trace.missing_keys:
-            key_val = randomness.choice(list(collection_trace.missing_keys))
-            new_entry = cst.DictElement(
-                key=literal_to_cst(key_val),
-                value=_element_value(constant_provider, element_pool),
-            )
-            delems.append(new_entry)
-            return expr.with_changes(elements=delems)
+            safe_missing = [k for k in collection_trace.missing_keys if is_safe_key(k)]
+            if safe_missing:
+                key_val = randomness.choice(safe_missing)
+                new_entry = cst.DictElement(
+                    key=literal_to_cst(key_val),
+                    value=_element_value(constant_provider, element_pool),
+                )
+                delems.append(new_entry)
+                return expr.with_changes(elements=delems)
 
         if collection_trace.accessed_keys and delems:
-            unused_indices: list[int] = []
-            for i, elem in enumerate(delems):
-                if isinstance(elem, cst.DictElement):
-                    parsed_key = parse_literal(elem.key, None)
-                    if parsed_key is not None and parsed_key not in collection_trace.accessed_keys:
-                        unused_indices.append(i)
-
-            if unused_indices:
-                idx_to_remove = randomness.choice(unused_indices)
-                delems = delems[:idx_to_remove] + delems[idx_to_remove + 1 :]
-                return expr.with_changes(elements=delems)
+            pruned = _prune_unused_dict_element(delems, collection_trace.accessed_keys)
+            if pruned is not None:
+                return expr.with_changes(elements=pruned)
 
     if delems and randomness.next_bool():
         idx = randomness.next_int(0, len(delems))
@@ -1184,6 +1208,8 @@ def literal_to_cst(value: object) -> cst.BaseExpression:
         A CST expression representing ``value``.  Falls back to ``cst.Name("None")``
         for values that have no literal representation.
     """
+    if value is None:
+        return cst.Name("None")
     if isinstance(value, bool):
         return cst.Name("True" if value else "False")
     if isinstance(value, int):

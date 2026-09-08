@@ -11,7 +11,6 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import operator
-import pickle  # noqa: S403
 import threading
 from typing import TYPE_CHECKING, Any, SupportsIndex
 
@@ -26,21 +25,19 @@ if TYPE_CHECKING:
 
 
 def is_safe_key(key: object) -> bool:
-    """Check whether a dictionary key can be safely pickled.
+    """Check whether a dictionary key can be safely serialized and rendered as a literal.
 
     Args:
         key: The key object to check.
 
     Returns:
-        True if the key is safe to serialize, False otherwise.
+        True if the key is safe to serialize and render as a literal, False otherwise.
     """
-    if isinstance(key, str | int | float | bool | bytes):
+    if key is None or isinstance(key, str | int | float | bool | bytes | complex):
         return True
-    try:
-        pickle.dumps(key)
-        return True
-    except Exception:  # noqa: BLE001
-        return False
+    if isinstance(key, tuple):
+        return all(is_safe_key(elem) for elem in key)
+    return False
 
 
 @dataclasses.dataclass
@@ -154,7 +151,7 @@ class TrackedList(list):  # noqa: FURB189
     def __contains__(self, value: object) -> bool:
         for i, item in enumerate(super().__iter__()):
             self._record_index(i)
-            if item == value or item is value:
+            if item is value or item == value:
                 return True
         return False
 
@@ -261,13 +258,31 @@ class TrackedTuple(tuple):  # noqa: SLOT001
     def __contains__(self, value: object) -> bool:
         for i, item in enumerate(super().__iter__()):
             self._record_index(i)
-            if item == value or item is value:
+            if item is value or item == value:
                 return True
         return False
 
 
 class TrackedDict(dict):  # noqa: FURB189
     """A dict subclass that tracks accessed and missing keys during test execution."""
+
+    accessed_keys: set[object]
+    missing_keys: set[object]
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        """Create a new tracked dict instance.
+
+        Args:
+            *args: Positional arguments to dict.
+            **kwargs: Keyword arguments to dict.
+
+        Returns:
+            The newly created TrackedDict instance.
+        """
+        instance = super().__new__(cls, *args, **kwargs)
+        instance.accessed_keys = set()
+        instance.missing_keys = set()
+        return instance
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initializes a tracked dict.
@@ -277,8 +292,10 @@ class TrackedDict(dict):  # noqa: FURB189
             **kwargs: Keyword arguments to dict.
         """
         super().__init__(*args, **kwargs)
-        self.accessed_keys: set[object] = set()
-        self.missing_keys: set[object] = set()
+        if not hasattr(self, "accessed_keys"):
+            self.accessed_keys = set()
+        if not hasattr(self, "missing_keys"):
+            self.missing_keys = set()
 
     def __getitem__(self, key: Any) -> Any:
         self.accessed_keys.add(key)
@@ -314,26 +331,44 @@ class TrackedDict(dict):  # noqa: FURB189
             self.missing_keys.add(key)
         return super().pop(key, *args)
 
+    def popitem(self) -> tuple[Any, Any]:  # noqa: D102
+        item = super().popitem()
+        self.accessed_keys.add(item[0])
+        return item
+
     def setdefault(self, key: Any, default: Any = None) -> Any:  # noqa: D102
         self.accessed_keys.add(key)
         if key not in self:
             self.missing_keys.add(key)
         return super().setdefault(key, default)
 
+    def update(self, *args: Any, **kwargs: Any) -> None:  # noqa: D102
+        super().update(*args, **kwargs)
+        if args:
+            other = args[0]
+            if hasattr(other, "keys"):
+                self.accessed_keys.update(other.keys())
+            else:
+                self.accessed_keys.update(k for k, _ in other)
+        if kwargs:
+            self.accessed_keys.update(kwargs.keys())
+
     def __iter__(self) -> Any:
         for k in super().__iter__():
             self.accessed_keys.add(k)
             yield k
 
+    def keys(self) -> Any:  # noqa: D102
+        self.accessed_keys.update(super().keys())
+        return super().keys()
+
     def items(self) -> Any:  # noqa: D102
-        for k, v in super().items():
-            self.accessed_keys.add(k)
-            yield k, v
+        self.accessed_keys.update(super().keys())
+        return super().items()
 
     def values(self) -> Any:  # noqa: D102
-        for k, v in super().items():
-            self.accessed_keys.add(k)
-            yield v
+        self.accessed_keys.update(super().keys())
+        return super().values()
 
 
 class RemoteCollectionTrackingObserver(RemoteExecutionObserver):

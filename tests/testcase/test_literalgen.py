@@ -740,3 +740,44 @@ def test_mutate_literal_passes_collection_trace():
     mutated = lg.mutate_literal(expr, list, provider, collection_trace=trace)
     assert isinstance(mutated, cst.List)
     assert len(mutated.elements) == 1
+
+
+def test_literal_to_cst_none():
+    node = lg.literal_to_cst(None)
+    assert isinstance(node, cst.Name)
+    assert node.value == "None"
+
+
+def test_mutate_dict_ignores_unsafe_missing_keys():
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.SimpleString("'k'"), value=cst.Integer("1")),
+        ]
+    )
+    trace = CollectionTrace(
+        accessed_keys={"k"},
+        missing_keys={object()},
+    )
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Dict)
+    # The unsafe object key should not have been added as Name("None")
+    assert not any(isinstance(e.key, cst.Name) and e.key.value == "None" for e in mutated.elements)
+
+
+def test_mutate_dict_with_none_key_prune_unused():
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.Name("None"), value=cst.Integer("1")),
+        ]
+    )
+    trace = CollectionTrace(
+        accessed_keys={"other"},
+        missing_keys=set(),
+    )
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Dict)
+    assert len(mutated.elements) == 0

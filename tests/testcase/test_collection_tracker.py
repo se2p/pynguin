@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import math
+import pickle  # noqa: S403
 from unittest.mock import MagicMock
 
 import libcst as cst
@@ -30,8 +31,13 @@ def test_is_safe_key():
     bool_key = True
     assert is_safe_key(bool_key)
     assert is_safe_key(b"bytes")
-    # A lambda cannot be pickled by standard pickle
+    assert is_safe_key(None)
+    assert is_safe_key(complex(1, 2))
+    assert is_safe_key((1, "str", 3.0))
+    # Non-literals or unpicklable objects are not safe keys
     assert not is_safe_key(lambda x: x)
+    assert not is_safe_key(object())
+    assert not is_safe_key((1, object()))
 
 
 def test_tracked_list_positive_indexing():
@@ -274,14 +280,69 @@ def test_tracked_dict_iter_items_values():
     assert d.accessed_keys == {"x", "y"}
 
     d.accessed_keys.clear()
-    items = list(d.items())
+    items = d.items()
     assert len(items) == 2
+    assert list(items) == [("x", 10), ("y", 20)]
+    assert list(items) == [("x", 10), ("y", 20)]
+    assert items & {("x", 10)} == {("x", 10)}
     assert d.accessed_keys == {"x", "y"}
 
     d.accessed_keys.clear()
-    vals = list(d.values())
+    vals = d.values()
     assert len(vals) == 2
+    assert list(vals) == [10, 20]
+    assert list(vals) == [10, 20]
     assert d.accessed_keys == {"x", "y"}
+
+    d.accessed_keys.clear()
+    d_keys = d.keys()
+    assert len(d_keys) == 2
+    assert list(d_keys) == ["x", "y"]
+    assert d_keys & {"x"} == {"x"}
+    assert d.accessed_keys == {"x", "y"}
+
+
+def test_tracked_dict_popitem_and_update():
+    d = TrackedDict({"a": 1, "b": 2})
+    k, _ = d.popitem()
+    assert k in d.accessed_keys
+    d.accessed_keys.clear()
+
+    d.update({"c": 3}, d=4)
+    assert {"c", "d"} <= d.accessed_keys
+    d.accessed_keys.clear()
+
+    d.update([("e", 5)])
+    assert "e" in d.accessed_keys
+
+
+def test_tracked_dict_pickle_roundtrip():
+    d = TrackedDict({"a": 1, "b": 2})
+    d.missing_keys.add("c")
+
+    dumped = pickle.dumps(d)
+    restored = pickle.loads(dumped)  # noqa: S301
+
+    assert restored == {"a": 1, "b": 2}
+    # Pickling dumps all items, so keys are recorded during serialization
+    assert restored.accessed_keys == {"a", "b"}
+    assert restored.missing_keys == {"c"}
+
+
+def test_tracked_contains_identity_first():
+    class RaiseOnEq:
+        def __eq__(self, other: object) -> bool:
+            raise RuntimeError("Equality comparison called")
+
+        def __hash__(self) -> int:
+            return id(self)
+
+    obj = RaiseOnEq()
+    tracked_list = TrackedList([obj])
+    assert obj in tracked_list
+
+    tracked_tuple = TrackedTuple((obj,))
+    assert obj in tracked_tuple
 
 
 def test_observer_workflow():
