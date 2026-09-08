@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, cast
 
 import libcst as cst
 
+from pynguin.assertion.assertion import FloatAssertion
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.testcase.execution import OutputSuppressionContext, suppress_logging
 from pynguin.utils.exceptions import TracingAbortedException
@@ -440,7 +441,9 @@ class TestSuiteWriter:
             exc_types = self._per_statement_exceptions(
                 tc, module_name, project_path, subject_properties
             )
-            if any(e is not None for e in exc_types):
+            if any(e is not None for e in exc_types) or any(
+                isinstance(a, FloatAssertion) for stmt in tc.statements() for a in stmt.assertions
+            ):
                 needs_pytest = True
             func, func_used_exc_types = self._build_test_function(idx, tc, exc_types)
             used_exc_types.update(func_used_exc_types)

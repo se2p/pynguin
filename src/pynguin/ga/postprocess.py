@@ -51,11 +51,7 @@ def get_assertion_protected_variables(test_case: tc.TestCase) -> set[str]:
     Returns:
         Set of variable names that should not be removed during minimization.
     """
-    protected = _directly_asserted_variables(test_case)
-    if not protected:
-        return protected
-    _add_backward_dependencies(test_case, protected)
-    return protected
+    return test_case.get_assertion_protected_variables()
 
 
 def _directly_asserted_variables(test_case: tc.TestCase) -> set[str]:
@@ -74,9 +70,9 @@ def _directly_asserted_variables(test_case: tc.TestCase) -> set[str]:
                 continue
             if isinstance(assertion, ReferenceAssertion):
                 source = assertion.source
-                # In the libcst representation the source is the variable name.
+                # In libcst the source is the variable name (or dotted attribute).
                 if isinstance(source, str):
-                    protected.add(source)
+                    protected.add(source.partition(".")[0])
     return protected
 
 
@@ -491,8 +487,13 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
             statements_changed = False
             for test_case_idx, test_case_chrom in enumerate(chromosome.test_case_chromosomes):
                 test_case = test_case_chrom.test_case
+                protected = get_assertion_protected_variables(test_case)
                 i = 0
                 while i < test_case.size():
+                    statement = test_case.get_statement(i)
+                    if statement.bound_variable in protected:
+                        i += 1
+                        continue
                     test_suite_clone = chromosome.clone()
                     clone_test_case_chrom: tcc.TestCaseChromosome = (
                         test_suite_clone.get_test_case_chromosome(test_case_idx)

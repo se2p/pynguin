@@ -38,10 +38,16 @@ def test_get_assertion_protected_variables_no_assertions():
     "make_assertion,expect_protected",
     [
         (lambda: ObjectAssertion("int_0", 1), True),
+        (lambda: ObjectAssertion("int_0.value", 1), True),
         (lambda: MagicMock(spec=ExceptionAssertion), False),
         (lambda: MagicMock(spec=ReferenceAssertion, source=123), False),
     ],
-    ids=["reference_assertion", "exception_assertion_skipped", "non_str_source_skipped"],
+    ids=[
+        "reference_assertion",
+        "dotted_reference_assertion",
+        "exception_assertion_skipped",
+        "non_str_source_skipped",
+    ],
 )
 def test_directly_asserted_variables(make_assertion, expect_protected):
     statement = int_stmt("int_0", 1)
@@ -147,6 +153,22 @@ def test_unused_statements_visitor_turns_unused_assignment_into_expression():
     assert test_case.get_statement(0).bound_variable == "int_0"
     assert test_case.get_statement(1).bound_variable is None
     assert visitor.deleted_statement_indexes == set()
+
+
+def test_unused_statements_visitor_preserves_asserted_variable():
+    kept = int_stmt("int_0", 1)
+    assertion = ObjectAssertion("int_0", 1)
+    kept.assertions.append(assertion)
+    unused = assign("int_1", "int_0 + 1", bound_type=int)
+    test_case = make_test_case(kept, unused)
+    visitor = pp.UnusedStatementsTestCaseVisitor()
+
+    visitor.visit_default_test_case(test_case)
+
+    assert test_case.size() == 2
+    assert test_case.get_statement(0).bound_variable == "int_0"
+    assert test_case.get_statement(0).assertions == [assertion]
+    assert test_case.get_statement(1).bound_variable is None
 
 
 # -- Forward/Backward IterativeMinimizationVisitor --------------------------------------
@@ -444,10 +466,28 @@ def test_combined_minimization_visitor_single_test_case(line_fitness_function):
         )
     )
     visitor = pp.CombinedMinimizationVisitor(OrderedSet([line_fitness_function]))
-
     visitor.visit_test_suite_chromosome(suite)
 
     assert suite.size() == 1
+
+
+def test_combined_minimization_visitor_skips_protected_statements(line_fitness_function):
+    protected = int_stmt("int_0", 1)
+    protected.assertions.append(ObjectAssertion("int_0", 1))
+    removable = int_stmt("int_1", 2)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(
+        tcc.TestCaseChromosome(test_case=make_test_case(protected, removable))
+    )
+    line_fitness_function.compute_coverage.return_value = 1.0
+    visitor = pp.CombinedMinimizationVisitor(OrderedSet([line_fitness_function]))
+
+    visitor.visit_test_suite_chromosome(suite)
+
+    assert visitor.removed_statements == 1
+    tc_result = suite.get_test_case_chromosome(0).test_case
+    assert tc_result.size() == 1
+    assert tc_result.get_statement(0).bound_variable == "int_0"
 
 
 # -- EmptyTestCaseRemover ----------------------------------------------------------------
