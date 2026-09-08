@@ -14,7 +14,7 @@
 ARG PYTHON_VERSION=3.10.16
 
 # Build stage for Pynguin
-FROM python:${PYTHON_VERSION}-slim-bullseye AS build
+FROM python:${PYTHON_VERSION}-slim-bookworm AS build
 LABEL org.opencontainers.image.authors="Stephan Lukasczyk <stephan@pynguin.eu>"
 ENV POETRY_VERSION "1.8.4"
 
@@ -35,7 +35,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:${PYTHON_VERSION}-slim-bullseye AS execute
+FROM python:${PYTHON_VERSION}-slim-bookworm AS execute
 
 # Set environment variables
 # Set the Pynguin version
@@ -62,7 +62,7 @@ COPY --from=build /pynguin-build/pynguin-docker.sh .
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    python-tk \
+    python3-tk \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl[openai,numpy,typing]
