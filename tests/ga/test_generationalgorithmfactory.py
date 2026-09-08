@@ -16,10 +16,13 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 from pynguin.analyses.module import ModuleTestCluster
+from pynguin.ga.algorithms.archive import CoverageArchive
+from pynguin.ga.algorithms.lldynamosaalgorithm import LLDynaMOSAAlgorithm
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
+from pynguin.ga.llmtestsuitechromosomefactory import LLMTestSuiteChromosomeFactory
 from pynguin.ga.stoppingcondition import (
     CoveragePlateauStoppingCondition,
     MaxCoverageStoppingCondition,
@@ -97,3 +100,30 @@ def test_unknown_strategy(algorithm_factory):
     config.configuration.algorithm = MagicMock()
     with pytest.raises(ConfigurationException):
         algorithm_factory.get_search_algorithm()
+
+
+def test_lldynamosa_registered_in_strategies():
+    assert (
+        gaf.TestSuiteGenerationAlgorithmFactory._strategies[config.Algorithm.LLDYNAMOSA]
+        is LLDynaMOSAAlgorithm
+    )
+
+
+def test_lldynamosa_gets_empty_archive(algorithm_factory):
+    config.configuration.algorithm = config.Algorithm.LLDYNAMOSA
+    archive = algorithm_factory._get_archive(MagicMock())
+    assert isinstance(archive, CoverageArchive)
+    assert len(archive.covered_goals) == 0
+    assert len(archive.uncovered_goals) == 0
+
+
+def test_lldynamosa_gets_llm_chromosome_factory(algorithm_factory):
+    config.configuration.algorithm = config.Algorithm.LLDYNAMOSA
+    strategy = MagicMock(
+        test_factory=MagicMock(),
+        test_cluster=MagicMock(),
+        test_case_fitness_functions=[],
+        test_suite_coverage_functions=[],
+    )
+    chromosome_factory = algorithm_factory._get_chromosome_factory(strategy)
+    assert isinstance(chromosome_factory, LLMTestSuiteChromosomeFactory)

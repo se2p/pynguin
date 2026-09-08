@@ -53,6 +53,9 @@ class Algorithm(str, enum.Enum):
     LLMOSA = "LLMOSA"
     """The many-objective sorting algorithm with LLM."""
 
+    LLDYNAMOSA = "LLDYNAMOSA"
+    """The dynamic many-objective sorting algorithm with LLM."""
+
     RANDOM = "RANDOM"
     """A feedback-direct random test generation approach similar to the algorithm
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.

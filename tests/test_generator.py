@@ -419,9 +419,10 @@ def test_setup_mutant_generator_invalid_order():
         gen._setup_mutant_generator()
 
 
-def test_verify_config(tmp_path):
+@pytest.mark.parametrize("algorithm", [config.Algorithm.DYNAMOSA, config.Algorithm.LLDYNAMOSA])
+def test_verify_config(tmp_path, algorithm):
     configuration = config.Configuration(
-        algorithm=config.Algorithm.DYNAMOSA,
+        algorithm=algorithm,
         module_name="example",
         test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
         project_path=str(tmp_path),
