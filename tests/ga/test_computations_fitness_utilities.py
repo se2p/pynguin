@@ -10,6 +10,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import re
 from unittest.mock import MagicMock, patch
 
 import hypothesis.strategies as st
@@ -103,7 +104,10 @@ def test_fitness_normalized(trace_mock, subject_properties_mock):
 
 
 def test_branch_coverage_none(subject_properties_mock, trace_mock):
-    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 1.0
+    with pytest.raises(
+        RuntimeError, match=re.escape("No subject properties found to compute coverage.")
+    ):
+        ff.compute_branch_coverage(trace_mock, subject_properties_mock)
 
 
 def test_branch_coverage_half_branch(subject_properties_mock, trace_mock):
@@ -129,7 +133,10 @@ def test_branch_coverage_no_code_objects(subject_properties_mock, trace_mock):
 
 
 def test_line_coverage_none(subject_properties_mock, trace_mock):
-    assert ff.compute_line_coverage(trace_mock, subject_properties_mock) == 1.0
+    with pytest.raises(
+        RuntimeError, match=re.escape("No subject properties found to compute coverage.")
+    ):
+        ff.compute_line_coverage(trace_mock, subject_properties_mock)
 
 
 def test_statement_coverage_zero(subject_properties_mock, trace_mock):
@@ -177,7 +184,10 @@ def test_line_coverage_is_covered(subject_properties_mock, trace_mock):
 
 
 def test_assertion_checked_coverage_none(subject_properties_mock, trace_mock):
-    assert ff.compute_assertion_checked_coverage(trace_mock, subject_properties_mock) == 1.0
+    with pytest.raises(
+        RuntimeError, match=re.escape("No subject properties found to compute coverage.")
+    ):
+        ff.compute_assertion_checked_coverage(trace_mock, subject_properties_mock)
 
 
 def test_assertion_checked_coverage_zero(subject_properties_mock, trace_mock):
