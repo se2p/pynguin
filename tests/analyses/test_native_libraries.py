@@ -84,11 +84,21 @@ def test_check_c_modules_pure_python():
 
 def test_check_c_modules_with_builtin_routine():
     """Verify check_c_modules detects modules with non-whitelisted C routines."""
+    pytest.importorskip("numpy")
+    import numpy as np  # noqa: PLC0415
+
     mod = types.ModuleType("custom_c_module")
-    # math.sin is a built-in function (inspect.isbuiltin == True, inspect.isfunction == False)
-    mod.native_sin = math.sin  # type: ignore[attr-defined]
+    mod.native_sin = np.sin  # type: ignore[attr-defined]
     detected = pm.__check_c_modules(module=mod)
     assert "custom_c_module" in detected
+
+
+def test_check_c_modules_with_whitelisted_routine():
+    """Verify check_c_modules does not flag modules using whitelisted C routines."""
+    mod = types.ModuleType("safe_module")
+    mod.native_sin = math.sin  # type: ignore[attr-defined]
+    detected = pm.__check_c_modules(module=mod)
+    assert len(detected) == 0
 
 
 @pytest.mark.usefixtures("clean_config")

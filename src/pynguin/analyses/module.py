@@ -404,7 +404,7 @@ C_MODULE_WHITELIST = frozenset((
 ))
 
 
-def _c_is_whitelisted(element: ModuleType) -> bool:
+def _c_is_whitelisted(element: ModuleType | str) -> bool:
     """Checks if the given element belongs to the C module whitelist.
 
     Args:
@@ -416,7 +416,7 @@ def _c_is_whitelisted(element: ModuleType) -> bool:
     c_module_whitelist = set(C_MODULE_WHITELIST)
 
     try:
-        module_name = element.__name__
+        module_name = element if isinstance(element, str) else element.__name__
         top_level = module_name.split(".")[0]
         public_top_level = top_level.lstrip("_")
         return public_top_level in c_module_whitelist
@@ -2002,12 +2002,15 @@ def __check_c_modules(
     # results), which would otherwise raise "dictionary changed size during
     # iteration" while iterating the live ``__dict__``.
     for element in list(vars(module).values()):
-        if inspect.isroutine(element) or inspect.isclass(element):
+        if callable(element) or inspect.isclass(element):
             try:
                 inspect.getsource(element)
                 # Source is available => likely pure Python.
             except Exception:  # noqa: BLE001
                 # No source => likely compiled or builtin.
+                elem_module = getattr(element, "__module__", None)
+                if elem_module and _c_is_whitelisted(elem_module):
+                    continue
                 if not _c_is_whitelisted(module):
                     non_whitelisted_modules.add(module.__name__)
 
