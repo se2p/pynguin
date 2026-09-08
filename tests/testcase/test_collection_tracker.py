@@ -134,7 +134,7 @@ def test_tracked_list_index_found():
 
 def test_tracked_list_index_not_found():
     lst = TrackedList([10, 20, 30])
-    with pytest.raises(ValueError, match="is not in list"):
+    with pytest.raises(ValueError, match="not in list"):
         lst.index(99)
     assert lst.accessed_indices == {0, 1, 2}
 
@@ -164,7 +164,7 @@ def test_tracked_list_remove():
 
 def test_tracked_list_remove_not_found():
     lst = TrackedList([10, 20])
-    with pytest.raises(ValueError, match="is not in list"):
+    with pytest.raises(ValueError, match="not in list"):
         lst.remove(99)
     assert lst.accessed_indices == {0, 1}
 
