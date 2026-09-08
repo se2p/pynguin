@@ -320,6 +320,8 @@ C_MODULE_WHITELIST = frozenset((
     "errno",
     "marshal",
     "sys",
+    "types",
+    "typing",
     "time",
     "sre",
     "symtable",
