@@ -32,6 +32,7 @@ from pynguin.analyses.constants import (
     DelegatingConstantProvider,
     EmptyConstantProvider,
 )
+from pynguin.testcase.collection_tracker import CollectionTrace
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 
@@ -623,3 +624,119 @@ def test_token_separator_uses_seeded_single_char_and_fallbacks():
             seen_fallback = True
     assert seen_seeded
     assert seen_fallback
+
+
+def test_mutate_list_with_collection_trace_grow():
+    # List has 2 elements, but max_accessed_index was 4 (out of bounds)
+    expr = cst.List(elements=[cst.Element(cst.Integer("1")), cst.Element(cst.Integer("2"))])
+    trace = CollectionTrace(max_accessed_index=4)
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_list(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.List)
+    assert len(mutated.elements) >= 5
+
+
+def test_mutate_list_with_collection_trace_cut():
+    # List has 5 elements, but max_accessed_index was 1
+    expr = cst.List(
+        elements=[
+            cst.Element(cst.Integer("1")),
+            cst.Element(cst.Integer("2")),
+            cst.Element(cst.Integer("3")),
+            cst.Element(cst.Integer("4")),
+            cst.Element(cst.Integer("5")),
+        ]
+    )
+    trace = CollectionTrace(max_accessed_index=1)
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_list(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.List)
+    # Cut away elements beyond index 1 -> length exactly 2
+    assert len(mutated.elements) == 2
+
+
+def test_mutate_list_with_collection_trace_exact_length():
+    # List has 2 elements, max_accessed_index is 1 -> minimum length is 2
+    expr = cst.List(elements=[cst.Element(cst.Integer("1")), cst.Element(cst.Integer("2"))])
+    trace = CollectionTrace(max_accessed_index=1)
+    provider = EmptyConstantProvider()
+
+    for _ in range(20):
+        mutated = lg._mutate_list(expr, provider, collection_trace=trace)
+        assert isinstance(mutated, cst.List)
+        # Should never shrink below required minimum length of 2
+        assert len(mutated.elements) >= 2
+
+
+def test_mutate_tuple_with_collection_trace():
+    # Tuple has 4 elements, but max_accessed_index was 0
+    expr = cst.Tuple(
+        elements=[
+            cst.Element(cst.Integer("1")),
+            cst.Element(cst.Integer("2")),
+            cst.Element(cst.Integer("3")),
+            cst.Element(cst.Integer("4")),
+        ]
+    )
+    trace = CollectionTrace(max_accessed_index=0)
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_tuple(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Tuple)
+    assert len(mutated.elements) == 1
+
+
+def test_mutate_dict_with_collection_trace_missing_key():
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.SimpleString("'existing'"), value=cst.Integer("1")),
+        ]
+    )
+    trace = CollectionTrace(
+        accessed_keys={"existing", "missing_key"},
+        missing_keys={"missing_key"},
+    )
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Dict)
+    # "missing_key" should be added to the dictionary elements
+    keys = [_eval(e.key) for e in mutated.elements]
+    assert "missing_key" in keys
+
+
+def test_mutate_dict_with_collection_trace_prune_unused():
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.SimpleString("'used'"), value=cst.Integer("1")),
+            cst.DictElement(key=cst.SimpleString("'unused'"), value=cst.Integer("2")),
+        ]
+    )
+    trace = CollectionTrace(
+        accessed_keys={"used"},
+        missing_keys=set(),
+    )
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Dict)
+    keys = [_eval(e.key) for e in mutated.elements]
+    assert keys == ["used"]
+
+
+def test_mutate_literal_passes_collection_trace():
+    expr = cst.List(
+        elements=[
+            cst.Element(cst.Integer("1")),
+            cst.Element(cst.Integer("2")),
+            cst.Element(cst.Integer("3")),
+        ]
+    )
+    trace = CollectionTrace(max_accessed_index=0)
+    provider = EmptyConstantProvider()
+
+    mutated = lg.mutate_literal(expr, list, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.List)
+    assert len(mutated.elements) == 1

@@ -499,7 +499,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
 
             for remote_observer in remote_observers:
-                executor.add_remote_observer(remote_observer)
+                if not any(
+                    isinstance(existing, type(remote_observer))
+                    for existing in executor.remote_observers
+                ):
+                    executor.add_remote_observer(remote_observer)
 
             results = tuple(executor.execute_multiple(test_cases))
 
@@ -697,6 +701,26 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             "Failed to fix raw return types for pickle",
             lambda: _clear_bad_raw_return_types(result),
         )
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.collection_trace,
+            "Unpicklable collection traces",
+            lambda bad: _filter_bad_collection_traces(result, bad),
+            "Failed to fix collection traces for pickle",
+            lambda: _clear_bad_collection_traces(result),
+        )
+
+
+def _filter_bad_collection_traces(result: ExecutionResult, bad_traces: Collection[Any]) -> None:
+    result.collection_trace = {
+        position: trace
+        for position, trace in result.collection_trace.items()
+        if trace not in bad_traces
+    }
+
+
+def _clear_bad_collection_traces(result: ExecutionResult) -> None:
+    result.collection_trace.clear()
 
 
 def _filter_bad_exceptions(result: ExecutionResult, bad_exceptions: Collection[Exception]) -> None:

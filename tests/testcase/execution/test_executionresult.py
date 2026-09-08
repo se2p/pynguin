@@ -6,6 +6,7 @@
 #
 import pytest
 
+from pynguin.testcase.collection_tracker import CollectionTrace
 from pynguin.testcase.execution import ExecutionResult
 
 
@@ -53,3 +54,11 @@ def test_timeout(execution_result):
 )
 def test_shift(before, deleted, after):
     assert ExecutionResult.shift_dict(before, deleted) == after
+
+
+def test_delete_statement_data_shifts_collection_trace(execution_result):
+    t0 = CollectionTrace(max_accessed_index=2)
+    t2 = CollectionTrace(max_accessed_index=5)
+    execution_result.collection_trace = {0: t0, 2: t2}
+    execution_result.delete_statement_data({1})
+    assert execution_result.collection_trace == {0: t0, 1: t2}

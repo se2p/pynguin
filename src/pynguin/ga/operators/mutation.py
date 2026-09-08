@@ -154,7 +154,9 @@ class TestCaseMutation(MutationOperator):
             return True
         if statement.accessible is None:
             # Primitive statement: regenerate the literal value.
-            return test_factory.mutate_value(chromosome.test_case, position)
+            return test_factory.mutate_value(
+                chromosome.test_case, position, chromosome.get_last_execution_result()
+            )
         if isinstance(statement.accessible, gao.GenericField):
             # Field statement: swap the accessed field, else re-pick the receiver.
             return test_factory.change_random_field_call(

@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
     from pynguin.analyses.constants import ConstantProvider
+    from pynguin.testcase.collection_tracker import CollectionTrace
 
 
 # ---------------------------------------------------------------------------
@@ -758,14 +759,16 @@ def _mutate_list(
     expr: cst.BaseExpression,
     constant_provider: ConstantProvider,
     element_pool: Sequence[cst.BaseExpression] = (),
+    collection_trace: CollectionTrace | None = None,
 ) -> cst.BaseExpression:
-    """Mutate a list literal by appending or removing a random element.
+    """Mutate a list literal, taking execution access bounds into account.
 
     Args:
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended element.
         element_pool: Optional reference expressions usable as a new element.
+        collection_trace: Optional trace of accessed collection indices.
 
     Returns:
         A new ``cst.List`` node.
@@ -773,6 +776,25 @@ def _mutate_list(
     if not isinstance(expr, cst.List):
         return _gen_list(constant_provider, element_pool)
     elems = list(expr.elements)
+
+    if collection_trace is not None and collection_trace.max_accessed_index is not None:
+        required_min_len = collection_trace.max_accessed_index + 1
+        if len(elems) < required_min_len:
+            needed = required_min_len - len(elems)
+            elems.extend(
+                cst.Element(value=_element_value(constant_provider, element_pool))
+                for _ in range(needed)
+            )
+        elif len(elems) > required_min_len:
+            elems = elems[:required_min_len]
+        elif elems and randomness.next_bool():
+            idx = randomness.next_int(0, len(elems))
+            new_val = _element_value(constant_provider, element_pool)
+            elems[idx] = cst.Element(value=new_val)
+        else:
+            elems.append(cst.Element(value=_element_value(constant_provider, element_pool)))
+        return expr.with_changes(elements=elems)
+
     if elems and randomness.next_bool():
         idx = randomness.next_int(0, len(elems))
         elems = elems[:idx] + elems[idx + 1 :]
@@ -785,14 +807,16 @@ def _mutate_tuple(
     expr: cst.BaseExpression,
     constant_provider: ConstantProvider,
     element_pool: Sequence[cst.BaseExpression] = (),
+    collection_trace: CollectionTrace | None = None,
 ) -> cst.BaseExpression:
-    """Mutate a tuple literal by appending or removing a random element.
+    """Mutate a tuple literal, taking execution access bounds into account.
 
     Args:
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended element.
         element_pool: Optional reference expressions usable as a new element.
+        collection_trace: Optional trace of accessed collection indices.
 
     Returns:
         A new ``cst.Tuple`` node.
@@ -800,6 +824,25 @@ def _mutate_tuple(
     if not isinstance(expr, cst.Tuple):
         return _gen_tuple(constant_provider, element_pool)
     elems = list(expr.elements)
+
+    if collection_trace is not None and collection_trace.max_accessed_index is not None:
+        required_min_len = collection_trace.max_accessed_index + 1
+        if len(elems) < required_min_len:
+            needed = required_min_len - len(elems)
+            elems.extend(
+                cst.Element(value=_element_value(constant_provider, element_pool))
+                for _ in range(needed)
+            )
+        elif len(elems) > required_min_len:
+            elems = elems[:required_min_len]
+        elif elems and randomness.next_bool():
+            idx = randomness.next_int(0, len(elems))
+            new_val = _element_value(constant_provider, element_pool)
+            elems[idx] = cst.Element(value=new_val)
+        else:
+            elems.append(cst.Element(value=_element_value(constant_provider, element_pool)))
+        return expr.with_changes(elements=_tuple_elements(elems))
+
     if elems and randomness.next_bool():
         idx = randomness.next_int(0, len(elems))
         elems = elems[:idx] + elems[idx + 1 :]
@@ -812,14 +855,20 @@ def _mutate_dict(
     expr: cst.BaseExpression,
     constant_provider: ConstantProvider,
     element_pool: Sequence[cst.BaseExpression] = (),
+    collection_trace: CollectionTrace | None = None,
 ) -> cst.BaseExpression:
-    """Mutate a dict literal by appending or removing a random entry.
+    """Mutate a dict literal by appending, removing, or adjusting entries.
+
+    If a collection trace is provided:
+    - Missing keys accessed during execution are added to the dictionary.
+    - Unused keys not present in the access trace are removed.
 
     Args:
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended entry's key and value.
         element_pool: Optional reference expressions usable as a new value.
+        collection_trace: Optional trace of accessed and missing keys.
 
     Returns:
         A new ``cst.Dict`` node.
@@ -827,6 +876,30 @@ def _mutate_dict(
     if not isinstance(expr, cst.Dict):
         return _gen_dict(constant_provider, element_pool)
     delems = list(expr.elements)
+
+    if collection_trace is not None:
+        if collection_trace.missing_keys:
+            key_val = randomness.choice(list(collection_trace.missing_keys))
+            new_entry = cst.DictElement(
+                key=literal_to_cst(key_val),
+                value=_element_value(constant_provider, element_pool),
+            )
+            delems.append(new_entry)
+            return expr.with_changes(elements=delems)
+
+        if collection_trace.accessed_keys and delems:
+            unused_indices: list[int] = []
+            for i, elem in enumerate(delems):
+                if isinstance(elem, cst.DictElement):
+                    parsed_key = parse_literal(elem.key, None)
+                    if parsed_key is not None and parsed_key not in collection_trace.accessed_keys:
+                        unused_indices.append(i)
+
+            if unused_indices:
+                idx_to_remove = randomness.choice(unused_indices)
+                delems = delems[:idx_to_remove] + delems[idx_to_remove + 1 :]
+                return expr.with_changes(elements=delems)
+
     if delems and randomness.next_bool():
         idx = randomness.next_int(0, len(delems))
         delems = delems[:idx] + delems[idx + 1 :]
@@ -946,6 +1019,7 @@ def _dispatch_mutate(  # noqa: C901
     raw: type | None,
     constant_provider: ConstantProvider,
     element_pool: Sequence[cst.BaseExpression] = (),
+    collection_trace: CollectionTrace | None = None,
 ) -> cst.BaseExpression:
     """Dispatch a type-specific mutation without the random-perturbation guard.
 
@@ -954,6 +1028,7 @@ def _dispatch_mutate(  # noqa: C901
         raw: The Python type of the literal, or ``None``.
         constant_provider: Provider used as fallback when parsing fails.
         element_pool: Optional reference expressions for collection mutation.
+        collection_trace: Optional trace of accessed collection elements.
 
     Returns:
         A mutated ``cst.BaseExpression``.
@@ -971,11 +1046,11 @@ def _dispatch_mutate(  # noqa: C901
     if raw is bytes:
         return _mutate_bytes(expr, constant_provider)
     if raw is list:
-        return _mutate_list(expr, constant_provider, element_pool)
+        return _mutate_list(expr, constant_provider, element_pool, collection_trace)
     if raw is tuple:
-        return _mutate_tuple(expr, constant_provider, element_pool)
+        return _mutate_tuple(expr, constant_provider, element_pool, collection_trace)
     if raw is dict:
-        return _mutate_dict(expr, constant_provider, element_pool)
+        return _mutate_dict(expr, constant_provider, element_pool, collection_trace)
     if raw is set:
         return _mutate_set(expr, constant_provider, element_pool)
     return generate_literal(raw, constant_provider, element_pool)
@@ -986,6 +1061,7 @@ def mutate_literal(
     raw: type | None,
     constant_provider: ConstantProvider,
     element_pool: Sequence[cst.BaseExpression] = (),
+    collection_trace: CollectionTrace | None = None,
 ) -> cst.BaseExpression:
     """Perturb an existing literal CST expression.
 
@@ -1001,13 +1077,17 @@ def mutate_literal(
             when falling back to :func:`generate_literal`.
         element_pool: Optional reference expressions usable as collection
             elements (ignored for scalar types).
+        collection_trace: Optional trace of accessed collection elements.
 
     Returns:
         A new ``cst.BaseExpression`` that is a perturbation of ``expr``.
     """
-    if randomness.next_float() < config.configuration.search_algorithm.random_perturbation:
+    if (
+        collection_trace is None
+        and randomness.next_float() < config.configuration.search_algorithm.random_perturbation
+    ):
         return generate_literal(raw, constant_provider, element_pool)
-    return _dispatch_mutate(expr, raw, constant_provider, element_pool)
+    return _dispatch_mutate(expr, raw, constant_provider, element_pool, collection_trace)
 
 
 # ---------------------------------------------------------------------------

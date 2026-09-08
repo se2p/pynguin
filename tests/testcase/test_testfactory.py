@@ -43,6 +43,8 @@ from pynguin.analyses.typesystem import (
     TypeInfo,
     TypeSystem,
 )
+from pynguin.testcase.collection_tracker import CollectionTrace
+from pynguin.testcase.execution_result import ExecutionResult
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
 from tests.testcase._builders import assign, call_stmt, int_stmt, make_test_case, stmt
 
@@ -929,6 +931,21 @@ def test_mutate_value_reference_list_keeps_refs_valid():
         )
         assert factory.mutate_value(test_case, 2) is True
         _assert_refs_bound_before(test_case, 2)
+
+
+def test_mutate_value_with_execution_result_bounds_list():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(
+        assign("var_0", "[1, 2, 3, 4, 5]", bound_type=list),
+    )
+    exec_result = ExecutionResult()
+    exec_result.collection_trace[0] = CollectionTrace(max_accessed_index=1)
+
+    assert factory.mutate_value(test_case, 0, execution_result=exec_result) is True
+    stmt = test_case.get_statement(0)
+    elements = stmt.node.body[0].value.elements
+    # List should be cut away beyond index 1 -> exactly 2 elements
+    assert len(elements) == 2
 
 
 def test_tuple_typed_collection_fixed_length(constructor_mock):
