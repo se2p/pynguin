@@ -10,11 +10,12 @@ import pytest
 
 from pynguin.analyses.generator import (
     GeneratorProvider,
+    HeuristicGeneratorFitnessFunction,
     RandomGeneratorProvider,
     _Generator,  # noqa: PLC2701
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import Instance, NoneType, TypeInfo
+from pynguin.analyses.typesystem import Instance, NoneType, TupleType, TypeInfo, TypeSystem
 from pynguin.ga.operators.selection import RandomSelection, RankSelection, SelectionFunction
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -174,3 +175,72 @@ def test_generator_provider_add_no_generator(generator_provider):
     generator_provider.add(generator)
     assert len(generator_provider.get_all_types()) == 0
     assert len(generator_provider.get_all()) == 0
+
+
+def test_generator_provider_add_tuple_type(generator_provider):
+    class Foo:
+        pass
+
+    class Bar:
+        pass
+
+    foo_type = Instance(TypeInfo(Foo))
+    bar_type = Instance(TypeInfo(Bar))
+    int_type = Instance(TypeInfo(int))
+    tuple_type = TupleType((foo_type, bar_type, int_type))
+
+    generator = MagicMock()
+    generator.generated_type.return_value = tuple_type
+
+    generator_provider.add(generator)
+
+    # Registered for the tuple itself
+    assert generator in generator_provider.get_for_type(tuple_type)
+    # Registered for non-primitive, non-None elements
+    assert generator in generator_provider.get_for_type(foo_type)
+    assert generator in generator_provider.get_for_type(bar_type)
+    # Primitives in tuple are not registered as generators
+    assert len(generator_provider.get_for_type(int_type)) == 0
+
+    # Test remove_generator
+    generator_provider.remove_generator(generator)
+    assert len(generator_provider.get_for_type(tuple_type)) == 0
+    assert len(generator_provider.get_for_type(foo_type)) == 0
+    assert len(generator_provider.get_for_type(bar_type)) == 0
+
+
+def test_tuple_generator_fitness():
+    class Foo:
+        pass
+
+    class Bar:
+        pass
+
+    class Baz:
+        pass
+
+    type_system = TypeSystem()
+    fitness_fn = HeuristicGeneratorFitnessFunction(type_system)
+
+    foo_type = Instance(type_system.to_type_info(Foo))
+    bar_type = Instance(type_system.to_type_info(Bar))
+    baz_type = Instance(type_system.to_type_info(Baz))
+    tuple_type = TupleType((foo_type, bar_type))
+
+    generator = MagicMock(GenericCallableAccessibleObject)
+    generator.is_constructor.return_value = False
+    generator.get_num_parameters.return_value = 0
+    generator.inferred_signature = MagicMock()
+    generator.inferred_signature.return_type = tuple_type
+
+    # Distance to Foo should be finite (elem distance 0 + penalty 1)
+    fitness_foo = fitness_fn.compute_fitness(foo_type, generator)
+    assert fitness_foo != float("inf")
+
+    # Distance to Bar should be finite
+    fitness_bar = fitness_fn.compute_fitness(bar_type, generator)
+    assert fitness_bar != float("inf")
+
+    # Distance to Baz should be inf (not in tuple)
+    fitness_baz = fitness_fn.compute_fitness(baz_type, generator)
+    assert fitness_baz == float("inf")

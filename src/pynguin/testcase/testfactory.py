@@ -600,6 +600,10 @@ class TestFactory:
                 assertions=list(old_stmt.assertions) if keep_assertions else [],
             ),
         )
+        if accessible is not None:
+            gen_type = accessible.generated_type()
+            if isinstance(gen_type, TupleType):
+                self._deconstruct_tuple(test_case, assign_var, gen_type, old_index + 1)
         return True
 
     def change_random_field_call(self, test_case: tc.TestCase, position: int) -> bool:
@@ -729,7 +733,7 @@ class TestFactory:
     # Emission helpers
     # ------------------------------------------------------------------
 
-    def _emit_accessible(
+    def _emit_accessible(  # noqa: C901
         self,
         test_case: tc.TestCase,
         accessible: gao.GenericAccessibleObject,
@@ -797,11 +801,70 @@ class TestFactory:
         )
         insert_pos = min(cursor, test_case.size())
         test_case.insert_statement(insert_pos, statement)
+        if accessible is not None:
+            gen_type = accessible.generated_type()
+            if isinstance(gen_type, TupleType):
+                self._deconstruct_tuple(test_case, var_name, gen_type, insert_pos + 1)
         if depth == 0:
             # Only for top-level insertions: a dependency statement's position is
             # the caller's cursor, and appending after it would desynchronise it.
             self._maybe_invoke_result(test_case, insert_pos, depth)
         return insert_pos
+
+    def _deconstruct_tuple(
+        self,
+        test_case: tc.TestCase,
+        tuple_var: str,
+        tuple_type: TupleType,
+        position: int,
+    ) -> int:
+        """Insert subscript statements deconstructing elements of *tuple_var*.
+
+        For each slot in a known-size tuple, emits a ``var_N = tuple_var[i]``
+        statement with the corresponding element type as its ``bound_type``.
+        This allows tuple elements returned from the SUT to be used as method
+        receivers or call arguments.
+
+        Args:
+            test_case: The test case to extend.
+            tuple_var: The name of the variable holding the tuple.
+            tuple_type: The tuple's ProperType.
+            position: The index at which to insert deconstruction statements.
+
+        Returns:
+            The number of statements inserted.
+        """
+        if tuple_type.unknown_size or not tuple_type.args:
+            return 0
+        if len(tuple_type.args) > config.configuration.test_creation.collection_size:
+            return 0
+
+        inserted = 0
+        for i, elem_type in enumerate(tuple_type.args):
+            elem_var = test_case.next_var_name()
+            raw_elem = _proper_type_to_raw(elem_type)
+            node = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[cst.AssignTarget(target=cst.Name(elem_var))],
+                        value=cst.Subscript(
+                            value=cst.Name(tuple_var),
+                            slice=[
+                                cst.SubscriptElement(slice=cst.Index(value=cst.Integer(str(i))))
+                            ],
+                        ),
+                    )
+                ]
+            )
+            stmt = Statement(
+                node=node,
+                bound_variable=elem_var,
+                bound_type=raw_elem,
+            )
+            test_case.insert_statement(position + inserted, stmt)
+            inserted += 1
+
+        return inserted
 
     def _build_constructor(
         self,
@@ -2087,11 +2150,28 @@ class TestFactory:
         if not generators:
             return None, position
         generator = randomness.choice(generators)
+        pre_size = test_case.size()
         new_pos = self._emit_accessible(test_case, generator, position, depth + 1)
         if new_pos < 0:
             return None, position
-        stmt = test_case.get_statement(new_pos)
-        return stmt.bound_variable, new_pos + 1
+        total_added = test_case.size() - pre_size
+        matching_var: str | None = None
+        for i in range(position, position + total_added):
+            candidate = test_case.get_statement(i)
+            if candidate.bound_variable is None or candidate.bound_type is None:
+                continue
+            try:
+                matches = candidate.bound_type is raw or (
+                    raw is not None and issubclass(candidate.bound_type, raw)
+                )
+            except TypeError:
+                matches = False
+            if matches:
+                matching_var = candidate.bound_variable
+                break
+        if matching_var is None:
+            matching_var = test_case.get_statement(new_pos).bound_variable
+        return matching_var, position + total_added
 
     @staticmethod
     def _find_any_variable(test_case: tc.TestCase, position: int) -> str | None:
