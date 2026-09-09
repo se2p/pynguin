@@ -327,9 +327,10 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
 def _verify_config() -> None:
     """Verify the configuration and raise an exception if something is invalid/not supported."""
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
-    if config.configuration.algorithm is config.configuration.algorithm.DYNAMOSA and any(
-        m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH
-    ):
+    if config.configuration.algorithm in {
+        config.Algorithm.DYNAMOSA,
+        config.Algorithm.LLDYNAMOSA,
+    } and any(m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH):
         raise ConfigurationException(
             "DynaMosa currently only supports branch coverage as coverage criterion."
         )

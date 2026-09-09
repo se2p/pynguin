@@ -34,6 +34,7 @@ from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
+from pynguin.ga.algorithms.lldynamosaalgorithm import LLDynaMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
@@ -145,6 +146,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
 
     _strategies: ClassVar[dict[config.Algorithm, Callable[[], GenerationAlgorithm]]] = {
         config.Algorithm.DYNAMOSA: DynaMOSAAlgorithm,
+        config.Algorithm.LLDYNAMOSA: LLDynaMOSAAlgorithm,
         config.Algorithm.LLMOSA: LLMOSAAlgorithm,
         config.Algorithm.MIO: MIOAlgorithm,
         config.Algorithm.MOSA: MOSAAlgorithm,
@@ -223,7 +225,10 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             test_case_chromosome_factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
                 test_case_chromosome_factory, strategy.archive
             )
-        if config.configuration.algorithm == config.Algorithm.LLMOSA:
+        if config.configuration.algorithm in {
+            config.Algorithm.LLMOSA,
+            config.Algorithm.LLDYNAMOSA,
+        }:
             return ltscf.LLMTestSuiteChromosomeFactory(
                 test_case_chromosome_factory,
                 strategy.test_factory,
@@ -342,9 +347,12 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             )
         # Use CoverageArchive as default, even if the algorithm does not use it.
         self._logger.info("Using CoverageArchive")
-        if config.configuration.algorithm == config.Algorithm.DYNAMOSA:
-            # DynaMOSA gradually adds its fitness functions, so we initialize
-            # with an empty set.
+        if config.configuration.algorithm in {
+            config.Algorithm.DYNAMOSA,
+            config.Algorithm.LLDYNAMOSA,
+        }:
+            # DynaMOSA (and its LLM variant) gradually adds its fitness functions, so
+            # we initialize with an empty set.
             return arch.CoverageArchive(OrderedSet())
         return arch.CoverageArchive(OrderedSet(strategy.test_case_fitness_functions))
 
@@ -365,6 +373,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
         """
         if config.configuration.algorithm in {
             config.Algorithm.DYNAMOSA,
+            config.Algorithm.LLDYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
             config.Algorithm.LLMOSA,

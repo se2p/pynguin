@@ -19,6 +19,8 @@ from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     import pynguin.ga.chromosomefactory as cf
     import pynguin.ga.testsuitechromosome as tsc
 
@@ -168,61 +170,6 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
 
-        def coverage_in_range(start_line: int, end_line: int) -> tuple[int, int]:
-            """Calculate the total and covered coverage points for a given line range.
-
-            Args:
-                start_line: The first line in the range, inclusive.
-                end_line: The last line in the range, inclusive.
-
-            Returns:
-                A tuple of (covered points, total points).
-            """
-            total_coverage_points = 0
-            covered_coverage_points = 0
-            for line_annot in line_annotations:
-                if start_line <= line_annot.line_no <= end_line:
-                    total_coverage_points += line_annot.total.existing
-                    covered_coverage_points += line_annot.total.covered
-            return covered_coverage_points, total_coverage_points
-
-        def calculate_gao_coverage_map() -> dict[GenericCallableAccessibleObject, float]:
-            """Calculate the coverage ratio for each GenericCallableAccessibleObject.
-
-            Returns:
-                A dictionary mapping accessible objects to their coverage ratios.
-            """
-            gao_coverage = {}
-            for gao in self.test_cluster.accessible_objects_under_test:
-                if isinstance(gao, GenericCallableAccessibleObject):
-                    try:
-                        source_lines, start_line = inspect.getsourcelines(gao.callable)
-                        end_line = start_line + len(source_lines) - 1
-                        covered, total = coverage_in_range(start_line, end_line)
-                        coverage_ratio = covered / total if total > 0 else 0
-                    except (TypeError, OSError):
-                        coverage_ratio = 0
-                    gao_coverage[gao] = coverage_ratio
-            return gao_coverage
-
-        def filter_gao_by_coverage(
-            gao_coverage: dict[GenericCallableAccessibleObject, float],
-        ) -> dict[GenericCallableAccessibleObject, float]:
-            """Filter GenericCallableAccessibleObjects by their coverage ratio.
-
-            Args:
-                gao_coverage: A dictionary of objects and their coverage ratios.
-
-            Returns:
-                A filtered dictionary of objects with coverage below the threshold.
-            """
-            return {
-                gao: coverage
-                for gao, coverage in sorted(gao_coverage.items(), key=operator.itemgetter(1))
-                if coverage < config.configuration.large_language_model.coverage_threshold
-            }
-
-        # Main logic
         coverage_report: CoverageReport = get_coverage_report(
             solutions_test_suite,
             self.executor.subject_properties,
@@ -230,8 +177,13 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         )
         line_annotations: list[LineAnnotation] = coverage_report.line_annotations
 
-        gao_coverage_map = calculate_gao_coverage_map()
-        filtered_gao_coverage_map = filter_gao_by_coverage(gao_coverage_map)
+        candidates = (
+            gao
+            for gao in self.test_cluster.accessible_objects_under_test
+            if isinstance(gao, GenericCallableAccessibleObject)
+        )
+        gao_coverage_map = self._calculate_gao_coverage_map(candidates, line_annotations)
+        filtered_gao_coverage_map = self._filter_gao_by_coverage(gao_coverage_map)
 
         diagnostics = {
             gao: self._diagnose_callable(gao, line_annotations) for gao in filtered_gao_coverage_map
@@ -301,6 +253,72 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 "vary one input/state axis to trigger the opposite outcome"
             )
         return ""
+
+    @staticmethod
+    def _coverage_in_range(
+        line_annotations: list[LineAnnotation], start_line: int, end_line: int
+    ) -> tuple[int, int]:
+        """Calculate the total and covered coverage points for a given line range.
+
+        Args:
+            line_annotations: Per-line coverage annotations for the module.
+            start_line: The first line in the range, inclusive.
+            end_line: The last line in the range, inclusive.
+
+        Returns:
+            A tuple of (covered points, total points).
+        """
+        total_coverage_points = 0
+        covered_coverage_points = 0
+        for line_annot in line_annotations:
+            if start_line <= line_annot.line_no <= end_line:
+                total_coverage_points += line_annot.total.existing
+                covered_coverage_points += line_annot.total.covered
+        return covered_coverage_points, total_coverage_points
+
+    def _calculate_gao_coverage_map(
+        self,
+        candidates: Iterable[GenericCallableAccessibleObject],
+        line_annotations: list[LineAnnotation],
+    ) -> dict[GenericCallableAccessibleObject, float]:
+        """Calculate the coverage ratio for each candidate callable.
+
+        Args:
+            candidates: The callables to compute a coverage ratio for.
+            line_annotations: Per-line coverage annotations for the module.
+
+        Returns:
+            A dictionary mapping candidate accessible objects to their coverage ratios.
+        """
+        gao_coverage = {}
+        for gao in candidates:
+            try:
+                source_lines, start_line = inspect.getsourcelines(gao.callable)
+                end_line = start_line + len(source_lines) - 1
+                covered, total = self._coverage_in_range(line_annotations, start_line, end_line)
+                coverage_ratio = covered / total if total > 0 else 0
+            except (TypeError, OSError):
+                coverage_ratio = 0
+            gao_coverage[gao] = coverage_ratio
+        return gao_coverage
+
+    @staticmethod
+    def _filter_gao_by_coverage(
+        gao_coverage: dict[GenericCallableAccessibleObject, float],
+    ) -> dict[GenericCallableAccessibleObject, float]:
+        """Filter GenericCallableAccessibleObjects by their coverage ratio.
+
+        Args:
+            gao_coverage: A dictionary of objects and their coverage ratios.
+
+        Returns:
+            A filtered dictionary of objects with coverage below the threshold.
+        """
+        return {
+            gao: coverage
+            for gao, coverage in sorted(gao_coverage.items(), key=operator.itemgetter(1))
+            if coverage < config.configuration.large_language_model.coverage_threshold
+        }
 
     def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
         if config.configuration.large_language_model.hybrid_initial_population:
