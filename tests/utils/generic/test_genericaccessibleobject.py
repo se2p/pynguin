@@ -189,3 +189,49 @@ def test_generic_method_is_classmethod_with_class_method_descriptor(type_system)
     method._callable = MagicMock(spec=ClassMethodDescriptorType)
 
     assert method.is_classmethod()
+
+
+class _DummyMethods:
+    @classmethod
+    def my_classmethod(cls) -> None:
+        pass
+
+    @staticmethod
+    def my_staticmethod() -> None:
+        pass
+
+    def my_normal_method(self) -> None:
+        pass
+
+
+def test_generic_method_is_classmethod_and_is_static(type_system):
+    """Test is_classmethod and is_static on GenericMethod with user-defined methods."""
+    mock_signature = MagicMock()
+    mock_signature.return_type = type_system.convert_type_hint(None)
+
+    cm = GenericMethod(
+        owner=TypeInfo(_DummyMethods),
+        method=_DummyMethods.my_classmethod,
+        inferred_signature=mock_signature,
+        method_name="my_classmethod",
+    )
+    assert cm.is_classmethod()
+    assert not cm.is_static()
+
+    sm = GenericMethod(
+        owner=TypeInfo(_DummyMethods),
+        method=_DummyMethods.my_staticmethod,
+        inferred_signature=mock_signature,
+        method_name="my_staticmethod",
+    )
+    assert not sm.is_classmethod()
+    assert sm.is_static()
+
+    nm = GenericMethod(
+        owner=TypeInfo(_DummyMethods),
+        method=_DummyMethods.my_normal_method,
+        inferred_signature=mock_signature,
+        method_name="my_normal_method",
+    )
+    assert not nm.is_classmethod()
+    assert not nm.is_static()

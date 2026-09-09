@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import pynguin.configuration as config
+import tests.fixtures.cluster.methods as methods_fixture
 from pynguin.analyses import module
 from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvider
 from pynguin.analyses.module import (
@@ -28,6 +29,8 @@ from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
 from pynguin.configuration import ElementVisibility
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
+from pynguin.testcase.testcase import TestCase
+from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -922,3 +925,90 @@ def test_analyse_fields_registers_public_fields():
     # generators are intentionally not retained by the generator provider).
     generator_fields = _owned_field_names(cluster.generators, "WithFields")
     assert "helper" in generator_fields
+
+
+def test_is_method():
+    class Dummy:
+        def norm(self):
+            pass
+
+        @staticmethod
+        def stat():
+            pass
+
+        @classmethod
+        def cls_m(cls):
+            pass
+
+        attr = 1
+
+    assert module._is_method(Dummy.norm)
+    assert module._is_method(Dummy.stat)
+    assert module._is_method(Dummy.cls_m)
+    assert not module._is_method(Dummy.attr)
+    assert not module._is_method(Dummy)
+
+
+def test_analyse_methods_discovers_classmethods_and_staticmethods():
+    cluster = generate_test_cluster("tests.fixtures.cluster.methods")
+    method_names = {
+        obj.callable.__name__
+        for obj in cluster.accessible_objects_under_test
+        if isinstance(obj, GenericMethod)
+    }
+    assert {
+        "normal_method",
+        "static_method",
+        "class_method",
+        "factory",
+        "cached_method",
+        "cached_static",
+        "cached_classmethod",
+    } <= method_names
+
+    method_by_name = {
+        obj.callable.__name__: obj
+        for obj in cluster.accessible_objects_under_test
+        if isinstance(obj, GenericMethod)
+    }
+    assert method_by_name["class_method"].is_classmethod()
+    assert not method_by_name["class_method"].is_static()
+    assert method_by_name["static_method"].is_static()
+    assert not method_by_name["static_method"].is_classmethod()
+    assert method_by_name["normal_method"].is_method()
+    assert not method_by_name["normal_method"].is_classmethod()
+    assert not method_by_name["normal_method"].is_static()
+
+
+def test_collect_public_callables_includes_classmethods():
+    callables = module._collect_public_callables(methods_fixture)
+    names = {c.__name__ for c in callables}
+    assert "class_method" in names
+    assert "static_method" in names
+    assert "normal_method" in names
+    assert "factory" in names
+
+
+def test_classmethod_and_staticmethod_test_generation_integration():
+    cluster = generate_test_cluster("tests.fixtures.cluster.methods")
+    factory = TestFactory(cluster)
+
+    method_by_name = {
+        obj.callable.__name__: obj
+        for obj in cluster.accessible_objects_under_test
+        if isinstance(obj, GenericMethod)
+    }
+
+    # Generate test case for class_method
+    tc_class = TestCase()
+    pos = factory.append_generic_accessible(tc_class, method_by_name["class_method"])
+    assert pos >= 0
+    code_class = tc_class.to_code()
+    assert "class_method" in code_class
+
+    # Generate test case for static_method
+    tc_static = TestCase()
+    pos = factory.append_generic_accessible(tc_static, method_by_name["static_method"])
+    assert pos >= 0
+    code_static = tc_static.to_code()
+    assert "static_method" in code_static

@@ -12,12 +12,14 @@ Think of these like the reflection classes in Java.
 from __future__ import annotations
 
 import abc
+import inspect
 import typing
 from types import (
     BuiltinFunctionType,
     ClassMethodDescriptorType,
     FunctionType,
     MethodDescriptorType,
+    MethodType,
     WrapperDescriptorType,
 )
 
@@ -30,6 +32,7 @@ TypesOfCallables = (
     | WrapperDescriptorType
     | MethodDescriptorType
     | ClassMethodDescriptorType
+    | MethodType
 )
 
 if typing.TYPE_CHECKING:
@@ -348,7 +351,28 @@ class GenericMethod(GenericCallableAccessibleObject):
         return True
 
     def is_classmethod(self) -> bool:  # noqa: D102
-        return isinstance(self._callable, ClassMethodDescriptorType)
+        if isinstance(self._callable, ClassMethodDescriptorType):
+            return True
+        if inspect.ismethod(self._callable) and isinstance(self._callable.__self__, type):
+            return True
+        if self._method_name and isinstance(self.owner.raw_type, type):
+            try:
+                raw_attr = inspect.getattr_static(self.owner.raw_type, self._method_name)
+                return isinstance(raw_attr, classmethod)
+            except (AttributeError, TypeError):
+                pass
+        return False
+
+    def is_static(self) -> bool:  # noqa: D102
+        if isinstance(self._callable, staticmethod):
+            return True
+        if self._method_name and isinstance(self.owner.raw_type, type):
+            try:
+                raw_attr = inspect.getattr_static(self.owner.raw_type, self._method_name)
+                return isinstance(raw_attr, staticmethod)
+            except (AttributeError, TypeError):
+                pass
+        return False
 
     def get_dependencies(  # noqa: D102
         self, memo: dict[InferredSignature, dict[str, ProperType]]
