@@ -927,6 +927,39 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 )
                 return
 
+            if maybe_compare.name == "MATCH_SEQUENCE":
+                self.visit_match_sequence_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
+            if maybe_compare.name == "MATCH_MAPPING":
+                self.visit_match_mapping_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
+            if maybe_compare.name == "MATCH_KEYS":
+                self.visit_match_keys_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
         if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
             self.visit_exception_based_conditional_jump(
                 ast_info,
@@ -1114,6 +1147,85 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
                 (
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=predicate_id),
+                ),
+            ),
+            instr.lineno,
+        )
+
+    def visit_match_sequence_based_conditional_jump(  # noqa: D102, PLR0917
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
+        )
+
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_match_sequence_predicate.__name__,
+                (
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=predicate_id),
+                ),
+            ),
+            instr.lineno,
+        )
+
+    def visit_match_mapping_based_conditional_jump(  # noqa: D102, PLR0917
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
+        )
+
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_match_mapping_predicate.__name__,
+                (
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=predicate_id),
+                ),
+            ),
+            instr.lineno,
+        )
+
+    def visit_match_keys_based_conditional_jump(  # noqa: D102, PLR0917
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
+        )
+
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST_TWO,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_match_keys_predicate.__name__,
+                (
+                    InstrumentationStackValue.SECOND,
                     InstrumentationStackValue.FIRST,
                     InstrumentationConstantLoad(value=predicate_id),
                 ),

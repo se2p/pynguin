@@ -507,6 +507,39 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
                 )
                 return
 
+            if maybe_compare.name == "MATCH_SEQUENCE":
+                self.visit_match_sequence_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
+            if maybe_compare.name == "MATCH_MAPPING":
+                self.visit_match_mapping_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
+            if maybe_compare.name == "MATCH_KEYS":
+                self.visit_match_keys_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
         self.visit_bool_based_conditional_jump(
             ast_info,
             cfg,

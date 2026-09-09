@@ -24,6 +24,9 @@ from pynguin.instrumentation.tracer import (
     _in,  # noqa: PLC2701
     _le,  # noqa: PLC2701
     _lt,  # noqa: PLC2701
+    _match_keys,  # noqa: PLC2701
+    _match_mapping,  # noqa: PLC2701
+    _match_sequence,  # noqa: PLC2701
 )
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
@@ -645,6 +648,9 @@ def test_compare_predicate_executed_other_thread(subject_properties: SubjectProp
         (ExecutionTracer.executed_compare_predicate.__name__, (None, None, None, None)),
         (ExecutionTracer.executed_bool_predicate.__name__, (None, None)),
         (ExecutionTracer.executed_exception_match.__name__, (None, None, None)),
+        (ExecutionTracer.executed_match_sequence_predicate.__name__, (None, None)),
+        (ExecutionTracer.executed_match_mapping_predicate.__name__, (None, None)),
+        (ExecutionTracer.executed_match_keys_predicate.__name__, (None, None, None)),
         (ExecutionTracer.track_line_visit.__name__, (None,)),
     ],
 )
@@ -709,3 +715,145 @@ def test_aux_in_predicate_element_eq_raises_no_typeerror():
         assert predicate_id in trace.executed_predicates
         assert trace.true_distances[predicate_id] == inf
         assert trace.false_distances[predicate_id] == 0.0
+
+
+@pytest.mark.parametrize(
+    "val, expected_true, expected_false",
+    [
+        ([1, 2], 0.0, 1.0),
+        ((1, 2), 0.0, 1.0),
+        (range(3), 0.0, 1.0),
+        ("hello", 1.0, 0.0),
+        (b"hello", 1.0, 0.0),
+        (bytearray(b"hello"), 1.0, 0.0),
+        ({1, 2}, 2.0, 0.0),
+        (42, 3.0, 0.0),
+        (None, 3.0, 0.0),
+    ],
+)
+def test_match_sequence_distances(val, expected_true, expected_false):
+    assert _match_sequence(val) == (expected_true, expected_false)
+
+
+def test_match_sequence_custom_classes():
+    class DuckSeq:
+        def __getitem__(self, item):
+            return item
+
+        def __len__(self):
+            return 1
+
+    class SizedOnly:
+        def __len__(self):
+            return 1
+
+    assert _match_sequence(DuckSeq()) == (1.5, 0.0)
+    assert _match_sequence(SizedOnly()) == (2.5, 0.0)
+
+
+@pytest.mark.parametrize(
+    "val, expected_true, expected_false",
+    [
+        ({"a": 1}, 0.0, 1.0),
+        ({}, 0.0, 1.0),
+        ([("a", 1), ("b", 2)], 1.0, 0.0),
+        ([1, 2], 2.0, 0.0),
+        (42, 3.0, 0.0),
+        (None, 3.0, 0.0),
+    ],
+)
+def test_match_mapping_distances(val, expected_true, expected_false):
+    assert _match_mapping(val) == (expected_true, expected_false)
+
+
+def test_match_mapping_custom_classes():
+    class DuckMapping:
+        def keys(self):
+            return ["a"]
+
+        def __getitem__(self, item):
+            return item
+
+    class CustomObj:
+        def __init__(self):
+            self.x = 1
+
+    assert _match_mapping(DuckMapping()) == (1.5, 0.0)
+    assert _match_mapping(CustomObj()) == (2.5, 0.0)
+
+
+def test_match_keys_distances():
+    assert _match_keys({"a": 1, "b": 2}, ("a", "b")) == (0.0, 1.0)
+    d_true, d_false = _match_keys({"a": 1}, ("a", "b"))
+    assert d_true == pytest.approx(4 / 3)
+    assert d_false == 0.0
+    assert _match_keys({}, ("a", "b")) == (4.0, 0.0)
+    assert _match_keys(42, ("a", "b")) == (6.0, 0.0)
+
+
+def test_match_keys_monotonicity():
+    keys = ("a", "b")
+    d_all, _ = _match_keys({"a": 1, "b": 2}, keys)
+    d_partial, _ = _match_keys({"a": 1}, keys)
+    d_wrong, _ = _match_keys({"x": 1}, keys)
+    d_empty, _ = _match_keys({}, keys)
+    d_non_iterable, _ = _match_keys(42, keys)
+
+    assert d_all == 0.0
+    assert 0.0 < d_partial < d_wrong < d_empty < d_non_iterable
+
+
+def test_executed_match_sequence_predicate(subject_properties: SubjectProperties):
+    subject_properties.register_predicate(MagicMock(code_object_id=0))
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_match_sequence_predicate([1, 2], 0)
+
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.true_distances[0] == 0.0
+    assert trace.false_distances[0] == 1.0
+    assert trace.executed_predicates[0] == 1
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_match_sequence_predicate("str", 0)
+
+    assert trace.true_distances[0] == 0.0
+    assert trace.false_distances[0] == 0.0
+    assert trace.executed_predicates[0] == 2
+
+
+def test_executed_match_mapping_predicate(subject_properties: SubjectProperties):
+    subject_properties.register_predicate(MagicMock(code_object_id=0))
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_match_mapping_predicate(42, 0)
+
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.true_distances[0] == 3.0
+    assert trace.false_distances[0] == 0.0
+    assert trace.executed_predicates[0] == 1
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_match_mapping_predicate({"a": 1}, 0)
+
+    assert trace.true_distances[0] == 0.0
+    assert trace.false_distances[0] == 0.0
+    assert trace.executed_predicates[0] == 2
+
+
+def test_executed_match_keys_predicate(subject_properties: SubjectProperties):
+    subject_properties.register_predicate(MagicMock(code_object_id=0))
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_match_keys_predicate({}, ("a", "b"), 0)
+
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.true_distances[0] == 4.0
+    assert trace.false_distances[0] == 0.0
+    assert trace.executed_predicates[0] == 1
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_match_keys_predicate(
+            {"a": 1, "b": 2}, ("a", "b"), 0
+        )
+
+    assert trace.true_distances[0] == 0.0
+    assert trace.false_distances[0] == 0.0
+    assert trace.executed_predicates[0] == 2

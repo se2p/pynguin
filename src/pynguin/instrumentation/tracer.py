@@ -13,11 +13,11 @@ import inspect
 import logging
 import threading
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Sized
+from collections.abc import Callable, Iterable, Mapping, Sequence, Sized
 from dataclasses import dataclass, field
 from functools import wraps
 from itertools import count
-from math import inf
+from math import inf, isinf
 from opcode import opname
 from types import BuiltinFunctionType, BuiltinMethodType, CodeType, MethodType, TracebackType
 from typing import TYPE_CHECKING, Concatenate, ParamSpec
@@ -878,6 +878,45 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
+    def executed_match_sequence_predicate(self, value: object, predicate: int) -> None:
+        """A predicate that is based on MATCH_SEQUENCE was executed.
+
+        Args:
+            value: The value being matched
+            predicate: The predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+
+    @abstractmethod
+    def executed_match_mapping_predicate(self, value: object, predicate: int) -> None:
+        """A predicate that is based on MATCH_MAPPING was executed.
+
+        Args:
+            value: The value being matched
+            predicate: The predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+
+    @abstractmethod
+    def executed_match_keys_predicate(
+        self, subject: object, keys: Iterable[object], predicate: int
+    ) -> None:
+        """A predicate that is based on MATCH_KEYS was executed.
+
+        Args:
+            subject: The match subject
+            keys: The required keys
+            predicate: The predicate identifier
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+
+    @abstractmethod
     def track_line_visit(self, line_id: int) -> None:
         """Tracks the visit of a line.
 
@@ -1249,6 +1288,91 @@ def _isn(val1, val2) -> float:
     return 1.0
 
 
+def _match_sequence(val: object) -> tuple[float, float]:
+    """Distance computation for 'MATCH_SEQUENCE'.
+
+    Args:
+        val: The value being matched
+
+    Returns:
+        A tuple of (distance_true, distance_false)
+    """
+    with contextlib.suppress(Exception):
+        if isinstance(val, Sequence) and not isinstance(val, (str, bytes, bytearray)):
+            return 0.0, 1.0
+
+    if isinstance(val, (str, bytes, bytearray)):
+        return 1.0, 0.0
+    if hasattr(val, "__getitem__") and hasattr(val, "__len__"):
+        return 1.5, 0.0
+    if isinstance(val, Iterable):
+        return 2.0, 0.0
+    if hasattr(val, "__iter__") or hasattr(val, "__len__"):
+        return 2.5, 0.0
+    return 3.0, 0.0
+
+
+def _match_mapping(val: object) -> tuple[float, float]:
+    """Distance computation for 'MATCH_MAPPING'.
+
+    Args:
+        val: The value being matched
+
+    Returns:
+        A tuple of (distance_true, distance_false)
+    """
+    with contextlib.suppress(Exception):
+        if isinstance(val, Mapping):
+            return 0.0, 1.0
+
+    if isinstance(val, (list, tuple)):
+        with contextlib.suppress(Exception):
+            if len(val) > 0 and all(
+                isinstance(item, (tuple, list)) and len(item) == 2 for item in val[:5]
+            ):
+                return 1.0, 0.0
+    if hasattr(val, "keys") and hasattr(val, "__getitem__"):
+        return 1.5, 0.0
+    if isinstance(val, Iterable):
+        return 2.0, 0.0
+    if hasattr(val, "__dict__"):
+        return 2.5, 0.0
+    return 3.0, 0.0
+
+
+def _match_keys(subject: object, keys: Iterable[object]) -> tuple[float, float]:
+    """Distance computation for 'MATCH_KEYS'.
+
+    Args:
+        subject: The match subject
+        keys: The required keys
+
+    Returns:
+        A tuple of (distance_true, distance_false)
+    """
+    keys_seq = tuple(keys) if isinstance(keys, Iterable) else (keys,)
+    with contextlib.suppress(Exception):
+        if all(k in subject for k in keys_seq):  # type: ignore[operator]
+            return 0.0, 1.0
+
+    if not isinstance(subject, Iterable):
+        return float(len(keys_seq)) * 2.0 + 2.0, 0.0
+
+    total_distance = 0.0
+    for k in keys_seq:
+        with contextlib.suppress(Exception):
+            if k in subject:
+                continue
+
+        in_dist = _in(k, subject)
+        if isinf(in_dist):
+            total_distance += 2.0
+        else:
+            total_distance += 1.0 + (in_dist / (1.0 + in_dist))
+
+    return max(total_distance, 1.0), 0.0
+
+
 _P = ParamSpec("_P")
 
 
@@ -1505,6 +1629,30 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             else:
                 distance_true = 1.0
 
+            self._update_metrics(distance_false, distance_true, predicate)
+
+    @_early_return
+    def executed_match_sequence_predicate(self, value: object, predicate: int) -> None:  # noqa: D102
+        with self.temporarily_disable():
+            value = tt.unwrap(value)
+            distance_true, distance_false = _match_sequence(value)
+            self._update_metrics(distance_false, distance_true, predicate)
+
+    @_early_return
+    def executed_match_mapping_predicate(self, value: object, predicate: int) -> None:  # noqa: D102
+        with self.temporarily_disable():
+            value = tt.unwrap(value)
+            distance_true, distance_false = _match_mapping(value)
+            self._update_metrics(distance_false, distance_true, predicate)
+
+    @_early_return
+    def executed_match_keys_predicate(  # noqa: D102
+        self, subject: object, keys: Iterable[object], predicate: int
+    ) -> None:
+        with self.temporarily_disable():
+            subject = tt.unwrap(subject)
+            keys = tt.unwrap(keys)
+            distance_true, distance_false = _match_keys(subject, keys)
             self._update_metrics(distance_false, distance_true, predicate)
 
     @_early_return
@@ -1893,6 +2041,21 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         predicate: int,
     ) -> None:
         self._tracer.executed_exception_match(err, exc, predicate)
+
+    def executed_match_sequence_predicate(  # noqa: D102
+        self, value: object, predicate: int
+    ) -> None:
+        self._tracer.executed_match_sequence_predicate(value, predicate)
+
+    def executed_match_mapping_predicate(  # noqa: D102
+        self, value: object, predicate: int
+    ) -> None:
+        self._tracer.executed_match_mapping_predicate(value, predicate)
+
+    def executed_match_keys_predicate(  # noqa: D102
+        self, subject: object, keys: Iterable[object], predicate: int
+    ) -> None:
+        self._tracer.executed_match_keys_predicate(subject, keys, predicate)
 
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
         self._tracer.track_line_visit(line_id)

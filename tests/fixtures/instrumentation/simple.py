@@ -76,3 +76,27 @@ def conditionally_nested_class(x: int):
 def explicit_none_return():
     print("This does nothing")
     return None
+
+
+def match_sequence_func(x):
+    match x:
+        case [a, b]:
+            return 1
+        case _:
+            return 0
+
+
+def match_mapping_func(x):
+    match x:
+        case {}:
+            return 1
+        case _:
+            return 0
+
+
+def match_keys_func(x):
+    match x:
+        case {"a": 1, "b": 2}:
+            return 1
+        case _:
+            return 0
