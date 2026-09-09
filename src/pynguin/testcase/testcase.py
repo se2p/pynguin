@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Literal
 
 import libcst as cst
 
-from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.assertion.assertion import ExceptionAssertion, ReferenceAssertion
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -183,6 +183,22 @@ def _uses_variable(stmt: Statement, var_name: str) -> bool:
         True if the variable is read by the statement.
     """
     return var_name in stmt.used_variables()
+
+
+def _get_assertion_used_variables(stmt: Statement) -> set[str]:
+    """Return variable names directly used by assertions on *stmt*.
+
+    Args:
+        stmt: The statement to inspect.
+
+    Returns:
+        The set of root variable names read by assertions on the statement.
+    """
+    vars_used: set[str] = set()
+    for assertion in stmt.assertions:
+        if isinstance(assertion, ReferenceAssertion) and isinstance(assertion.source, str):
+            vars_used.add(assertion.source.partition(".")[0])
+    return vars_used
 
 
 class TestCase:  # noqa: PLR0904
@@ -583,6 +599,36 @@ class TestCase:  # noqa: PLR0904
     def __hash__(self) -> int:
         return hash(self.to_code())
 
+    def get_assertion_protected_variables(self) -> set[str]:
+        """Get the names of all variables that should be protected due to assertions.
+
+        A variable name is protected if it is the source of a ``ReferenceAssertion`` or if
+        it is in the (backward) dependency chain of such a variable.
+
+        ``ExceptionAssertion`` are skipped (they have no source variable).
+
+        Returns:
+            Set of variable names that should not be removed during minimization.
+        """
+        protected: set[str] = set()
+        for statement in self._statements:
+            protected.update(_get_assertion_used_variables(statement))
+
+        if not protected:
+            return protected
+
+        changed = True
+        while changed:
+            changed = False
+            for statement in self._statements:
+                bv = statement.bound_variable
+                if bv is not None and bv in protected:
+                    for used in statement.used_variables():
+                        if used not in protected:
+                            protected.add(used)
+                            changed = True
+        return protected
+
     def remove_unused_variables(self) -> None:
         """Remove assignments to variables that are not used later in the test case.
 
@@ -595,11 +641,12 @@ class TestCase:  # noqa: PLR0904
 
         for i in range(len(self._statements) - 1, -1, -1):
             stmt = self._statements[i]
+            alive_vars.update(_get_assertion_used_variables(stmt))
             bv = stmt.bound_variable
 
             if bv is not None:
                 if bv in alive_vars:
-                    # Variable is used later. It is NOT alive before this assignment.
+                    # Variable is used later or in assertions. Not alive before this stmt.
                     alive_vars.remove(bv)
                     alive_vars.update(_get_used_variables(stmt))
                 else:
@@ -610,6 +657,9 @@ class TestCase:  # noqa: PLR0904
                             node=new_node,
                             bound_variable=None,
                             bound_type=None,
+                            assertions=list(stmt.assertions),
+                            accessible=stmt.accessible,
+                            ml_info=stmt.ml_info,
                         )
                     # Even if unused, the RHS might use other variables
                     alive_vars.update(_get_used_variables(stmt))

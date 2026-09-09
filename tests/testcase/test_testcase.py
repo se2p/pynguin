@@ -10,6 +10,7 @@ import libcst as cst
 import pytest
 
 import pynguin.testcase.testcase as tc
+from pynguin.assertion.assertion import ExceptionAssertion, ObjectAssertion
 from tests.testcase._builders import assign, int_stmt, make_test_case, stmt, str_stmt
 
 
@@ -178,3 +179,71 @@ def test_append_test_case_from_resolves_head_reference_and_drops_unsatisfiable()
     assert "h + 1" not in code
     assert "bad" not in code
     assert "dependent" not in code
+
+
+def test_remove_unused_variables_preserves_asserted_variable():
+    s0 = int_stmt("var_0", 1)
+    assertion = ObjectAssertion("var_0", 1)
+    s0.assertions.append(assertion)
+    test_case = make_test_case(s0)
+
+    test_case.remove_unused_variables()
+
+    assert test_case.get_statement(0).bound_variable == "var_0"
+    assert "var_0 = 1" in test_case.to_code()
+    assert test_case.get_statement(0).assertions == [assertion]
+
+
+def test_remove_unused_variables_preserves_backward_dependencies_of_asserted_variable():
+    s0 = int_stmt("var_0", 1)
+    s1 = assign("var_1", "var_0 + 1", bound_type=int)
+    assertion = ObjectAssertion("var_1", 2)
+    s1.assertions.append(assertion)
+    s2 = int_stmt("var_2", 99)  # completely unused -> should be transformed to Expr
+
+    test_case = make_test_case(s0, s1, s2)
+    test_case.remove_unused_variables()
+
+    assert test_case.get_statement(0).bound_variable == "var_0"
+    assert "var_0 = 1" in test_case.to_code()
+    assert test_case.get_statement(1).bound_variable == "var_1"
+    assert "var_1 = var_0 + 1" in test_case.to_code()
+    assert test_case.get_statement(1).assertions == [assertion]
+    assert test_case.get_statement(2).bound_variable is None
+    assert "var_2" not in test_case.to_code()
+
+
+def test_remove_unused_variables_preserves_dotted_assertion_source():
+    s0 = stmt("var_0 = Foo()", bound_variable="var_0")
+    assertion = ObjectAssertion("var_0.field.subfield", 42)
+    s0.assertions.append(assertion)
+    test_case = make_test_case(s0)
+
+    test_case.remove_unused_variables()
+
+    assert test_case.get_statement(0).bound_variable == "var_0"
+    assert "var_0 = Foo()" in test_case.to_code()
+    assert test_case.get_statement(0).assertions == [assertion]
+
+
+def test_remove_unused_variables_preserves_non_reference_assertions_on_transformed_stmt():
+    s0 = stmt("var_0 = 1 / 0", bound_variable="var_0")
+    exc_assertion = ExceptionAssertion("builtins", "ZeroDivisionError")
+    s0.assertions.append(exc_assertion)
+    test_case = make_test_case(s0)
+
+    test_case.remove_unused_variables()
+
+    # var_0 is unused, so Assign -> Expr, but ExceptionAssertion is retained
+    assert test_case.get_statement(0).bound_variable is None
+    assert test_case.get_statement(0).assertions == [exc_assertion]
+
+
+def test_get_assertion_protected_variables_method():
+    s0 = int_stmt("var_0", 1)
+    s1 = assign("var_1", "var_0 + 1", bound_type=int)
+    s1.assertions.append(ObjectAssertion("var_1", 2))
+    s2 = int_stmt("var_2", 99)
+    test_case = make_test_case(s0, s1, s2)
+
+    assert test_case.get_assertion_protected_variables() == {"var_0", "var_1"}
