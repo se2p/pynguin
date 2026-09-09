@@ -20,6 +20,7 @@ from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.report import CoverageEntry, CoverageReport, LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -94,7 +95,6 @@ def test_initialization():
     "method_name",
     [
         "__init__",
-        "_maybe_intervene_on_stall",
         "_enough_budget_for_llm",
         "_diagnose_callable",
         "_get_random_population",
@@ -102,17 +102,12 @@ def test_initialization():
     ],
 )
 def test_inherits_llmosa_methods_unchanged(method_name):
-    """These methods don't depend on target selection, so they should be the exact
-    same function object as LLMOSAAlgorithm's, not a reimplementation.
-    """  # noqa: D205
+    """These methods are target-independent and should match LLMOSAAlgorithm's."""
     assert getattr(LLDynaMOSAAlgorithm, method_name) is getattr(LLMOSAAlgorithm, method_name)
 
 
 def test_inherits_evolve_from_dynamosa_not_mosa():
-    """evolve() must resolve to DynaMOSAAlgorithm's dynamic-target version, not
-    AbstractMOSAAlgorithm's flat-target default that LLMOSAAlgorithm/MOSAAlgorithm
-    would otherwise expose first in the MRO.
-    """  # noqa: D205
+    """Use DynaMOSAAlgorithm.evolve() to preserve dynamic-target behavior in the MRO."""
     assert LLDynaMOSAAlgorithm.evolve is DynaMOSAAlgorithm.evolve
 
 
@@ -121,14 +116,13 @@ def test_inherits_evolve_from_dynamosa_not_mosa():
     [
         "generate_tests",
         "_target_initial_uncovered_goals",
+        "_maybe_intervene_on_stall",
         "_eligible_gaos_for_targeting",
         "target_uncovered_callables",
     ],
 )
 def test_overrides_target_selection_methods(method_name):
-    """These are the only methods that depend on dynamic target selection, so they
-    must be defined on LLDynaMOSAAlgorithm itself, not inherited from LLMOSAAlgorithm.
-    """  # noqa: D205
+    """Dynamic-target methods must be defined directly on LLDynaMOSAAlgorithm."""
     assert method_name in LLDynaMOSAAlgorithm.__dict__
 
 
@@ -173,6 +167,22 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, lldynamosa_al
     lldynamosa_algorithm._archive.update.assert_not_called()
     mock_track.assert_any_call(RuntimeVariable.CoverageBeforeLLMCall, 0.5)
     mock_track.assert_any_call(RuntimeVariable.CoverageAfterLLMCall, 0.7)
+
+
+def test_maybe_intervene_on_stall_updates_goals_manager(lldynamosa_algorithm):
+    """Tests that a stall intervention unlocks goals, not just archive.update()."""
+    llm_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    lldynamosa_algorithm.target_uncovered_callables = MagicMock(return_value=[llm_chromosome])
+    existing_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    lldynamosa_algorithm._population = [existing_chromosome]
+
+    lldynamosa_algorithm._maybe_intervene_on_stall()
+
+    lldynamosa_algorithm.target_uncovered_callables.assert_called_once()
+    assert lldynamosa_algorithm._population == [llm_chromosome, existing_chromosome]
+    lldynamosa_algorithm._goals_manager.update.assert_called_once_with(
+        lldynamosa_algorithm._population
+    )
 
 
 @patch("pynguin.ga.algorithms.lldynamosaalgorithm.config")
@@ -315,4 +325,4 @@ def test_eligible_gaos_for_targeting_restricts_to_active_goals(lldynamosa_algori
 
         result = lldynamosa_algorithm._eligible_gaos_for_targeting()
 
-    assert result == {active_gao}
+    assert result == OrderedSet([active_gao])

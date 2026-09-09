@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-import operator
 import time
 from typing import TYPE_CHECKING, cast
 
@@ -18,6 +17,7 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm, _GoalsManager
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -35,12 +35,8 @@ from pynguin.utils.report import CoverageReport, LineAnnotation, get_coverage_re
 class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
     """Implements DynaMOSA with LLM-guided stall recovery.
 
-    Extends both LLMOSAAlgorithm and DynaMOSAAlgorithm so the parts of the LLM
-    intervention that don't depend on target selection (init, budget guard, callable
-    diagnosis, population seeding, breeding) are inherited from LLMOSAAlgorithm; only
-    `generate_tests`, `_target_initial_uncovered_goals`, `_eligible_gaos_for_targeting`,
-    and `target_uncovered_callables` are overridden here, since those are the ones
-    that depend on DynaMOSA's dynamic target set.
+    Reuses target-independent LLMOSA behavior and overrides target-dependent methods
+    to support DynaMOSA's dynamic target set.
     """
 
     _logger = logging.getLogger(__name__)
@@ -65,6 +61,15 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
             self._logger.info("Coverage after LLM call: %5f", coverage_after)
             stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
+
+    def _maybe_intervene_on_stall(self) -> None:
+        """Query the LLM on a stall, then unlock any goals the result just covered.
+
+        Unlike MOSA, DynaMOSA gates goals by parent coverage, so newly covered goals
+        must be unlocked immediately to avoid losing coverage during truncation.
+        """
+        super()._maybe_intervene_on_stall()
+        self._goals_manager.update(self._population)
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
@@ -134,14 +139,11 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             else self._get_best_individuals()
         )
 
-    def _eligible_gaos_for_targeting(self) -> set[GenericCallableAccessibleObject]:
+    def _eligible_gaos_for_targeting(self) -> OrderedSet[GenericCallableAccessibleObject]:
         """Restricts LLM targeting to callables backing a currently-active goal.
 
-        Unlike MOSA, DynaMOSA only activates a target once its control-dependency
-        parent is covered, so this maps each goal in ``current_goals`` back to its
-        owning callable (via ``code_object_id`` -> ``co_firstlineno``, matched
-        against each callable's source start line) rather than considering every
-        callable under test.
+        Maps goals to callables via their code object's source location. An
+        ``OrderedSet`` preserves deterministic target selection.
 
         Returns:
             The subset of `self.test_cluster.accessible_objects_under_test` that owns
@@ -159,7 +161,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             if code_object_meta is not None:
                 active_first_lines.add(code_object_meta.code_object.co_firstlineno)
 
-        eligible: set[GenericCallableAccessibleObject] = set()
+        eligible: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
         for gao in self.test_cluster.accessible_objects_under_test:
             if not isinstance(gao, GenericCallableAccessibleObject):
                 continue
@@ -180,60 +182,6 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             A list of `TestCaseChromosome` objects derived from the LLM query result.
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
-
-        def coverage_in_range(start_line: int, end_line: int) -> tuple[int, int]:
-            """Calculate the total and covered coverage points for a given line range.
-
-            Args:
-                start_line: The first line in the range, inclusive.
-                end_line: The last line in the range, inclusive.
-
-            Returns:
-                A tuple of (covered points, total points).
-            """
-            total_coverage_points = 0
-            covered_coverage_points = 0
-            for line_annot in line_annotations:
-                if start_line <= line_annot.line_no <= end_line:
-                    total_coverage_points += line_annot.total.existing
-                    covered_coverage_points += line_annot.total.covered
-            return covered_coverage_points, total_coverage_points
-
-        def calculate_gao_coverage_map() -> dict[GenericCallableAccessibleObject, float]:
-            """Calculate the coverage ratio for each eligible callable.
-
-            Returns:
-                A dictionary mapping eligible accessible objects to their coverage
-                ratios.
-            """
-            gao_coverage = {}
-            for gao in self._eligible_gaos_for_targeting():
-                try:
-                    source_lines, start_line = inspect.getsourcelines(gao.callable)
-                    end_line = start_line + len(source_lines) - 1
-                    covered, total = coverage_in_range(start_line, end_line)
-                    coverage_ratio = covered / total if total > 0 else 0
-                except (TypeError, OSError):
-                    coverage_ratio = 0
-                gao_coverage[gao] = coverage_ratio
-            return gao_coverage
-
-        def filter_gao_by_coverage(
-            gao_coverage: dict[GenericCallableAccessibleObject, float],
-        ) -> dict[GenericCallableAccessibleObject, float]:
-            """Filter GenericCallableAccessibleObjects by their coverage ratio.
-
-            Args:
-                gao_coverage: A dictionary of objects and their coverage ratios.
-
-            Returns:
-                A filtered dictionary of objects with coverage below the threshold.
-            """
-            return {
-                gao: coverage
-                for gao, coverage in sorted(gao_coverage.items(), key=operator.itemgetter(1))
-                if coverage < config.configuration.large_language_model.coverage_threshold
-            }
 
         def select_highest_priority_target(
             gao_coverage: dict[GenericCallableAccessibleObject, float],
@@ -262,8 +210,10 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         )
         line_annotations: list[LineAnnotation] = coverage_report.line_annotations
 
-        gao_coverage_map = calculate_gao_coverage_map()
-        filtered_gao_coverage_map = filter_gao_by_coverage(gao_coverage_map)
+        gao_coverage_map = self._calculate_gao_coverage_map(
+            self._eligible_gaos_for_targeting(), line_annotations
+        )
+        filtered_gao_coverage_map = self._filter_gao_by_coverage(gao_coverage_map)
         targeted_gao_coverage_map = select_highest_priority_target(filtered_gao_coverage_map)
 
         diagnostics = {
