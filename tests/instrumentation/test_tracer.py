@@ -726,6 +726,7 @@ def test_aux_in_predicate_element_eq_raises_no_typeerror():
         ("hello", 1.0, 0.0),
         (b"hello", 1.0, 0.0),
         (bytearray(b"hello"), 1.0, 0.0),
+        ({"a": 1}, 3.0, 0.0),
         ({1, 2}, 2.0, 0.0),
         (42, 3.0, 0.0),
         (None, 3.0, 0.0),

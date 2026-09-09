@@ -1303,6 +1303,8 @@ def _match_sequence(val: object) -> tuple[float, float]:
 
     if isinstance(val, (str, bytes, bytearray)):
         return 1.0, 0.0
+    if isinstance(val, Mapping):
+        return 3.0, 0.0
     if hasattr(val, "__getitem__") and hasattr(val, "__len__"):
         return 1.5, 0.0
     if isinstance(val, Iterable):
@@ -1350,7 +1352,7 @@ def _match_keys(subject: object, keys: Iterable[object]) -> tuple[float, float]:
     Returns:
         A tuple of (distance_true, distance_false)
     """
-    keys_seq = tuple(keys) if isinstance(keys, Iterable) else (keys,)
+    keys_seq = tuple(keys)
     with contextlib.suppress(Exception):
         if all(k in subject for k in keys_seq):  # type: ignore[operator]
             return 0.0, 1.0
