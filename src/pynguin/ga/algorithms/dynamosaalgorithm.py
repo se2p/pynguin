@@ -244,20 +244,63 @@ class _ControlDependencyGraph:
             if isinstance(fitness, bg.BranchCoverageTestFitness)
         }
 
+        nodes_predicates_cache: dict[int, dict[BasicBlockNode, int]] = {}
+
         self._build_branch_dependencies(
-            branch_fitness_by_goal, fitness_functions, subject_properties
+            branch_fitness_by_goal,
+            fitness_functions,
+            subject_properties,
+            nodes_predicates_cache,
         )
 
         if branch_fitness_by_goal:
             self._build_line_and_checked_dependencies(
-                branch_fitness_by_goal, fitness_functions, subject_properties
+                branch_fitness_by_goal,
+                fitness_functions,
+                subject_properties,
+                nodes_predicates_cache,
             )
+
+        # Sanity check: branchless code objects must always be root goals.
+        assert all(
+            self._graph.in_degree(n) == 0
+            for n in self._graph.nodes
+            if isinstance(n, bg.BranchCoverageTestFitness) and n.goal.is_branchless_code_object
+        ), "Branchless code objects cannot depend on other goals."
+
+        # Sanity check: all root branch goals must be control-dependent on root.
+        for node in self.root_goals:
+            if (
+                isinstance(node, bg.BranchCoverageTestFitness)
+                and not node.goal.is_branchless_code_object
+            ):
+                branch_goal = cast("bg.BranchGoal", node.goal)
+                pred_meta = subject_properties.existing_predicates[branch_goal.predicate_id]
+                co_meta = subject_properties.existing_code_objects[pred_meta.code_object_id]
+                assert co_meta.cdg.is_control_dependent_on_root(pred_meta.node), (
+                    f"Root branch {node} must be control-dependent on root."
+                )
+
+    @staticmethod
+    def _get_nodes_predicates(
+        subject_properties: SubjectProperties,
+        code_object_id: int,
+        cache: dict[int, dict[BasicBlockNode, int]],
+    ) -> dict[BasicBlockNode, int]:
+        if code_object_id not in cache:
+            cache[code_object_id] = {
+                meta_data.node: predicate_id
+                for predicate_id, meta_data in subject_properties.existing_predicates.items()
+                if meta_data.code_object_id == code_object_id
+            }
+        return cache[code_object_id]
 
     def _build_branch_dependencies(
         self,
         branch_fitness_by_goal: dict[bg.AbstractBranchCoverageGoal, bg.BranchCoverageTestFitness],
         fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
         subject_properties: SubjectProperties,
+        nodes_predicates_cache: dict[int, dict[BasicBlockNode, int]],
     ) -> None:
         for fitness in fitness_functions:
             if not isinstance(fitness, bg.BranchCoverageTestFitness):
@@ -271,11 +314,11 @@ class _ControlDependencyGraph:
                 predicate_meta_data.code_object_id
             ]
 
-            nodes_predicates = {
-                meta_data.node: predicate_id
-                for predicate_id, meta_data in subject_properties.existing_predicates.items()
-                if meta_data.code_object_id == predicate_meta_data.code_object_id
-            }
+            nodes_predicates = self._get_nodes_predicates(
+                subject_properties,
+                predicate_meta_data.code_object_id,
+                nodes_predicates_cache,
+            )
 
             self._connect_dependencies(
                 code_object_meta_data=code_object_meta_data,
@@ -291,6 +334,7 @@ class _ControlDependencyGraph:
         branch_fitness_by_goal: dict[bg.AbstractBranchCoverageGoal, bg.BranchCoverageTestFitness],
         fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
         subject_properties: SubjectProperties,
+        nodes_predicates_cache: dict[int, dict[BasicBlockNode, int]],
     ) -> None:
         for fitness in fitness_functions:
             if not isinstance(
@@ -299,17 +343,16 @@ class _ControlDependencyGraph:
             ):
                 continue
             goal = fitness.goal
-            assert isinstance(goal, (bg.LineCoverageGoal, bg.CheckedCoverageGoal))
             line_meta = subject_properties.existing_lines[goal.line_id]
             code_object_meta_data = subject_properties.existing_code_objects[
                 line_meta.code_object_id
             ]
 
-            nodes_predicates = {
-                meta_data.node: predicate_id
-                for predicate_id, meta_data in subject_properties.existing_predicates.items()
-                if meta_data.code_object_id == line_meta.code_object_id
-            }
+            nodes_predicates = self._get_nodes_predicates(
+                subject_properties,
+                line_meta.code_object_id,
+                nodes_predicates_cache,
+            )
 
             bb_nodes = [
                 node
@@ -319,6 +362,11 @@ class _ControlDependencyGraph:
             if not bb_nodes:
                 continue
 
+            # In Python bytecode, basic blocks are indexed in sequential bytecode
+            # offset order. The earliest block containing instructions for a line
+            # is its entry point. Selecting the block with the minimum index avoids
+            # attributing subsequent jump targets or continuation blocks that share
+            # line metadata to this line's control dependencies.
             entry_bb_node = min(bb_nodes, key=lambda n: n.index)
             self._connect_dependencies(
                 code_object_meta_data=code_object_meta_data,
@@ -363,7 +411,7 @@ class _ControlDependencyGraph:
 
     @property
     def root_branches(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
-        """Deprecated alias for root_goals."""
+        """Backward-compatible alias for root_goals."""
         return self.root_goals
 
     def get_structural_children(
@@ -381,4 +429,5 @@ class _ControlDependencyGraph:
         return OrderedSet(self._graph.successors(fitness_function))
 
 
+# Backward-compatibility alias for external callers and legacy tests.
 _BranchFitnessGraph = _ControlDependencyGraph

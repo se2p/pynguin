@@ -163,6 +163,18 @@ def test_control_dependency_graph_mixed_coverage(dynamosa_subject_properties_all
     assert pred0_true in graph.root_goals
     assert pred0_false in graph.root_goals
 
+    # Explicitly check that line 8 goals (line and checked) are root goals and have in_degree == 0
+    line8_goals = [
+        ff
+        for ff in all_ffs
+        if isinstance(ff, (bg.LineCoverageTestFitness, bg.StatementCheckedCoverageTestFitness))
+        and dynamosa_subject_properties_all.existing_lines[ff.goal.line_id].line_number == 8
+    ]
+    assert len(line8_goals) == 2
+    for g in line8_goals:
+        assert g in graph.root_goals
+        assert graph._graph.in_degree(g) == 0
+
     # Structural children of predicate 0 True: child branches, lines (9, 11), checked (9, 11)
     children = graph.get_structural_children(pred0_true)
     assert len(children) == 8
@@ -175,6 +187,30 @@ def test_control_dependency_graph_mixed_coverage(dynamosa_subject_properties_all
     )
     # Line and checked coverage goals
     assert any(isinstance(c, bg.LineCoverageTestFitness) for c in children)
+    assert any(isinstance(c, bg.StatementCheckedCoverageTestFitness) for c in children)
+
+
+def test_control_dependency_graph_branch_and_checked_coverage(dynamosa_subject_properties_all):
+    executor = MagicMock()
+    executor.subject_properties = dynamosa_subject_properties_all
+    pool = bg.BranchGoalPool(dynamosa_subject_properties_all)
+    branch_ffs = bg.create_branch_coverage_fitness_functions(executor, pool)
+    checked_ffs = bg.create_checked_coverage_fitness_functions(executor)
+
+    all_ffs: OrderedSet[dyna.ff.TestCaseFitnessFunction] = OrderedSet(
+        list(branch_ffs) + list(checked_ffs)
+    )
+    graph = dyna._ControlDependencyGraph(all_ffs, dynamosa_subject_properties_all)
+
+    # Root goals: root branches (pred 0 True & False) + checked goal for line 8
+    assert len(graph.root_goals) == 3
+    pred0_true = next(ff for ff in branch_ffs if ff.goal == bg.BranchGoal(0, 0, value=True))
+    pred0_false = next(ff for ff in branch_ffs if ff.goal == bg.BranchGoal(0, 0, value=False))
+    assert pred0_true in graph.root_goals
+    assert pred0_false in graph.root_goals
+
+    children = graph.get_structural_children(pred0_true)
+    assert len(children) == 6
     assert any(isinstance(c, bg.StatementCheckedCoverageTestFitness) for c in children)
 
 

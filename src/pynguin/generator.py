@@ -327,7 +327,6 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
 def _verify_config() -> None:
     """Verify the configuration and raise an exception if something is invalid/not supported."""
     # Currently all configured combinations of algorithms and coverage metrics are supported.
-    pass
 
 
 def _check_sut_uses_random(new_module_names: set[str]) -> bool:

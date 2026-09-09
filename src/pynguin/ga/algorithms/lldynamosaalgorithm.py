@@ -11,7 +11,7 @@ from __future__ import annotations
 import inspect
 import logging
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm, _GoalsManager
@@ -21,7 +21,6 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.ga.coveragegoals as bg
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
@@ -74,7 +73,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,  # type: ignore[arg-type]
+            self._test_case_fitness_functions,
             self._archive,
             self.executor.subject_properties,
         )
