@@ -1731,6 +1731,7 @@ class TestFactory:
         collection_trace = (
             execution_result.collection_trace.get(position)
             if execution_result is not None
+            and config.configuration.test_creation.track_collection_accesses
             else None
         )
         new_expr = literalgen.mutate_literal(

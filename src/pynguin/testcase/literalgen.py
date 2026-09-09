@@ -756,6 +756,50 @@ def _mutate_bytes(
     return cst.SimpleString(repr(randomness.next_bytes(length)))
 
 
+def _mutate_sequence_elements(
+    elems: list[cst.BaseElement],
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
+    collection_trace: CollectionTrace | None = None,
+) -> list[cst.BaseElement]:
+    """Mutate sequence elements, taking execution access bounds into account.
+
+    Args:
+        elems: Current sequence elements.
+        constant_provider: Provider that may supply seeded values for a newly
+            appended element.
+        element_pool: Optional reference expressions usable as a new element.
+        collection_trace: Optional trace of accessed collection indices.
+
+    Returns:
+        Updated list of sequence elements.
+    """
+    if collection_trace is not None and collection_trace.max_accessed_index is not None:
+        required_min_len = collection_trace.max_accessed_index + 1
+        if len(elems) < required_min_len:
+            needed = required_min_len - len(elems)
+            elems.extend(
+                cst.Element(value=_element_value(constant_provider, element_pool))
+                for _ in range(needed)
+            )
+        elif len(elems) > required_min_len:
+            elems = elems[:required_min_len]
+        elif elems and randomness.next_bool():
+            idx = randomness.next_int(0, len(elems))
+            new_val = _element_value(constant_provider, element_pool)
+            elems[idx] = cst.Element(value=new_val)
+        else:
+            elems.append(cst.Element(value=_element_value(constant_provider, element_pool)))
+        return elems
+
+    if elems and randomness.next_bool():
+        idx = randomness.next_int(0, len(elems))
+        elems = elems[:idx] + elems[idx + 1 :]
+    else:
+        elems += [cst.Element(value=_element_value(constant_provider, element_pool))]
+    return elems
+
+
 def _mutate_list(
     expr: cst.BaseExpression,
     constant_provider: ConstantProvider,
@@ -776,31 +820,9 @@ def _mutate_list(
     """
     if not isinstance(expr, cst.List):
         return _gen_list(constant_provider, element_pool)
-    elems = list(expr.elements)
-
-    if collection_trace is not None and collection_trace.max_accessed_index is not None:
-        required_min_len = collection_trace.max_accessed_index + 1
-        if len(elems) < required_min_len:
-            needed = required_min_len - len(elems)
-            elems.extend(
-                cst.Element(value=_element_value(constant_provider, element_pool))
-                for _ in range(needed)
-            )
-        elif len(elems) > required_min_len:
-            elems = elems[:required_min_len]
-        elif elems and randomness.next_bool():
-            idx = randomness.next_int(0, len(elems))
-            new_val = _element_value(constant_provider, element_pool)
-            elems[idx] = cst.Element(value=new_val)
-        else:
-            elems.append(cst.Element(value=_element_value(constant_provider, element_pool)))
-        return expr.with_changes(elements=elems)
-
-    if elems and randomness.next_bool():
-        idx = randomness.next_int(0, len(elems))
-        elems = elems[:idx] + elems[idx + 1 :]
-    else:
-        elems += [cst.Element(value=_element_value(constant_provider, element_pool))]
+    elems = _mutate_sequence_elements(
+        list(expr.elements), constant_provider, element_pool, collection_trace
+    )
     return expr.with_changes(elements=elems)
 
 
@@ -824,31 +846,9 @@ def _mutate_tuple(
     """
     if not isinstance(expr, cst.Tuple):
         return _gen_tuple(constant_provider, element_pool)
-    elems = list(expr.elements)
-
-    if collection_trace is not None and collection_trace.max_accessed_index is not None:
-        required_min_len = collection_trace.max_accessed_index + 1
-        if len(elems) < required_min_len:
-            needed = required_min_len - len(elems)
-            elems.extend(
-                cst.Element(value=_element_value(constant_provider, element_pool))
-                for _ in range(needed)
-            )
-        elif len(elems) > required_min_len:
-            elems = elems[:required_min_len]
-        elif elems and randomness.next_bool():
-            idx = randomness.next_int(0, len(elems))
-            new_val = _element_value(constant_provider, element_pool)
-            elems[idx] = cst.Element(value=new_val)
-        else:
-            elems.append(cst.Element(value=_element_value(constant_provider, element_pool)))
-        return expr.with_changes(elements=_tuple_elements(elems))
-
-    if elems and randomness.next_bool():
-        idx = randomness.next_int(0, len(elems))
-        elems = elems[:idx] + elems[idx + 1 :]
-    else:
-        elems += [cst.Element(value=_element_value(constant_provider, element_pool))]
+    elems = _mutate_sequence_elements(
+        list(expr.elements), constant_provider, element_pool, collection_trace
+    )
     return expr.with_changes(elements=_tuple_elements(elems))
 
 

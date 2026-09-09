@@ -639,6 +639,10 @@ class TestCreationConfiguration:
     in-scope variable instead of a fresh literal, when a reference pool is
     available. Expects values in [0,1]."""
 
+    track_collection_accesses: bool = True
+    """Whether to track collection accesses during test execution and bound
+    mutated collections (lists, tuples, dicts) based on observed accesses."""
+
     primitive_reuse_probability: float = 0.5
     """Probability to reuse an existing primitive in a test case, if available.
     Expects values in [0,1]"""

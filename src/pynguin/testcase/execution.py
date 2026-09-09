@@ -295,7 +295,11 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._module_provider = module_provider if module_provider is not None else ModuleProvider()
         self._subject_properties = subject_properties
         self._observers: list[ExecutionObserver] = []
-        self._remote_observers: list[RemoteExecutionObserver] = [RemoteCollectionTrackingObserver()]
+        self._remote_observers: list[RemoteExecutionObserver] = (
+            [RemoteCollectionTrackingObserver()]
+            if config.configuration.test_creation.track_collection_accesses
+            else []
+        )
         self._instrument = (
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )

@@ -23,6 +23,7 @@ from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import (
     ModuleProvider,
     PatchRandomOnUnpickle,
+    RemoteCollectionTrackingObserver,
     SubprocessTestCaseExecutor,
 )
 from pynguin.testcase.execution_result import ExecutionResult
@@ -274,3 +275,16 @@ def test_fix_result_for_pickle_collection_traces():
 
     SubprocessTestCaseExecutor._fix_result_for_pickle(result)
     assert 0 not in result.collection_trace
+
+
+def test_executor_remote_observers_respects_track_collection_accesses():
+    subject_properties = SubjectProperties()
+    with patch.object(config.configuration.test_creation, "track_collection_accesses", new=False):
+        executor = SubprocessTestCaseExecutor(subject_properties)
+        assert len(executor.remote_observers) == 0
+
+    with patch.object(config.configuration.test_creation, "track_collection_accesses", new=True):
+        executor = SubprocessTestCaseExecutor(subject_properties)
+        assert any(
+            isinstance(obs, RemoteCollectionTrackingObserver) for obs in executor.remote_observers
+        )

@@ -948,6 +948,27 @@ def test_mutate_value_with_execution_result_bounds_list():
     assert len(elements) == 2
 
 
+def test_mutate_value_respects_track_collection_accesses_disabled():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(
+        assign("var_0", "[1, 2, 3, 4, 5]", bound_type=list),
+    )
+    exec_result = ExecutionResult()
+    exec_result.collection_trace[0] = CollectionTrace(max_accessed_index=1)
+
+    with (
+        mock.patch.object(
+            config.configuration.test_creation, "track_collection_accesses", new=False
+        ),
+        mock.patch.object(tf.randomness, "next_bool", return_value=False),
+    ):
+        assert factory.mutate_value(test_case, 0, execution_result=exec_result) is True
+    stmt = test_case.get_statement(0)
+    elements = stmt.node.body[0].value.elements
+    # When disabled, normal list mutation occurs (appending an element) rather than cutting.
+    assert len(elements) == 6
+
+
 def test_tuple_typed_collection_fixed_length(constructor_mock):
     factory = tf.TestFactory(_cluster_with_sometype_generator(constructor_mock))
     tuple_type = TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(int))))
