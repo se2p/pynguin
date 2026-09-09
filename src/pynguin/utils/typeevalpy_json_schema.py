@@ -24,6 +24,7 @@ from pynguin.analyses.typesystem import (
     Instance,
     NoneType,
     TupleType,
+    TypeVarType,
     TypeVisitor,
     UnionType,
     Unsupported,
@@ -155,6 +156,9 @@ class _TypeExpansionVisitor(TypeVisitor[set[str]]):
 
     def visit_none_type(self, left: NoneType) -> set[str]:
         return {"None"}
+
+    def visit_type_var_type(self, left: TypeVarType) -> set[str]:
+        return {left.name}
 
     def visit_instance(self, left: Instance) -> set[str]:
         return {left.type.name if left.type.module == "builtins" else left.type.full_name}

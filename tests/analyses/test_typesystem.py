@@ -31,10 +31,12 @@ from pynguin.analyses.typesystem import (
     InferredSignature,
     Instance,
     NoneType,
+    ProperType,
     StringSubtype,
     TupleType,
     TypeInfo,
     TypeSystem,
+    TypeVarType,
     UnionType,
     _is_partial_type_match,
     is_collection_type,
@@ -252,7 +254,7 @@ A = TypeVar("A")
             type(None),
             NoneType(),
         ),
-        (A, AnyType()),
+        (A, TypeVarType("A", raw_type_var=A)),
     ],
 )
 def test_convert_type_hints(hint, expected):
@@ -1068,3 +1070,78 @@ def test_subtype_distance(subtyping_cluster, left_hint, right_hint, subtype_dist
     left = type_system.convert_type_hint(left_hint)
     right = type_system.convert_type_hint(right_hint)
     assert type_system.subtype_distance(left, right) == subtype_distance
+
+
+def test_type_var_type_properties():
+    T = TypeVar("T")
+    tv = TypeVarType("T", raw_type_var=T)
+    assert tv.name == "T"
+    assert tv.raw_type_var == T
+    assert str(tv) == "~T"
+    assert repr(tv) == "TypeVarType(T)"
+    assert tv == TypeVarType("T", raw_type_var=T)
+    assert hash(tv) == hash(TypeVarType("T", raw_type_var=T))
+    assert tv.contains_type_vars()
+    assert tv.get_type_vars() == {tv}
+
+
+def test_type_substitute_visitor():
+    T = TypeVar("T")
+    tv = TypeVarType("T", raw_type_var=T)
+    type_system = TypeSystem()
+    int_type = type_system.convert_type_hint(int)
+    list_tv = Instance(TypeInfo(list), (tv,))
+    assert list_tv.contains_type_vars()
+    assert list_tv.get_type_vars() == {tv}
+
+    substituted = type_system.substitute_type(list_tv, {tv: int_type})
+    assert isinstance(substituted, Instance)
+    assert substituted.type == TypeInfo(list)
+    assert substituted.args == (int_type,)
+    assert not substituted.contains_type_vars()
+
+
+def test_inferred_signature_substitute():
+    T = TypeVar("T")
+    tv = TypeVarType("T", raw_type_var=T)
+    type_system = TypeSystem()
+    int_type = type_system.convert_type_hint(int)
+    py_sig = inspect.Signature(
+        parameters=[inspect.Parameter("x", inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+    )
+    sig = InferredSignature(
+        signature=py_sig,
+        original_parameters={"x": tv},
+        original_return_type=tv,
+        type_system=type_system,
+    )
+    assert sig.contains_type_vars()
+    assert sig.get_type_vars() == {tv}
+
+    sub_sig = sig.substitute({tv: int_type})
+    memo: dict[InferredSignature, dict[str, ProperType]] = {}
+    assert sub_sig.get_parameter_types(memo)["x"] == int_type
+    assert sub_sig.return_type == int_type
+    assert not sub_sig.contains_type_vars()
+
+
+def test_get_candidate_types_for_type_var():
+    T = TypeVar("T")
+    tv_unbound = TypeVarType("T", raw_type_var=T)
+    type_system = TypeSystem()
+    candidates = type_system.get_candidate_types_for_type_var(tv_unbound)
+    assert any(isinstance(c, Instance) and c.type.raw_type is int for c in candidates)
+    assert any(isinstance(c, Instance) and c.type.raw_type is str for c in candidates)
+
+    T_bound = TypeVar("T_bound", bound=int)
+    tv_bound = TypeVarType("T_bound", raw_type_var=T_bound)
+    candidates_bound = type_system.get_candidate_types_for_type_var(tv_bound)
+    assert len(candidates_bound) == 1
+    assert candidates_bound[0] == type_system.convert_type_hint(int)
+
+    T_constrained = TypeVar("T_constrained", int, str)
+    tv_constrained = TypeVarType("T_constrained", raw_type_var=T_constrained)
+    candidates_constrained = type_system.get_candidate_types_for_type_var(tv_constrained)
+    assert len(candidates_constrained) == 2
+    assert type_system.convert_type_hint(int) in candidates_constrained
+    assert type_system.convert_type_hint(str) in candidates_constrained

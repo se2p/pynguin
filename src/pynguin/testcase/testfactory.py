@@ -26,7 +26,7 @@ import libcst as cst
 import pynguin.configuration as config
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
-from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TupleType
+from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TupleType, TypeVarType
 from pynguin.testcase import literalgen
 from pynguin.testcase.testcase import MLStatementInfo, Statement
 from pynguin.utils import randomness
@@ -163,6 +163,12 @@ def _proper_type_to_raw(typ: ProperType | None) -> type | None:
         return _raw_type_or_none(typ.type.raw_type)
     if isinstance(typ, TupleType):
         return tuple
+    if isinstance(typ, TypeVarType):
+        if typ.bound is not None:
+            return _proper_type_to_raw(typ.bound)
+        if typ.constraints:
+            return _proper_type_to_raw(typ.constraints[0])
+        return None
     return None
 
 
@@ -1015,7 +1021,6 @@ class TestFactory:
         if method_name is None:
             return None
         owner_raw = _raw_type_or_none(accessible.owner.raw_type)
-
         func: cst.BaseExpression
         if accessible.is_classmethod() or accessible.is_static():
             owner = accessible.owner
@@ -1030,9 +1035,19 @@ class TestFactory:
                 )
                 func = cst.Attribute(value=class_node, attr=cst.Name(method_name))
         else:
-            receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
+            receiver = (
+                self._find_variable_of_instance(test_case, accessible.instantiated_owner, cursor)
+                if accessible.instantiated_owner is not None
+                else None
+            )
             if receiver is None:
-                owner_type = self._test_cluster.type_system.make_instance(accessible.owner)
+                receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
+            if receiver is None:
+                owner_type = (
+                    accessible.instantiated_owner
+                    if accessible.instantiated_owner is not None
+                    else self._test_cluster.type_system.make_instance(accessible.owner)
+                )
                 receiver, cursor = self._create_var_of_type(
                     test_case, owner_type, owner_raw, cursor, depth
                 )
@@ -1044,7 +1059,6 @@ class TestFactory:
             if receiver is None:
                 return None
             func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
-
         args, cursor = self._satisfy_params(
             test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
         )
@@ -2507,6 +2521,34 @@ class TestFactory:
             if idx >= position:
                 break
             if statement.bound_variable is not None:
+                candidates.append(statement.bound_variable)
+        if not candidates:
+            return None
+        return randomness.choice(candidates)
+
+    def _find_variable_of_instance(
+        self, test_case: tc.TestCase, target_type: Instance, position: int
+    ) -> str | None:
+        """Return a variable name bound to an object matching target_type.
+
+        Args:
+            test_case: The test case to scan.
+            target_type: The generic Instance to match.
+            position: Only consider statements before this index.
+
+        Returns:
+            A matching variable name, or None.
+        """
+        candidates: list[str] = []
+        for idx, statement in enumerate(test_case.statements()):
+            if idx >= position:
+                break
+            if statement.bound_variable is None or statement.accessible is None:
+                continue
+            gen_type = statement.accessible.generated_type()
+            if gen_type is not None and self._test_cluster.type_system.is_maybe_subtype(
+                gen_type, target_type
+            ):
                 candidates.append(statement.bound_variable)
         if not candidates:
             return None
