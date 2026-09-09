@@ -17,9 +17,12 @@
 """
 
 from __future__ import annotations
+import __future__
 
+import logging
 import sys
 import types
+import typing
 from types import ModuleType
 from unittest import mock
 from unittest.mock import MagicMock
@@ -34,6 +37,20 @@ from pynguin.utils.naming import get_module_alias
 from tests.testcase import _builders as b
 
 # --- helper objects -----------------------------------------------------------
+
+
+class _WithInvalidAndBlacklistedFields:
+    """An object with illegal identifier field names and blacklisted values."""
+
+    def __init__(self) -> None:
+        self.__dict__['aB!M9>"'] = "bad"
+        self.__dict__["Write result to disk\n"] = "doc"
+        self.__dict__["def"] = "keyword"
+        self.__dict__["class"] = "keyword2"
+        self.__dict__[123] = "int_key"
+        self.__dict__["ann"] = __future__.annotations
+        self.__dict__["t_var"] = typing.TypeVar("T")
+        self.__dict__["pub_valid"] = 42
 
 
 class _Custom:
@@ -337,6 +354,24 @@ def test_sized_object_with_failing_len_recurses_into_fields():
     assert by_source["var_0.field"].object == 5
 
 
+def test_recursive_field_assertions_ignores_invalid_identifiers_and_blacklisted_values():
+    observer = ato.RemoteAssertionTraceObserver()
+    value = _WithInvalidAndBlacklistedFields()
+    statement = b.assign("var_0", "object()", bound_type=_WithInvalidAndBlacklistedFields)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
+
+    recorded = _assertions_at(observer, 0)
+    sources = {a.source for a in recorded}
+    assert "var_0.pub_valid" in sources
+    assert 'var_0.aB!M9>"' not in sources
+    assert "var_0.Write result to disk\n" not in sources
+    assert "var_0.def" not in sources
+    assert "var_0.class" not in sources
+    assert "var_0.123" not in sources
+    assert "var_0.ann" not in sources
+    assert "var_0.t_var" not in sources
+
+
 # --- RemoteAssertionTraceObserver: _is_type_importable ------------------------
 
 
@@ -375,6 +410,25 @@ def test_is_type_importable_sut_module_true():
         ("prop", property(lambda *_a: None), True),
         ("public", 42, False),
         ("public_str", "value", False),
+        # Invalid identifiers
+        ('aB!M9>"', 42, True),
+        ("has-hyphen", 42, True),
+        ("has space", 42, True),
+        ("123starts_with_digit", 42, True),
+        ("multiline\nfield", 42, True),
+        ("", 42, True),
+        # Keywords
+        ("def", 42, True),
+        ("class", 42, True),
+        ("return", 42, True),
+        ("import", 42, True),
+        ("pass", 42, True),
+        # Non-string keys
+        (123, 42, True),
+        # Blacklisted values
+        ("ann", __future__.annotations, True),
+        ("t_var", typing.TypeVar("T"), True),
+        ("logger", logging.getLogger("test"), True),
     ],
 )
 def test_should_ignore(field, value, expected):
@@ -493,6 +547,66 @@ def test_handle_no_sut_module_in_namespace_records_nothing_extra():
         not (isinstance(a, ass.ReferenceAssertion) and a.source.startswith("some_module_"))
         for a in recorded
     )
+
+
+def test_handle_ignores_blacklisted_bound_variable():
+    observer = ato.RemoteAssertionTraceObserver()
+    statement = b.assign("var_0", "__future__.annotations", bound_type=type(__future__.annotations))
+    observer.after_statement_execution(statement, None, {"var_0": __future__.annotations}, None)
+
+    assert _assertions_at(observer, 0) == []
+    assert observer._assertion_local_state.watch_list == []
+
+
+def test_handle_ignores_blacklisted_and_invalid_module_fields():
+    observer = ato.RemoteAssertionTraceObserver()
+    module, alias = _make_sut_module(
+        static_valid=42,
+        annotations=__future__.annotations,
+        T=typing.TypeVar("T"),
+        logger=logging.getLogger("test"),
+    )
+    module.__dict__['aB!M9>"'] = "bad"
+    module.__dict__["def"] = "keyword"
+    module.__dict__[123] = "non_str"
+    namespace = {alias: module, "var_0": 1}
+
+    statement = b.assign("var_0", "1", bound_type=int)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    sources = {a.source for a in recorded}
+    assert f"{alias}.static_valid" in sources
+    assert f"{alias}.annotations" not in sources
+    assert f"{alias}.T" not in sources
+    assert f"{alias}.logger" not in sources
+    assert f'{alias}.aB!M9>"' not in sources
+    assert f"{alias}.def" not in sources
+    assert not any(source.endswith("123") for source in sources)
+
+
+def test_is_blacklisted_module():
+    assert ato._is_blacklisted_module(None) is False
+    assert ato._is_blacklisted_module("") is False
+    assert ato._is_blacklisted_module("builtins") is False
+    assert ato._is_blacklisted_module("__future__") is True
+    assert ato._is_blacklisted_module("typing") is True
+    assert ato._is_blacklisted_module("typing.io") is True
+    assert ato._is_blacklisted_module("os.path") is True
+    config.configuration.module_name = "typing"
+    assert ato._is_blacklisted_module("typing") is False
+    config.configuration.module_name = ""
+
+
+def test_is_blacklisted_value():
+    assert ato._is_blacklisted_value(None) is False
+    assert ato._is_blacklisted_value(42) is False
+    assert ato._is_blacklisted_value("string") is False
+    assert ato._is_blacklisted_value([1, 2, 3]) is False
+    assert ato._is_blacklisted_value({"a": 1}) is False
+    assert ato._is_blacklisted_value(__future__.annotations) is True
+    assert ato._is_blacklisted_value(typing.TypeVar("T")) is True
+    assert ato._is_blacklisted_value(logging.getLogger("test")) is True
 
 
 # --- RemoteAssertionTraceObserver: static class-field assertions --------------

@@ -237,3 +237,18 @@ def test_render_multiple_assertions_fixture_dotted_source(plus_test_with_multipl
     statement = plus_test_with_multiple_assertions.get_statement(-1)
     dotted = next(a for a in statement.assertions if a.source == "plus_0.calculations")
     assert render(dotted) == "assert plus_0.calculations == 1"
+
+
+@pytest.mark.parametrize(
+    "invalid_source",
+    [
+        'var_0.aB!M9>"',
+        "var_0.Write result to disk\n",
+        "var_0.def",
+        "var_0.123",
+        "var_0.)",
+    ],
+)
+def test_assertion_with_invalid_syntax_source_renders_none(invalid_source):
+    assertion = ass.ObjectAssertion(invalid_source, 42)
+    assert render(assertion) is None

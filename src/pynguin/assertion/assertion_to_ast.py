@@ -36,21 +36,25 @@ def assertion_to_cst(
 
     Returns:
         The CST assert statement, or ``None`` for ExceptionAssertion (handled
-        structurally by the writer via ``pytest.raises``).
+        structurally by the writer via ``pytest.raises``) or if the assertion's
+        source cannot be parsed into a valid CST expression.
     """
-    if isinstance(assertion, ass.FloatAssertion):
-        return _float_assertion_to_cst(assertion, float_precision)
-    if isinstance(assertion, ass.ObjectAssertion):
-        return _object_assertion_to_cst(assertion)
-    if isinstance(assertion, ass.TypeNameAssertion):
-        return _type_name_assertion_to_cst(assertion)
-    if isinstance(assertion, ass.IsInstanceAssertion):
-        return _isinstance_assertion_to_cst(assertion)
-    if isinstance(assertion, ass.CollectionLengthAssertion):
-        return _collection_length_assertion_to_cst(assertion)
-    if isinstance(assertion, ass.ExceptionAssertion):
-        return None  # Handled structurally by the writer via pytest.raises
-    return None  # pragma: no cover
+    try:
+        if isinstance(assertion, ass.FloatAssertion):
+            return _float_assertion_to_cst(assertion, float_precision)
+        if isinstance(assertion, ass.ObjectAssertion):
+            return _object_assertion_to_cst(assertion)
+        if isinstance(assertion, ass.TypeNameAssertion):
+            return _type_name_assertion_to_cst(assertion)
+        if isinstance(assertion, ass.IsInstanceAssertion):
+            return _isinstance_assertion_to_cst(assertion)
+        if isinstance(assertion, ass.CollectionLengthAssertion):
+            return _collection_length_assertion_to_cst(assertion)
+        if isinstance(assertion, ass.ExceptionAssertion):
+            return None  # Handled structurally by the writer via pytest.raises
+        return None  # pragma: no cover
+    except cst.ParserSyntaxError:
+        return None
 
 
 def _make_assert(test: cst.BaseExpression) -> cst.SimpleStatementLine:
