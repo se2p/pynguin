@@ -31,6 +31,7 @@ from types import (
     FunctionType,
     GenericAlias,
     MethodDescriptorType,
+    MethodType,
     ModuleType,
     WrapperDescriptorType,
 )
@@ -224,6 +225,26 @@ def _is_function(element: Any) -> bool:
         isinstance(element, functools._lru_cache_wrapper)  # noqa: SLF001
         and inspect.isfunction(inspect.unwrap(element))
     )
+
+
+def _is_method(element: Any) -> bool:
+    """Checks if the given element is a method or function on a class.
+
+    Includes regular methods/functions, staticmethods, classmethods,
+    and cache-wrapped variants of these.
+
+    Args:
+        element: The element to check
+
+    Returns:
+        Is the element a method or function on a class?
+    """
+    if _is_function(element) or inspect.ismethod(element):
+        return True
+    if isinstance(element, functools._lru_cache_wrapper):  # noqa: SLF001
+        unwrapped = inspect.unwrap(element)
+        return inspect.isfunction(unwrapped) or inspect.ismethod(unwrapped)
+    return False
 
 
 def _is_blacklisted(element: Any) -> bool:
@@ -1572,7 +1593,7 @@ def __analyse_class(
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
     try:
-        methods_with_names = inspect.getmembers(type_info.raw_type, inspect.isfunction)
+        methods_with_names = inspect.getmembers(type_info.raw_type, _is_method)
     except Exception as ex:  # noqa: BLE001
         LOGGER.error("Could not get members for class %s: %s", type_info.full_name, str(ex))
         return
@@ -1675,7 +1696,13 @@ def __analyse_method(
     *,
     type_info: TypeInfo,
     method_name: str,
-    method: (FunctionType | BuiltinFunctionType | WrapperDescriptorType | MethodDescriptorType),
+    method: (
+        FunctionType
+        | BuiltinFunctionType
+        | WrapperDescriptorType
+        | MethodDescriptorType
+        | MethodType
+    ),
     type_inference_provider: InferenceProvider,
     class_tree: ClassDef | None,
     test_cluster: ModuleTestCluster,
@@ -2092,7 +2119,7 @@ def __collect_class_methods(module: ModuleType, add: Callable[[Callable[..., Any
             and cls_name.startswith("_")
         ):
             continue
-        for meth_name, member in inspect.getmembers(cls, predicate=inspect.isfunction):
+        for meth_name, member in inspect.getmembers(cls, predicate=_is_method):
             if __is_constructor(meth_name):
                 continue
             if not __should_skip_by_visibility(meth_name, add_to_test=True):

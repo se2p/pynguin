@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import enum
 import inspect
 import numbers
@@ -238,6 +239,8 @@ def get_class_that_defined_method(method: object) -> object | None:
     Returns:
         The class that defines the method
     """
+    with contextlib.suppress(Exception):
+        method = inspect.unwrap(method)  # type: ignore[arg-type]
     if inspect.ismethod(method):
         assert isinstance(method, types.MethodType)
         for cls in inspect.getmro(method.__self__.__class__):
@@ -248,11 +251,13 @@ def get_class_that_defined_method(method: object) -> object | None:
         assert isinstance(method, types.FunctionType)
         module = inspect.getmodule(method)
         attribute_name = method.__qualname__.split(".<locals>", 1)[0].rsplit(".", 1)[0]
-        if not hasattr(module, attribute_name):
-            return None
-        cls = getattr(module, attribute_name)
-        if isinstance(cls, type):
-            return cls
+        target_cls: Any = module
+        for part in attribute_name.split("."):
+            target_cls = getattr(target_cls, part, None)
+            if target_cls is None:
+                break
+        if isinstance(target_cls, type):
+            return target_cls
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
 
 

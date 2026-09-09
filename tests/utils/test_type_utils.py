@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import enum
+import functools
 import inspect
 from unittest.mock import MagicMock
 
@@ -12,6 +13,7 @@ import pytest
 
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import (
+    get_class_that_defined_method,
     get_method_for_signature,
     given_exception_matches,
     is_arg_or_kwarg,
@@ -323,3 +325,43 @@ def test_given_exception_matches(exception, ex_match, result):
 )
 def test_is_assertable(value, result):
     assert is_assertable(value) == result
+
+
+class _DefiningBase:
+    def norm(self):
+        pass
+
+    @staticmethod
+    def stat():
+        pass
+
+    @classmethod
+    def cls_m(cls):
+        pass
+
+    @functools.lru_cache
+    def lru_m(self):
+        pass
+
+    class Nested:
+        def nested_norm(self):
+            pass
+
+        @classmethod
+        def nested_cls_m(cls):
+            pass
+
+
+class _DefiningSub(_DefiningBase):
+    pass
+
+
+def test_get_class_that_defined_method():
+    assert get_class_that_defined_method(_DefiningBase.norm) == _DefiningBase
+    assert get_class_that_defined_method(_DefiningBase.stat) == _DefiningBase
+    assert get_class_that_defined_method(_DefiningBase.cls_m) == _DefiningBase
+    assert get_class_that_defined_method(_DefiningSub.cls_m) == _DefiningBase
+    assert get_class_that_defined_method(_DefiningBase.lru_m) == _DefiningBase
+    assert get_class_that_defined_method(_DefiningBase.Nested.nested_norm) == _DefiningBase.Nested
+    assert get_class_that_defined_method(_DefiningBase.Nested.nested_cls_m) == _DefiningBase.Nested
+    assert get_class_that_defined_method(None) is None

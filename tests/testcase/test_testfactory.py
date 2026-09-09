@@ -460,7 +460,10 @@ def test_satisfy_params_emits_var_args_and_var_kwargs(type_system):
     assert call.args[0].keyword is None
 
 
-@pytest.mark.parametrize("kind", ["enum", "method", "bad_function", "bad_method", "unknown"])
+@pytest.mark.parametrize(
+    "kind",
+    ["enum", "method", "classmethod", "staticmethod", "bad_function", "bad_method", "unknown"],
+)
 def test_append_generic_accessible(kind, type_system, constructor_mock):
     cluster = MagicMock(ModuleTestCluster)
     cluster.type_system = type_system
@@ -486,6 +489,32 @@ def test_append_generic_accessible(kind, type_system, constructor_mock):
             ),
         )
         expected_ok, needle = True, "simple_method"
+    elif kind == "classmethod":
+        accessible = gao.GenericMethod(
+            owner=TypeInfo(SomeType),
+            method=SomeType.simple_method,  # type: ignore[arg-type]
+            inferred_signature=_make_signature(
+                [Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int)],
+                {"x": Instance(TypeInfo(int))},
+                Instance(TypeInfo(float)),
+                type_system,
+            ),
+            method_name="simple_classmethod",
+        )
+        expected_ok, needle = True, "simple_classmethod"
+    elif kind == "staticmethod":
+        accessible = gao.GenericMethod(
+            owner=TypeInfo(SomeType),
+            method=SomeType.simple_method,  # type: ignore[arg-type]
+            inferred_signature=_make_signature(
+                [Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int)],
+                {"x": Instance(TypeInfo(int))},
+                Instance(TypeInfo(float)),
+                type_system,
+            ),
+            method_name="simple_staticmethod",
+        )
+        expected_ok, needle = True, "simple_staticmethod"
     elif kind == "bad_function":
         accessible = _bad_function(type_system)
         expected_ok, needle = False, None
