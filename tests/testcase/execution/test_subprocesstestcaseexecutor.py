@@ -23,8 +23,10 @@ from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import (
     ModuleProvider,
     PatchRandomOnUnpickle,
+    RemoteCollectionTrackingObserver,
     SubprocessTestCaseExecutor,
 )
+from pynguin.testcase.execution_result import ExecutionResult
 from tests.testcase._builders import int_stmt, make_test_case, stmt
 
 
@@ -260,3 +262,29 @@ def test_non_empty_test_case_no_results(short_test_case, subject_properties: Sub
         ):
             exit_code = subprocess_executor.execute_with_exit_code(short_test_case)
             assert exit_code is None
+
+
+def test_fix_result_for_pickle_collection_traces():
+    class Unpicklable:
+        def __reduce__(self):
+            raise TypeError("Cannot pickle")
+
+    result = ExecutionResult()
+    unpicklable = Unpicklable()
+    result.collection_trace = {0: unpicklable}
+
+    SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+    assert 0 not in result.collection_trace
+
+
+def test_executor_remote_observers_respects_track_collection_accesses():
+    subject_properties = SubjectProperties()
+    with patch.object(config.configuration.test_creation, "track_collection_accesses", new=False):
+        executor = SubprocessTestCaseExecutor(subject_properties)
+        assert len(executor.remote_observers) == 0
+
+    with patch.object(config.configuration.test_creation, "track_collection_accesses", new=True):
+        executor = SubprocessTestCaseExecutor(subject_properties)
+        assert any(
+            isinstance(obs, RemoteCollectionTrackingObserver) for obs in executor.remote_observers
+        )

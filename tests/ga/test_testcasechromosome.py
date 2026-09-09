@@ -240,7 +240,7 @@ def test_mutation_change_single_prim_delegates_to_mutate_value(
     config.configuration.search_algorithm.change_statement_type_probability = 0.0
     with mock.patch("pynguin.utils.randomness.next_float", return_value=0.0):
         assert chromosome._mutation_change() is mutate_value_result
-    factory.mutate_value.assert_called_once_with(test_case, 0)
+    factory.mutate_value.assert_called_once_with(test_case, 0, None)
 
 
 def test_mutation_change_skips_statement_without_bound_variable(test_case_chromosome_with_test):

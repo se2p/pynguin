@@ -33,6 +33,10 @@ import pynguin.utils.typetracing as tt
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
+from pynguin.testcase.collection_tracker import (
+    CollectionTrace,
+    RemoteCollectionTrackingObserver,
+)
 from pynguin.testcase.execution_isolation import (
     OutputSuppressionContext,
     PatchRandomOnUnpickle,
@@ -64,12 +68,14 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 # symbols re-exported from the focused ``pynguin.testcase`` execution modules.
 __all__ = [
     "AbstractTestCaseExecutor",
+    "CollectionTrace",
     "ExecutionObserver",
     "ExecutionResult",
     "ModuleProvider",
     "OutputSuppressionContext",
     "PatchRandomOnUnpickle",
     "RemoteAssertionExecutionObserver",
+    "RemoteCollectionTrackingObserver",
     "RemoteExecutionObserver",
     "RemoteReturnTypeObserver",
     "RemoteTypeTracingObserver",
@@ -289,7 +295,11 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._module_provider = module_provider if module_provider is not None else ModuleProvider()
         self._subject_properties = subject_properties
         self._observers: list[ExecutionObserver] = []
-        self._remote_observers: list[RemoteExecutionObserver] = []
+        self._remote_observers: list[RemoteExecutionObserver] = (
+            [RemoteCollectionTrackingObserver()]
+            if config.configuration.test_creation.track_collection_accesses
+            else []
+        )
         self._instrument = (
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
@@ -326,6 +336,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
     def clear_remote_observers(self) -> None:  # noqa: D102
         self._remote_observers.clear()
+
+    @property
+    def remote_observers(self) -> tuple[RemoteExecutionObserver, ...]:
+        """Provide a tuple of registered remote observers.
+
+        Returns:
+            A tuple of registered remote observers.
+        """
+        return tuple(self._remote_observers)
 
     @contextlib.contextmanager
     def temporarily_add_remote_observer(  # noqa: D102

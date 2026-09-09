@@ -17,6 +17,7 @@ from pynguin.instrumentation.tracer import ExecutionTrace
 if TYPE_CHECKING:
     import pynguin.utils.typetracing as tt
     from pynguin.analyses.typesystem import ProperType
+    from pynguin.testcase.collection_tracker import CollectionTrace
 
 T = TypeVar("T")
 
@@ -46,6 +47,10 @@ class ExecutionResult:
     )
 
     proxy_knowledge: dict[tuple[int, str], tt.UsageTraceNode] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+
+    collection_trace: dict[int, CollectionTrace] = dataclasses.field(
         default_factory=dict, init=False
     )
 
@@ -98,6 +103,9 @@ class ExecutionResult:
             self.proper_return_type_trace, deleted_statements
         )
         self.exceptions = ExecutionResult.shift_dict(self.exceptions, deleted_statements)
+        self.collection_trace = ExecutionResult.shift_dict(
+            self.collection_trace, deleted_statements
+        )
 
     @staticmethod
     def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:

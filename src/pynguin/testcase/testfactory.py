@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.typesystem import InferredSignature
+    from pynguin.testcase.execution_result import ExecutionResult
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
 
@@ -1685,7 +1686,12 @@ class TestFactory:
         )
         return var_name, cursor + 1
 
-    def mutate_value(self, test_case: tc.TestCase, position: int) -> bool:
+    def mutate_value(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        execution_result: ExecutionResult | None = None,
+    ) -> bool:
         """Perturb the literal value of the primitive statement at *position*.
 
         The current RHS expression is extracted from the statement node and
@@ -1695,6 +1701,7 @@ class TestFactory:
         Args:
             test_case: The test case to modify.
             position: The index of the statement to mutate.
+            execution_result: Optional last execution result providing access traces.
 
         Returns:
             True if the statement was mutated.
@@ -1721,8 +1728,18 @@ class TestFactory:
         pool: list[cst.BaseExpression] = (
             self._reference_pool(test_case, position) if stmt.bound_type in _COLLECTION_RAWS else []
         )
+        collection_trace = (
+            execution_result.collection_trace.get(position)
+            if execution_result is not None
+            and config.configuration.test_creation.track_collection_accesses
+            else None
+        )
         new_expr = literalgen.mutate_literal(
-            old_expr, stmt.bound_type, self._constant_provider, pool
+            old_expr,
+            stmt.bound_type,
+            self._constant_provider,
+            pool,
+            collection_trace=collection_trace,
         )
         new_node = stmt.node.with_changes(
             body=[
@@ -2601,7 +2618,12 @@ class MLTestFactory(TestFactory):
         )
         return var_name, cursor + 1
 
-    def mutate_value(self, test_case: tc.TestCase, position: int) -> bool:
+    def mutate_value(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        execution_result: ExecutionResult | None = None,
+    ) -> bool:
         """Perturb the value of the statement at *position*, ML-aware.
 
         ML metadata drives the mutation: ``ml_call`` statements are never
@@ -2613,6 +2635,7 @@ class MLTestFactory(TestFactory):
         Args:
             test_case: The test case to modify.
             position: The index of the statement to mutate.
+            execution_result: Optional last execution result providing access traces.
 
         Returns:
             True if the statement was mutated.
@@ -2622,7 +2645,7 @@ class MLTestFactory(TestFactory):
         stmt = test_case.get_statement(position)
         info = stmt.ml_info
         if info is None:
-            return super().mutate_value(test_case, position)
+            return super().mutate_value(test_case, position, execution_result=execution_result)
         if info.kind == "ml_call" or stmt.bound_variable is None:
             return False
 
