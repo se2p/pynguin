@@ -1352,11 +1352,6 @@ def test_emit_accessible_may_invoke_its_result(type_system):
     cst.parse_module(test_case.to_code())
 
 
-# ---------------------------------------------------------------------------
-# Tuple deconstruction (Issue #195)
-# ---------------------------------------------------------------------------
-
-
 def test_deconstruct_tuple_basic():
     factory = tf.TestFactory(_bare_cluster())
     test_case = tc.TestCase()
