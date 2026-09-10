@@ -464,6 +464,45 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             )
             return
 
+        try:
+            maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
+                COMPARE_OP_POS,
+            )
+        except IndexError:
+            maybe_compare = None
+            maybe_compare_index = None
+
+        if maybe_compare is not None and maybe_compare_index is not None:
+            if maybe_compare.name == "MATCH_KEYS":
+                self.visit_match_keys_based_conditional_jump(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
+            if maybe_compare.name == "COPY":
+                try:
+                    prev_index, prev_instr = node.find_instruction_by_original_index(
+                        COMPARE_OP_POS - 1,
+                    )
+                except IndexError:
+                    pass
+                else:
+                    if prev_instr.name == "MATCH_KEYS":
+                        self.visit_match_keys_based_conditional_jump(
+                            ast_info,
+                            cfg,
+                            code_object_id,
+                            node,
+                            prev_instr,
+                            prev_index,
+                        )
+                        return
+
         if maybe_jump.name in self.NONE_BASED_JUMPS_MAPPING:
             self.visit_none_based_conditional_jump(
                 ast_info,
@@ -478,13 +517,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         if not maybe_jump.is_cond_jump():
             return
 
-        try:
-            maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
-                COMPARE_OP_POS,
-            )
-        except IndexError:
-            pass
-        else:
+        if maybe_compare is not None and maybe_compare_index is not None:
             if maybe_compare.name in python3_10.COMPARE_NAMES:
                 self.visit_compare_based_conditional_jump(
                     ast_info,
@@ -520,17 +553,6 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
 
             if maybe_compare.name == "MATCH_MAPPING":
                 self.visit_match_mapping_based_conditional_jump(
-                    ast_info,
-                    cfg,
-                    code_object_id,
-                    node,
-                    maybe_compare,
-                    maybe_compare_index,
-                )
-                return
-
-            if maybe_compare.name == "MATCH_KEYS":
-                self.visit_match_keys_based_conditional_jump(
                     ast_info,
                     cfg,
                     code_object_id,
