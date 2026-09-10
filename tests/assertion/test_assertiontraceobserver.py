@@ -249,7 +249,7 @@ def test_assertable_collection_records_object_assertion():
     assert _assertions_at(observer, 0) == []
 
 
-def test_repr_assertable_object_records_object_assertion():
+def test_repr_assertable_object_records_repr_object_assertion():
     observer = ato.RemoteAssertionTraceObserver()
     value = ReprAssertablePoint(1, 2)
     statement = b.assign("var_0", "ReprAssertablePoint(1, 2)", bound_type=ReprAssertablePoint)
@@ -258,9 +258,9 @@ def test_repr_assertable_object_records_object_assertion():
 
     recorded = _assertions_at(observer, 0)
     assert len(recorded) == 1
-    assert isinstance(recorded[0], ass.ObjectAssertion)
+    assert isinstance(recorded[0], ass.ReprObjectAssertion)
     assert recorded[0].source == "var_0"
-    assert recorded[0].object == ReprAssertablePoint(1, 2)
+    assert recorded[0].repr_string == "ReprAssertablePoint(1, 2)"
 
     cst_node = ato.assertion_to_cst(recorded[0])
     assert cst_node is not None
@@ -285,10 +285,10 @@ def test_repr_assertable_nested_in_field():
 
     recorded = _assertions_at(observer, 0)
     assert any(isinstance(a, ass.TypeNameAssertion) for a in recorded)
-    obj_ass = next((a for a in recorded if isinstance(a, ass.ObjectAssertion)), None)
-    assert obj_ass is not None
-    assert obj_ass.source == "var_0.pt"
-    assert obj_ass.object == ReprAssertablePoint(3, 4)
+    repr_ass = next((a for a in recorded if isinstance(a, ass.ReprObjectAssertion)), None)
+    assert repr_ass is not None
+    assert repr_ass.source == "var_0.pt"
+    assert repr_ass.repr_string == "ReprAssertablePoint(3, 4)"
 
 
 def test_non_builtins_object_records_type_name_assertion():

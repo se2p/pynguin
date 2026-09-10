@@ -44,6 +44,8 @@ def assertion_to_cst(
             return _float_assertion_to_cst(assertion, float_precision)
         if isinstance(assertion, ass.ObjectAssertion):
             return _object_assertion_to_cst(assertion)
+        if isinstance(assertion, ass.ReprObjectAssertion):
+            return _repr_object_assertion_to_cst(assertion)
         if isinstance(assertion, ass.TypeNameAssertion):
             return _type_name_assertion_to_cst(assertion)
         if isinstance(assertion, ass.IsInstanceAssertion):
@@ -137,6 +139,22 @@ def _object_assertion_to_cst(assertion: ass.ObjectAssertion) -> cst.SimpleStatem
                 cst.ComparisonTarget(
                     operator=cst.Equal(),
                     comparator=_value_to_cst(value),
+                )
+            ],
+        )
+    )
+
+
+def _repr_object_assertion_to_cst(
+    assertion: ass.ReprObjectAssertion,
+) -> cst.SimpleStatementLine:
+    return _make_assert(
+        cst.Comparison(
+            left=_name(assertion.source),
+            comparisons=[
+                cst.ComparisonTarget(
+                    operator=cst.Equal(),
+                    comparator=cst.parse_expression(assertion.repr_string),
                 )
             ],
         )

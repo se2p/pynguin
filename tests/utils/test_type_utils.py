@@ -496,11 +496,13 @@ def test_is_repr_assertable(obj, namespace, expected):
 def test_is_assertable_custom_objects():
     ns = {"DummyPoint": DummyPoint}
     p = DummyPoint(1, 2)
-    assert is_assertable(p, namespace=ns) is True
-    assert is_assertable([p, p], namespace=ns) is True
-    assert is_assertable({"key": p}, namespace=ns) is True
-    assert is_assertable((p,), namespace=ns) is True
-    assert is_assertable([p, DummyNoEq(1)], namespace=ns) is False
+    assert is_assertable(p) is False
+    assert is_assertable([p, p]) is False
+    assert is_repr_assertable(p, namespace=ns) is True
+    assert is_repr_assertable([p, p], namespace=ns) is True
+    assert is_repr_assertable({"key": p}, namespace=ns) is True
+    assert is_repr_assertable((p,), namespace=ns) is True
+    assert is_repr_assertable([p, DummyNoEq(1)], namespace=ns) is False
 
 
 def test_is_repr_assertable_namespace_none_with_sys_modules(monkeypatch):

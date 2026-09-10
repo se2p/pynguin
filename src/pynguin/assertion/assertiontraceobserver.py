@@ -32,6 +32,7 @@ from pynguin.utils.type_utils import (
     is_collection_type,
     is_ignorable_type,
     is_primitive_type,
+    is_repr_assertable,
 )
 
 if TYPE_CHECKING:
@@ -402,8 +403,11 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(source, value))
             return
-        if is_assertable(value, namespace=namespace):
+        if is_assertable(value):
             trace.add_entry(position, ass.ObjectAssertion(source, copy.deepcopy(value)))
+            return
+        if is_repr_assertable(value, namespace=namespace):
+            trace.add_entry(position, ass.ReprObjectAssertion(source, repr(value)))
             return
 
         self._check_type_and_recurse(

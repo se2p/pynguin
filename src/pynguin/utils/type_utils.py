@@ -280,7 +280,6 @@ def is_repr_assertable(obj: Any, namespace: dict[str, Any] | None = None) -> boo
 def is_assertable(
     obj: Any,
     recursion_depth: int = 0,
-    namespace: dict[str, Any] | None = None,
 ) -> bool:
     """Returns whether we can generate an assertion using an exact comparison value.
 
@@ -288,8 +287,6 @@ def is_assertable(
     Enum values are assertable.
     List, sets, dicts and tuples composed only of assertable objects are also
     assertable.
-    Objects that fulfill the __repr__ contract (where eval(repr(obj)) recreates
-    an equal object in the execution environment) are also assertable.
 
     Objects that are accepted by this function must be constructable in
     `pynguin.assertion.assertion_to_ast._value_to_cst`
@@ -297,7 +294,6 @@ def is_assertable(
     Args:
         obj: The object to check for assertability.
         recursion_depth: Avoid endless recursion for nested structures.
-        namespace: Optional execution namespace.
 
     Returns:
         True, if we can assert on the given value.
@@ -313,14 +309,13 @@ def is_assertable(
     if is_enum(tp_) or is_primitive_type(tp_) or is_none_type(tp_):
         return True
     if is_set(tp_) or is_list(tp_) or is_tuple(tp_):
-        return all(is_assertable(elem, recursion_depth + 1, namespace) for elem in obj)
+        return all(is_assertable(elem, recursion_depth + 1) for elem in obj)
     if is_dict(tp_):
         return all(
-            is_assertable(key, recursion_depth + 1, namespace)
-            and is_assertable(value, recursion_depth + 1, namespace)
+            is_assertable(key, recursion_depth + 1) and is_assertable(value, recursion_depth + 1)
             for key, value in obj.items()
         )
-    return is_repr_assertable(obj, namespace=namespace)
+    return False
 
 
 def get_class_that_defined_method(method: object) -> object | None:

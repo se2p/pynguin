@@ -132,6 +132,11 @@ def test_object_assertion_custom_repr():
     assert render(nested_assertion) == "assert var_0 == [CustomPoint(1, 2)]"
 
 
+def test_repr_object_assertion():
+    assertion = ass.ReprObjectAssertion("var_0", "CustomPoint(1, 2)")
+    assert render(assertion) == "assert var_0 == CustomPoint(1, 2)"
+
+
 # --- TypeNameAssertion --------------------------------------------------------
 
 
