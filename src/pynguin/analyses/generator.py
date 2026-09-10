@@ -315,6 +315,19 @@ class GeneratorProvider:
         """
         return self._generators.get(proper_type, OrderedSet())
 
+    def get_generators_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
+        """Get all generators for a specific type including compatible subtypes.
+
+        Args:
+            typ: The type to get the generators for.
+
+        Returns:
+            The generators for the given type.
+        """
+        type_generators = self._get_generators_for(typ)
+        sorted_generators = self._sorted_generators(type_generators.freeze())
+        return OrderedSet(gen.generator for gen in sorted_generators)
+
     def add_for_type(
         self, proper_type: ProperType, generator: GenericCallableAccessibleObject
     ) -> None:
@@ -371,11 +384,17 @@ class GeneratorProvider:
             return OrderedSet()
 
         generators: OrderedSet[_Generator] = OrderedSet()
+        any_generators: OrderedSet[_Generator] = OrderedSet()
         for generated_typ in self.get_all_types():
             if (distance := self._type_system.subtype_distance(typ, generated_typ)) is not None:
-                generators.update(self._get_for_type(generated_typ, distance))
+                if isinstance(generated_typ, AnyType):
+                    any_generators.update(self._get_for_type(generated_typ, distance))
+                else:
+                    generators.update(self._get_for_type(generated_typ, distance))
 
-        return generators
+        if generators:
+            return generators
+        return any_generators
 
     @functools.lru_cache(maxsize=1024)
     def _get_for_type(self, typ: ProperType, distance: int) -> OrderedSet[_Generator]:
@@ -430,13 +449,21 @@ class RandomGeneratorProvider(GeneratorProvider):
             # Just take everything when it's Any.
             return self._get_all_generators(typ)
 
+        if typ.accept(is_primitive_type):
+            return OrderedSet()
+
         results: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        any_results: OrderedSet[GenericAccessibleObject] = OrderedSet()
         for gen_type, generators in self.get_all().items():
             if self._type_system.is_maybe_subtype(gen_type, typ):
-                results.update(generators)
+                if isinstance(gen_type, AnyType):
+                    any_results.update(generators)
+                else:
+                    results.update(generators)
 
+        matching = results or any_results
         return OrderedSet(
-            _Generator(generator, typ, self._fitness_function) for generator in results
+            _Generator(generator, typ, self._fitness_function) for generator in matching
         )
 
     @functools.lru_cache(maxsize=0)  # Required to avoid mypy error

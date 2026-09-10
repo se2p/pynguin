@@ -2127,6 +2127,66 @@ class TestFactory:
 
         return self._create_var_of_type(test_case, param_type, raw, position, depth)
 
+    def _select_candidate_generators(
+        self, param_type: ProperType, generators: list[gao.GenericAccessibleObject]
+    ) -> list[gao.GenericAccessibleObject]:
+        """Order generator candidates with the best match prioritized.
+
+        Args:
+            param_type: The type to generate.
+            generators: The candidate generators.
+
+        Returns:
+            Ordered list of generators to try.
+        """
+        generator = None
+        if hasattr(self._test_cluster, "generator_provider"):
+            try:
+                selected = self._test_cluster.generator_provider.select_generator_for(param_type)
+                if selected in generators:
+                    generator = selected
+            except Exception:  # noqa: BLE001
+                generator = None
+
+        if generator is None:
+            generator = randomness.choice(generators)
+
+        return [generator, *(g for g in generators if g != generator)]
+
+    @staticmethod
+    def _find_matching_variable(
+        test_case: tc.TestCase,
+        start_pos: int,
+        total_added: int,
+        raw: type | None,
+        fallback_pos: int,
+    ) -> str | None:
+        """Find a variable matching the required raw type among newly added statements.
+
+        Args:
+            test_case: The test case to scan.
+            start_pos: Starting index of newly added statements.
+            total_added: Number of statements added.
+            raw: Target class to match.
+            fallback_pos: Index of statement to fallback to.
+
+        Returns:
+            Matching variable name, fallback variable name, or None.
+        """
+        for i in range(start_pos, start_pos + total_added):
+            candidate = test_case.get_statement(i)
+            if candidate.bound_variable is None or candidate.bound_type is None:
+                continue
+            try:
+                matches = candidate.bound_type is raw or (
+                    raw is not None and issubclass(candidate.bound_type, raw)
+                )
+            except TypeError:
+                matches = False
+            if matches:
+                return candidate.bound_variable
+        return test_case.get_statement(fallback_pos).bound_variable
+
     def _create_var_of_type(
         self,
         test_case: tc.TestCase,
@@ -2152,29 +2212,19 @@ class TestFactory:
         generators = list(self._test_cluster.get_generators_for(param_type))
         if not generators:
             return None, position
-        generator = randomness.choice(generators)
-        pre_size = test_case.size()
-        new_pos = self._emit_accessible(test_case, generator, position, depth + 1)
-        if new_pos < 0:
-            return None, position
-        total_added = test_case.size() - pre_size
-        matching_var: str | None = None
-        for i in range(position, position + total_added):
-            candidate = test_case.get_statement(i)
-            if candidate.bound_variable is None or candidate.bound_type is None:
+
+        for gen in self._select_candidate_generators(param_type, generators):
+            pre_size = test_case.size()
+            new_pos = self._emit_accessible(test_case, gen, position, depth + 1)
+            if new_pos < 0:
                 continue
-            try:
-                matches = candidate.bound_type is raw or (
-                    raw is not None and issubclass(candidate.bound_type, raw)
-                )
-            except TypeError:
-                matches = False
-            if matches:
-                matching_var = candidate.bound_variable
-                break
-        if matching_var is None:
-            matching_var = test_case.get_statement(new_pos).bound_variable
-        return matching_var, position + total_added
+            total_added = test_case.size() - pre_size
+            matching_var = self._find_matching_variable(
+                test_case, position, total_added, raw, new_pos
+            )
+            return matching_var, position + total_added
+
+        return None, position
 
     @staticmethod
     def _find_any_variable(test_case: tc.TestCase, position: int) -> str | None:
