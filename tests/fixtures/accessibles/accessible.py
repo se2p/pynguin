@@ -14,6 +14,14 @@ class SomeType:
     def simple_method(self, x: int) -> float:
         return self._y * x * self._x
 
+    @classmethod
+    def simple_classmethod(cls, x: int) -> float:
+        return float(x * 2)
+
+    @staticmethod
+    def simple_staticmethod(x: int) -> float:
+        return float(x * 3)
+
 
 def simple_function(z: float) -> float:
     return z
