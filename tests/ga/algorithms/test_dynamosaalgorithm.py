@@ -286,3 +286,38 @@ def test_dynamosa_integration_with_branch_and_line_coverage(
         algo._logger = MagicMock(Logger)
         suite = algo.generate_tests()
         assert suite.size() >= 0
+
+
+def test_control_dependency_graph_with_loop(subject_properties: SubjectProperties):
+    def loop_fn(items):
+        for x in items:
+            if x > 0:
+                pass
+
+    adapters = [
+        BranchCoverageInstrumentation(subject_properties),
+        LineCoverageInstrumentation(subject_properties),
+    ]
+    transformer = InstrumentationTransformer(
+        subject_properties,
+        adapters,
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
+    )
+    instrument_function(transformer, loop_fn)
+
+    executor = MagicMock()
+    executor.subject_properties = subject_properties
+    pool = bg.BranchGoalPool(subject_properties)
+    branch_ffs = bg.create_branch_coverage_fitness_functions(executor, pool)
+    graph = dyna._ControlDependencyGraph(branch_ffs, subject_properties)
+
+    # For-loop predicate has a self-edge/back-edge (in_degree > 0), but is control-dependent
+    # on root, so it must be included in root_goals.
+    assert len(graph.root_goals) > 0
+    loop_branches = [
+        f
+        for f in graph.root_goals
+        if isinstance(f, bg.BranchCoverageTestFitness) and not f.goal.is_branchless_code_object
+    ]
+    assert len(loop_branches) > 0
+    assert all(graph._graph.in_degree(f) > 0 for f in loop_branches)

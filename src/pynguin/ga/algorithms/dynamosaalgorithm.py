@@ -220,6 +220,7 @@ class _ControlDependencyGraph:
         subject_properties: SubjectProperties,
     ):
         self._graph: nx.DiGraph[ff.TestCaseFitnessFunction] = nx.DiGraph()
+        self._root_goals: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
         self._build_graph(fitness_functions, subject_properties)
 
     def _build_graph(
@@ -260,6 +261,10 @@ class _ControlDependencyGraph:
                 subject_properties,
                 nodes_predicates_cache,
             )
+
+        for n in self._graph.nodes:
+            if self._graph.in_degree(n) == 0:
+                self._root_goals.add(n)
 
         # Sanity check: branchless code objects must always be root goals.
         assert all(
@@ -306,6 +311,7 @@ class _ControlDependencyGraph:
             if not isinstance(fitness, bg.BranchCoverageTestFitness):
                 continue
             if fitness.goal.is_branchless_code_object:
+                self._root_goals.add(fitness)
                 continue
             assert fitness.goal.is_branch
             branch_goal = cast("bg.BranchGoal", fitness.goal)
@@ -319,6 +325,9 @@ class _ControlDependencyGraph:
                 predicate_meta_data.code_object_id,
                 nodes_predicates_cache,
             )
+
+            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
+                self._root_goals.add(fitness)
 
             self._connect_dependencies(
                 code_object_meta_data=code_object_meta_data,
@@ -368,6 +377,9 @@ class _ControlDependencyGraph:
             # attributing subsequent jump targets or continuation blocks that share
             # line metadata to this line's control dependencies.
             entry_bb_node = min(bb_nodes, key=lambda n: n.index)
+            if code_object_meta_data.cdg.is_control_dependent_on_root(entry_bb_node):
+                self._root_goals.add(fitness)
+
             self._connect_dependencies(
                 code_object_meta_data=code_object_meta_data,
                 node=entry_bb_node,
@@ -407,7 +419,7 @@ class _ControlDependencyGraph:
     @property
     def root_goals(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Return the root goals, i.e., the fitness functions without conditions."""
-        return OrderedSet(n for n in self._graph.nodes if self._graph.in_degree(n) == 0)
+        return OrderedSet(self._root_goals)
 
     @property
     def root_branches(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
