@@ -960,6 +960,7 @@ def test_mutate_value_respects_track_collection_accesses_disabled():
         mock.patch.object(
             config.configuration.test_creation, "track_collection_accesses", new=False
         ),
+        mock.patch.object(config.configuration.search_algorithm, "random_perturbation", new=0.0),
         mock.patch.object(tf.randomness, "next_bool", return_value=False),
     ):
         assert factory.mutate_value(test_case, 0, execution_result=exec_result) is True
