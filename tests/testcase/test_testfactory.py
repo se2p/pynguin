@@ -1350,3 +1350,108 @@ def test_emit_accessible_may_invoke_its_result(type_system):
     assert test_case.size() > position + 1
     assert "simple_function()" in test_case.to_code()
     cst.parse_module(test_case.to_code())
+
+
+def test_deconstruct_tuple_basic():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    var_0 = test_case.next_var_name()
+    test_case.add_statement(
+        tc.Statement(
+            node=cst.parse_statement(f"{var_0} = get_pair()\n"),
+            bound_variable=var_0,
+            bound_type=tuple,
+        )
+    )
+    tuple_type = TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(str))))
+    count = factory._deconstruct_tuple(test_case, "var_0", tuple_type, 1)
+    assert count == 2
+    assert test_case.size() == 3
+
+    stmt1 = test_case.get_statement(1)
+    assert stmt1.bound_variable == "var_1"
+    assert stmt1.bound_type is int
+    assert stmt1.used_variables() == frozenset({"var_0"})
+    code1 = cst.Module(body=[]).code_for_node(stmt1.node).strip()
+    assert code1 == "var_1 = var_0[0]"
+
+    stmt2 = test_case.get_statement(2)
+    assert stmt2.bound_variable == "var_2"
+    assert stmt2.bound_type is str
+    assert stmt2.used_variables() == frozenset({"var_0"})
+    code2 = cst.Module(body=[]).code_for_node(stmt2.node).strip()
+    assert code2 == "var_2 = var_0[1]"
+
+
+def test_deconstruct_tuple_skips_unknown_size():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    test_case.add_statement(
+        tc.Statement(
+            node=cst.parse_statement("var_0 = get_tuple()\n"),
+            bound_variable="var_0",
+            bound_type=tuple,
+        )
+    )
+    tuple_type = TupleType((Instance(TypeInfo(int)),), unknown_size=True)
+    count = factory._deconstruct_tuple(test_case, "var_0", tuple_type, 1)
+    assert count == 0
+    assert test_case.size() == 1
+
+
+def test_emit_accessible_deconstructs_tuple(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+
+    tuple_type = TupleType((Instance(TypeInfo(SomeType)), Instance(TypeInfo(float))))
+    accessible = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, tuple_type, type_system),
+    )
+    test_case = tc.TestCase()
+    with mock.patch.object(factory, "_maybe_invoke_result") as maybe_invoke_mock:
+        pos = factory._emit_accessible(test_case, accessible, 0, 0)
+        assert pos == 0
+        assert test_case.size() == 3
+        # Should be invoked at position 2 (insert_pos 0 + 2 deconstructed elements)
+        maybe_invoke_mock.assert_called_once_with(test_case, 2, 0)
+
+    # Main call
+    assert test_case.get_statement(0).bound_variable == "var_0"
+    assert test_case.get_statement(0).bound_type is tuple
+
+    # Deconstructed elements
+    elem0 = test_case.get_statement(1)
+    assert elem0.bound_variable == "var_1"
+    assert elem0.bound_type is SomeType
+
+    elem1 = test_case.get_statement(2)
+    assert elem1.bound_variable == "var_2"
+    assert elem1.bound_type is float
+
+    # Verify _find_variable_of_type finds the deconstructed element
+    assert factory._find_variable_of_type(test_case, SomeType, 3) == "var_1"
+    assert factory._find_variable_of_type(test_case, float, 3) == "var_2"
+
+
+def test_create_var_of_type_with_tuple_generator(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+
+    tuple_type = TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(SomeType))))
+    generator_fn = gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, tuple_type, type_system),
+    )
+    sometype_proper = Instance(TypeInfo(SomeType))
+    cluster.get_generators_for = lambda t: [generator_fn] if t == sometype_proper else []
+
+    factory = tf.TestFactory(cluster)
+    test_case = tc.TestCase()
+
+    var, cursor = factory._create_var_of_type(test_case, sometype_proper, SomeType, 0, 0)
+    assert var == "var_2"  # second element of the tuple is SomeType
+    assert cursor == 3
+    assert test_case.get_statement(2).bound_variable == "var_2"
+    assert test_case.get_statement(2).bound_type is SomeType

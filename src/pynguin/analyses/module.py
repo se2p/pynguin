@@ -914,13 +914,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
-        gens = self.generator_provider.get_for_type(accessible.generated_type())
-        if gens is None or len(gens) == 0:
-            return
-
-        gens.discard(accessible)
-        if len(gens) == 0:
-            self.generator_provider.remove_all_generators_for(accessible.generated_type())
+        self.generator_provider.remove_generator(accessible)
 
     @staticmethod
     def _add_or_make_union(

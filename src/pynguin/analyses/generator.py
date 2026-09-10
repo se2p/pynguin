@@ -14,7 +14,14 @@ from abc import abstractmethod
 from collections import defaultdict
 
 import pynguin.configuration as config
-from pynguin.analyses.typesystem import AnyType, NoneType, ProperType, TypeSystem, is_primitive_type
+from pynguin.analyses.typesystem import (
+    AnyType,
+    NoneType,
+    ProperType,
+    TupleType,
+    TypeSystem,
+    is_primitive_type,
+)
 from pynguin.ga.operators.selection import Selectable, SelectionFunction
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -157,7 +164,18 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         """
         return_type = generator.inferred_signature.return_type
         assert return_type is not None, "Return type must not be None for a type generator"
-        return self._type_system.subtype_distance(to_generate, return_type)
+        dist = self._type_system.subtype_distance(to_generate, return_type)
+        if dist is not None:
+            return dist
+        if isinstance(return_type, TupleType) and not return_type.unknown_size:
+            min_dist: int | None = None
+            for elem_type in return_type.args:
+                d = self._type_system.subtype_distance(to_generate, elem_type)
+                if d is not None and (min_dist is None or d < min_dist):
+                    min_dist = d
+            if min_dist is not None:
+                return min_dist + 1
+        return None
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
@@ -260,6 +278,23 @@ class GeneratorProvider:
         if isinstance(generated_type, NoneType) or generated_type.accept(is_primitive_type):
             return
         self._generators[generated_type].add(generator)
+        if isinstance(generated_type, TupleType) and not generated_type.unknown_size:
+            for elem_type in generated_type.args:
+                if isinstance(elem_type, NoneType) or elem_type.accept(is_primitive_type):
+                    continue
+                self._generators[elem_type].add(generator)
+
+    def remove_generator(self, generator: GenericAccessibleObject) -> None:
+        """Remove a generator from all types it generates.
+
+        Args:
+            generator: The generator to remove.
+        """
+        for typ in list(self._generators.keys()):
+            gens = self._generators[typ]
+            gens.discard(generator)
+            if not gens:
+                del self._generators[typ]
 
     def get_all(self) -> dict[ProperType, OrderedSet[GenericAccessibleObject]]:
         """Get all generators."""
@@ -280,14 +315,6 @@ class GeneratorProvider:
         """
         return self._generators.get(proper_type, OrderedSet())
 
-    def remove_all_generators_for(self, proper_type: ProperType) -> None:
-        """Remove all generators for a specific type.
-
-        Args:
-            proper_type: The type to remove the generators for.
-        """
-        del self._generators[proper_type]
-
     def add_for_type(
         self, proper_type: ProperType, generator: GenericCallableAccessibleObject
     ) -> None:
@@ -297,7 +324,14 @@ class GeneratorProvider:
             proper_type: The type to add the generators for.
             generator: The generator to add.
         """
+        if isinstance(proper_type, NoneType) or proper_type.accept(is_primitive_type):
+            return
         self._generators[proper_type].add(generator)
+        if isinstance(proper_type, TupleType) and not proper_type.unknown_size:
+            for elem_type in proper_type.args:
+                if isinstance(elem_type, NoneType) or elem_type.accept(is_primitive_type):
+                    continue
+                self._generators[elem_type].add(generator)
 
     @functools.lru_cache(maxsize=1024)
     def _sorted_generators(
