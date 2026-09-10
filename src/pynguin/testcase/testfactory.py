@@ -801,14 +801,17 @@ class TestFactory:
         )
         insert_pos = min(cursor, test_case.size())
         test_case.insert_statement(insert_pos, statement)
+        num_deconstructed = 0
         if accessible is not None:
             gen_type = accessible.generated_type()
             if isinstance(gen_type, TupleType):
-                self._deconstruct_tuple(test_case, var_name, gen_type, insert_pos + 1)
+                num_deconstructed = self._deconstruct_tuple(
+                    test_case, var_name, gen_type, insert_pos + 1
+                )
         if depth == 0:
             # Only for top-level insertions: a dependency statement's position is
             # the caller's cursor, and appending after it would desynchronise it.
-            self._maybe_invoke_result(test_case, insert_pos, depth)
+            self._maybe_invoke_result(test_case, insert_pos + num_deconstructed, depth)
         return insert_pos
 
     def _deconstruct_tuple(

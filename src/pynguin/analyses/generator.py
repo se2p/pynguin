@@ -315,14 +315,6 @@ class GeneratorProvider:
         """
         return self._generators.get(proper_type, OrderedSet())
 
-    def remove_all_generators_for(self, proper_type: ProperType) -> None:
-        """Remove all generators for a specific type.
-
-        Args:
-            proper_type: The type to remove the generators for.
-        """
-        del self._generators[proper_type]
-
     def add_for_type(
         self, proper_type: ProperType, generator: GenericCallableAccessibleObject
     ) -> None:
@@ -332,7 +324,14 @@ class GeneratorProvider:
             proper_type: The type to add the generators for.
             generator: The generator to add.
         """
+        if isinstance(proper_type, NoneType) or proper_type.accept(is_primitive_type):
+            return
         self._generators[proper_type].add(generator)
+        if isinstance(proper_type, TupleType) and not proper_type.unknown_size:
+            for elem_type in proper_type.args:
+                if isinstance(elem_type, NoneType) or elem_type.accept(is_primitive_type):
+                    continue
+                self._generators[elem_type].add(generator)
 
     @functools.lru_cache(maxsize=1024)
     def _sorted_generators(

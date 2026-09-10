@@ -209,6 +209,43 @@ def test_generator_provider_add_tuple_type(generator_provider):
     assert len(generator_provider.get_for_type(bar_type)) == 0
 
 
+def test_generator_provider_add_for_type_tuple_type(generator_provider):
+    class Foo:
+        pass
+
+    class Bar:
+        pass
+
+    foo_type = Instance(TypeInfo(Foo))
+    bar_type = Instance(TypeInfo(Bar))
+    int_type = Instance(TypeInfo(int))
+    tuple_type = TupleType((foo_type, bar_type, int_type))
+
+    generator = MagicMock()
+
+    generator_provider.add_for_type(tuple_type, generator)
+
+    # Registered for the tuple itself
+    assert generator in generator_provider.get_for_type(tuple_type)
+    # Registered for non-primitive, non-None elements
+    assert generator in generator_provider.get_for_type(foo_type)
+    assert generator in generator_provider.get_for_type(bar_type)
+    # Primitives in tuple are not registered as generators
+    assert len(generator_provider.get_for_type(int_type)) == 0
+
+
+def test_generator_provider_add_for_type_primitive_and_none(generator_provider):
+    generator = MagicMock()
+    int_type = Instance(TypeInfo(int))
+    none_type = NoneType()
+
+    generator_provider.add_for_type(int_type, generator)
+    generator_provider.add_for_type(none_type, generator)
+
+    assert len(generator_provider.get_all_types()) == 0
+    assert len(generator_provider.get_all()) == 0
+
+
 def test_tuple_generator_fitness():
     class Foo:
         pass

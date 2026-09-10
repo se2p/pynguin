@@ -1415,9 +1415,12 @@ def test_emit_accessible_deconstructs_tuple(type_system):
         inferred_signature=_make_signature([], {}, tuple_type, type_system),
     )
     test_case = tc.TestCase()
-    pos = factory._emit_accessible(test_case, accessible, 0, 0)
-    assert pos == 0
-    assert test_case.size() == 3
+    with mock.patch.object(factory, "_maybe_invoke_result") as maybe_invoke_mock:
+        pos = factory._emit_accessible(test_case, accessible, 0, 0)
+        assert pos == 0
+        assert test_case.size() == 3
+        # Should be invoked at position 2 (insert_pos 0 + 2 deconstructed elements)
+        maybe_invoke_mock.assert_called_once_with(test_case, 2, 0)
 
     # Main call
     assert test_case.get_statement(0).bound_variable == "var_0"
