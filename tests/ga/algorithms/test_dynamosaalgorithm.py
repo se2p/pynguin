@@ -3,8 +3,13 @@
 #  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+from __future__ import annotations
+
 import importlib
 from logging import Logger
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,8 +18,10 @@ import pynguin.configuration as config
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 import pynguin.ga.coveragegoals as bg
 import pynguin.ga.generationalgorithmfactory as gaf
+import pynguin.generator as gen
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.configuration import ToCoverConfiguration
+from pynguin.instrumentation.controlflow import BasicBlockNode, ControlDependency
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
@@ -27,9 +34,14 @@ from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.orderedset import OrderedSet
 from tests.testutils import instrument_function
 
+if TYPE_CHECKING:
+    import types
+
+    from pynguin.instrumentation.tracer import SubjectProperties
+
 
 @pytest.fixture
-def dynamosa_subject_properties(subject_properties: SubjectProperties):
+def dynamosa_subject_properties(subject_properties: SubjectProperties) -> SubjectProperties:
     nested_module = importlib.import_module("tests.fixtures.examples.nested")
     importlib.reload(nested_module)
 
@@ -44,7 +56,7 @@ def dynamosa_subject_properties(subject_properties: SubjectProperties):
 
 
 @pytest.fixture
-def dynamosa_subject_properties_nested(subject_properties: SubjectProperties):
+def dynamosa_subject_properties_nested(subject_properties: SubjectProperties) -> SubjectProperties:
     def testMe(_):  # pragma: no cover  # noqa: N802
         def inner(_):
             pass
@@ -55,11 +67,11 @@ def dynamosa_subject_properties_nested(subject_properties: SubjectProperties):
         [adapter],
         to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
-    instrument_function(transformer, testMe)
+    instrument_function(transformer, cast("types.FunctionType", testMe))
     return subject_properties
 
 
-def test_fitness_graph_root_branches(dynamosa_subject_properties):
+def test_fitness_graph_root_branches(dynamosa_subject_properties: SubjectProperties) -> None:
     pool = bg.BranchGoalPool(dynamosa_subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, dynamosa_subject_properties)
@@ -69,7 +81,9 @@ def test_fitness_graph_root_branches(dynamosa_subject_properties):
     }
 
 
-def test_fitness_graph_structural_children(dynamosa_subject_properties):
+def test_fitness_graph_structural_children(
+    dynamosa_subject_properties: SubjectProperties,
+) -> None:
     pool = bg.BranchGoalPool(dynamosa_subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, dynamosa_subject_properties)
@@ -82,7 +96,9 @@ def test_fitness_graph_structural_children(dynamosa_subject_properties):
     }
 
 
-def test_fitness_graph_no_structural_children(dynamosa_subject_properties):
+def test_fitness_graph_no_structural_children(
+    dynamosa_subject_properties: SubjectProperties,
+) -> None:
     pool = bg.BranchGoalPool(dynamosa_subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, dynamosa_subject_properties)
@@ -92,7 +108,7 @@ def test_fitness_graph_no_structural_children(dynamosa_subject_properties):
     assert {ff.goal for ff in ffgraph.get_structural_children(target)} == set()
 
 
-def test_fitness_graph_nested(dynamosa_subject_properties_nested):
+def test_fitness_graph_nested(dynamosa_subject_properties_nested: SubjectProperties) -> None:
     pool = bg.BranchGoalPool(dynamosa_subject_properties_nested)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, dynamosa_subject_properties_nested)
@@ -321,3 +337,57 @@ def test_control_dependency_graph_with_loop(subject_properties: SubjectPropertie
     ]
     assert len(loop_branches) > 0
     assert all(graph._graph.in_degree(f) > 0 for f in loop_branches)
+
+
+def test_fitness_graph_with_untracked_dependency(
+    dynamosa_subject_properties: SubjectProperties,
+) -> None:
+    pool = bg.BranchGoalPool(dynamosa_subject_properties)
+    ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
+    co_meta = next(iter(dynamosa_subject_properties.existing_code_objects.values()))
+    unknown_node = MagicMock(spec=BasicBlockNode)
+    fake_dep = ControlDependency(node=unknown_node, branch_value=True)
+
+    with (
+        mock.patch.object(
+            co_meta.cdg, "get_control_dependencies", return_value=OrderedSet([fake_dep])
+        ),
+        mock.patch.object(co_meta.cdg, "is_control_dependent_on_root", return_value=False),
+    ):
+        ffgraph = dyna._BranchFitnessGraph(ffs, dynamosa_subject_properties)
+        assert len(ffgraph.root_branches) > 0
+
+
+def test_fitness_graph_with_pragma_no_cover(subject_properties: SubjectProperties) -> None:
+    no_cover_module = importlib.import_module("tests.fixtures.examples.no_cover_example")
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(
+        subject_properties,
+        [adapter],
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=True),
+    )
+    instrument_function(transformer, no_cover_module.no_cover_double_if)
+    pool = bg.BranchGoalPool(subject_properties)
+    ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
+    ffgraph = dyna._BranchFitnessGraph(ffs, subject_properties)
+    assert len(ffgraph.root_branches) == 2
+
+
+def test_dynamosa_integration_with_no_cover(tmp_path: Path) -> None:
+    project_path = Path().absolute()
+    if project_path.name == "tests":
+        project_path /= ".."  # pragma: no cover
+    project_path = project_path / "tests" / "fixtures" / "examples"
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        stopping=config.StoppingConfiguration(maximum_search_time=1),
+        module_name="no_cover_example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(project_path),
+        statistics_output=config.StatisticsOutputConfiguration(
+            report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
+        ),
+    )
+    gen.set_configuration(configuration)
+    result = gen.run_pynguin()
+    assert result == gen.ReturnCode.OK

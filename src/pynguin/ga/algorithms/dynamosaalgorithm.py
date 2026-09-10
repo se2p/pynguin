@@ -357,6 +357,9 @@ class _ControlDependencyGraph:
                 for dep in dependencies
             )
 
+            # A branch is a root if it is control-dependent on the entry of the
+            # function or if all of its dependencies are not coverage goals
+            # (e.g. tracking-only or removed via `pragma no cover`).
             if (
                 code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node)
                 or not has_goal_dependency
