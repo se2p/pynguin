@@ -185,3 +185,60 @@ def test_only_test_and_seed_test_prefixed_functions_are_considered(dummy_test_cl
     source = "def helper():\n    var0 = 1\n\n\ndef test_0():\n    var0 = 1\n"
     testcases = parse_seed_module(source, dummy_test_cluster, create_assertions=False)
     assert len(testcases) == 1
+
+
+def test_seed_module_resolves_external_dependency_objects():
+    config.configuration.module_name = "tests.fixtures.cluster.complex_dependencies"
+    cluster = generate_test_cluster("tests.fixtures.cluster.complex_dependencies")
+
+    source = (
+        "import tests.fixtures.cluster.complex_dependency as module0\n"
+        "import tests.fixtures.cluster.complex_dependencies as module1\n\n\n"
+        "def test_case_0():\n"
+        "    int_0 = 42\n"
+        "    yet_another_type_0 = module0.YetAnotherType(int_0)\n"
+        "    some_other_type_0 = module0.SomeOtherType(yet_another_type_0)\n"
+        "    some_class_0 = module1.SomeClass(some_other_type_0)\n"
+    )
+    testcases = parse_seed_module(source, cluster, create_assertions=False)
+    assert len(testcases) == 1
+    statements = testcases[0].statements()
+    assert len(statements) == 5
+
+    assert "import tests.fixtures.cluster.complex_dependency as module0" in testcases[0].to_code()
+    assert isinstance(statements[2].accessible, GenericConstructor)
+    assert statements[2].accessible.owner.name == "YetAnotherType"
+    assert isinstance(statements[3].accessible, GenericConstructor)
+    assert statements[3].accessible.owner.name == "SomeOtherType"
+    assert isinstance(statements[4].accessible, GenericConstructor)
+    assert statements[4].accessible.owner.name == "SomeClass"
+    assert "complex_dependencies_.SomeClass(" in testcases[0].to_code()
+
+
+def test_seed_module_resolves_from_import_and_modifier_on_dependency():
+    config.configuration.module_name = "tests.fixtures.cluster.complex_dependencies"
+    cluster = generate_test_cluster("tests.fixtures.cluster.complex_dependencies")
+
+    source = (
+        "from tests.fixtures.cluster.complex_dependency import SomeOtherType, YetAnotherType\n"
+        "import tests.fixtures.cluster.complex_dependencies as module0\n\n\n"
+        "def test_case_0():\n"
+        "    int_0 = 10\n"
+        "    yet_another_type_0 = YetAnotherType(int_0)\n"
+        "    some_other_type_0 = SomeOtherType(yet_another_type_0)\n"
+        "    yet_another_type_0.some_modifier(some_other_type_0)\n"
+        "    some_class_0 = module0.SomeClass(some_other_type_0)\n"
+    )
+    testcases = parse_seed_module(source, cluster, create_assertions=False)
+    assert len(testcases) == 1
+    statements = testcases[0].statements()
+    assert len(statements) == 6
+
+    assert isinstance(statements[2].accessible, GenericConstructor)
+    assert statements[2].accessible.owner.name == "YetAnotherType"
+    assert isinstance(statements[3].accessible, GenericConstructor)
+    assert statements[3].accessible.owner.name == "SomeOtherType"
+    assert isinstance(statements[4].accessible, GenericMethod)
+    assert statements[4].accessible.method_name == "some_modifier"
+    assert isinstance(statements[5].accessible, GenericConstructor)
+    assert statements[5].accessible.owner.name == "SomeClass"

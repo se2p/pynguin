@@ -38,7 +38,7 @@ from pynguin.utils.naming import get_module_alias
 from pynguin.utils.type_utils import is_assertable
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from pynguin.analyses.module import TestCluster
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
@@ -344,6 +344,47 @@ def _imported_local_names(node: cst.Import | cst.ImportFrom) -> list[str]:
             if chain:
                 result.append(chain[0])
     return result
+
+
+@dataclasses.dataclass(frozen=True)
+class ImportedBinding:
+    """Represents an imported module or symbol binding."""
+
+    module: str
+    symbol: str | None = None
+
+
+def _extract_imported_bindings(node: cst.Import | cst.ImportFrom) -> dict[str, ImportedBinding]:
+    """Extract local name to ImportedBinding mapping from an import statement."""
+    bindings: dict[str, ImportedBinding] = {}
+    if isinstance(node, cst.Import):
+        for alias in node.names:
+            chain = _dotted_chain(alias.name)
+            if not chain:
+                continue
+            full_mod = ".".join(chain)
+            if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
+                bindings[alias.asname.name.value] = ImportedBinding(module=full_mod, symbol=None)
+            else:
+                bindings[chain[0]] = ImportedBinding(module=full_mod, symbol=None)
+    elif isinstance(node, cst.ImportFrom):
+        if node.relative or node.module is None or isinstance(node.names, cst.ImportStar):
+            return bindings
+        mod_chain = _dotted_chain(node.module)
+        if not mod_chain:
+            return bindings
+        full_mod = ".".join(mod_chain)
+        for alias in node.names:
+            if not isinstance(alias.name, cst.Name):
+                continue
+            symbol_name = alias.name.value
+            local_name = (
+                alias.asname.name.value
+                if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
+                else symbol_name
+            )
+            bindings[local_name] = ImportedBinding(module=full_mod, symbol=symbol_name)
+    return bindings
 
 
 def _proper_type_to_raw(proper_type: Any) -> type | None:
@@ -680,6 +721,7 @@ class _FunctionDeserializationState:
     rename_map: dict[str, str] = dataclasses.field(default_factory=dict)
     last_index_for_name: dict[str, int] = dataclasses.field(default_factory=dict)
     bound_types_by_orig: dict[str, type | None] = dataclasses.field(default_factory=dict)
+    imported_bindings: dict[str, ImportedBinding] = dataclasses.field(default_factory=dict)
 
 
 class CstStatementDeserializer:
@@ -692,6 +734,16 @@ class CstStatementDeserializer:
         self._module_alias = get_module_alias(self._module_name)
         self._ambient_names = self._compute_ambient_names()
 
+    @property
+    def _all_accessibles(self) -> Sequence[GenericAccessibleObject]:
+        all_objs = getattr(self._test_cluster, "all_accessible_objects", None)
+        if all_objs is None or (
+            not isinstance(all_objs, list | set | frozenset | tuple)
+            and type(all_objs).__name__ in {"MagicMock", "Mock"}
+        ):
+            return getattr(self._test_cluster, "accessible_objects_under_test", ())
+        return all_objs
+
     def _compute_ambient_names(self) -> frozenset[str]:
         names: set[str] = set(dir(builtins)) | {"pytest", self._module_alias}
         module = None
@@ -701,7 +753,7 @@ class CstStatementDeserializer:
             logger.debug("Could not import %s to compute ambient names", self._module_name)
         if module is not None:
             names.update(vars(module).keys())
-        for obj in getattr(self._test_cluster, "accessible_objects_under_test", ()):
+        for obj in self._all_accessibles:
             func_name = getattr(obj, "function_name", None)
             if func_name:
                 names.add(func_name)
@@ -711,36 +763,70 @@ class CstStatementDeserializer:
         return frozenset(names)
 
     def _resolve_call(
-        self, call: cst.Call, bound_types: dict[str, type | None]
+        self,
+        call: cst.Call,
+        bound_types: dict[str, type | None],
+        imported_bindings: dict[str, ImportedBinding] | None = None,
     ) -> GenericAccessibleObject | None:
         func = call.func
         if isinstance(func, cst.Name):
             call_name = func.value
             receiver_name: str | None = None
-        elif isinstance(func, cst.Attribute) and isinstance(func.value, cst.Name):
+        elif isinstance(func, cst.Attribute):
             call_name = func.attr.value
-            receiver_name = func.value.value
+            chain = _dotted_chain(func.value)
+            receiver_name = ".".join(chain) if chain else None
         else:
             return None
 
-        # A bare call (``Foo()``) or a call through the canonical module alias
-        # (``<alias>.Foo()``, the form ``_SutReferenceNormalizer`` rewrites SUT
-        # references to) both refer to a constructor/module-level function, not
-        # a method call on an instance.
-        is_module_level_call = receiver_name is None or receiver_name == self._module_alias
+        bindings = imported_bindings or {}
+        is_module_level_call = (
+            receiver_name is None and "None" not in bound_types
+        ) or receiver_name == self._module_alias
 
+        sut_match = self._resolve_sut_call(
+            call_name,
+            receiver_name,
+            is_module_level_call=is_module_level_call,
+            bound_types=bound_types,
+        )
+        if sut_match is not None:
+            return sut_match
+
+        imported_target = self._find_imported_target(call_name, receiver_name, bindings)
+        return self._resolve_external_call(call_name, receiver_name, imported_target, bound_types)
+
+    def _find_imported_target(
+        self, call_name: str, receiver_name: str | None, bindings: dict[str, ImportedBinding]
+    ) -> ImportedBinding | None:
+        if receiver_name is not None:
+            if receiver_name in bindings:
+                return bindings[receiver_name]
+            root = receiver_name.split(".", 1)[0]
+            return bindings.get(root)
+        return bindings.get(call_name)
+
+    def _resolve_sut_call(
+        self,
+        call_name: str,
+        receiver_name: str | None,
+        *,
+        is_module_level_call: bool,
+        bound_types: dict[str, type | None],
+    ) -> GenericAccessibleObject | None:
         for obj in self._test_cluster.accessible_objects_under_test:
             if isinstance(obj, GenericConstructor):
-                owner_name = obj.owner.name if obj.owner is not None else None
-                if is_module_level_call and call_name == owner_name:
+                if is_module_level_call and call_name == getattr(obj.owner, "name", None):
                     return obj
             elif isinstance(obj, GenericMethod):
-                if receiver_name is not None and call_name == obj.method_name:
-                    receiver_type = bound_types.get(receiver_name)
-                    owner_name = obj.owner.name if obj.owner is not None else None
-                    if (
-                        receiver_type is None
-                        or getattr(receiver_type, "__name__", None) == owner_name
+                if (
+                    receiver_name is not None
+                    and receiver_name in bound_types
+                    and call_name == obj.method_name
+                ):
+                    recv_type = bound_types.get(receiver_name)
+                    if recv_type is None or getattr(recv_type, "__name__", None) == getattr(
+                        obj.owner, "name", None
                     ):
                         return obj
             elif (
@@ -751,21 +837,111 @@ class CstStatementDeserializer:
                 return obj
         return None
 
+    def _matches_imported_symbol(
+        self, name: str | None, module: str | None, target: ImportedBinding | None
+    ) -> bool:
+        if target is None:
+            return True
+        if target.symbol is not None:
+            return target.symbol == name and target.module == module
+        return target.module == module
+
+    def _match_external_constructor(
+        self,
+        obj: GenericConstructor,
+        call_name: str,
+        receiver_name: str | None,
+        imported_target: ImportedBinding | None,
+    ) -> bool:
+        owner = obj.owner
+        owner_name = owner.name if owner is not None else None
+        owner_mod = owner.module if owner is not None else None
+        return call_name == owner_name and (
+            self._matches_imported_symbol(owner_name, owner_mod, imported_target)
+            if imported_target is not None
+            else receiver_name is None
+        )
+
+    def _match_external_method(
+        self,
+        obj: GenericMethod,
+        call_name: str,
+        receiver_name: str | None,
+        bound_types: dict[str, type | None],
+    ) -> bool:
+        if (
+            receiver_name is None
+            or receiver_name not in bound_types
+            or call_name != obj.method_name
+        ):
+            return False
+        recv_type = bound_types.get(receiver_name)
+        owner_name = obj.owner.name if obj.owner is not None else None
+        owner_mod = obj.owner.module if obj.owner is not None else None
+        if recv_type is None or getattr(recv_type, "__name__", None) == owner_name:
+            recv_mod = getattr(recv_type, "__module__", None)
+            return recv_mod is None or recv_mod == owner_mod
+        return False
+
+    def _match_external_function(
+        self,
+        obj: GenericFunction,
+        call_name: str,
+        receiver_name: str | None,
+        imported_target: ImportedBinding | None,
+    ) -> bool:
+        func_mod = getattr(obj.callable, "__module__", None)
+        return call_name == obj.function_name and (
+            self._matches_imported_symbol(obj.function_name, func_mod, imported_target)
+            if imported_target is not None
+            else receiver_name is None
+        )
+
+    def _resolve_external_call(
+        self,
+        call_name: str,
+        receiver_name: str | None,
+        imported_target: ImportedBinding | None,
+        bound_types: dict[str, type | None],
+    ) -> GenericAccessibleObject | None:
+        for obj in self._all_accessibles:
+            if obj in self._test_cluster.accessible_objects_under_test:
+                continue
+            if isinstance(obj, GenericConstructor) and self._match_external_constructor(
+                obj, call_name, receiver_name, imported_target
+            ):
+                return obj
+            if isinstance(obj, GenericMethod) and self._match_external_method(
+                obj, call_name, receiver_name, bound_types
+            ):
+                return obj
+            if isinstance(obj, GenericFunction) and self._match_external_function(
+                obj, call_name, receiver_name, imported_target
+            ):
+                return obj
+        return None
+
     def _infer_rhs(
-        self, value: cst.BaseExpression, bound_types: dict[str, type | None]
+        self,
+        value: cst.BaseExpression,
+        bound_types: dict[str, type | None],
+        imported_bindings: dict[str, ImportedBinding] | None = None,
     ) -> tuple[type | None, GenericAccessibleObject | None, bool]:
         lit = _try_literal(value)
         if lit is not None:
             return lit[0], None, True
         if isinstance(value, cst.Call):
-            accessible = self._resolve_call(value, bound_types)
+            accessible = self._resolve_call(value, bound_types, imported_bindings)
             if accessible is not None:
                 return _proper_type_to_raw(accessible.generated_type()), accessible, True
             return None, None, False
         return None, None, False
 
     def _admit_small_statement(
-        self, small: cst.BaseSmallStatement, bound_types: dict[str, type | None]
+        self,
+        small: cst.BaseSmallStatement,
+        bound_types: dict[str, type | None],
+        imported_bindings: dict[str, ImportedBinding] | None = None,
     ) -> (
         tuple[
             cst.SimpleStatementLine, str | None, type | None, GenericAccessibleObject | None, bool
@@ -778,11 +954,13 @@ class CstStatementDeserializer:
             target = small.targets[0].target
             if not isinstance(target, cst.Name):
                 return None
-            bound_type, accessible, resolved = self._infer_rhs(small.value, bound_types)
+            bound_type, accessible, resolved = self._infer_rhs(
+                small.value, bound_types, imported_bindings
+            )
             node = cst.SimpleStatementLine(body=[small])
             return node, target.value, bound_type, accessible, not resolved
         if isinstance(small, cst.Expr):
-            _, accessible, resolved = self._infer_rhs(small.value, bound_types)
+            _, accessible, resolved = self._infer_rhs(small.value, bound_types, imported_bindings)
             node = cst.SimpleStatementLine(body=[small])
             return node, None, None, accessible, not resolved
         return None
@@ -847,7 +1025,9 @@ class CstStatementDeserializer:
         Returns:
             The disposition describing how the statement was handled.
         """
-        admitted = self._admit_small_statement(small, state.bound_types_by_orig)
+        admitted = self._admit_small_statement(
+            small, state.bound_types_by_orig, state.imported_bindings
+        )
         if admitted is None:
             return Disposition.DROPPED_UNSUPPORTED_SHAPE
         node, bound_var, bound_type, accessible, is_uninterpreted = admitted
@@ -920,11 +1100,55 @@ class CstStatementDeserializer:
         state.testcase.add_statement(tc.Statement(node=node))
         return Disposition.ADMITTED_COMPOUND
 
-    def deserialize_function(self, fn: cst.FunctionDef) -> FunctionDeserialization:
+    def _hoist_module_imports(
+        self,
+        normalized: cst.IndentedBlock,
+        module_level_imports: Sequence[cst.SimpleStatementLine] | None,
+    ) -> list[cst.BaseStatement]:
+        lines: list[cst.BaseStatement] = []
+        if module_level_imports:
+            fn_reads = _RootNameCollector.collect(normalized)
+            for imp_stmt in module_level_imports:
+                for small in imp_stmt.body:
+                    if isinstance(small, cst.Import | cst.ImportFrom):
+                        local_names = set(_imported_local_names(small))
+                        if local_names & fn_reads:
+                            lines.append(imp_stmt)
+                            break
+        lines.extend(normalized.body)
+        return lines
+
+    def _process_small_statement(
+        self,
+        small: cst.BaseSmallStatement,
+        state: _FunctionDeserializationState,
+        counts: collections.Counter[Disposition],
+    ) -> None:
+        if isinstance(small, cst.Assert):
+            if self._create_assertions:
+                counts[self._handle_assert(small, state)] += 1
+            return
+
+        if isinstance(small, cst.Import | cst.ImportFrom):
+            state.known.update(_imported_local_names(small))
+            state.imported_bindings.update(_extract_imported_bindings(small))
+            state.testcase.add_statement(tc.Statement(node=cst.SimpleStatementLine(body=[small])))
+            counts[Disposition.ADMITTED_IMPORT] += 1
+            return
+
+        counts[self._handle_ordinary_statement(small, state)] += 1
+
+    def deserialize_function(
+        self,
+        fn: cst.FunctionDef,
+        module_level_imports: Sequence[cst.SimpleStatementLine] | None = None,
+    ) -> FunctionDeserialization:
         """Deserialize a single ``test_*``/``seed_test_*`` function.
 
         Args:
             fn: The function definition to deserialize.
+            module_level_imports: Optional top-level non-SUT import statements to hoist
+                into the function if they are referenced.
 
         Returns:
             The test case together with the per-statement disposition counts.
@@ -934,35 +1158,16 @@ class CstStatementDeserializer:
         normalized = fn.body.visit(normalizer)
         assert isinstance(normalized, cst.IndentedBlock)
 
+        lines_to_process = self._hoist_module_imports(normalized, module_level_imports)
         state = _FunctionDeserializationState(known=set(self._ambient_names))
         counts: collections.Counter[Disposition] = collections.Counter()
 
-        for line in normalized.body:
+        for line in lines_to_process:
             if isinstance(line, cst.BaseCompoundStatement):
-                # A compound block (for/with/if/try/while) is admitted whole as an
-                # opaque, executable statement; the CST-backed representation runs
-                # it natively and the genetic operators skip it. See
-                # _handle_compound_statement.
                 counts[self._handle_compound_statement(line, state)] += 1
-                continue
-            if not isinstance(line, cst.SimpleStatementLine):
-                continue  # Non-statement line (e.g. bare newline): nothing to admit.
-            for small in line.body:
-                if isinstance(small, cst.Assert):
-                    if not self._create_assertions:
-                        continue
-                    counts[self._handle_assert(small, state)] += 1
-                    continue
-
-                if isinstance(small, cst.Import | cst.ImportFrom):
-                    state.known.update(_imported_local_names(small))
-                    state.testcase.add_statement(
-                        tc.Statement(node=cst.SimpleStatementLine(body=[small]))
-                    )
-                    counts[Disposition.ADMITTED_IMPORT] += 1
-                    continue
-
-                counts[self._handle_ordinary_statement(small, state)] += 1
+            elif isinstance(line, cst.SimpleStatementLine):
+                for small in line.body:
+                    self._process_small_statement(small, state, counts)
 
         return FunctionDeserialization(state.testcase, counts)
 

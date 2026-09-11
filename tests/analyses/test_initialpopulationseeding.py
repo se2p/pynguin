@@ -278,3 +278,30 @@ def test_initial_mutation(mutate_mock, constant_provider, tmp_path, dummy_test_c
     provider = seeding.InitialPopulationProvider(dummy_test_cluster, test_factory)
     provider.collect_testcases(seed_dir)
     mutate_mock.assert_called()
+
+
+def test_initial_population_provider_with_external_dependencies(constant_provider, tmp_path):
+    mod_name = "tests.fixtures.cluster.complex_dependencies"
+    config.configuration.module_name = mod_name
+    cluster = generate_test_cluster(mod_name)
+    test_factory = tf.TestFactory(cluster, constant_provider)
+
+    source = (
+        "import tests.fixtures.cluster.complex_dependency as module0\n"
+        "import tests.fixtures.cluster.complex_dependencies as module1\n\n\n"
+        "def test_case_0():\n"
+        "    int_0 = 42\n"
+        "    yet_another_type_0 = module0.YetAnotherType(int_0)\n"
+        "    some_other_type_0 = module0.SomeOtherType(yet_another_type_0)\n"
+        "    some_class_0 = module1.SomeClass(some_other_type_0)\n"
+    )
+    seed_file = tmp_path / "complex_dependencies_test_seed.py"
+    seed_file.write_text(source, encoding="utf-8")
+
+    provider = seeding.InitialPopulationProvider(cluster, test_factory)
+    provider.collect_testcases(tmp_path)
+
+    assert len(provider) == 1
+    testcase = provider.random_testcase()
+    assert len(testcase.statements()) == 5
+    assert "import tests.fixtures.cluster.complex_dependency as module0" in testcase.to_code()

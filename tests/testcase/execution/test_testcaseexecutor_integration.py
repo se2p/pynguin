@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import pynguin.configuration as config
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import parse_seed_module
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import TestCaseExecutor
@@ -170,3 +172,33 @@ def test_exception_at_first_statement_reports_index_zero(
         result = executor.execute(test_case)
     assert result.get_first_position_of_thrown_exception() == 0
     assert set(result.exceptions) == {0}
+
+
+def test_seeded_testcase_with_dependency_imports_executes(
+    subject_properties: SubjectProperties,
+) -> None:
+    """Seeded testcase using external dependency imports runs without exceptions."""
+    mod_name = "tests.fixtures.cluster.complex_dependencies"
+    config.configuration.module_name = mod_name
+    cluster = generate_test_cluster(mod_name)
+    source = (
+        "import tests.fixtures.cluster.complex_dependency as module0\n"
+        "import tests.fixtures.cluster.complex_dependencies as module1\n\n\n"
+        "def test_case_0():\n"
+        "    int_0 = 42\n"
+        "    yet_another_type_0 = module0.YetAnotherType(int_0)\n"
+        "    some_other_type_0 = module0.SomeOtherType(yet_another_type_0)\n"
+        "    some_class_0 = module1.SomeClass(some_other_type_0)\n"
+    )
+    testcases = parse_seed_module(source, cluster, create_assertions=False)
+    assert len(testcases) == 1
+    test_case = testcases[0]
+    condition = MaxStatementExecutionsStoppingCondition(10_000)
+
+    with _executor_for(mod_name, subject_properties) as executor:
+        executor.add_observer(condition)
+        result = executor.execute(test_case)
+
+    assert not result.has_test_exceptions()
+    assert result.num_executed_statements == 5
+    assert condition.current_value() == 5
