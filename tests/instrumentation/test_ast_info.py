@@ -489,3 +489,110 @@ def test_get_scope_line_one_definition_not_shadowed_by_module(tmp_path):
     assert scope is not None
     assert isinstance(scope.ast, ast.FunctionDef)
     assert scope.ast.name == "foo"
+
+
+def test_parse_line_ranges_single():
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["42"]))
+    assert result == {42}
+
+
+def test_parse_line_ranges_range():
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["10-12"]))
+    assert result == {10, 11, 12}
+
+
+def test_parse_line_ranges_multiple():
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["5", "10-12"]))
+    assert result == {5, 10, 11, 12}
+
+
+def test_parse_line_ranges_invalid_reversed():
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["20-10"]))
+    assert result == set()
+
+
+def test_parse_line_ranges_invalid_format():
+    result = frozenset(ModuleAstInfo.parse_line_ranges(["abc"]))
+    assert result == set()
+
+
+@pytest.mark.parametrize(
+    "scope_line, expected",
+    [
+        (8, True),  # not_covered1 spans 8-12, overlaps with range 9-11
+        (14, False),  # not_covered2 spans 14-18, no overlap
+        (20, False),  # not_covered3 spans 20-25, no overlap
+        (27, False),  # covered spans 27-28, no overlap
+    ],
+)
+def test_ast_info_only_cover_line_ranges_should_be_covered(scope_line, expected):
+    module_name = "tests.fixtures.instrumentation.covered_functions"
+    module_ast_info = ModuleAstInfo.from_path(
+        get_module_path(module_name),
+        to_cover_config=ToCoverConfiguration(
+            only_cover_line_ranges=["9-11"],
+            enable_inline_pynguin_no_cover=False,
+            enable_inline_pragma_no_cover=False,
+        ),
+    )
+    assert module_ast_info is not None
+    assert module_ast_info.only_cover_line_ranges == {9, 10, 11}
+    scope = module_ast_info.get_scope(scope_line)
+    assert scope is not None
+    assert scope.should_be_covered() is expected
+
+
+@pytest.mark.parametrize(
+    "lineno, expected",
+    [
+        (8, False),  # def line, not in range
+        (9, True),
+        (10, True),
+        (11, True),
+        (12, False),  # inside function but outside range
+    ],
+)
+def test_ast_info_only_cover_line_ranges_should_cover_line(lineno, expected):
+    module_name = "tests.fixtures.instrumentation.covered_functions"
+    module_ast_info = ModuleAstInfo.from_path(
+        get_module_path(module_name),
+        to_cover_config=ToCoverConfiguration(
+            only_cover_line_ranges=["9-11"],
+            enable_inline_pynguin_no_cover=False,
+            enable_inline_pragma_no_cover=False,
+        ),
+    )
+    assert module_ast_info is not None
+    scope = module_ast_info.get_scope(8)  # not_covered1
+    assert scope is not None
+    assert scope.should_cover_line(lineno) is expected
+
+
+def test_ast_info_only_cover_line_ranges_conflicts_with_no_cover():
+    module_name = "tests.fixtures.instrumentation.covered_functions"
+    with pytest.raises(ValueError, match="only_cover_line_ranges and no_cover"):
+        ModuleAstInfo.from_path(
+            get_module_path(module_name),
+            to_cover_config=ToCoverConfiguration(
+                only_cover_line_ranges=["8"],  # line 8 has # pynguin: no cover
+                enable_inline_pynguin_no_cover=True,
+                enable_inline_pragma_no_cover=False,
+            ),
+        )
+
+
+def test_ast_info_only_cover_line_ranges_empty_unchanged():
+    module_name = "tests.fixtures.instrumentation.covered_functions"
+    module_ast_info = ModuleAstInfo.from_path(
+        get_module_path(module_name),
+        to_cover_config=ToCoverConfiguration(
+            enable_inline_pynguin_no_cover=False,
+            enable_inline_pragma_no_cover=False,
+        ),
+    )
+    assert module_ast_info is not None
+    assert module_ast_info.only_cover_line_ranges == frozenset()
+    for scope_line in [8, 14, 20, 27]:
+        scope = module_ast_info.get_scope(scope_line)
+        assert scope is not None
+        assert scope.should_be_covered() is True

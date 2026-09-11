@@ -50,6 +50,7 @@ from pynguin.analyses.type_inference import (
     NoInference,
     TypeEvalPyInference,
 )
+from pynguin.instrumentation import transformer
 from pynguin.utils.llm import LLMProvider
 
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
@@ -1437,6 +1438,27 @@ def _get_lambda_assigned_name(module_tree, lambda_lineno) -> str | None:
     return None
 
 
+def overlaps_line_ranges(ast_node: ast.AST | None, parsed_line_ranges: set[int]) -> bool:
+    """Check if an AST node's line span overlaps with specified line ranges.
+
+    Args:
+        ast_node: The AST node to check (e.g. FunctionDef / AsyncFunctionDef).
+        parsed_line_ranges: Set of target line numbers.
+
+    Returns:
+        True if the node spans any line in parsed_line_ranges, or if ast_node is None/has no lineno.
+    """
+    if not parsed_line_ranges or ast_node is None:
+        return True
+    start_line = getattr(ast_node, "lineno", None)
+    if not isinstance(start_line, int):
+        return True
+    end_line = getattr(ast_node, "end_lineno", start_line)
+    if not isinstance(end_line, int):
+        end_line = start_line
+    return any(line in parsed_line_ranges for line in range(start_line, end_line + 1))
+
+
 def __analyse_function(
     *,
     func_name: str,
@@ -1445,6 +1467,7 @@ def __analyse_function(
     module_tree: Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    parsed_line_ranges: set[int] | None = None,
 ) -> None:
     if __should_skip_by_visibility(func_name.rpartition(".")[2], add_to_test=add_to_test):
         LOGGER.debug("Skipping function %s from analysis", func_name)
@@ -1508,7 +1531,13 @@ def __analyse_function(
         cyclomatic_complexity=cyclomatic_complexity,
     )
     test_cluster.add_generator(generic_function)
-    if add_to_test:
+    if parsed_line_ranges is None:
+        parsed_line_ranges = set(
+            transformer.ModuleAstInfo.parse_line_ranges(
+                config.configuration.to_cover.only_cover_line_ranges
+            )
+        )
+    if add_to_test and overlaps_line_ranges(func_ast, parsed_line_ranges):
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
@@ -1708,6 +1737,7 @@ def __analyse_method(
     class_tree: ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    parsed_line_ranges: set[int] | None = None,
 ) -> None:
     if (
         __is_annotate(method_name)
@@ -1769,7 +1799,13 @@ def __analyse_method(
     )
     test_cluster.add_generator(generic_method)
     test_cluster.add_modifier(type_info, generic_method)
-    if add_to_test:
+    if parsed_line_ranges is None:
+        parsed_line_ranges = set(
+            transformer.ModuleAstInfo.parse_line_ranges(
+                config.configuration.to_cover.only_cover_line_ranges
+            )
+        )
+    if add_to_test and overlaps_line_ranges(method_ast, parsed_line_ranges):
         test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
 

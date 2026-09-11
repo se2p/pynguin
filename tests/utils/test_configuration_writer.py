@@ -215,6 +215,7 @@ max_sequences_combined = 10
 
 [to_cover]
 only_cover = []
+only_cover_line_ranges = []
 no_cover = []
 enable_inline_pynguin_no_cover = true
 enable_inline_pragma_no_cover = true
@@ -365,7 +366,7 @@ def expected_txt(tmp_path):
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
  'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
- 'no_cover=[], enable_inline_pynguin_no_cover=True, '
+ 'only_cover_line_ranges=[], no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), '
  'llm_refinement=LLMRefinementConfiguration(enabled=False, '
  'max_repair_iterations=2, max_tests=None, request_timeout=180.0, '

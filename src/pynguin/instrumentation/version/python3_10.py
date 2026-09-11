@@ -829,6 +829,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         code_object_id: int,
         node: cf.BasicBlockNode,
         lineno: int | _UNSET | None,
+        is_goal: bool = True,
     ) -> int:
         """Return an existing predicate id for this (node, code_object_id) or create one.
 
@@ -845,7 +846,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
                 node=node,
-            )
+            ),
+            is_goal=is_goal,
         )
 
     def visit_node(  # noqa: D102, C901
@@ -864,12 +866,12 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         if (
             ast_info is not None
             and isinstance(maybe_jump.lineno, int)
-            and not ast_info.should_cover_conditional_statement(maybe_jump.lineno)
+            and not ast_info.should_track_conditional_statement(maybe_jump.lineno)
         ):
             return
 
         if ast_info is not None and not any(
-            not isinstance(instr.lineno, int) or ast_info.should_cover_line(instr.lineno)
+            not isinstance(instr.lineno, int) or ast_info.should_track_line(instr.lineno)
             for instr in node.original_instructions
         ):
             return
@@ -895,7 +897,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             if (
                 ast_info is not None
                 and isinstance(instr.lineno, int)
-                and not ast_info.should_cover_line(instr.lineno)
+                and not ast_info.should_track_line(instr.lineno)
             ):
                 continue
             if instr.name in BINARY_SUBSCR_NAMES:
@@ -990,13 +992,16 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr_index: int,
     ) -> None:
         lineno = instr.lineno
-
+        is_goal = ast_info is None or ast_info.should_cover_conditional_statement(
+            lineno  # type: ignore[arg-type]
+        )
         predicate_id = self._subject_properties.register_predicate(
             tracer.PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
                 node=node,
-            )
+            ),
+            is_goal=is_goal,
         )
 
         for_loop_body = node.basic_block.next_block
@@ -1071,8 +1076,11 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
+        is_goal = ast_info is None or ast_info.should_cover_conditional_statement(
+            instr.lineno  # type: ignore[arg-type]
+        )
         predicate_id = self._get_or_register_predicate(
-            code_object_id=code_object_id, node=node, lineno=instr.lineno
+            code_object_id=code_object_id, node=node, lineno=instr.lineno, is_goal=is_goal
         )
 
         compare = self.extract_comparison(instr)
@@ -1104,8 +1112,11 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
+        is_goal = ast_info is None or ast_info.should_cover_conditional_statement(
+            instr.lineno  # type: ignore[arg-type]
+        )
         predicate_id = self._get_or_register_predicate(
-            code_object_id=code_object_id, node=node, lineno=instr.lineno
+            code_object_id=code_object_id, node=node, lineno=instr.lineno, is_goal=is_goal
         )
 
         # Insert instructions right before the conditional jump.
@@ -1134,8 +1145,11 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
+        is_goal = ast_info is None or ast_info.should_cover_conditional_statement(
+            instr.lineno  # type: ignore[arg-type]
+        )
         predicate_id = self._get_or_register_predicate(
-            code_object_id=code_object_id, node=node, lineno=instr.lineno
+            code_object_id=code_object_id, node=node, lineno=instr.lineno, is_goal=is_goal
         )
 
         # Insert instructions right before the conditional jump.
@@ -1248,8 +1262,11 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         Even if the subscript raises (e.g., KeyError), we still get a meaningful
         branch-distance signal for guiding the search.
         """
+        is_goal = ast_info is None or ast_info.should_cover_line(
+            instr.lineno  # type: ignore[arg-type]
+        )
         predicate_id = self._get_or_register_predicate(
-            code_object_id=code_object_id, node=node, lineno=instr.lineno
+            code_object_id=code_object_id, node=node, lineno=instr.lineno, is_goal=is_goal
         )
 
         # IN predicate: (key, container) taken from the stack (after COPY_FIRST_TWO)
@@ -1944,7 +1961,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             ast_info is not None
             and (jump_instr := node.try_get_instruction(JUMP_OP_POS)) is not None
             and isinstance(jump_instr.lineno, int)
-            and not ast_info.should_cover_line(jump_instr.lineno)
+            and not ast_info.should_seed_line(jump_instr.lineno)
         ):
             return
 

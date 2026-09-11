@@ -18,13 +18,13 @@ import networkx as nx
 from bytecode.cfg import BasicBlock, ControlFlowGraph
 from bytecode.instr import UNSET, Compare, Instr, SetLineno, TryBegin, TryEnd
 
-from pynguin.instrumentation import version
 from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from bytecode import Bytecode
+
 
 # Key for storing branch value in networkx edge.
 EDGE_DATA_BRANCH_VALUE = "branch_value"
@@ -545,6 +545,8 @@ class CFG(ProgramGraph):
 
             next_block = block.next_block
 
+            from pynguin.instrumentation import version  # noqa: PLC0415
+
             last_instr = block.get_last_non_artificial_instruction()
 
             if last_instr is not None and version.is_conditional_jump(last_instr):
@@ -623,6 +625,8 @@ class CFG(ProgramGraph):
         Returns:
             The iterable of yield nodes of the graph
         """
+        from pynguin.instrumentation import version  # noqa: PLC0415
+
         for node in cfg.basic_block_nodes:
             for instr in node.instructions:
                 if instr.name in version.YIELDING_NAMES:
@@ -848,19 +852,15 @@ class ControlDependenceGraph(ProgramGraph):
         handled: OrderedSet,
     ) -> OrderedSet[ControlDependency]:
         result: OrderedSet[ControlDependency] = OrderedSet()
-        for pred in self._graph.predecessors(node):
+        for pred in self.get_predecessors(node):
             if (pred, node) in handled:
                 continue
             handled.add((pred, node))
 
             if (
                 isinstance(pred, BasicBlockNode)
-                and (
-                    branch_value := self._graph.get_edge_data(pred, node).get(
-                        EDGE_DATA_BRANCH_VALUE, None
-                    )
-                )
-                is not None
+                and (edge_data := self.graph.get_edge_data(pred, node)) is not None
+                and (branch_value := edge_data.get(EDGE_DATA_BRANCH_VALUE, None)) is not None
             ):
                 result.add(ControlDependency(pred, branch_value))
             else:
@@ -888,14 +888,14 @@ class ControlDependenceGraph(ProgramGraph):
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:  # type: ignore[operator,unused-ignore]
             return True
-        for pred in self.graph.predecessors(node):
+        for pred in self.get_predecessors(node):
             if pred in visited:
                 continue
             visited.add(pred)
             if (
                 isinstance(pred, BasicBlockNode)
-                and self._graph.get_edge_data(pred, node).get(EDGE_DATA_BRANCH_VALUE, None)
-                is not None
+                and (edge_data := self.graph.get_edge_data(pred, node)) is not None
+                and edge_data.get(EDGE_DATA_BRANCH_VALUE, None) is not None
             ):
                 continue
             if pred == node:
