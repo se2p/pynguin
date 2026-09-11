@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import contextlib
 import importlib
 import inspect
@@ -495,6 +496,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         namespace: dict[str, Any] = {
             "__builtins__": __builtins__,
             "pytest": pytest,
+            "asyncio": asyncio,
         }
         namespace.update(vars(module))
         namespace[module_alias] = module

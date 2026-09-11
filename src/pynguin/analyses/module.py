@@ -1495,17 +1495,19 @@ def __analyse_function(
     if __should_skip_by_visibility(func_name.rpartition(".")[2], add_to_test=add_to_test):
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
-    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
-        # Pynguin cannot execute coroutines (see issue #62 / MR !59), so we skip
+    if inspect.isasyncgenfunction(func):
+        # Pynguin cannot drive async generators (see issue #62), so we skip
         # them instead of aborting the whole module and still test its
-        # synchronous members.
+        # other members. Plain coroutine functions are supported: calls to
+        # them are wrapped in asyncio.run(...) (see testfactory.py).
         if add_to_test:
             LOGGER.warning(
-                "Skipping coroutine %s: Pynguin only tests the non-async parts of this module.",
+                "Skipping async generator %s: Pynguin only tests the non-async-generator "
+                "parts of this module.",
                 func_name,
             )
         else:
-            LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
+            LOGGER.debug("Skipping async generator %s outside of SUT", func_name)
         return
 
     LOGGER.debug("Analysing function %s", func_name)
@@ -1770,17 +1772,19 @@ def __analyse_method(
     ):
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
-    if inspect.iscoroutinefunction(method) or inspect.isasyncgenfunction(method):
-        # Pynguin cannot execute coroutines (see issue #62 / MR !59), so we skip
+    if inspect.isasyncgenfunction(method):
+        # Pynguin cannot drive async generators (see issue #62), so we skip
         # them instead of aborting the whole module and still test its
-        # synchronous members.
+        # other members. Plain coroutine methods are supported: calls to
+        # them are wrapped in asyncio.run(...) (see testfactory.py).
         if add_to_test:
             LOGGER.warning(
-                "Skipping coroutine %s: Pynguin only tests the non-async parts of this module.",
+                "Skipping async generator %s: Pynguin only tests the non-async-generator "
+                "parts of this module.",
                 method_name,
             )
         else:
-            LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
+            LOGGER.debug("Skipping async generator %s outside of SUT", method_name)
         return
 
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)

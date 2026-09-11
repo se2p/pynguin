@@ -354,6 +354,35 @@ def test_mutate_call_method(method_mock):
     assert "simple_method" in cst.Module(body=[test_case.get_statement(1).node]).code
 
 
+def test_mutate_call_wraps_coroutine_function(async_function_mock):
+    test_case = make_test_case(
+        _call_with("var_0", "_.simple_async_function(z)", async_function_mock, bound_type=float)
+    )
+    assert _make_factory().mutate_call(test_case, 0) is True
+    call = _call_expr(test_case.get_statement(0).node)
+    assert isinstance(call.func, cst.Attribute)
+    assert isinstance(call.func.value, cst.Name)
+    assert call.func.value.value == "asyncio"
+    assert call.func.attr.value == "run"
+    inner = call.args[0].value
+    assert isinstance(inner, cst.Call)
+    assert "simple_async_function" in cst.Module(body=[test_case.get_statement(0).node]).code
+
+
+def test_mutate_call_wraps_coroutine_method(async_method_mock):
+    test_case = make_test_case(
+        assign("obj", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "obj.simple_async_method(x)", async_method_mock, bound_type=float),
+    )
+    assert _make_factory().mutate_call(test_case, 1) is True
+    call = _call_expr(test_case.get_statement(1).node)
+    assert isinstance(call.func, cst.Attribute)
+    assert isinstance(call.func.value, cst.Name)
+    assert call.func.value.value == "asyncio"
+    assert call.func.attr.value == "run"
+    assert "simple_async_method" in cst.Module(body=[test_case.get_statement(1).node]).code
+
+
 def test_mutate_call_enum():
     enum_gao = _make_enum()
     test_case = make_test_case(_call_with("var_0", "_.Color.RED", enum_gao))
@@ -536,6 +565,44 @@ def test_append_generic_accessible(kind, type_system, constructor_mock):
         assert result == -1
 
 
+def test_append_generic_accessible_wraps_coroutine_function(type_system, async_function_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    test_case = tc.TestCase()
+
+    result = factory.append_generic_accessible(test_case, async_function_mock)
+    assert result >= 0
+    code = test_case.to_code()
+    assert "asyncio.run(" in code
+    assert "simple_async_function" in code
+
+
+def test_append_generic_accessible_wraps_coroutine_method(type_system, constructor_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_generators_for = lambda _: [constructor_mock]
+    factory = tf.TestFactory(cluster)
+    test_case = tc.TestCase()
+
+    accessible = gao.GenericMethod(
+        owner=TypeInfo(SomeType),
+        method=SomeType.simple_async_method,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            [Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int)],
+            {"x": Instance(TypeInfo(int))},
+            Instance(TypeInfo(float)),
+            type_system,
+        ),
+    )
+
+    result = factory.append_generic_accessible(test_case, accessible)
+    assert result >= 0
+    code = test_case.to_code()
+    assert "asyncio.run(" in code
+    assert "simple_async_method" in code
+
+
 # ---------------------------------------------------------------------------
 # Recursive object creation / depth limiting
 # ---------------------------------------------------------------------------
@@ -641,6 +708,21 @@ def test_change_random_call_success(kind, constructor_mock, function_mock, metho
     test_case = make_test_case(*statements)
     assert factory.change_random_call(test_case, position) is True
     assert _accessible_index(test_case, replacement) is not None
+
+
+def test_change_random_call_wraps_coroutine_replacement(function_mock, async_function_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    cluster.get_generators_for = lambda _: {function_mock, async_function_mock}
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(_call_with("var_0", "_.simple_function(z)", function_mock))
+
+    assert factory.change_random_call(test_case, 0) is True
+    idx = _accessible_index(test_case, async_function_mock)
+    assert idx is not None
+    code = cst.Module(body=[test_case.get_statement(idx).node]).code
+    assert "asyncio.run(" in code
+    assert "simple_async_function" in code
 
 
 @pytest.mark.parametrize("kind", ["bad_function", "bad_method", "unknown"])

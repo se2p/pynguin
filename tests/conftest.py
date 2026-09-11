@@ -29,7 +29,11 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
-from tests.fixtures.accessibles.accessible import SomeType, simple_function
+from tests.fixtures.accessibles.accessible import (
+    SomeType,
+    simple_async_function,
+    simple_function,
+)
 
 # -- FIXTURES --------------------------------------------------------------------------
 
@@ -152,6 +156,49 @@ def function_mock(type_system) -> GenericFunction:
             ),
             original_return_type=Instance(TypeInfo(float)),
             original_parameters={"z": Instance(TypeInfo(float))},
+            type_system=type_system,
+        ),
+    )
+
+
+@pytest.fixture
+def async_function_mock(type_system) -> GenericFunction:
+    return GenericFunction(
+        function=simple_async_function,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="z",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(float)),
+            original_parameters={"z": Instance(TypeInfo(float))},
+            type_system=type_system,
+        ),
+    )
+
+
+@pytest.fixture
+def async_method_mock(type_system) -> GenericMethod:
+    return GenericMethod(
+        owner=TypeInfo(SomeType),
+        method=SomeType.simple_async_method,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="x",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=int,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(float)),
+            original_parameters={"x": Instance(TypeInfo(int))},
             type_system=type_system,
         ),
     )

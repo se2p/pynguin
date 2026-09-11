@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import importlib
 import logging
@@ -234,6 +235,7 @@ class TestSuiteWriter:
             module_alias: module,
             "__builtins__": __builtins__,
             "pytest": pytest,
+            "asyncio": asyncio,
         }
         # Mirror the rendered test's ``from <module> import <public names>`` so statements
         # that use bare imported names (as LLM-generated tests do) re-execute correctly
@@ -432,12 +434,19 @@ class TestSuiteWriter:
 
         functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         needs_pytest = False
+        needs_asyncio = False
         used_exc_types: set[type[BaseException]] = set()
 
         # Build one test function per test case chromosome in the suite
         for idx, individual in enumerate(suite.test_case_chromosomes):
             tc = individual.test_case
             tc.remove_unused_variables()
+            if any(
+                isinstance(stmt.accessible, GenericCallableAccessibleObject)
+                and stmt.accessible.is_coroutine
+                for stmt in tc.statements()
+            ):
+                needs_asyncio = True
             exc_types = self._per_statement_exceptions(
                 tc, module_name, project_path, subject_properties
             )
@@ -504,6 +513,10 @@ class TestSuiteWriter:
                 cast("cst.SimpleStatementLine", cst.parse_statement("import random\n")),
                 cast("cst.SimpleStatementLine", cst.parse_statement("import pytest\n")),
             ]
+            if needs_asyncio:
+                seed_preamble.append(
+                    cast("cst.SimpleStatementLine", cst.parse_statement("import asyncio\n"))
+                )
             patch_nodes = TestSuiteWriter._create_patch_nodes(seed)
             fixture = TestSuiteWriter._create_seed_fixture(seed)
             module = cst.Module(
@@ -522,6 +535,10 @@ class TestSuiteWriter:
             if needs_pytest:
                 import_stmts.append(
                     cast("cst.SimpleStatementLine", cst.parse_statement("import pytest\n"))
+                )
+            if needs_asyncio:
+                import_stmts.append(
+                    cast("cst.SimpleStatementLine", cst.parse_statement("import asyncio\n"))
                 )
             import_stmts.extend(sut_import_stmts)
             module = cst.Module(body=[*preamble, *import_stmts, *exc_import_stmts, *functions])
