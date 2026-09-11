@@ -1014,7 +1014,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def get_generators_for(  # noqa: D102
         self, typ: ProperType
     ) -> OrderedSet[GenericAccessibleObject]:
-        return self.generator_provider.get_for_type(typ)
+        return self.generator_provider.get_generators_for(typ)
 
     class _FindModifiers(TypeVisitor[OrderedSet[GenericAccessibleObject]]):
         """A visitor to find all modifiers for the given type."""
