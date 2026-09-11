@@ -248,7 +248,7 @@ def test_get_coverage_report(
     test_case.get_last_execution_result.return_value = last_result
     test_suite = MagicMock(test_case_chromosomes=[test_case])
 
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.LINE,
         config.CoverageMetric.BRANCH,
     ]

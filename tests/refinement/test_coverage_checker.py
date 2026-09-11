@@ -220,7 +220,7 @@ def test_measure_coverage_pynguin_uses_line_metric(monkeypatch):
     subject_properties = types.SimpleNamespace(instrumentation_tracer=_DummyTracer())
 
     monkeypatch.setattr(
-        config.configuration.statistics_output,
+        config.configuration.search_algorithm,
         "coverage_metrics",
         [config.CoverageMetric.LINE],
     )

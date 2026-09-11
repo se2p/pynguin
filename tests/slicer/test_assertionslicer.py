@@ -71,7 +71,7 @@ def test_assertion_detection_on_test_case(
 ):
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
+    config.configuration.search_algorithm.coverage_metrics = [config.CoverageMetric.CHECKED]
 
     with install_import_hook(module_name, subject_properties):
         with subject_properties.instrumentation_tracer:
@@ -99,7 +99,7 @@ def test_slicing_after_test_execution(
 ):
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
+    config.configuration.search_algorithm.coverage_metrics = [config.CoverageMetric.CHECKED]
 
     with install_import_hook(module_name, subject_properties):
         with subject_properties.instrumentation_tracer:
@@ -151,7 +151,7 @@ def test_testsuite_assertion_checked_coverage_calculation(
 ):
     test_suite = request.getfixturevalue(test_suite_name)
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [
+    config.configuration.search_algorithm.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
@@ -177,7 +177,7 @@ def test_exception_only_statement_records_single_assertion(
     """
     module_name = "tests.fixtures.linecoverage.exception"
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
+    config.configuration.search_algorithm.coverage_metrics = [config.CoverageMetric.CHECKED]
 
     with install_import_hook(module_name, subject_properties):
         with subject_properties.instrumentation_tracer:
@@ -218,7 +218,7 @@ def test_raising_statement_without_exception_assertion_records_nothing(
     )
 
     config.configuration.module_name = module_name
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
+    config.configuration.search_algorithm.coverage_metrics = [config.CoverageMetric.CHECKED]
 
     with install_import_hook(module_name, subject_properties):
         with subject_properties.instrumentation_tracer:

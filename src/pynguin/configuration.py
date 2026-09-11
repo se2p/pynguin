@@ -277,11 +277,6 @@ class StatisticsOutputConfiguration:
     timeline_interpolation: bool = True
     """Interpolate timeline values"""
 
-    coverage_metrics: list[CoverageMetric] = dataclasses.field(
-        default_factory=lambda: [CoverageMetric.BRANCH]
-    )
-    """List of coverage metrics that are optimised during the search"""
-
     output_variables: list[RuntimeVariable] = dataclasses.field(
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
@@ -765,6 +760,11 @@ class SearchAlgorithmConfiguration:
 
     chromosome_length: int = 48
     """Maximum length of chromosomes during search"""
+
+    coverage_metrics: list[CoverageMetric] = dataclasses.field(
+        default_factory=lambda: [CoverageMetric.BRANCH]
+    )
+    """List of coverage metrics that are optimised during the search"""
 
     chop_max_length: bool = True
     """Chop statements after exception if length has reached maximum"""

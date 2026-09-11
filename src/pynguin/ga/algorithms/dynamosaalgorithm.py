@@ -28,7 +28,8 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     from pynguin.ga.algorithms.archive import CoverageArchive
-    from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.instrumentation.controlflow import BasicBlockNode
+    from pynguin.instrumentation.tracer import CodeObjectMetaData, SubjectProperties
 
 
 class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
@@ -43,7 +44,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,  # type: ignore[arg-type]
+            self._test_case_fitness_functions,
             self._archive,
             self.executor.subject_properties,
         )
@@ -161,18 +162,14 @@ class _GoalsManager:
 
     def __init__(
         self,
-        fitness_functions: OrderedSet[ff.FitnessFunction],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
         archive: CoverageArchive,
         subject_properties: SubjectProperties,
     ) -> None:
         self._archive = archive
-        branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
-        for fit in fitness_functions:
-            assert isinstance(fit, bg.BranchCoverageTestFitness)
-            branch_fitness_functions.add(fit)
-        self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
-        self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = self._graph.root_branches
-        self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
+        self._graph = _ControlDependencyGraph(fitness_functions, subject_properties)
+        self._current_goals: OrderedSet[ff.TestCaseFitnessFunction] = self._graph.root_goals
+        self._archive.add_goals(self._current_goals)
 
     @property
     def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
@@ -194,7 +191,7 @@ class _GoalsManager:
         while new_goals_added:
             self._archive.update(solutions)
             covered = self._archive.covered_goals
-            new_goals: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
+            new_goals: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
             new_goals_added = False
             for old_goal in self._current_goals:
                 if old_goal in covered:
@@ -206,42 +203,115 @@ class _GoalsManager:
                 else:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
-            self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
+            self._archive.add_goals(self._current_goals)
         self._logger.debug("current goals after update: %s", self._current_goals)
 
 
-class _BranchFitnessGraph:
-    """Best effort re-implementation of EvoSuite's BranchFitnessGraph.
+class _ControlDependencyGraph:
+    """Arranges the fitness functions according to their control dependencies in the CDG.
 
-    Arranges the fitness functions for all branches according to their control
-    dependencies in the CDG. Each node represents a fitness function. A directed edge
-    (u -> v) states that fitness function v should be added for consideration
-    only when fitness function u has been covered.
+    Each node represents a fitness function. A directed edge (u -> v) states that fitness
+    function v should be added for consideration only when fitness function u has been covered.
     """
 
     def __init__(
         self,
-        fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
         subject_properties: SubjectProperties,
     ):
-        self._graph: nx.DiGraph[bg.BranchCoverageTestFitness] = nx.DiGraph()
-        # Branch less code objects and branches that are not control dependent on other
-        # branches.
-        self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
+        self._graph: nx.DiGraph[ff.TestCaseFitnessFunction] = nx.DiGraph()
+        self._root_goals: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
         self._build_graph(fitness_functions, subject_properties)
 
     def _build_graph(
         self,
-        fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
         subject_properties: SubjectProperties,
-    ):
-        """Construct the actual graph from the given fitness functions."""
+    ) -> None:
+        """Construct the actual graph from the given fitness functions.
+
+        Args:
+            fitness_functions: The test case fitness functions to arrange
+            subject_properties: The properties of the subject under test
+        """
         for fitness in fitness_functions:
             self._graph.add_node(fitness)
 
+        branch_fitness_by_goal: dict[
+            bg.AbstractBranchCoverageGoal, bg.BranchCoverageTestFitness
+        ] = {
+            fitness.goal: fitness
+            for fitness in fitness_functions
+            if isinstance(fitness, bg.BranchCoverageTestFitness)
+        }
+
+        nodes_predicates_cache: dict[int, dict[BasicBlockNode, int]] = {}
+
+        self._build_branch_dependencies(
+            branch_fitness_by_goal,
+            fitness_functions,
+            subject_properties,
+            nodes_predicates_cache,
+        )
+
+        if branch_fitness_by_goal:
+            self._build_line_and_checked_dependencies(
+                branch_fitness_by_goal,
+                fitness_functions,
+                subject_properties,
+                nodes_predicates_cache,
+            )
+
+        for n in self._graph.nodes:
+            if self._graph.in_degree(n) == 0:
+                self._root_goals.add(n)
+
+        # Sanity check: branchless code objects must always be root goals.
+        assert all(
+            self._graph.in_degree(n) == 0
+            for n in self._graph.nodes
+            if isinstance(n, bg.BranchCoverageTestFitness) and n.goal.is_branchless_code_object
+        ), "Branchless code objects cannot depend on other goals."
+
+        # Sanity check: all root branch goals must be control-dependent on root.
+        for node in self.root_goals:
+            if (
+                isinstance(node, bg.BranchCoverageTestFitness)
+                and not node.goal.is_branchless_code_object
+            ):
+                branch_goal = cast("bg.BranchGoal", node.goal)
+                pred_meta = subject_properties.existing_predicates[branch_goal.predicate_id]
+                co_meta = subject_properties.existing_code_objects[pred_meta.code_object_id]
+                assert co_meta.cdg.is_control_dependent_on_root(pred_meta.node), (
+                    f"Root branch {node} must be control-dependent on root."
+                )
+
+    @staticmethod
+    def _get_nodes_predicates(
+        subject_properties: SubjectProperties,
+        code_object_id: int,
+        cache: dict[int, dict[BasicBlockNode, int]],
+    ) -> dict[BasicBlockNode, int]:
+        if code_object_id not in cache:
+            cache[code_object_id] = {
+                meta_data.node: predicate_id
+                for predicate_id, meta_data in subject_properties.existing_predicates.items()
+                if meta_data.code_object_id == code_object_id
+            }
+        return cache[code_object_id]
+
+    def _build_branch_dependencies(
+        self,
+        branch_fitness_by_goal: dict[bg.AbstractBranchCoverageGoal, bg.BranchCoverageTestFitness],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
+        subject_properties: SubjectProperties,
+        nodes_predicates_cache: dict[int, dict[BasicBlockNode, int]],
+    ) -> None:
         for fitness in fitness_functions:
+            if not isinstance(fitness, bg.BranchCoverageTestFitness):
+                continue
             if fitness.goal.is_branchless_code_object:
-                self._root_branches.add(fitness)
+                self._root_goals.add(fitness)
                 continue
             assert fitness.goal.is_branch
             branch_goal = cast("bg.BranchGoal", fitness.goal)
@@ -250,65 +320,115 @@ class _BranchFitnessGraph:
                 predicate_meta_data.code_object_id
             ]
 
-            nodes_predicates = {
-                meta_data.node: predicate_id
-                for predicate_id, meta_data in subject_properties.existing_predicates.items()
-                if meta_data.code_object_id == predicate_meta_data.code_object_id
-            }
-
-            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
-                self._root_branches.add(fitness)
-
-            dependencies = code_object_meta_data.cdg.get_control_dependencies(
-                predicate_meta_data.node,
+            nodes_predicates = self._get_nodes_predicates(
+                subject_properties,
+                predicate_meta_data.code_object_id,
+                nodes_predicates_cache,
             )
 
-            for dependency in dependencies:
+            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
+                self._root_goals.add(fitness)
+
+            self._connect_dependencies(
+                code_object_meta_data=code_object_meta_data,
+                node=predicate_meta_data.node,
+                code_object_id=predicate_meta_data.code_object_id,
+                nodes_predicates=nodes_predicates,
+                branch_fitness_by_goal=branch_fitness_by_goal,
+                fitness=fitness,
+            )
+
+    def _build_line_and_checked_dependencies(
+        self,
+        branch_fitness_by_goal: dict[bg.AbstractBranchCoverageGoal, bg.BranchCoverageTestFitness],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
+        subject_properties: SubjectProperties,
+        nodes_predicates_cache: dict[int, dict[BasicBlockNode, int]],
+    ) -> None:
+        for fitness in fitness_functions:
+            if not isinstance(
+                fitness,
+                (bg.LineCoverageTestFitness, bg.StatementCheckedCoverageTestFitness),
+            ):
+                continue
+            goal = fitness.goal
+            line_meta = subject_properties.existing_lines[goal.line_id]
+            code_object_meta_data = subject_properties.existing_code_objects[
+                line_meta.code_object_id
+            ]
+
+            nodes_predicates = self._get_nodes_predicates(
+                subject_properties,
+                line_meta.code_object_id,
+                nodes_predicates_cache,
+            )
+
+            bb_nodes = [
+                node
+                for node in code_object_meta_data.cdg.basic_block_nodes
+                if any(instr.lineno == line_meta.line_number for instr in node.instructions)
+            ]
+            if not bb_nodes:
+                continue
+
+            # In Python bytecode, basic blocks are indexed in sequential bytecode
+            # offset order. The earliest block containing instructions for a line
+            # is its entry point. Selecting the block with the minimum index avoids
+            # attributing subsequent jump targets or continuation blocks that share
+            # line metadata to this line's control dependencies.
+            entry_bb_node = min(bb_nodes, key=lambda n: n.index)
+            if code_object_meta_data.cdg.is_control_dependent_on_root(entry_bb_node):
+                self._root_goals.add(fitness)
+
+            self._connect_dependencies(
+                code_object_meta_data=code_object_meta_data,
+                node=entry_bb_node,
+                code_object_id=line_meta.code_object_id,
+                nodes_predicates=nodes_predicates,
+                branch_fitness_by_goal=branch_fitness_by_goal,
+                fitness=fitness,
+            )
+
+    def _connect_dependencies(
+        self,
+        *,
+        code_object_meta_data: CodeObjectMetaData,
+        node: BasicBlockNode,
+        code_object_id: int,
+        nodes_predicates: dict[BasicBlockNode, int],
+        branch_fitness_by_goal: dict[bg.AbstractBranchCoverageGoal, bg.BranchCoverageTestFitness],
+        fitness: ff.TestCaseFitnessFunction,
+    ) -> None:
+        dependencies = code_object_meta_data.cdg.get_control_dependencies(node)
+        for dependency in dependencies:
+            if dependency.node in nodes_predicates:
                 goal = bg.BranchGoal(
-                    predicate_meta_data.code_object_id,
+                    code_object_id,
                     nodes_predicates[dependency.node],
                     value=dependency.branch_value,
                 )
-                dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)
-                self._graph.add_edge(dependent_ff, fitness)
-
-        # Sanity check
-        assert {n for n in self._graph.nodes if self._graph.in_degree(n) == 0}.issubset(
-            self._root_branches
-        ), "Root branches cannot depend on other branches."
+                if goal in branch_fitness_by_goal:
+                    self._graph.add_edge(branch_fitness_by_goal[goal], fitness)
 
     @property
-    def dot(self):
+    def dot(self) -> str:
         """Return DOT representation of this graph."""
         dot = to_pydot(self._graph)
         return dot.to_string()
 
     @property
-    def root_branches(self) -> OrderedSet[bg.BranchCoverageTestFitness]:
-        """Return the root branches, i.e., the fitness functions without conditions."""
-        return OrderedSet(self._root_branches)
+    def root_goals(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
+        """Return the root goals, i.e., the fitness functions without conditions."""
+        return OrderedSet(self._root_goals)
 
-    @staticmethod
-    def _goal_to_fitness_function(
-        search_in: OrderedSet[bg.BranchCoverageTestFitness], goal: bg.BranchGoal
-    ) -> bg.BranchCoverageTestFitness:
-        """Little helper to find the fitness function associated with a certain goal.
-
-        Args:
-            search_in: The list to search in
-            goal: The goal to search for
-
-        Returns:
-            The found fitness function.
-        """
-        for fitness in search_in:
-            if fitness.goal == goal:
-                return fitness
-        raise RuntimeError(f"Could not find fitness function for goal: {goal}")
+    @property
+    def root_branches(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
+        """Backward-compatible alias for root_goals."""
+        return self.root_goals
 
     def get_structural_children(
-        self, fitness_function: bg.BranchCoverageTestFitness
-    ) -> OrderedSet[bg.BranchCoverageTestFitness]:
+        self, fitness_function: ff.TestCaseFitnessFunction
+    ) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Get the fitness functions that are structural children of the given one.
 
         Args:
@@ -319,3 +439,7 @@ class _BranchFitnessGraph:
             The structural children fitness functions of the given fitness function.
         """
         return OrderedSet(self._graph.successors(fitness_function))
+
+
+# Backward-compatibility alias for external callers and legacy tests.
+_BranchFitnessGraph = _ControlDependencyGraph

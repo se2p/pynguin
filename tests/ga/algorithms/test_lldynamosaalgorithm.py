@@ -256,7 +256,7 @@ def test_target_uncovered_callables_queries_single_highest_priority(
         ) as mock_getsourcelines,
     ):
         mock_config.configuration.large_language_model.coverage_threshold = 0.8
-        mock_config.configuration.statistics_output.coverage_metrics = ["branch"]
+        mock_config.configuration.search_algorithm.coverage_metrics = ["branch"]
         # mock_gao_low ends up with a lower coverage ratio (0/10) than mock_gao_high
         # (5/10): getsourcelines returns a different fake source range depending on
         # which GAO is asked for, and each range's line annotations below give it a

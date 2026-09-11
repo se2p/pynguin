@@ -11,7 +11,7 @@ from __future__ import annotations
 import inspect
 import logging
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm, _GoalsManager
@@ -21,7 +21,6 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.ga.coveragegoals as bg
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
@@ -74,7 +73,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,  # type: ignore[arg-type]
+            self._test_case_fitness_functions,
             self._archive,
             self.executor.subject_properties,
         )
@@ -152,14 +151,12 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         subject_properties = self.executor.subject_properties
         active_first_lines: set[int] = set()
         for fitness in self._goals_manager.current_goals:
-            # current_goals is typed as OrderedSet[FitnessFunction] by _GoalsManager
-            # itself, but is always populated with BranchCoverageTestFitness.
-            branch_fitness = cast("bg.BranchCoverageTestFitness", fitness)
-            code_object_meta = subject_properties.existing_code_objects.get(
-                branch_fitness.goal.code_object_id
-            )
-            if code_object_meta is not None:
-                active_first_lines.add(code_object_meta.code_object.co_firstlineno)
+            goal = getattr(fitness, "goal", None)
+            code_object_id = getattr(goal, "code_object_id", None)
+            if code_object_id is not None:
+                code_object_meta = subject_properties.existing_code_objects.get(code_object_id)
+                if code_object_meta is not None:
+                    active_first_lines.add(code_object_meta.code_object.co_firstlineno)
 
         eligible: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
         for gao in self.test_cluster.accessible_objects_under_test:
@@ -206,7 +203,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         coverage_report: CoverageReport = get_coverage_report(
             solutions_test_suite,
             self.executor.subject_properties,
-            set(config.configuration.statistics_output.coverage_metrics),
+            set(config.configuration.search_algorithm.coverage_metrics),
         )
         line_annotations: list[LineAnnotation] = coverage_report.line_annotations
 

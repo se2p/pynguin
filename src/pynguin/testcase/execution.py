@@ -301,7 +301,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             else []
         )
         self._instrument = (
-            config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
+            config.CoverageMetric.CHECKED in config.configuration.search_algorithm.coverage_metrics
         )
         checked_instrumentation = CheckedCoverageInstrumentation(self._subject_properties)
         self._checked_transformer = InstrumentationTransformer(

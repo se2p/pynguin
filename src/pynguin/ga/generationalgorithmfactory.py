@@ -381,7 +381,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             config.Algorithm.WHOLE_SUITE,
         }:
             fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
-            coverage_metrics = config.configuration.statistics_output.coverage_metrics
+            coverage_metrics = config.configuration.search_algorithm.coverage_metrics
             if config.CoverageMetric.LINE in coverage_metrics:
                 fitness_functions.update(bg.create_line_coverage_fitness_functions(self._executor))
 
@@ -404,7 +404,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
         self,
     ) -> OrderedSet[ff.TestSuiteFitnessFunction]:
         test_suite_ffs: OrderedSet[ff.TestSuiteFitnessFunction] = OrderedSet()
-        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        coverage_metrics = config.configuration.search_algorithm.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
             test_suite_ffs.update([ff.LineTestSuiteFitnessFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
@@ -417,7 +417,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
         self,
     ) -> OrderedSet[ff.TestSuiteCoverageFunction]:
         test_suite_ffs: OrderedSet[ff.TestSuiteCoverageFunction] = OrderedSet()
-        coverage_metrics = config.configuration.statistics_output.coverage_metrics
+        coverage_metrics = config.configuration.search_algorithm.coverage_metrics
         if config.CoverageMetric.LINE in coverage_metrics:
             test_suite_ffs.update([ff.TestSuiteLineCoverageFunction(self._executor)])
         if config.CoverageMetric.BRANCH in coverage_metrics:
