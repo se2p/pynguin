@@ -732,6 +732,69 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
             instr_original_index: The original index of the instruction in the basic block.
         """
 
+    @abstractmethod
+    def visit_match_sequence_based_conditional_jump(  # noqa: PLR0917
+        self,
+        ast_info: AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        """Instrument MATCH_SEQUENCE based conditional jumps.
+
+        Args:
+            ast_info: The AST info, if it exists.
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The MATCH_SEQUENCE instruction.
+            instr_index: The index of the instruction in the basic block.
+        """
+
+    @abstractmethod
+    def visit_match_mapping_based_conditional_jump(  # noqa: PLR0917
+        self,
+        ast_info: AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        """Instrument MATCH_MAPPING based conditional jumps.
+
+        Args:
+            ast_info: The AST info, if it exists.
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The MATCH_MAPPING instruction.
+            instr_index: The index of the instruction in the basic block.
+        """
+
+    @abstractmethod
+    def visit_match_keys_based_conditional_jump(  # noqa: PLR0917
+        self,
+        ast_info: AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        """Instrument MATCH_KEYS based conditional jumps.
+
+        Args:
+            ast_info: The AST info, if it exists.
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The MATCH_KEYS instruction.
+            instr_index: The index of the instruction in the basic block.
+        """
+
 
 class LineCoverageInstrumentationAdapter(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed lines.

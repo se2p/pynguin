@@ -38,6 +38,7 @@ from pynguin.testcase.execution import TestCaseExecutor
             "tests.fixtures.examples.type_inference",
             "tests.fixtures.examples.enums",
             "tests.fixtures.examples.flaky",
+            "tests.fixtures.examples.pattern_matching",
         ],
         [
             config.Algorithm.RANDOM_TEST_SUITE_SEARCH,

@@ -234,6 +234,42 @@ def test_conditionally_nested_class(simple_module, subject_properties_mock: Magi
     subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
 
 
+def test_add_match_sequence_predicate(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInstrumentation(subject_properties_mock)
+    transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
+    instrument_function(transformer, simple_module.match_sequence_func)
+    result = simple_module.match_sequence_func([1, 2])
+    assert result == 1
+    subject_properties_mock.register_predicate.assert_called()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_match_sequence_predicate.assert_called_with(
+        [1, 2], 0
+    )
+
+
+def test_add_match_mapping_predicate(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInstrumentation(subject_properties_mock)
+    transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
+    instrument_function(transformer, simple_module.match_mapping_func)
+    result = simple_module.match_mapping_func({"a": 1})
+    assert result == 1
+    subject_properties_mock.register_predicate.assert_called()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_match_mapping_predicate.assert_called_with(
+        {"a": 1}, 0
+    )
+
+
+def test_add_match_keys_predicate(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInstrumentation(subject_properties_mock)
+    transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
+    instrument_function(transformer, simple_module.match_keys_func)
+    result = simple_module.match_keys_func({"a": 1, "b": 2})
+    assert result == 1
+    subject_properties_mock.register_predicate.assert_called()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_match_keys_predicate.assert_called_with(
+        {"a": 1, "b": 2}, ("a", "b"), 2
+    )
+
+
 def test_avoid_duplicate_instrumentation(simple_module, subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
