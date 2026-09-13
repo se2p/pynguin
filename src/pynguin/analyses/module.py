@@ -631,6 +631,11 @@ class TestCluster(abc.ABC):  # noqa: PLR0904
 
     @property
     @abc.abstractmethod
+    def all_accessible_objects(self) -> OrderedSet[GenericAccessibleObject]:
+        """Provides all accessible objects in the cluster (under test and dependencies)."""
+
+    @property
+    @abc.abstractmethod
     def function_data_for_accessibles(
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
@@ -998,6 +1003,18 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         return self.__accessible_objects_under_test
 
     @property
+    def all_accessible_objects(  # noqa: D102
+        self,
+    ) -> OrderedSet[GenericAccessibleObject]:
+        objs: OrderedSet[GenericAccessibleObject] = OrderedSet(self.__accessible_objects_under_test)
+        for gen_set in self.generators.values():
+            objs.update(gen_set)
+        for mod_set in self.modifiers.values():
+            objs.update(mod_set)
+        objs.update(self.__callables)
+        return objs
+
+    @property
     def function_data_for_accessibles(  # noqa: D102
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
@@ -1266,6 +1283,12 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
             # Should never happen, just in case everything is already covered?
             return self.__delegate.accessible_objects_under_test
         return OrderedSet(accessibles)
+
+    @property
+    def all_accessible_objects(  # noqa: D102
+        self,
+    ) -> OrderedSet[GenericAccessibleObject]:
+        return self.__delegate.all_accessible_objects
 
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
         return self.__delegate.num_accessible_objects_under_test()
@@ -2075,6 +2098,69 @@ def analyse_module(
     )
     collect_provider_metrics(type_provider)
     return test_cluster
+
+
+def analyse_dependency_module(
+    module_name: str,
+    test_cluster: TestCluster,
+    type_inference_provider: InferenceProvider | None = None,
+) -> None:
+    """Analyse a dependency module into the test cluster without marking its members under test.
+
+    Args:
+        module_name: The name of the module to analyse.
+        test_cluster: The test cluster to add the analysed callables/classes to.
+        type_inference_provider: Optional type inference provider. If None,
+            HintInference is used.
+    """
+    try:
+        mod = importlib.import_module(module_name)
+    except Exception:  # noqa: BLE001
+        LOGGER.debug("Could not import dependency module: %s", module_name)
+        return
+
+    if _is_blacklisted(mod):
+        LOGGER.debug("Skipping blacklisted dependency module: %s", module_name)
+        return
+
+    try:
+        parse_results = _ParseResults()
+        parse_results[module_name] = parse_module(module_name)
+    except Exception:  # noqa: BLE001
+        LOGGER.debug("Could not parse dependency module: %s", module_name)
+        return
+
+    cluster = (
+        getattr(test_cluster, "_FilteredModuleTestCluster__delegate", None)
+        or getattr(test_cluster, "__delegate", None)
+        or test_cluster
+    )
+    if not isinstance(cluster, ModuleTestCluster):
+        return
+
+    if type_inference_provider is None:
+        type_inference_provider = HintInference()
+
+    seen_classes: set[type] = set()
+    seen_functions: set[Any] = set()
+
+    __analyse_included_classes(
+        module=mod,
+        root_module_name=config.configuration.module_name,
+        type_inference_provider=type_inference_provider,
+        test_cluster=cluster,
+        parse_results=parse_results,
+        seen_classes=seen_classes,
+    )
+    __analyse_included_functions(
+        module=mod,
+        root_module_name=config.configuration.module_name,
+        type_inference_provider=type_inference_provider,
+        test_cluster=cluster,
+        parse_results=parse_results,
+        seen_functions=seen_functions,
+    )
+    cluster.type_system.push_attributes_down()
 
 
 def generate_test_cluster(

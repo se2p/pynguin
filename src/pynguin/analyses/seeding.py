@@ -34,8 +34,10 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.stats as stat
+from pynguin.analyses.module import analyse_dependency_module
 from pynguin.large_language_model.parsing.deserializer import (
     CstStatementDeserializer,
+    _extract_imported_bindings,
     normalize_sut_references,
 )
 from pynguin.utils import randomness
@@ -148,6 +150,26 @@ class InitialPopulationProvider:
         return len(self._testcases)
 
 
+def _collect_module_imports(
+    module: cst.Module, module_name: str, test_cluster: ModuleTestCluster
+) -> list[cst.SimpleStatementLine]:
+    """Collect top-level imports and analyse dependency modules."""
+    module_level_imports: list[cst.SimpleStatementLine] = []
+    for stmt in module.body:
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            continue
+        for small in stmt.body:
+            if not isinstance(small, cst.Import | cst.ImportFrom):
+                continue
+            module_level_imports.append(stmt)
+            bindings = _extract_imported_bindings(small)
+            for binding in bindings.values():
+                if binding.module != module_name:
+                    analyse_dependency_module(binding.module, test_cluster)
+            break
+    return module_level_imports
+
+
 def parse_seed_module(
     source: str,
     test_cluster: ModuleTestCluster,
@@ -184,15 +206,19 @@ def parse_seed_module(
 
     deserializer = CstStatementDeserializer(test_cluster, create_assertions=create_assertions)
     testcases: list[tc.TestCase] = []
+    module_level_imports = _collect_module_imports(normalized, module_name, test_cluster)
+
     for node in normalized.body:
-        if not isinstance(node, cst.FunctionDef):
-            continue
-        if not node.name.value.startswith(("test_", "seed_test_")):
-            continue
-        testcase = deserializer.deserialize_function(node).test_case
-        if testcase.size() > 0:
-            testcases.append(testcase)
-            logger.debug("Successfully imported %s.", node.name.value)
-        else:
-            logger.debug("Failed to parse %s.", node.name.value)
+        if isinstance(node, cst.FunctionDef) and node.name.value.startswith((
+            "test_",
+            "seed_test_",
+        )):
+            testcase = deserializer.deserialize_function(
+                node, module_level_imports=module_level_imports
+            ).test_case
+            if testcase.size() > 0:
+                testcases.append(testcase)
+                logger.debug("Successfully imported %s.", node.name.value)
+            else:
+                logger.debug("Failed to parse %s.", node.name.value)
     return testcases
