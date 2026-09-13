@@ -922,23 +922,39 @@ class TestFactory:
         if method_name is None:
             return None
         owner_raw = _raw_type_or_none(accessible.owner.raw_type)
-        receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
-        if receiver is None:
-            owner_type = self._test_cluster.type_system.make_instance(accessible.owner)
-            receiver, cursor = self._create_var_of_type(
-                test_case, owner_type, owner_raw, cursor, depth
-            )
-        if receiver is None and randomness.next_bool():
-            # Deliberately wrong-typed receiver: reaches __getattr__ delegation
-            # and duck-typed code, mirroring the permissive receiver selection
-            # of the reference implementation.
-            receiver = self._find_any_variable(test_case, cursor)
-        if receiver is None:
-            return None
+
+        func: cst.BaseExpression
+        if accessible.is_classmethod() or accessible.is_static():
+            owner = accessible.owner
+            class_name = owner.name if owner is not None else "object"
+            receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
+            if receiver is not None and randomness.next_bool():
+                func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
+            else:
+                class_node = cst.Attribute(
+                    value=cst.Name(self._module_alias()),
+                    attr=cst.Name(class_name),
+                )
+                func = cst.Attribute(value=class_node, attr=cst.Name(method_name))
+        else:
+            receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
+            if receiver is None:
+                owner_type = self._test_cluster.type_system.make_instance(accessible.owner)
+                receiver, cursor = self._create_var_of_type(
+                    test_case, owner_type, owner_raw, cursor, depth
+                )
+            if receiver is None and randomness.next_bool():
+                # Deliberately wrong-typed receiver: reaches __getattr__ delegation
+                # and duck-typed code, mirroring the permissive receiver selection
+                # of the reference implementation.
+                receiver = self._find_any_variable(test_case, cursor)
+            if receiver is None:
+                return None
+            func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
+
         args, cursor = self._satisfy_params(
             test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
         )
-        func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
         bound_type = _proper_type_to_raw(accessible.generated_type())
         return cst.Call(func=func, args=args), bound_type, cursor
 

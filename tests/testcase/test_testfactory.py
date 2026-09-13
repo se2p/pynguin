@@ -494,7 +494,7 @@ def test_append_generic_accessible(kind, type_system, constructor_mock):
     elif kind == "classmethod":
         accessible = gao.GenericMethod(
             owner=TypeInfo(SomeType),
-            method=SomeType.simple_method,  # type: ignore[arg-type]
+            method=SomeType.simple_classmethod,  # type: ignore[arg-type]
             inferred_signature=_make_signature(
                 [Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int)],
                 {"x": Instance(TypeInfo(int))},
@@ -507,7 +507,7 @@ def test_append_generic_accessible(kind, type_system, constructor_mock):
     elif kind == "staticmethod":
         accessible = gao.GenericMethod(
             owner=TypeInfo(SomeType),
-            method=SomeType.simple_method,  # type: ignore[arg-type]
+            method=SomeType.simple_staticmethod,  # type: ignore[arg-type]
             inferred_signature=_make_signature(
                 [Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int)],
                 {"x": Instance(TypeInfo(int))},
@@ -1455,3 +1455,88 @@ def test_create_var_of_type_with_tuple_generator(type_system):
     assert cursor == 3
     assert test_case.get_statement(2).bound_variable == "var_2"
     assert test_case.get_statement(2).bound_type is SomeType
+
+
+def test_build_method_classmethod_on_class(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericMethod(
+        owner=TypeInfo(SomeType),
+        method=SomeType.simple_classmethod,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, Instance(TypeInfo(float)), type_system),
+        method_name="simple_classmethod",
+    )
+    test_case = tc.TestCase()
+    built = factory._build_method(test_case, accessible, 0, 0)
+    assert built is not None
+    node, bound_type, cursor = built
+    assert bound_type is float
+    assert cursor == 0
+    code = cst.Module(body=[]).code_for_node(node)
+    alias = factory._module_alias()
+    assert code == f"{alias}.SomeType.simple_classmethod()"
+
+
+def test_build_method_staticmethod_on_class(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericMethod(
+        owner=TypeInfo(SomeType),
+        method=SomeType.simple_staticmethod,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, Instance(TypeInfo(float)), type_system),
+        method_name="simple_staticmethod",
+    )
+    test_case = tc.TestCase()
+    built = factory._build_method(test_case, accessible, 0, 0)
+    assert built is not None
+    node, bound_type, cursor = built
+    assert bound_type is float
+    assert cursor == 0
+    code = cst.Module(body=[]).code_for_node(node)
+    alias = factory._module_alias()
+    assert code == f"{alias}.SomeType.simple_staticmethod()"
+
+
+def test_build_method_classmethod_with_existing_receiver(type_system):
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericMethod(
+        owner=TypeInfo(SomeType),
+        method=SomeType.simple_classmethod,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, Instance(TypeInfo(float)), type_system),
+        method_name="simple_classmethod",
+    )
+    test_case = make_test_case(assign("obj", "_.SomeType()", bound_type=SomeType))
+    with mock.patch.object(tf.randomness, "next_bool", return_value=True):
+        built = factory._build_method(test_case, accessible, 1, 0)
+    assert built is not None
+    node, bound_type, cursor = built
+    assert bound_type is float
+    assert cursor == 1
+    code = cst.Module(body=[]).code_for_node(node)
+    assert code == "obj.simple_classmethod()"
+
+
+def test_build_method_classmethod_factory_no_recursion(type_system):
+    class FactoryClass:
+        @classmethod
+        def create(cls) -> FactoryClass:
+            return cls()
+
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericMethod(
+        owner=TypeInfo(FactoryClass),
+        method=FactoryClass.create,
+        inferred_signature=_make_signature([], {}, Instance(TypeInfo(FactoryClass)), type_system),
+        method_name="create",
+    )
+    test_case = tc.TestCase()
+    pos = factory.append_generic_accessible(test_case, accessible)
+    assert pos == 0
+    code = test_case.to_code()
+    assert "FactoryClass.create()" in code
