@@ -2738,6 +2738,21 @@ files = [
 ]
 
 [[package]]
+name = "typeshed-client"
+version = "2.13.0"
+description = "A library for accessing stubs in typeshed."
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "typeshed_client-2.13.0-py3-none-any.whl", hash = "sha256:71bc9ed297ddb32d3c4b2d29b5e688c6b0b9a21ca8ce6082d0aa7cee9cad5077"},
+    {file = "typeshed_client-2.13.0.tar.gz", hash = "sha256:85ce73be98a5e3a51cafb2e2921653e3759ce7e9d1530adcca935dec201152f2"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.5.0"
+
+[[package]]
 name = "typing-extensions"
 version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
@@ -2841,4 +2856,4 @@ typing = ["mypy", "typing-extensions"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.15"
-content-hash = "2291106d438ac5f27c652e0b5d9923c144228f3353a8aacd3b0afecdd4bc1079"
+content-hash = "89c7626c8c5d0c47c4f3bf8cb4cdefd953b78299702a2c20e50b36755d31e582"

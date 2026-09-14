@@ -49,6 +49,7 @@ from pynguin.analyses.type_inference import (
     LLMInferenceWithSubtypes,
     NoInference,
     TypeEvalPyInference,
+    TypeshedInference,
 )
 from pynguin.instrumentation import transformer
 from pynguin.utils.llm import LLMProvider
@@ -2051,7 +2052,7 @@ def __check_c_modules(
 
 def analyse_module(
     parsed_module: _ModuleParseResult,
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
@@ -2079,7 +2080,7 @@ def analyse_module(
 
 def generate_test_cluster(
     module_name: str,
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
@@ -2126,6 +2127,8 @@ def get_type_provider(
                 )
                 return NoInference()
             return TypeEvalPyInference(typeevalpy_data)
+        case TypeInferenceStrategy.TYPESHED:
+            return TypeshedInference(type_system)
         case _:
             LOGGER.error(
                 "Unknown type inference strategy: '%s'. Falling back to NoInference.",

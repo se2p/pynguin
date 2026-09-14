@@ -193,6 +193,10 @@ class TypeInferenceStrategy(str, enum.Enum):
     TYPEEVALPY = "TYPEEVALPY"
     """Use TypeEvalPy data only for type inference."""
 
+    TYPESHED = "TYPESHED"
+    """Use type hints where available, falling back to typeshed stub information
+    for callables without runtime annotations (e.g. C-accelerated stdlib code)."""
+
 
 class SubtypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""
@@ -520,7 +524,7 @@ class RandomConfiguration:
 class TypeInferenceConfiguration:
     """Configuration related to type inference."""
 
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED
     """The strategy for type-inference that shall be used"""
 
     type_tracing: bool | float = 0.0

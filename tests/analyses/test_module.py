@@ -343,6 +343,17 @@ def test_accessible():
     assert len(cluster.accessible_objects_under_test) == 4
 
 
+def test_typeshed_strategy_builds_cluster_for_c_extension_module():
+    """The TYPESHED strategy must not crash when analysing a C-extension module.
+
+    C-accelerated modules like ``array`` are exactly the case typeshed stub
+    resolution needs to handle gracefully (slot wrappers, ``__objclass__``
+    without ``__module__``, etc.) without ever raising.
+    """
+    cluster = generate_test_cluster("array", TypeInferenceStrategy.TYPESHED)
+    assert cluster.num_accessible_objects_under_test() >= 1
+
+
 def test_nothing_from_blacklist():
     cluster = generate_test_cluster("tests.fixtures.cluster.blacklist")
     # Should only be foo, bar and object.
