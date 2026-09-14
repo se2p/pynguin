@@ -44,6 +44,10 @@ def test_reference_assertion_source_setter():
         (ass.FloatAssertion("var_0", 3.7), "visit_float_assertion"),
         (ass.ObjectAssertion("var_0", [1]), "visit_object_assertion"),
         (
+            ass.ReprObjectAssertion("var_0", "Point(1, 2)"),
+            "visit_repr_object_assertion",
+        ),
+        (
             ass.IsInstanceAssertion("var_0", "builtins", "int"),
             "visit_isinstance_assertion",
         ),
@@ -69,6 +73,7 @@ def test_assertion_accept(assertion, method):
         (ass.TypeNameAssertion("var_0", "builtins", "int")),
         (ass.FloatAssertion("var_0", 3.7)),
         (ass.ObjectAssertion("var_0", [1])),
+        (ass.ReprObjectAssertion("var_0", "Point(1, 2)")),
         (ass.IsInstanceAssertion("var_0", "builtins", "int")),
         (ass.CollectionLengthAssertion("var_0", 5)),
     ],
@@ -106,6 +111,14 @@ def test_assertion_clone(assertion):
         (ass.ObjectAssertion("var_0", [1]), ass.ObjectAssertion("var_1", [1])),
         (ass.ObjectAssertion("var_0", [1]), ass.ObjectAssertion("var_1", [2])),
         (
+            ass.ReprObjectAssertion("var_0", "Point(1, 2)"),
+            ass.ReprObjectAssertion("var_1", "Point(1, 2)"),
+        ),
+        (
+            ass.ReprObjectAssertion("var_0", "Point(1, 2)"),
+            ass.ReprObjectAssertion("var_0", "Point(3, 4)"),
+        ),
+        (
             ass.IsInstanceAssertion("var_0", "builtins", "int"),
             ass.IsInstanceAssertion("var_1", "builtins", "int"),
         ),
@@ -136,6 +149,12 @@ def test_float_assertion_value():
 def test_object_assertion_object():
     assertion = ass.ObjectAssertion("var_0", [3])
     assert assertion.object == [3]
+
+
+def test_repr_object_assertion_repr_string():
+    assertion = ass.ReprObjectAssertion("var_0", "Point(1, 2)")
+    assert assertion.repr_string == "Point(1, 2)"
+    assert repr(assertion) == "ReprObjectAssertion('var_0', 'Point(1, 2)')"
 
 
 def test_collection_length_assertion_length():

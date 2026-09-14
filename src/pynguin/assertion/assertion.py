@@ -238,6 +238,48 @@ class ObjectAssertion(ReferenceAssertion):
         return f"ObjectAssertion({self._source!r}, {self._object!r})"
 
 
+class ReprObjectAssertion(ReferenceAssertion):
+    """An assertion on an object using its __repr__ expression.
+
+    For example:
+        assert var_0 == CustomPoint(1, 2)
+    """
+
+    def __init__(self, source: str, repr_string: str):  # noqa: D107
+        super().__init__(source)
+        self._repr_string = repr_string
+
+    @property
+    def repr_string(self) -> str:
+        """Provides the repr expression string used for comparison.
+
+        Returns:
+            The repr expression string used for comparison.
+        """
+        return self._repr_string
+
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
+        visitor.visit_repr_object_assertion(self)
+
+    def clone(  # noqa: D102
+        self, memo: VariableReferenceMemo
+    ) -> ReprObjectAssertion:
+        return ReprObjectAssertion(memo.get(self._source, self._source), self._repr_string)
+
+    def __eq__(self, other: Any) -> bool:  # noqa: PYI032
+        return (
+            isinstance(other, ReprObjectAssertion)
+            and self._source == other._source
+            and self._repr_string == other._repr_string
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._source, self._repr_string))
+
+    def __repr__(self):
+        return f"ReprObjectAssertion({self._source!r}, {self._repr_string!r})"
+
+
 class IsInstanceAssertion(ReferenceAssertion):
     """An assertion that checks if a reference is an instance of a given type."""
 
@@ -418,6 +460,15 @@ class AssertionVisitor:
     @abstractmethod
     def visit_object_assertion(self, assertion: ObjectAssertion) -> None:
         """Visit an object assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_repr_object_assertion(self, assertion: ReprObjectAssertion) -> None:
+        """Visit a repr object assertion.
 
         Args:
             assertion: the visited assertion
