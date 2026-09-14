@@ -173,7 +173,7 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
             normalised_area = (
                 self.area_under_curve + last_value * time_delta
             ) / config.configuration.stopping.maximum_search_time
-        assert 0.0 <= normalised_area <= 1.0, f"Normalised AuC out of range ({normalised_area})!"
+        assert normalised_area >= 0.0, f"Normalised AuC out of range ({normalised_area})!"
         return normalised_area
 
     @property

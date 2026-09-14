@@ -181,3 +181,16 @@ def test_normalised_area_under_curve_outlier(sequence_factory):
     sequence_factory._values = [0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 5 / 6, 6 / 7]
     expected = 2987 / (840 * 5.5)
     assert sequence_factory.normalised_area_under_curve == pytest.approx(expected)
+
+
+def test_normalised_area_under_curve_unbounded_values(sequence_factory):
+    """Test that normalised_area_under_curve works with unbounded fitness values."""
+    config.configuration.stopping.maximum_search_time = 5
+    start_time = time.time_ns()
+    sequence_factory.set_start_time(start_time)
+    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)]
+    # Fitness values can be unbounded and exceed 1.0
+    sequence_factory._values = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    # Should not raise AssertionError for values > 1.0
+    result = sequence_factory.normalised_area_under_curve
+    assert result >= 0.0
