@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import builtins
 import importlib
@@ -20,6 +21,8 @@ from functools import reduce
 from operator import or_
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_type_hints
+
+import typeshed_client
 
 if TYPE_CHECKING:
     from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
@@ -656,4 +659,200 @@ class TypeEvalPyInference(InferenceProvider):
             pass
 
         _LOGGER.debug("Unknown type name in TypeEvalPy data: %s", type_name)
+        return None
+
+
+class TypeshedInference(InferenceProvider):
+    """Type inference strategy backed by typeshed stub information.
+
+    Uses runtime type hints (PEP 484 annotations) where available, since those
+    are guaranteed accurate for the running interpreter. For parameters/returns
+    that runtime hints cannot provide -- most notably C-accelerated stdlib
+    callables, which have no ``__annotations__`` at all -- this strategy falls
+    back to the type information declared in typeshed's stub files.
+    """
+
+    _MAX_BASE_CLASS_HOPS = 3
+
+    def __init__(self, type_system: TypeSystem) -> None:
+        """Initializes the typeshed-backed inference provider.
+
+        Args:
+            type_system: The type system to use for resolving stub type strings.
+        """
+        super().__init__()
+        self._hint_inference = HintInference()
+        self._type_str_parser = TypeStrParser(type_system)
+        self._resolver = typeshed_client.Resolver()
+        self._stub_names_cache: dict[str, typeshed_client.NameDict | None] = {}
+
+    def provide(self, method: Callable) -> dict[str, Any]:
+        """Provides type hints, using typeshed stubs to fill gaps in runtime hints.
+
+        Args:
+            method: The method for which we want type hints.
+
+        Returns:
+            A dict mapping parameter names (and "return") to type hints.
+        """
+        result = self._hint_inference.provide(method)
+        stub_function = self._resolve_stub_function(method)
+        if stub_function is None:
+            return result
+
+        for name, type_str in self._extract_stub_types(stub_function).items():
+            if name in result:
+                continue
+            resolved = self._type_str_parser.parse(type_str)
+            if resolved is None or resolved is type(builtins.object):
+                _LOGGER.debug(
+                    "Could not resolve typeshed type string '%s' for parameter '%s'",
+                    type_str,
+                    name,
+                )
+                self._metrics["failed_inferences"] += 1
+                continue
+            self._metrics["successful_inferences"] += 1
+            result[name] = resolved
+        return result
+
+    @staticmethod
+    def _extract_stub_types(
+        function: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> dict[str, str]:
+        """Extract parameter/return annotation strings from a stub function AST."""
+        types_by_name: dict[str, str] = {}
+        positional = [*function.args.posonlyargs, *function.args.args]
+        if positional and positional[0].arg in {"self", "cls"}:
+            positional = positional[1:]
+        for arg in [*positional, *function.args.kwonlyargs]:
+            if arg.annotation is not None:
+                types_by_name[arg.arg] = ast.unparse(arg.annotation)
+        if function.returns is not None:
+            types_by_name["return"] = ast.unparse(function.returns)
+        return types_by_name
+
+    def _get_stub_names(self, module_name: str) -> typeshed_client.NameDict | None:
+        """Returns the (cached) top-level names defined in a module's stub."""
+        if module_name not in self._stub_names_cache:
+            try:
+                self._stub_names_cache[module_name] = typeshed_client.get_stub_names(module_name)
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("Failed to load typeshed stub for module '%s'", module_name)
+                self._stub_names_cache[module_name] = None
+        return self._stub_names_cache[module_name]
+
+    def _resolve_imported(
+        self, info: typeshed_client.NameInfo, module_name: str
+    ) -> typeshed_client.NameInfo | None:
+        """Follows ``ImportedName`` indirections to the concrete definition."""
+        max_hops = self._MAX_BASE_CLASS_HOPS
+        hops = 0
+        while isinstance(info.ast, typeshed_client.ImportedName) and hops < max_hops:
+            imported = info.ast
+            target_module = imported.module_name or module_name
+            resolved = self._resolver.get_fully_qualified_name(f"{target_module}.{imported.name}")
+            if not isinstance(resolved, typeshed_client.ImportedInfo):
+                return None
+            info = resolved.info
+            hops += 1
+        return None if isinstance(info.ast, typeshed_client.ImportedName) else info
+
+    def _get_member(
+        self,
+        node_dict: typeshed_client.NameDict,
+        name: str,
+        owner_info: typeshed_client.NameInfo | None,
+        module_name: str,
+    ) -> typeshed_client.NameInfo | None:
+        """Looks up ``name`` in ``node_dict``, falling back to base classes."""
+        info = node_dict.get(name)
+        if info is not None:
+            return self._resolve_imported(info, module_name)
+        if owner_info is None or not isinstance(owner_info.ast, ast.ClassDef):
+            return None
+        return self._resolve_via_bases(owner_info.ast, name, module_name, depth=0)
+
+    def _resolve_via_bases(
+        self, class_def: ast.ClassDef, name: str, module_name: str, depth: int
+    ) -> typeshed_client.NameInfo | None:
+        """Searches base classes (bounded depth) for an inherited member."""
+        if depth >= self._MAX_BASE_CLASS_HOPS:
+            return None
+        for base_expr in class_def.bases:
+            head = self._base_head_name(base_expr)
+            if head is None:
+                continue
+            base_info, base_module = self._resolve_base_name(head, module_name)
+            if base_info is None or not isinstance(base_info.ast, ast.ClassDef):
+                continue
+            member = (base_info.child_nodes or {}).get(name)
+            if member is not None:
+                resolved_member = self._resolve_imported(member, base_module)
+                if resolved_member is not None:
+                    return resolved_member
+            deeper = self._resolve_via_bases(base_info.ast, name, base_module, depth + 1)
+            if deeper is not None:
+                return deeper
+        return None
+
+    def _resolve_base_name(
+        self, head: str, module_name: str
+    ) -> tuple[typeshed_client.NameInfo | None, str]:
+        """Resolves a base class's leading identifier to a NameInfo + its module."""
+        local_names = self._get_stub_names(module_name)
+        if local_names and head in local_names:
+            return self._resolve_imported(local_names[head], module_name), module_name
+        builtin_names = self._get_stub_names("builtins")
+        if builtin_names and head in builtin_names:
+            return self._resolve_imported(builtin_names[head], "builtins"), "builtins"
+        return None, module_name
+
+    @staticmethod
+    def _base_head_name(expr: ast.expr) -> str | None:
+        """Extracts the leading identifier from a base-class expression."""
+        if isinstance(expr, ast.Name):
+            return expr.id
+        if isinstance(expr, ast.Attribute):
+            return expr.attr
+        if isinstance(expr, ast.Subscript):
+            return TypeshedInference._base_head_name(expr.value)
+        return None
+
+    def _resolve_stub_function(
+        self, method: Callable
+    ) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        """Resolves the typeshed stub AST node for the given callable, if any."""
+        module_name = getattr(method, "__module__", None)
+        qualname = getattr(method, "__qualname__", None) or getattr(method, "__name__", None)
+        if module_name is None:
+            # Some C-level descriptors (e.g. inherited slot wrappers like
+            # ``dict.__init__`` accessed as ``SubDict.__init__``) have no
+            # ``__module__`` of their own, but expose the defining class via
+            # ``__objclass__``.
+            owner = getattr(method, "__objclass__", None)
+            module_name = getattr(owner, "__module__", None)
+        if not module_name or not qualname or "<locals>" in qualname:
+            return None
+        names = self._get_stub_names(module_name)
+        if not names:
+            return None
+
+        node_dict: typeshed_client.NameDict = names
+        owner_info: typeshed_client.NameInfo | None = None
+        info: typeshed_client.NameInfo | None = None
+        for part in qualname.split("."):
+            info = self._get_member(node_dict, part, owner_info, module_name)
+            if info is None:
+                return None
+            owner_info = info
+            node_dict = info.child_nodes or {}
+
+        if info is None:
+            return None
+        ast_node: Any = info.ast
+        if isinstance(ast_node, typeshed_client.OverloadedName):
+            ast_node = ast_node.definitions[0] if ast_node.definitions else None
+        if isinstance(ast_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return ast_node
         return None
