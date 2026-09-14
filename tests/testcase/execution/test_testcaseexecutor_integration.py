@@ -202,3 +202,33 @@ def test_seeded_testcase_with_dependency_imports_executes(
     assert not result.has_test_exceptions()
     assert result.num_executed_statements == 5
     assert condition.current_value() == 5
+
+
+def test_execute_coroutine_call_runs_to_completion(subject_properties: SubjectProperties) -> None:
+    """A coroutine call wrapped in ``asyncio.run(...)`` actually executes.
+
+    Merely calling a coroutine function returns an unawaited coroutine object
+    without running its body; comparing the *result* value proves the body
+    (and thus asyncio.run) really ran instead of just constructing that object.
+    """
+    test_case = make_test_case(
+        stmt("val = asyncio.run(simple_async_function(2.0))"),
+        stmt("assert val == 2.0"),
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        result = executor.execute(test_case)
+    assert not result.has_test_exceptions()
+
+
+def test_execute_coroutine_method_call_runs_to_completion(
+    subject_properties: SubjectProperties,
+) -> None:
+    """A coroutine *method* call wrapped in ``asyncio.run(...)`` actually executes."""
+    test_case = make_test_case(
+        assign("obj", "SomeType(3.0)", bound_type=object),
+        stmt("val = asyncio.run(obj.simple_async_method(2))"),
+        stmt("assert val == 30.0"),
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        result = executor.execute(test_case)
+    assert not result.has_test_exceptions()

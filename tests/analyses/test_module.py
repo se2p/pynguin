@@ -623,17 +623,40 @@ def test_enums():
     ["async_func", "async_gen", "async_class_gen", "async_class_method"],
 )
 def test_analyse_async_function_or_method_does_not_abort(module_name):
-    # A coroutine in the SUT must be skipped, not abort the whole module.
+    # An async generator or coroutine in the SUT must not abort the whole module.
     cluster = generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
     assert cluster is not None
 
 
-def test_analyse_mixed_async_and_sync_keeps_sync():
+@pytest.mark.parametrize("module_name", ["async_gen", "async_class_gen"])
+def test_analyse_async_generator_is_skipped(module_name):
+    # Async generators are not supported; only their owning class (if any) may
+    # still appear in the cluster via its constructor, but never a "foo" callable.
+    cluster = generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
+    names = {
+        getattr(obj, "function_name", None) or getattr(obj, "method_name", None)
+        for obj in cluster.accessible_objects_under_test
+    }
+    assert "foo" not in names
+
+
+@pytest.mark.parametrize("module_name", ["async_func", "async_class_method"])
+def test_analyse_coroutine_is_included(module_name):
+    # Plain coroutine functions/methods are supported and must be testable.
+    cluster = generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
+    names = {
+        getattr(obj, "function_name", None) or getattr(obj, "method_name", None)
+        for obj in cluster.accessible_objects_under_test
+    }
+    assert "foo" in names
+
+
+def test_analyse_mixed_async_and_sync_keeps_both():
     cluster = generate_test_cluster("tests.fixtures.cluster.async_and_sync")
     names = {getattr(obj, "function_name", None) for obj in cluster.accessible_objects_under_test}
-    # The synchronous function stays testable, the coroutine is skipped.
+    # Both the synchronous function and the coroutine are testable.
     assert "sync_bar" in names
-    assert "async_foo" not in names
+    assert "async_foo" in names
 
 
 def test_analyse_module_with_lazy_globals_mutation():
@@ -658,7 +681,9 @@ def test_analyse_cache_decorated_function():
 def test_analyse_async_as_dependency():
     cluster = generate_test_cluster("tests.fixtures.cluster.uses_async_dependency")
     assert len(cluster.generators) == 4
-    assert len(cluster.modifiers) == 0
+    # async_class_method.Foo.foo is a plain coroutine method and is now
+    # testable as a modifier; the async-generator dependencies stay excluded.
+    assert len(cluster.modifiers) == 1
     assert len(cluster.accessible_objects_under_test) == 1
 
 

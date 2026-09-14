@@ -11,6 +11,8 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+- Generate calls for coroutine functions and methods (cf. GitHub Issue #62)
+
 ## Pynguin 0.46.0
 
 - Fix shadowed sub-module imports, namespace packages, and invalid identifiers

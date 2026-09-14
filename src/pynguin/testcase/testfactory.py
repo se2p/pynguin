@@ -200,6 +200,37 @@ def _method_call_name(accessible: gao.GenericMethod) -> str | None:
     return name if isinstance(name, str) and name.isidentifier() else None
 
 
+def _wrap_coroutine_call(
+    node: cst.BaseExpression, accessible: gao.GenericAccessibleObject
+) -> cst.BaseExpression:
+    """Wrap a coroutine call expression so it actually runs.
+
+    Calling a coroutine function only creates a coroutine object; it must be
+    driven to completion to execute its body. Rather than making generated
+    test functions ``async def`` (which would ripple through the whole
+    exec-based execution/export model), the call is driven synchronously via
+    ``asyncio.run(...)``.
+
+    Args:
+        node: The call expression to (maybe) wrap.
+        accessible: The accessible the call expression was built for.
+
+    Returns:
+        ``asyncio.run(node)`` if *accessible* is a coroutine function/method,
+        otherwise *node* unchanged.
+    """
+    if (
+        isinstance(accessible, gao.GenericCallableAccessibleObject)
+        and not isinstance(accessible, gao.GenericConstructor)
+        and accessible.is_coroutine
+    ):
+        return cst.Call(
+            func=cst.Attribute(value=cst.Name("asyncio"), attr=cst.Name("run")),
+            args=[cst.Arg(value=node)],
+        )
+    return node
+
+
 def _ndarray_mutation_elements(value: object, *, is_tuple: bool) -> list | None:
     """Extract a mutation-ready element list from a parsed ML value.
 
@@ -708,7 +739,11 @@ class TestFactory:
             )
             func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
             bound_type_m = _proper_type_to_raw(replacement.generated_type())
-            return cst.Call(func=func, args=args), bound_type_m, cursor
+            return (
+                _wrap_coroutine_call(cst.Call(func=func, args=args), replacement),
+                bound_type_m,
+                cursor,
+            )
         if isinstance(replacement, gao.GenericFunction):
             function_name = _function_call_name(replacement)
             if function_name is None:
@@ -721,7 +756,11 @@ class TestFactory:
                 attr=cst.Name(function_name),
             )
             bound_type_f = _proper_type_to_raw(replacement.generated_type())
-            return cst.Call(func=func, args=args), bound_type_f, cursor
+            return (
+                _wrap_coroutine_call(cst.Call(func=func, args=args), replacement),
+                bound_type_f,
+                cursor,
+            )
         if isinstance(replacement, gao.GenericEnum):
             node, bound_type = self._build_enum(replacement)
             return node, bound_type, cursor
@@ -956,7 +995,8 @@ class TestFactory:
             test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
         )
         bound_type = _proper_type_to_raw(accessible.generated_type())
-        return cst.Call(func=func, args=args), bound_type, cursor
+        call = _wrap_coroutine_call(cst.Call(func=func, args=args), accessible)
+        return call, bound_type, cursor
 
     def _build_function(
         self,
@@ -985,7 +1025,8 @@ class TestFactory:
         )
         func = cst.Attribute(value=cst.Name(self._module_alias()), attr=cst.Name(func_name))
         bound_type = _proper_type_to_raw(accessible.generated_type())
-        return cst.Call(func=func, args=args), bound_type, cursor
+        call = _wrap_coroutine_call(cst.Call(func=func, args=args), accessible)
+        return call, bound_type, cursor
 
     def _build_enum(self, accessible: gao.GenericEnum) -> tuple[cst.BaseExpression, type | None]:
         """Build the CST node for an enum member access.
@@ -2032,9 +2073,12 @@ class TestFactory:
             args = self._regen_args_in_place(
                 test_case, accessible.inferred_signature, position, accessible=accessible
             )
-            new_call = cst.Call(
-                func=cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name)),
-                args=args,
+            new_call = _wrap_coroutine_call(
+                cst.Call(
+                    func=cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name)),
+                    args=args,
+                ),
+                accessible,
             )
         elif isinstance(accessible, gao.GenericFunction):
             function_name = _function_call_name(accessible)
@@ -2043,12 +2087,15 @@ class TestFactory:
             args = self._regen_args_in_place(
                 test_case, accessible.inferred_signature, position, accessible=accessible
             )
-            new_call = cst.Call(
-                func=cst.Attribute(
-                    value=cst.Name(self._module_alias()),
-                    attr=cst.Name(function_name),
+            new_call = _wrap_coroutine_call(
+                cst.Call(
+                    func=cst.Attribute(
+                        value=cst.Name(self._module_alias()),
+                        attr=cst.Name(function_name),
+                    ),
+                    args=args,
                 ),
-                args=args,
+                accessible,
             )
         elif isinstance(accessible, gao.GenericEnum):
             owner = accessible.owner

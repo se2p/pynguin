@@ -343,6 +343,36 @@ def test_write_xfail_imports_pytest(tmp_path: Path):
     assert "pytest.raises" not in content
 
 
+def test_write_imports_asyncio_for_coroutine_call(tmp_path: Path, async_function_mock):
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter(no_xfail=True)
+    coroutine_stmt = stmt("val = asyncio.run(simple_async_function(2.0))")
+    coroutine_stmt.accessible = async_function_mock
+    test_case = make_test_case(coroutine_stmt)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(TestSuiteWriter, "_per_statement_exceptions", return_value=[None]):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import asyncio" in content
+
+
+def test_write_omits_asyncio_import_without_coroutine_call(tmp_path: Path):
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter(no_xfail=True)
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(TestSuiteWriter, "_per_statement_exceptions", return_value=[None]):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import asyncio" not in content
+
+
 def test_write_no_xfail_excludes_unused_exception_import(tmp_path: Path):
     """An unexpected non-builtin exception handled via xfail needs no import."""
     module_name = "tests.fixtures.accessibles.accessible"

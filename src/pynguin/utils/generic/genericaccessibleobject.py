@@ -249,6 +249,15 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, abc.ABC):
         """
         return self._callable
 
+    @property
+    def is_coroutine(self) -> bool:
+        """Whether calling this callable returns a coroutine that must be awaited.
+
+        Returns:
+            True if the wrapped callable is a coroutine function.
+        """
+        return inspect.iscoroutinefunction(self._callable)
+
     def get_num_parameters(self) -> int:  # noqa: D102
         return len(self.inferred_signature.original_parameters)
 
