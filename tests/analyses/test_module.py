@@ -337,9 +337,8 @@ def __extract_method_names(
 
 
 def test_accessible():
-    cluster = generate_test_cluster(
-        "tests.fixtures.cluster.no_dependencies", TypeInferenceStrategy.NONE
-    )
+    config.configuration.type_inference.type_inference_strategy = TypeInferenceStrategy.NONE
+    cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
     assert len(cluster.accessible_objects_under_test) == 4
 
 
@@ -350,7 +349,8 @@ def test_typeshed_strategy_builds_cluster_for_c_extension_module():
     resolution needs to handle gracefully (slot wrappers, ``__objclass__``
     without ``__module__``, etc.) without ever raising.
     """
-    cluster = generate_test_cluster("array", TypeInferenceStrategy.TYPESHED)
+    config.configuration.type_inference.type_inference_strategy = TypeInferenceStrategy.TYPESHED
+    cluster = generate_test_cluster("array")
     assert cluster.num_accessible_objects_under_test() >= 1
 
 
@@ -537,7 +537,8 @@ def __extract_accessible_names(
 )
 def test_element_visibility_config(visibility, expected):
     config.configuration.element_visibility = visibility
-    cluster = generate_test_cluster("tests.fixtures.cluster.visibility", TypeInferenceStrategy.NONE)
+    config.configuration.type_inference.type_inference_strategy = TypeInferenceStrategy.NONE
+    cluster = generate_test_cluster("tests.fixtures.cluster.visibility")
     names = __extract_accessible_names(cluster.accessible_objects_under_test)
     assert names == expected
 
@@ -546,9 +547,8 @@ def test_element_visibility_only_applies_to_sut():
     # Dependency modules must always be treated as PUBLIC-only, regardless of the
     # configured visibility for the module under test.
     config.configuration.element_visibility = ElementVisibility.ALL
-    cluster = generate_test_cluster(
-        "tests.fixtures.cluster.visibility_dependency", TypeInferenceStrategy.NONE
-    )
+    config.configuration.type_inference.type_inference_strategy = TypeInferenceStrategy.NONE
+    cluster = generate_test_cluster("tests.fixtures.cluster.visibility_dependency")
     dependency_method_names = {
         generator.callable.__name__
         for generators in cluster.modifiers.values()

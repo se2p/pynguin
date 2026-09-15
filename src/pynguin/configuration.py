@@ -524,7 +524,7 @@ class RandomConfiguration:
 class TypeInferenceConfiguration:
     """Configuration related to type inference."""
 
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
     type_tracing: bool | float = 0.0

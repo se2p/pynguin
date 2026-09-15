@@ -2079,17 +2079,17 @@ def __check_c_modules(
 
 def analyse_module(
     parsed_module: _ModuleParseResult,
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
         parsed_module: The parsed module
-        type_inference_strategy: The type inference strategy to use.
 
     Returns:
         A test cluster for the module
     """
+    type_inference_strategy = config.configuration.type_inference.type_inference_strategy
+
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
 
     type_provider = get_type_provider(
@@ -2170,18 +2170,16 @@ def analyse_dependency_module(
 
 def generate_test_cluster(
     module_name: str,
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
     Args:
         module_name: The name of the root module
-        type_inference_strategy: Which type-inference strategy to use
 
     Returns:
         A new test cluster for the given module
     """
-    return analyse_module(parse_module(module_name), type_inference_strategy)
+    return analyse_module(parse_module(module_name))
 
 
 def get_type_provider(
