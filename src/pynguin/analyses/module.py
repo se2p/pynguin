@@ -2079,7 +2079,7 @@ def __check_c_modules(
 
 def analyse_module(
     parsed_module: _ModuleParseResult,
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
@@ -2170,7 +2170,7 @@ def analyse_dependency_module(
 
 def generate_test_cluster(
     module_name: str,
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPESHED,
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
