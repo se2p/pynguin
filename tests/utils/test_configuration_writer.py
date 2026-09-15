@@ -128,7 +128,7 @@ max_dynamic_length = 1000
 max_dynamic_pool_size = 50
 
 [type_inference]
-type_inference_strategy = "TYPESHED"
+type_inference_strategy = "TYPE_HINTS"
 type_tracing = 0.0
 subtype_inference = "NONE"
 type_tracing_subtype_weight = 0.3
@@ -324,8 +324,8 @@ def expected_txt(tmp_path):
  'seeded_dynamic_values_reuse_probability=0.6, seed_from_archive=False, '
  'seed_from_archive_probability=0.2, seed_from_archive_mutations=3, '
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
- 'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPESHED: '
- "'TYPESHED'>, type_tracing=0.0, "
+ 'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
+ "'TYPE_HINTS'>, type_tracing=0.0, "
  "subtype_inference=<SubtypeInferenceStrategy.NONE: 'NONE'>, "
  'type_tracing_subtype_weight=0.3, type_tracing_argument_type_weight=0.5, '
  "type_tracing_attribute_weight=0.2, typeevalpy_json_path=''), "
@@ -757,7 +757,7 @@ True
 --type_inference.subtype_inference
 NONE
 --type_inference.type_inference_strategy
-TYPESHED
+TYPE_HINTS
 --type_inference.type_tracing
 0.0
 --type_inference.type_tracing_argument_type_weight
@@ -821,7 +821,7 @@ def expected_parameter_list() -> list[str]:
         "--seed_from_archive_mutations 3",
         "--max_dynamic_length 1000",
         "--max_dynamic_pool_size 50",
-        "--type_inference_strategy TYPESHED",
+        "--type_inference_strategy TYPE_HINTS",
         "--type_tracing 0.0",
         "--max_recursion 10",
         "--max_delta 20",
