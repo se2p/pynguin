@@ -11,6 +11,8 @@ from __future__ import annotations
 import copy
 import keyword
 import logging
+import os
+import sys
 import threading
 from collections.abc import Sized
 from types import ModuleType
@@ -46,6 +48,52 @@ _LOGGER = logging.getLogger(__name__)
 # access along the chain raised.
 _UNRESOLVED = object()
 
+# Known process-/environment-volatile singletons. A SUT can re-export any of
+# these under an arbitrary local name (e.g. ``from sys import path as
+# sys_path``), which makes name- or type-based blacklisting ineffective --
+# the re-exported value is still a plain ``list``/``dict`` as far as
+# ``_is_blacklisted_value`` is concerned. Since aliasing/importing never
+# copies the object, identity (``is``) still reliably traces such re-exports
+# back to their volatile origin regardless of the local name they were bound
+# to. Values *derived* from these (e.g. ``set(sys.modules)``) are not caught,
+# since they are no longer identical to the singleton -- see issue #253.
+_UNSTABLE_RUNTIME_VALUES: tuple[Any, ...] = tuple(
+    val
+    for val in (
+        sys.path,
+        sys.modules,
+        sys.argv,
+        getattr(sys, "orig_argv", None),
+        sys.meta_path,
+        sys.path_hooks,
+        sys.path_importer_cache,
+        sys.warnoptions,
+        sys.flags,
+        sys.stdin,
+        sys.stdout,
+        sys.stderr,
+        sys.__stdin__,
+        sys.__stdout__,
+        sys.__stderr__,
+        os.environ,
+    )
+    if val is not None
+)
+
+
+def _is_unstable_runtime_value(value: Any) -> bool:
+    """Check whether a value is a known volatile runtime/environment singleton.
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        True, if ``value`` is (by identity) one of the known
+        process-/environment-dependent singletons, regardless of the name it
+        is currently bound to.
+    """
+    return any(value is unstable for unstable in _UNSTABLE_RUNTIME_VALUES)
+
 
 def _is_blacklisted_module(module_name: str | None) -> bool:
     """Check whether a module name matches MODULE_BLACKLIST or user-ignored modules.
@@ -70,16 +118,21 @@ def _is_blacklisted_value(value: Any) -> bool:
     """Check if a value originates from a blacklisted module.
 
     Primitives, collections, None, and values belonging to the SUT module are
-    never considered blacklisted.
+    never considered blacklisted, unless they are a known volatile runtime
+    singleton re-exported under some local name (see
+    ``_is_unstable_runtime_value``).
 
     Args:
         value: The value to check.
 
     Returns:
-        True, if the value originates from a blacklisted module.
+        True, if the value originates from a blacklisted module, or is a
+        known volatile runtime/environment singleton.
     """
     if value is None:
         return False
+    if _is_unstable_runtime_value(value):
+        return True
     typ = type(value)
     if is_primitive_type(typ) or is_collection_type(typ):
         return False

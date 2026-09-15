@@ -20,6 +20,7 @@ from __future__ import annotations
 import __future__
 
 import logging
+import os
 import sys
 import types
 import typing
@@ -642,6 +643,31 @@ def test_handle_ignores_blacklisted_and_invalid_module_fields():
     assert not any(source.endswith("123") for source in sources)
 
 
+def test_handle_ignores_module_field_aliasing_sys_singleton():
+    # Reproduces issue #253: a SUT module doing
+    # ``from sys import path as sys_path, modules as sys_modules`` re-exports
+    # those under arbitrary local names. Regardless of the alias, no
+    # assertion should be generated on them, since their value is
+    # process-/environment-dependent and differs when the exported test is
+    # run standalone later.
+    observer = ato.RemoteAssertionTraceObserver()
+    module, alias = _make_sut_module(
+        sys_path=sys.path,
+        sys_modules=sys.modules,
+        stable_field=42,
+    )
+    namespace = {alias: module, "var_0": 1}
+
+    statement = b.assign("var_0", "1", bound_type=int)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    sources = {a.source for a in recorded if isinstance(a, ass.ReferenceAssertion)}
+    assert f"{alias}.sys_path" not in sources
+    assert f"{alias}.sys_modules" not in sources
+    assert f"{alias}.stable_field" in sources
+
+
 def test_is_blacklisted_module():
     assert ato._is_blacklisted_module(None) is False
     assert ato._is_blacklisted_module("") is False
@@ -664,6 +690,32 @@ def test_is_blacklisted_value():
     assert ato._is_blacklisted_value(__future__.annotations) is True
     assert ato._is_blacklisted_value(typing.TypeVar("T")) is True
     assert ato._is_blacklisted_value(logging.getLogger("test")) is True
+
+
+def test_is_blacklisted_value_unstable_runtime_singletons():
+    # Aliasing (e.g. ``from sys import path as sys_path``) never copies the
+    # object, so identity still traces it back regardless of the local name.
+    sys_path_alias = sys.path
+    sys_modules_alias = sys.modules
+    assert ato._is_blacklisted_value(sys_path_alias) is True
+    assert ato._is_blacklisted_value(sys_modules_alias) is True
+    assert ato._is_blacklisted_value(os.environ) is True
+    assert ato._is_blacklisted_value(sys.stdout) is True
+    # A value derived from (but not identical to) a volatile singleton is not
+    # caught -- see the documented limitation in issue #253.
+    assert ato._is_blacklisted_value(list(sys.path)) is False
+    assert ato._is_blacklisted_value(set(sys.modules)) is False
+
+
+def test_is_unstable_runtime_value():
+    assert ato._is_unstable_runtime_value(sys.path) is True
+    assert ato._is_unstable_runtime_value(sys.modules) is True
+    assert ato._is_unstable_runtime_value(sys.argv) is True
+    assert ato._is_unstable_runtime_value(sys.flags) is True
+    assert ato._is_unstable_runtime_value(sys.stdout) is True
+    assert ato._is_unstable_runtime_value(os.environ) is True
+    assert ato._is_unstable_runtime_value([1, 2, 3]) is False
+    assert ato._is_unstable_runtime_value(list(sys.path)) is False
 
 
 # --- RemoteAssertionTraceObserver: static class-field assertions --------------
