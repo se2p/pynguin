@@ -153,7 +153,6 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
     try:
         test_cluster = generate_test_cluster(
             config.configuration.module_name,
-            config.configuration.type_inference.type_inference_strategy,
         )
     except ModuleNotFoundError as ex:
         _LOGGER.exception(

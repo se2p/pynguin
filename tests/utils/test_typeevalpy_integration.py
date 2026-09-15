@@ -221,9 +221,10 @@ def test_integrate(subject_properties: SubjectProperties):
             importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
-        cluster = generate_test_cluster(
-            module_name, type_inference_strategy=config.TypeInferenceStrategy.TYPEEVALPY
+        config.configuration.type_inference.type_inference_strategy = (
+            config.TypeInferenceStrategy.TYPEEVALPY
         )
+        cluster = generate_test_cluster(module_name)
         search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster
         ).get_search_algorithm()
