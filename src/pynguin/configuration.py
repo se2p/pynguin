@@ -956,7 +956,7 @@ class LLMConfiguration:
     stall_detection_window_seconds: int = 30
     """Wall-clock seconds without a coverage gain before the search is considered
     stalled and the LLM is queried (only used when ``call_llm_on_stall_detection`` is
-    enabled).  Roughly 10% of a standard 300s budget.  Set to <= 0 to fall back to
+    enabled).  Roughly 10%% of a standard 300s budget.  Set to <= 0 to fall back to
     the iteration-count based ``max_plateau_len`` heuristic instead."""
 
     max_plateau_len: int = 25
