@@ -28,6 +28,7 @@ def test_integrate_fine_grained_line_targeting(tmp_path: pathlib.Path) -> None:
             report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
         ),
         to_cover=config.ToCoverConfiguration(only_cover_line_ranges=["12"]),
+        seeding=config.SeedingConfiguration(seed=42),
     )
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
