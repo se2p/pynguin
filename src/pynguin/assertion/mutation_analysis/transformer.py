@@ -15,6 +15,9 @@ import copy
 import types
 from typing import TypeVar
 
+import pynguin.configuration as config
+from pynguin.utils.timeout import time_limit
+
 
 def create_module(ast_node: ast.Module, module_name: str) -> types.ModuleType:
     """Creates a module from an AST node.
@@ -28,7 +31,8 @@ def create_module(ast_node: ast.Module, module_name: str) -> types.ModuleType:
     """
     code = compile(ast_node, module_name, "exec")
     module = types.ModuleType(module_name)
-    exec(code, module.__dict__)  # noqa: S102
+    with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
+        exec(code, module.__dict__)  # noqa: S102
     return module
 
 

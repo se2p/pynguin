@@ -75,6 +75,7 @@ maximum_statement_executions = -1
 maximum_slicing_time = 600
 maximum_iterations = -1
 maximum_test_execution_timeout = 5
+maximum_module_execution_timeout = 5
 maximum_coverage = 100
 maximum_coverage_plateau = -1
 minimum_coverage = 100
@@ -299,8 +300,8 @@ def expected_txt(tmp_path):
  'stopping=StoppingConfiguration(maximum_search_time=-1, '
  'maximum_test_executions=-1, maximum_statement_executions=-1, '
  'maximum_slicing_time=600, maximum_iterations=-1, '
- 'maximum_test_execution_timeout=5, maximum_coverage=100, '
- 'maximum_coverage_plateau=-1, minimum_coverage=100, '
+ 'maximum_test_execution_timeout=5, maximum_module_execution_timeout=5, '
+ 'maximum_coverage=100, maximum_coverage_plateau=-1, minimum_coverage=100, '
  'minimum_plateau_iterations=-1, maximum_memory=3000, '
  'test_execution_time_per_statement=1), '
  "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
@@ -636,6 +637,8 @@ True
 -1
 --stopping.maximum_memory
 3000
+--stopping.maximum_module_execution_timeout
+5
 --stopping.maximum_search_time
 -1
 --stopping.maximum_slicing_time

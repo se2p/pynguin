@@ -885,6 +885,10 @@ class StoppingConfiguration:
     maximum_test_execution_timeout: int = 5
     """The maximum time (in seconds) after which a test case times out."""
 
+    maximum_module_execution_timeout: int = 5
+    """Maximum time (in seconds) allowed to import, reload, or exec() an SUT or
+    mutant module outside the test executor. Values <= 0 disable the limit."""
+
     maximum_coverage: int = 100
     """The maximum percentage of coverage after which the generation shall stop."""
 

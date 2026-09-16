@@ -4,6 +4,9 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import ast
+from unittest import mock
+
 import pytest
 
 import pynguin.assertion.mutation_analysis.controller as ct
@@ -11,6 +14,7 @@ import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.utils.timeout import TestExecutionTimeoutError
 from tests.testutils import import_module_safe
 
 
@@ -68,3 +72,18 @@ def test_create_mutants_instrumented(module_name, expected_mutants):
 
     assert len(mutations) == expected_mutants
     assert mutant_count == expected_mutants
+
+
+def test_create_mutants_timeout():
+    mutant_generator = mock.MagicMock()
+    mutant_generator.mutate.return_value = [
+        ([mock.MagicMock()], ast.Module(body=[], type_ignores=[]))
+    ]
+    controller = ct.MutationController(mutant_generator, mock.MagicMock(), mock.MagicMock())
+    with mock.patch.object(
+        controller, "create_mutant", side_effect=TestExecutionTimeoutError("Timeout")
+    ):
+        mutants = list(controller.create_mutants())
+        assert len(mutants) == 1
+        mutant_module, _ = mutants[0]
+        assert mutant_module is None

@@ -44,7 +44,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
-from pynguin.refinement.validator import resolve_timeout, time_limit
+from pynguin.utils.timeout import resolve_timeout, time_limit
 
 if TYPE_CHECKING:
     import types
