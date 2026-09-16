@@ -235,3 +235,57 @@ def test_generic_method_is_classmethod_and_is_static(type_system):
     )
     assert not nm.is_classmethod()
     assert not nm.is_static()
+
+
+def test_generic_function_is_generator(type_system):
+    def gen_func():
+        yield 1
+
+    def normal_func():
+        return 1
+
+    async def async_func():  # noqa: RUF029
+        return 1
+
+    mock_signature = MagicMock()
+    mock_signature.return_type = type_system.convert_type_hint(None)
+
+    gen = GenericFunction(gen_func, mock_signature)
+    assert gen.is_generator
+    assert not gen.is_coroutine
+
+    norm = GenericFunction(normal_func, mock_signature)
+    assert not norm.is_generator
+    assert not norm.is_coroutine
+
+    coro = GenericFunction(async_func, mock_signature)
+    assert not coro.is_generator
+    assert coro.is_coroutine
+
+
+def test_generic_method_is_generator(type_system):
+    class GeneratorClass:
+        def gen_m(self):
+            yield 42
+
+        def norm_m(self):
+            return 42
+
+    mock_signature = MagicMock()
+    mock_signature.return_type = type_system.convert_type_hint(None)
+
+    gm = GenericMethod(
+        owner=TypeInfo(GeneratorClass),
+        method=GeneratorClass.gen_m,
+        inferred_signature=mock_signature,
+        method_name="gen_m",
+    )
+    assert gm.is_generator
+
+    nm = GenericMethod(
+        owner=TypeInfo(GeneratorClass),
+        method=GeneratorClass.norm_m,
+        inferred_signature=mock_signature,
+        method_name="norm_m",
+    )
+    assert not nm.is_generator

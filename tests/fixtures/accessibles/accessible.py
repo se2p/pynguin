@@ -25,6 +25,8 @@ class SomeType:
     async def simple_async_method(self, x: int) -> float:
         return self._y * x * self._x
 
+    def simple_generator_method(self, x: int):
+        yield self._y * x * self._x
 
 
 def simple_function(z: float) -> float:
@@ -33,3 +35,7 @@ def simple_function(z: float) -> float:
 
 async def simple_async_function(z: float) -> float:
     return z
+
+
+def simple_generator_function(z: float):
+    yield z

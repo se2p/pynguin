@@ -21,6 +21,7 @@ from __future__ import annotations
 import collections.abc
 import enum
 import operator
+import types
 from inspect import Parameter, Signature
 from unittest import mock
 from unittest.mock import MagicMock
@@ -1622,3 +1623,126 @@ def test_build_method_classmethod_factory_no_recursion(type_system):
     assert pos == 0
     code = test_case.to_code()
     assert "FactoryClass.create()" in code
+
+
+def test_emit_accessible_generator_function(type_system):
+    def my_gen():
+        yield 10
+
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericFunction(
+        function=my_gen,
+        inferred_signature=_make_signature([], {}, Instance(TypeInfo(int)), type_system),
+        function_name="my_gen",
+    )
+    test_case = tc.TestCase()
+    pos = factory.append_generic_accessible(test_case, accessible)
+    assert pos == 0
+    # There should be two statements: generator creation and next() advancement
+    assert test_case.size() == 2
+    stmt_0 = test_case.get_statement(0)
+    assert stmt_0.bound_variable == "var_0"
+    assert stmt_0.bound_type is types.GeneratorType
+
+    stmt_1 = test_case.get_statement(1)
+    assert stmt_1.bound_variable == "var_1"
+    code = test_case.to_code()
+    assert "var_0 = _.my_gen()" in code
+    assert "var_1 = next(var_0)" in code
+
+
+def test_emit_accessible_generator_method(type_system):
+    class GenClass:
+        def gen_m(self):
+            yield 42
+
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    accessible = gao.GenericMethod(
+        owner=TypeInfo(GenClass),
+        method=GenClass.gen_m,
+        inferred_signature=_make_signature([], {}, Instance(TypeInfo(int)), type_system),
+        method_name="gen_m",
+    )
+    test_case = tc.TestCase()
+    # Add receiver
+    test_case.add_statement(
+        tc.Statement(
+            node=cst.parse_statement("obj = GenClass()\n"),
+            bound_variable="obj",
+            bound_type=GenClass,
+        )
+    )
+    pos = factory.append_generic_accessible(test_case, accessible)
+    assert pos == 1
+    # Receiver (0) + Method call (1) + next() advancement (2)
+    assert test_case.size() == 3
+    stmt_1 = test_case.get_statement(1)
+    assert stmt_1.bound_type is types.GeneratorType
+    stmt_2 = test_case.get_statement(2)
+    assert stmt_2.bound_variable == "var_1"
+    assert "next(" in test_case.to_code()
+
+
+def test_find_generator_variable():
+    test_case = tc.TestCase()
+    assert tf.TestFactory._find_generator_variable(test_case, 0) is None
+
+    # Add non-generator variable
+    test_case.add_statement(
+        tc.Statement(
+            node=cst.parse_statement("var_0 = 42\n"),
+            bound_variable="var_0",
+            bound_type=int,
+        )
+    )
+    assert tf.TestFactory._find_generator_variable(test_case, 1) is None
+
+    # Add generator variable
+    def g():
+        yield 1
+
+    gen_acc = gao.GenericFunction(g, MagicMock())
+    test_case.add_statement(
+        tc.Statement(
+            node=cst.parse_statement("var_1 = g()\n"),
+            bound_variable="var_1",
+            bound_type=types.GeneratorType,
+            accessible=gen_acc,
+        )
+    )
+    found = tf.TestFactory._find_generator_variable(test_case, 2)
+    assert found == "var_1"
+    # Position before var_1 cannot see var_1
+    assert tf.TestFactory._find_generator_variable(test_case, 1) is None
+
+
+def test_insert_random_statement_advances_generator(type_system, monkeypatch):
+    def g():
+        yield 1
+
+    cluster = _bare_cluster()
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+
+    test_case = tc.TestCase()
+    gen_acc = gao.GenericFunction(g, MagicMock())
+    var_name = test_case.next_var_name()
+    test_case.add_statement(
+        tc.Statement(
+            node=cst.parse_statement(f"{var_name} = g()\n"),
+            bound_variable=var_name,
+            bound_type=types.GeneratorType,
+            accessible=gen_acc,
+        )
+    )
+
+    # Force randomness.next_float() < 0.2
+    monkeypatch.setattr(tf.randomness, "next_float", lambda: 0.05)
+    pos = factory.insert_random_statement(test_case, 1)
+    assert pos == 1
+    assert test_case.size() == 2
+    assert "var_1 = next(var_0)" in test_case.to_code()
