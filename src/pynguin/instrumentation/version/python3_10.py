@@ -856,6 +856,11 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             is_goal=is_goal,
         )
 
+    @staticmethod
+    def _is_subscr_instruction(instr: Instr) -> bool:
+        """Check if instruction is a subscript read operation."""
+        return instr.name in BINARY_SUBSCR_NAMES
+
     def visit_node(  # noqa: D102, C901
         self,
         ast_info: transformer.AstInfo | None,
@@ -906,7 +911,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 and not ast_info.should_track_line(instr.lineno)
             ):
                 continue
-            if instr.name in BINARY_SUBSCR_NAMES:
+            if self._is_subscr_instruction(instr):
                 self.visit_subscr_access(
                     ast_info,
                     cfg,

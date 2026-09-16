@@ -11,9 +11,9 @@ from itertools import starmap
 from unittest.mock import MagicMock
 
 import pytest
-from bytecode import Bytecode
+from bytecode import Bytecode, Instr
 
-from pynguin.instrumentation.version import stack_effects
+from pynguin.instrumentation.version import python3_10, python3_14, stack_effects
 from pynguin.instrumentation.version.common import (
     InstrumentationConstantLoad,
     InstrumentationMethodCall,
@@ -206,3 +206,34 @@ def test_convert_instrumentation_method_call_with_multiple_stack_arguments():
     foo()
 
     assert called
+
+
+def _make_instr(name: str, arg=None) -> MagicMock:
+    instr = MagicMock(spec=Instr)
+    instr.name = name
+    instr.arg = arg
+    return instr
+
+
+@pytest.mark.parametrize(
+    "instr, expected_310, expected_314",
+    [
+        (_make_instr("BINARY_SUBSCR"), True, True),
+        (_make_instr("BINARY_OP", 26), False, True),
+        (_make_instr("BINARY_OP", 0), False, False),
+        (_make_instr("LOAD_FAST", "x"), False, False),
+    ],
+)
+def test_is_subscr_instruction(instr, expected_310, expected_314):
+    assert python3_10.BranchCoverageInstrumentation._is_subscr_instruction(instr) == expected_310
+    assert python3_14.BranchCoverageInstrumentation._is_subscr_instruction(instr) == expected_314
+
+
+def test_is_subscr_instruction_with_enum():
+    class DummyOp:
+        name = "SUBSCR"
+        value = 26
+
+    instr = _make_instr("BINARY_OP", DummyOp())
+    assert not python3_10.BranchCoverageInstrumentation._is_subscr_instruction(instr)
+    assert python3_14.BranchCoverageInstrumentation._is_subscr_instruction(instr)

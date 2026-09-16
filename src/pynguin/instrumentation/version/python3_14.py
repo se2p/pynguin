@@ -207,16 +207,6 @@ def stack_effects(  # noqa: D103 C901
             return python3_13.stack_effects(opcode, arg, jump=jump)
 
 
-class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
-    """Branch coverage adapter for Python 3.14.
-
-    Uses Python 3.12's for-loop handling (END_FOR) but adopts the 3.13 comparison
-    extraction to support *_CAST comparison ops introduced in newer Python versions.
-    """
-
-    extract_comparison = staticmethod(python3_13.extract_comparison)
-
-
 class Python314InstrumentationInstructionsGenerator(
     python3_13.Python313InstrumentationInstructionsGenerator
 ):
@@ -239,6 +229,26 @@ class Python314InstrumentationInstructionsGenerator(
                 return (cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno),)
             case _:
                 return super()._generate_argument_instructions(arg, position, lineno)
+
+
+class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
+    """Branch coverage adapter for Python 3.14.
+
+    Uses Python 3.12's for-loop handling (END_FOR) but adopts the 3.13 comparison
+    extraction to support *_CAST comparison ops introduced in newer Python versions.
+    """
+
+    instructions_generator = Python314InstrumentationInstructionsGenerator
+    extract_comparison = staticmethod(python3_13.extract_comparison)
+
+    @staticmethod
+    def _is_subscr_instruction(instr: Instr) -> bool:
+        """Check if instruction is a subscript read operation."""
+        if instr.name in python3_10.BINARY_SUBSCR_NAMES:
+            return True
+        if instr.name == "BINARY_OP":
+            return getattr(instr.arg, "name", None) == "SUBSCR" or instr.arg == 26
+        return False
 
 
 class LineCoverageInstrumentation(python3_13.LineCoverageInstrumentation):
