@@ -35,6 +35,7 @@ from pynguin.instrumentation.version.common import (
 )
 from pynguin.instrumentation.version.python3_10 import (
     ACCESS_NAMES,
+    BINARY_SUBSCR_NAMES,
     CLOSURE_LOAD_NAMES,
     IMPORT_FROM_NAMES,
     IMPORT_NAME_NAMES,
@@ -516,6 +517,27 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
 
         if not maybe_jump.is_cond_jump():
             return
+
+        # Wire auxiliary subscript predicates for BINARY_SUBSCR.
+        for instr_original_index, (instr_index, instr) in enumerate(
+            node.instrumentation_original_instructions
+        ):
+            if (
+                ast_info is not None
+                and isinstance(instr.lineno, int)
+                and not ast_info.should_track_line(instr.lineno)
+            ):
+                continue
+            if instr.name in BINARY_SUBSCR_NAMES:
+                self.visit_subscr_access(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    instr,
+                    instr_index,
+                    instr_original_index,
+                )
 
         if maybe_compare is not None and maybe_compare_index is not None:
             if maybe_compare.name in python3_10.COMPARE_NAMES:
