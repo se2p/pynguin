@@ -407,6 +407,9 @@ class PredicateMetaData:
     # The node in the program graph, that defines this predicate.
     node: BasicBlockNode
 
+    # Whether this predicate is an auxiliary predicate (e.g. emitted before subscripts).
+    is_auxiliary: bool = False
+
 
 @dataclass
 class SubjectProperties:
@@ -558,9 +561,9 @@ class SubjectProperties:
             the id of the predicate, which can be used to identify the predicate
             during instrumentation.
         """
-        assert (meta.node, meta.code_object_id) not in {
-            (p.node, p.code_object_id) for p in self.existing_predicates.values()
-        }, "Predicate with the same node already registered"
+        assert (meta.node, meta.code_object_id, meta.is_auxiliary) not in {
+            (p.node, p.code_object_id, p.is_auxiliary) for p in self.existing_predicates.values()
+        }, "Predicate with the same node and auxiliary status already registered"
         predicate_id = len(self.existing_predicates)
         self.existing_predicates[predicate_id] = meta
         if is_goal:

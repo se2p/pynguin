@@ -216,8 +216,13 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
     )
     existing = sum(1 for _ in subject_properties.branch_less_code_objects)
 
-    targets = subject_properties.coverage_predicates or {
+    all_targets = subject_properties.coverage_predicates or {
         pid: {True, False} for pid in subject_properties.existing_predicates
+    }
+    targets = {
+        pid: vals
+        for pid, vals in all_targets.items()
+        if getattr(subject_properties.existing_predicates[pid], "is_auxiliary", False) is not True
     }
     existing += sum(len(values) for values in targets.values())
 

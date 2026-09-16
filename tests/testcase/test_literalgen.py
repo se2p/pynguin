@@ -781,3 +781,50 @@ def test_mutate_dict_with_none_key_prune_unused():
     mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
     assert isinstance(mutated, cst.Dict)
     assert len(mutated.elements) == 0
+
+
+def test_gen_dict_key_prefers_seeded_constant():
+    provider = _FixedConstantProvider()
+    key_cst = lg.gen_dict_key(provider)
+    assert isinstance(key_cst, cst.SimpleString)
+    assert _eval(key_cst) == "seeded-value"
+
+
+def test_mutate_dict_deduplicates_existing_key():
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.SimpleString("'target'"), value=cst.Integer("1")),
+        ]
+    )
+    trace = CollectionTrace(
+        accessed_keys=set(),
+        missing_keys={"target"},
+    )
+    provider = EmptyConstantProvider()
+
+    mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Dict)
+    # Must update existing element instead of appending duplicate
+    assert len(mutated.elements) == 1
+    assert _eval(mutated.elements[0].key) == "target"
+
+
+def test_mutate_dict_value_mutation(monkeypatch):
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.SimpleString("'k'"), value=cst.Integer("5")),
+        ]
+    )
+    provider = EmptyConstantProvider()
+
+    # Force action = 1 (value mutation), idx = 0
+    # and gaussian noise in _mutate_int
+    monkeypatch.setattr(randomness, "next_int", lambda _a, b: 1 if b == 3 else 0)
+    monkeypatch.setattr(randomness, "next_gaussian", lambda: 1.0)
+    monkeypatch.setattr(config.configuration.test_creation, "max_delta", 5)
+
+    mutated = lg._mutate_dict(expr, provider)
+    assert isinstance(mutated, cst.Dict)
+    assert len(mutated.elements) == 1
+    assert _eval(mutated.elements[0].key) == "k"
+    assert _eval(mutated.elements[0].value) == 10

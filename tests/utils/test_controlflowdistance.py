@@ -14,16 +14,23 @@ import math
 from unittest.mock import MagicMock
 
 import hypothesis.strategies as st
+import networkx as nx
 import pytest
 from hypothesis import given
 
 import pynguin.configuration as config
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTrace, LineMetaData, SubjectProperties
+from pynguin.instrumentation.tracer import (
+    ExecutionTrace,
+    LineMetaData,
+    PredicateMetaData,
+    SubjectProperties,
+)
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.controlflowdistance import (
     ControlFlowDistance,
     get_line_control_flow_distance,
+    get_non_root_control_flow_distance,
     get_root_control_flow_distance,
 )
 from tests.fixtures.branchcoverage import singlebranches
@@ -213,3 +220,67 @@ def test_get_line_control_flow_distance_with_branches(subject_properties: Subjec
     assert dist_neg1.approach_level == 1
     assert dist_neg1.branch_distance == pytest.approx(2.0)
     assert dist_neg1 < dist_neg5
+
+
+def _register_aux_and_target_predicate(
+    subject_properties: SubjectProperties,
+) -> tuple[int, int]:
+    node = MagicMock()
+    graph = nx.DiGraph()
+    graph.add_node(node)
+    code_object = MagicMock()
+    code_object.cdg.graph = graph
+    code_object.cfg.diameter = 42
+    subject_properties.register_code_object(0, code_object)
+    aux_id = subject_properties.register_predicate(
+        PredicateMetaData(line_no=1, code_object_id=0, node=node, is_auxiliary=True)
+    )
+    target_id = subject_properties.register_predicate(
+        PredicateMetaData(line_no=1, code_object_id=0, node=node)
+    )
+    return aux_id, target_id
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_non_root_distance_auxiliary_predicate_penalty(
+    value, subject_properties: SubjectProperties
+):
+    aux_id, target_id = _register_aux_and_target_predicate(subject_properties)
+
+    execution_result = MagicMock(ExecutionResult)
+    execution_trace = MagicMock(ExecutionTrace)
+    execution_trace.executed_code_objects = {0}
+    execution_trace.executed_predicates = {aux_id: 1}
+    execution_trace.true_distances = {aux_id: 3.0}
+    execution_trace.false_distances = {aux_id: 0.0}
+    execution_result.execution_trace = execution_trace
+
+    distance = get_non_root_control_flow_distance(
+        execution_result, target_id, value, subject_properties
+    )
+    # The auxiliary predicate shares the node with the target predicate, so the
+    # approach level would be 0, but the auxiliary failure must add one level.
+    assert distance == ControlFlowDistance(approach_level=1, branch_distance=3.0)
+
+
+@pytest.mark.parametrize(
+    "value, branch_distance",
+    [pytest.param(True, 9.0), pytest.param(False, 0.0)],
+)
+def test_non_root_distance_target_predicate_executed(
+    value, branch_distance, subject_properties: SubjectProperties
+):
+    aux_id, target_id = _register_aux_and_target_predicate(subject_properties)
+
+    execution_result = MagicMock(ExecutionResult)
+    execution_trace = MagicMock(ExecutionTrace)
+    execution_trace.executed_code_objects = {0}
+    execution_trace.executed_predicates = {aux_id: 1, target_id: 1}
+    execution_trace.true_distances = {aux_id: 0.0, target_id: 9.0}
+    execution_trace.false_distances = {aux_id: 1.0, target_id: 0.0}
+    execution_result.execution_trace = execution_trace
+
+    distance = get_non_root_control_flow_distance(
+        execution_result, target_id, value, subject_properties
+    )
+    assert distance == ControlFlowDistance(approach_level=0, branch_distance=branch_distance)

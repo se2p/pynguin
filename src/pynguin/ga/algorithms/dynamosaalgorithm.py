@@ -314,6 +314,7 @@ class _ControlDependencyGraph:
                 meta_data.node: predicate_id
                 for predicate_id, meta_data in subject_properties.existing_predicates.items()
                 if meta_data.code_object_id == code_object_id
+                and getattr(meta_data, "is_auxiliary", False) is not True
             }
         return cache[code_object_id]
 
