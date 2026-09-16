@@ -48,15 +48,8 @@ _LOGGER = logging.getLogger(__name__)
 # access along the chain raised.
 _UNRESOLVED = object()
 
-# Known process-/environment-volatile singletons. A SUT can re-export any of
-# these under an arbitrary local name (e.g. ``from sys import path as
-# sys_path``), which makes name- or type-based blacklisting ineffective --
-# the re-exported value is still a plain ``list``/``dict`` as far as
-# ``_is_blacklisted_value`` is concerned. Since aliasing/importing never
-# copies the object, identity (``is``) still reliably traces such re-exports
-# back to their volatile origin regardless of the local name they were bound
-# to. Values *derived* from these (e.g. ``set(sys.modules)``) are not caught,
-# since they are no longer identical to the singleton -- see issue #253.
+# Process- and environment-volatile singletons that can be re-exported under an
+# arbitrary local name (e.g. via aliased imports).
 _UNSTABLE_RUNTIME_VALUES: tuple[Any, ...] = tuple(
     val
     for val in (

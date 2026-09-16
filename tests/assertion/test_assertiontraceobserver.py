@@ -644,12 +644,6 @@ def test_handle_ignores_blacklisted_and_invalid_module_fields():
 
 
 def test_handle_ignores_module_field_aliasing_sys_singleton():
-    # Reproduces issue #253: a SUT module doing
-    # ``from sys import path as sys_path, modules as sys_modules`` re-exports
-    # those under arbitrary local names. Regardless of the alias, no
-    # assertion should be generated on them, since their value is
-    # process-/environment-dependent and differs when the exported test is
-    # run standalone later.
     observer = ato.RemoteAssertionTraceObserver()
     module, alias = _make_sut_module(
         sys_path=sys.path,
@@ -693,16 +687,12 @@ def test_is_blacklisted_value():
 
 
 def test_is_blacklisted_value_unstable_runtime_singletons():
-    # Aliasing (e.g. ``from sys import path as sys_path``) never copies the
-    # object, so identity still traces it back regardless of the local name.
     sys_path_alias = sys.path
     sys_modules_alias = sys.modules
     assert ato._is_blacklisted_value(sys_path_alias) is True
     assert ato._is_blacklisted_value(sys_modules_alias) is True
     assert ato._is_blacklisted_value(os.environ) is True
     assert ato._is_blacklisted_value(sys.stdout) is True
-    # A value derived from (but not identical to) a volatile singleton is not
-    # caught -- see the documented limitation in issue #253.
     assert ato._is_blacklisted_value(list(sys.path)) is False
     assert ato._is_blacklisted_value(set(sys.modules)) is False
 
