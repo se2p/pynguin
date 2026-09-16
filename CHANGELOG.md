@@ -9,9 +9,24 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
-## Unreleased
+## Release Pynguin 0.47.0
 
-- Generate calls for coroutine functions and methods (cf. GitHub Issue #62)
+- Add LLDynaMOSA (DynaMosa + LLM calls on stall)
+- Add typeshed-backed type inference strategy
+- Refactor LLM integrations to use YAML prompt templates
+- Support generation for coroutines, class methods, static methods
+- Support tuple deconstruction, match-case syntax, and native libraries in TestCluster
+- Support line and checked coverage fitness functions in DynaMOSA
+- Add generation of fine-grained targeted tests instead of whole modules (cf. GitHub Issue https://github.com/se2p/pynguin/issues/103)
+- Add generating assertions from object representations
+- Fix preserving assertion-protected variables during minimization and export (cf. GitHub Issue https://github.com/se2p/pynguin/issues/145)
+- Add generation of callable arguments
+- Improve population seeding by extending to objects outside SUT
+- Refactor AST analysis to use stdlib ast instead of astroid
+- Split up GA and execution god-modules
+- Update Docker base image to Debian Bookworm
+- Drop unused dependencies (xmltodict, asciitree and typing_inspect)
+- Replace the internal `Statement` / `VariableReference` based test case representation with a libcst-node based one
 
 ## Pynguin 0.46.0
 
