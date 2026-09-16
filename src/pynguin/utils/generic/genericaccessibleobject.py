@@ -258,6 +258,20 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, abc.ABC):
         """
         return inspect.iscoroutinefunction(self._callable)
 
+    @property
+    def is_generator(self) -> bool:
+        """Whether calling this callable returns a generator that must be iterated.
+
+        Returns:
+            True if the wrapped callable is a generator function.
+        """
+        callable_obj = getattr(self, "_callable", None)
+        if callable_obj is None:
+            return False
+        return inspect.isgeneratorfunction(callable_obj) or inspect.isgeneratorfunction(
+            inspect.unwrap(callable_obj)
+        )
+
     def get_num_parameters(self) -> int:  # noqa: D102
         return len(self.inferred_signature.original_parameters)
 

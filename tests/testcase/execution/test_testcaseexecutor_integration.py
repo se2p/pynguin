@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import types
 from typing import TYPE_CHECKING
 
 import pytest
@@ -227,6 +228,33 @@ def test_execute_coroutine_method_call_runs_to_completion(
     test_case = make_test_case(
         assign("obj", "SomeType(3.0)", bound_type=object),
         stmt("val = asyncio.run(obj.simple_async_method(2))"),
+        stmt("assert val == 30.0"),
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        result = executor.execute(test_case)
+    assert not result.has_test_exceptions()
+
+
+def test_execute_generator_function_call_advances(subject_properties: SubjectProperties) -> None:
+    """A generator call advanced via next(...) executes its body."""
+    test_case = make_test_case(
+        assign("gen", "simple_generator_function(2.0)", bound_type=types.GeneratorType),
+        stmt("val = next(gen)"),
+        stmt("assert val == 2.0"),
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        result = executor.execute(test_case)
+    assert not result.has_test_exceptions()
+
+
+def test_execute_generator_method_call_advances(
+    subject_properties: SubjectProperties,
+) -> None:
+    """A generator method call advanced via next(...) executes its body."""
+    test_case = make_test_case(
+        assign("obj", "SomeType(3.0)", bound_type=object),
+        assign("gen", "obj.simple_generator_method(2)", bound_type=types.GeneratorType),
+        stmt("val = next(gen)"),
         stmt("assert val == 30.0"),
     )
     with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:

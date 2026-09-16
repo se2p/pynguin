@@ -309,6 +309,27 @@ class TestFactory:
         Returns:
             The position at which a statement was inserted, or ``-1`` on failure.
         """
+        gen_var = self._find_generator_variable(test_case, position)
+        if gen_var is not None and randomness.next_float() < 0.2:
+            next_var = test_case.next_var_name()
+            next_node = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[cst.AssignTarget(target=cst.Name(next_var))],
+                        value=cst.Call(
+                            func=cst.Name("next"),
+                            args=[cst.Arg(value=cst.Name(gen_var))],
+                        ),
+                    )
+                ]
+            )
+            cursor = min(max(position, 0), test_case.size())
+            test_case.insert_statement(
+                cursor,
+                Statement(node=next_node, bound_variable=next_var, bound_type=None),
+            )
+            return cursor
+
         accessible = self._test_cluster.get_random_accessible()
         if accessible is None:
             return -1
@@ -823,6 +844,9 @@ class TestFactory:
         else:
             return -1
 
+        if isinstance(accessible, gao.GenericCallableAccessibleObject) and accessible.is_generator:
+            bound_type = types.GeneratorType
+
         var_name = test_case.next_var_name()
         assign = cst.SimpleStatementLine(
             body=[
@@ -851,6 +875,7 @@ class TestFactory:
             # Only for top-level insertions: a dependency statement's position is
             # the caller's cursor, and appending after it would desynchronise it.
             self._maybe_invoke_result(test_case, insert_pos + num_deconstructed, depth)
+            self._advance_generator_result(test_case, insert_pos + num_deconstructed)
         return insert_pos
 
     def _deconstruct_tuple(
@@ -1522,6 +1547,42 @@ class TestFactory:
             return None
         return randomness.choice(candidates)
 
+    @staticmethod
+    def _find_generator_variable(test_case: tc.TestCase, position: int) -> str | None:
+        """Find an existing generator variable defined before *position*.
+
+        Args:
+            test_case: The test case to inspect.
+            position: Only statements strictly before this index are considered.
+
+        Returns:
+            A randomly chosen generator variable name, or ``None``.
+        """
+        candidates: list[str] = []
+        for idx, stmt in enumerate(test_case.statements()):
+            if idx >= position:
+                break
+            if stmt.bound_variable is None:
+                continue
+            is_gen = False
+            if (
+                isinstance(stmt.accessible, gao.GenericCallableAccessibleObject)
+                and stmt.accessible.is_generator
+            ):
+                is_gen = True
+            elif stmt.bound_type is not None:
+                try:
+                    is_gen = issubclass(
+                        stmt.bound_type, (types.GeneratorType, collections.abc.Iterator)
+                    )
+                except TypeError:
+                    is_gen = False
+            if is_gen:
+                candidates.append(stmt.bound_variable)
+        if not candidates:
+            return None
+        return randomness.choice(candidates)
+
     def _wants_callable_value(self, param_type: ProperType, raw: type | None) -> bool:
         """Return whether a parameter should receive a callable value.
 
@@ -1592,6 +1653,45 @@ class TestFactory:
         test_case.insert_statement(
             min(cursor, test_case.size()),
             Statement(node=node, bound_variable=var_name, bound_type=None),
+        )
+
+    def _advance_generator_result(self, test_case: tc.TestCase, position: int) -> None:
+        """Advance a generator produced at *position* by calling ``next()`` on it.
+
+        Calling a generator function only instantiates a generator iterator; its
+        body is only executed when that iterator is advanced via ``next()``.
+        Without advancing the generator, all branches inside its body stay
+        unreachable.
+
+        Args:
+            test_case: The test case to extend.
+            position: The index of the statement producing the generator value.
+        """
+        statement = test_case.get_statement(position)
+        if statement.bound_variable is None:
+            return
+        accessible = statement.accessible
+        if not (
+            isinstance(accessible, gao.GenericCallableAccessibleObject) and accessible.is_generator
+        ):
+            return
+
+        var_to_advance = statement.bound_variable
+        next_var = test_case.next_var_name()
+        next_node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(next_var))],
+                    value=cst.Call(
+                        func=cst.Name("next"),
+                        args=[cst.Arg(value=cst.Name(var_to_advance))],
+                    ),
+                )
+            ]
+        )
+        test_case.insert_statement(
+            position + 1,
+            Statement(node=next_node, bound_variable=next_var, bound_type=None),
         )
 
     # ------------------------------------------------------------------
