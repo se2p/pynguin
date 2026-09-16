@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from pynguin.assertion.mutation_analysis.transformer import create_module
+from pynguin.utils.timeout import TestExecutionTimeoutError
 
 if TYPE_CHECKING:
     import types
@@ -77,6 +78,9 @@ class MutationController:
                 mutant_module = None
             except SystemExit as exception:
                 _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
+                mutant_module = None
+            except TestExecutionTimeoutError as exception:
+                _LOGGER.warning("Caught timeout during mutant creation/execution: %s", exception)
                 mutant_module = None
 
             yield mutant_module, mutations

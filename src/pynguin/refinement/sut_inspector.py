@@ -11,13 +11,14 @@ import importlib
 import inspect
 import logging
 import operator
-import signal
 import sys
 from collections import Counter
-from contextlib import contextmanager, suppress
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 
 _logger = logging.getLogger(__name__)
 
@@ -61,38 +62,8 @@ class SUTInspectionResult:
     error_message: str | None = None
 
 
-class InspectionTimeoutError(Exception):
+class InspectionTimeoutError(TestExecutionTimeoutError):
     """Raised when an import operation times out."""
-
-
-@contextmanager
-def time_limit(seconds: int):
-    """Context manager to enforce a time limit on code execution.
-
-    Note: This uses SIGALRM which is not available on Windows.
-    On Windows, this will silently disable timeout protection.
-
-    Args:
-        seconds: Maximum time allowed for execution
-    """
-
-    def signal_handler(_signum, _frame):
-        raise InspectionTimeoutError("Import operation timed out")
-
-    # Check if signal.SIGALRM is available (not on Windows)
-    alarm_fn = getattr(signal, "alarm", None)
-    if hasattr(signal, "SIGALRM") and alarm_fn is not None:
-        old_handler = signal.signal(signal.SIGALRM, signal_handler)
-        alarm_fn(seconds)
-        try:
-            yield
-        finally:
-            alarm_fn(0)
-            signal.signal(signal.SIGALRM, old_handler)
-    else:
-        # On Windows, we can't use SIGALRM, so just proceed without timeout
-        # Alternative: use threading.Timer or multiprocessing, but adds complexity
-        yield
 
 
 def _find_ast_node_for_path(tree: ast.Module, object_path: str | None) -> ast.AST:
@@ -250,7 +221,7 @@ class SUTInspector:
             # Attempt import with timeout protection
             with time_limit(self.import_timeout):
                 return importlib.import_module(module_name)
-        except InspectionTimeoutError:
+        except (InspectionTimeoutError, TestExecutionTimeoutError):
             return None
         except ImportError:
             return None

@@ -53,6 +53,7 @@ from pynguin.analyses.type_inference import (
 )
 from pynguin.instrumentation import transformer
 from pynguin.utils.llm import LLMProvider
+from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
@@ -493,7 +494,8 @@ def import_module(module_name: str) -> ModuleType:
         The imported module
     """
     try:
-        return importlib.import_module(module_name)
+        with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
+            return importlib.import_module(module_name)
     except ModuleNotFoundError as error:
         try:
             package_name, submodule_name = module_name.rsplit(".", 1)
@@ -2119,8 +2121,9 @@ def analyse_dependency_module(
             HintInference is used.
     """
     try:
-        mod = importlib.import_module(module_name)
-    except Exception:  # noqa: BLE001
+        with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
+            mod = importlib.import_module(module_name)
+    except (Exception, TestExecutionTimeoutError):
         LOGGER.debug("Could not import dependency module: %s", module_name)
         return
 
@@ -2131,7 +2134,7 @@ def analyse_dependency_module(
     try:
         parse_results = _ParseResults()
         parse_results[module_name] = parse_module(module_name)
-    except Exception:  # noqa: BLE001
+    except (Exception, TestExecutionTimeoutError):
         LOGGER.debug("Could not parse dependency module: %s", module_name)
         return
 

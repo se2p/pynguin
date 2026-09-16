@@ -88,6 +88,7 @@ from pynguin.utils.report import (
     render_xml_coverage_report,
 )
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -162,6 +163,9 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
             ex.name,
         )
         return None
+    except TestExecutionTimeoutError as ex:
+        _LOGGER.exception("Timeout setting up test cluster: %s", ex)
+        return None
 
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
@@ -204,14 +208,17 @@ def _load_sut(subject_properties: SubjectProperties) -> bool:
     module_name = config.configuration.module_name
     try:
         # We need to activate the tracer so the import trace is recorded.
-        with subject_properties.instrumentation_tracer:
+        with (
+            time_limit(config.configuration.stopping.maximum_module_execution_timeout),
+            subject_properties.instrumentation_tracer,
+        ):
             # If the module is already imported, we need to reload it for the
             # ExecutionTracer to successfully register the subject_properties
             if module_name in sys.modules:
                 importlib.reload(sys.modules[module_name])
             else:
                 importlib.import_module(module_name)
-    except Exception as ex:
+    except (Exception, TestExecutionTimeoutError) as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed or any error is raised during the import
         _LOGGER.exception("Failed to load SUT: %s", ex)
@@ -492,7 +499,12 @@ def _reload_instrumentation_loader(
     subject_properties: SubjectProperties,
 ):
     module_name = config.configuration.module_name
-    module = importlib.import_module(module_name)
+    try:
+        with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
+            module = importlib.import_module(module_name)
+    except (Exception, TestExecutionTimeoutError) as ex:
+        _LOGGER.exception("Failed to import SUT: %s", ex)
+        return False
     first_finder: InstrumentationFinder | None = None
     for finder in sys.meta_path:
         if isinstance(finder, InstrumentationFinder):
@@ -505,9 +517,12 @@ def _reload_instrumentation_loader(
         dynamic_constant_provider=dynamic_constant_provider,
     )
     try:
-        with subject_properties.instrumentation_tracer:
+        with (
+            time_limit(config.configuration.stopping.maximum_module_execution_timeout),
+            subject_properties.instrumentation_tracer,
+        ):
             importlib.reload(module)
-    except Exception as ex:
+    except (Exception, TestExecutionTimeoutError) as ex:
         _LOGGER.exception("Failed to reload SUT: %s", ex)
         return False
     return True
@@ -1048,7 +1063,8 @@ def _setup_mutation_analysis_assertion_generator(
     mutant_generator = _setup_mutant_generator()
 
     _LOGGER.info("Import module %s", config.configuration.module_name)
-    module = importlib.import_module(config.configuration.module_name)
+    with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
+        module = importlib.import_module(config.configuration.module_name)
 
     _LOGGER.info("Build AST for %s", module.__name__)
     module_source_code = inspect.getsource(module)

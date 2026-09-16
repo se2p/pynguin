@@ -27,11 +27,7 @@ from pynguin.assertion.mutation_analysis.operators import (
     RelationalOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
-from pynguin.refinement.validator import (
-    TestExecutionTimeoutError,
-    resolve_timeout,
-    time_limit,
-)
+from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
 
 if TYPE_CHECKING:
     import types

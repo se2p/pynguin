@@ -21,6 +21,7 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generator as gen
 from pynguin.configuration import CoverageMetric
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+from pynguin.utils.timeout import TestExecutionTimeoutError
 
 
 def test_init_with_configuration():
@@ -334,6 +335,76 @@ def test_integrate_exception_on_import(tmp_path):
     configuration = config.Configuration(
         algorithm=config.Algorithm.MOSA,
         stopping=config.StoppingConfiguration(maximum_search_time=1),
+        module_name=module_name,
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(project_path),
+        statistics_output=config.StatisticsOutputConfiguration(
+            report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
+        ),
+    )
+    gen.set_configuration(configuration)
+    result = gen.run_pynguin()
+    assert result == gen.ReturnCode.SETUP_FAILED
+
+
+def test__load_sut_timeout():
+    with mock.patch("importlib.import_module") as import_module_mock:
+        import_module_mock.side_effect = TestExecutionTimeoutError("Timed out")
+        gen.set_configuration(configuration=MagicMock(log_file=None))
+        assert gen._load_sut(MagicMock()) is False
+
+
+def test__reload_instrumentation_loader_import_timeout():
+    with mock.patch("importlib.import_module") as import_mock:
+        import_mock.side_effect = TestExecutionTimeoutError("Timed out")
+        gen.set_configuration(configuration=MagicMock(log_file=None, module_name="foo"))
+        assert (
+            gen._reload_instrumentation_loader(
+                coverage_metrics=set(),
+                dynamic_constant_provider=None,
+                subject_properties=MagicMock(),
+            )
+            is False
+        )
+
+
+def test__reload_instrumentation_loader_reload_timeout():
+    with (
+        mock.patch("importlib.import_module", return_value=MagicMock()),
+        mock.patch("sys.meta_path", [MagicMock(spec=gen.InstrumentationFinder)]),
+        mock.patch("importlib.reload", side_effect=TestExecutionTimeoutError("Timed out")),
+    ):
+        gen.set_configuration(configuration=MagicMock(log_file=None, module_name="foo"))
+        assert (
+            gen._reload_instrumentation_loader(
+                coverage_metrics=set(),
+                dynamic_constant_provider=None,
+                subject_properties=MagicMock(),
+            )
+            is False
+        )
+
+
+def test__setup_test_cluster_timeout():
+    with mock.patch(
+        "pynguin.generator.generate_test_cluster",
+        side_effect=TestExecutionTimeoutError("Timed out"),
+    ):
+        gen.set_configuration(configuration=MagicMock(log_file=None, module_name="foo"))
+        assert gen._setup_test_cluster() is None
+
+
+def test_integrate_timeout_on_import(tmp_path):
+    project_path = Path().absolute()
+    if project_path.name == "tests":
+        project_path /= ".."  # pragma: no cover
+    module_name = "tests.fixtures.errors.timeout_error"
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.MOSA,
+        stopping=config.StoppingConfiguration(
+            maximum_search_time=1,
+            maximum_module_execution_timeout=1,
+        ),
         module_name=module_name,
         test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
         project_path=str(project_path),

@@ -43,6 +43,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+from pynguin.utils.timeout import TestExecutionTimeoutError
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 
@@ -1048,3 +1049,17 @@ def test_classmethod_and_staticmethod_test_generation_integration():
     assert pos >= 0
     code_static = tc_static.to_code()
     assert "static_method" in code_static
+
+
+def test_analyse_dependency_module_timeout():
+    with patch("importlib.import_module", side_effect=TestExecutionTimeoutError("Timed out")):
+        cluster = MagicMock()
+        module.analyse_dependency_module("slow_dep", cluster)
+
+
+def test_import_module_timeout():
+    with (
+        patch("importlib.import_module", side_effect=TestExecutionTimeoutError("Timed out")),
+        pytest.raises(TestExecutionTimeoutError),
+    ):
+        module.import_module("slow_module")
