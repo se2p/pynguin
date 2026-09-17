@@ -307,6 +307,117 @@ def test_foo():
     assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
 
 
+def test_compound_classdef_is_admitted_and_binds_name(test_cluster):
+    code = """
+def test_foo():
+    class MyClass:
+        pass
+    inst = MyClass()
+"""
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
+    assert testcase.size() == 2
+    assert [s.bound_variable for s in testcase.statements()] == ["MyClass", "inst"]
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 1
+
+
+def test_compound_classdef_inheritance_with_known_base(test_cluster):
+    code = """
+def test_foo():
+    class BaseClass:
+        pass
+    class SubClass(BaseClass):
+        pass
+    inst = SubClass()
+"""
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
+    assert testcase.size() == 3
+    assert [s.bound_variable for s in testcase.statements()] == [
+        "BaseClass",
+        "SubClass",
+        "inst",
+    ]
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 1
+
+
+def test_compound_classdef_inheritance_with_unknown_base_is_dropped(test_cluster):
+    code = """
+def test_foo():
+    class SubClass(UndefinedBase):
+        pass
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.test_case.size() == 0
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
+
+
+def test_compound_functiondef_binds_name_for_subsequent_calls(test_cluster):
+    code = """
+def test_foo():
+    def helper(arg):
+        return arg + 1
+    res = helper(1)
+"""
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
+    assert testcase.size() == 2
+    assert [s.bound_variable for s in testcase.statements()] == ["helper", "res"]
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 1
+
+
+def test_compound_class_and_function_property_pattern(test_cluster):
+    code = """
+def test_prop():
+    call_count = 0
+    def my_prop(cls):
+        return cls.__name__ + '_value'
+    class MyClass:
+        pass
+    result = my_prop(MyClass)
+    assert result == 'MyClass_value'
+"""
+    result = _deserialize_function(code, test_cluster, create_assertions=True)
+    testcase = result.test_case
+    assert testcase.size() == 4
+    assert [s.bound_variable for s in testcase.statements()] == [
+        "call_count",
+        "my_prop",
+        "MyClass",
+        "result",
+    ]
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+    assert result.counts[Disposition.ASSERTION_LIFTED] == 1
+
+
+def test_deserialize_code_to_testcases_with_nested_class_and_function(test_cluster):
+    code = """
+class TestSuite:
+    def test_descriptor(self):
+        class Target:
+            pass
+        def helper(cls):
+            return 42
+        val = helper(Target)
+        assert val == 42
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=True)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    testcase = result.test_cases[0]
+    assert testcase.size() == 3
+    assert [s.bound_variable for s in testcase.statements()] == [
+        "Target",
+        "helper",
+        "val",
+    ]
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+    assert result.counts[Disposition.ASSERTION_LIFTED] == 1
+
+
 # ---------------------------------------------------------------------------
 # Assertion shapes (through the full deserializer, using directly-fed CST so the
 # rewriter's comparison-hoisting does not obscure the shape under test).

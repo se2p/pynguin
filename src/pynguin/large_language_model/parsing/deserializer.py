@@ -217,6 +217,19 @@ class _RootNameCollector(cst.CSTVisitor):
             self.names.add(node.value)
         return True
 
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        for decorator in node.decorators:
+            decorator.visit(self)
+        for base in node.bases:
+            base.visit(self)
+        for kw in node.keywords:
+            kw.visit(self)
+        type_params = getattr(node, "type_parameters", None)
+        if type_params is not None:
+            type_params.visit(self)
+        node.body.visit(self)
+        return False
+
 
 def _params_names(params: cst.Parameters) -> list[str]:
     """Return the parameter names introduced by a ``Parameters`` node."""
@@ -301,6 +314,10 @@ class _BlockBindingCollector(cst.CSTVisitor):
 
     def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
         self.bound.update(_params_names(node.params))
+        return True
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        self.bound.add(node.name.value)
         return True
 
 
@@ -1076,8 +1093,12 @@ class CstStatementDeserializer:
         treat it as opaque (they skip non-``SimpleStatementLine`` nodes). The block
         is admitted only when every name it reads -- minus the names it binds
         internally -- is already in scope; external references are renamed to the
-        fresh ``var_N`` names bound by earlier statements. Names bound *inside* the
-        block stay block-local and are not exposed to later statements.
+        fresh ``var_N`` names bound by earlier statements.
+
+        Top-level function and class definitions (``def``/``class``) bind their
+        name into the test function's scope so subsequent statements can reference
+        them. Names bound inside loop and context blocks (``for``/``with``) remain
+        block-local.
 
         Args:
             line: The compound statement to admit.
@@ -1092,12 +1113,25 @@ class CstStatementDeserializer:
         if not external <= state.known:
             return Disposition.DROPPED_UNKNOWN_NAMES
 
+        bound_var: str | None = None
+        new_bound: str | None = None
+        if isinstance(line, cst.FunctionDef | cst.ClassDef):
+            bound_var = line.name.value
+            if bound_var not in state.bound_types_by_orig:
+                new_bound = bound_var
+            else:
+                new_bound = state.testcase.next_var_name()
+            state.rename_map[bound_var] = new_bound
+            state.known.add(bound_var)
+            state.bound_types_by_orig[bound_var] = None
+            state.last_index_for_name[bound_var] = state.testcase.size()
+
         node: cst.BaseCompoundStatement = line
         if state.rename_map:
             renamed = line.visit(_LocalRenamer(state.rename_map))
             assert isinstance(renamed, cst.BaseCompoundStatement)
             node = renamed
-        state.testcase.add_statement(tc.Statement(node=node))
+        state.testcase.add_statement(tc.Statement(node=node, bound_variable=new_bound))
         return Disposition.ADMITTED_COMPOUND
 
     def _hoist_module_imports(
