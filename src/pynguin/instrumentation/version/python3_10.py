@@ -861,6 +861,34 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         """Check if instruction is a subscript read operation."""
         return instr.name in BINARY_SUBSCR_NAMES
 
+    def _wire_subscript_predicates(
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+    ) -> None:
+        """Wire auxiliary subscript predicates for subscript operations."""
+        for instr_original_index, (instr_index, instr) in enumerate(
+            node.instrumentation_original_instructions
+        ):
+            if (
+                ast_info is not None
+                and isinstance(instr.lineno, int)
+                and not ast_info.should_track_line(instr.lineno)
+            ):
+                continue
+            if self._is_subscr_instruction(instr):
+                self.visit_subscr_access(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    instr,
+                    instr_index,
+                    instr_original_index,
+                )
+
     def visit_node(  # noqa: D102, C901
         self,
         ast_info: transformer.AstInfo | None,
@@ -901,26 +929,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         if not maybe_jump.is_cond_jump():
             return
 
-        # Wire auxiliary subscript predicates for BINARY_SUBSCR.
-        for instr_original_index, (instr_index, instr) in enumerate(
-            node.instrumentation_original_instructions
-        ):
-            if (
-                ast_info is not None
-                and isinstance(instr.lineno, int)
-                and not ast_info.should_track_line(instr.lineno)
-            ):
-                continue
-            if self._is_subscr_instruction(instr):
-                self.visit_subscr_access(
-                    ast_info,
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_original_index,
-                )
+        self._wire_subscript_predicates(ast_info, cfg, code_object_id, node)
 
         try:
             maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(

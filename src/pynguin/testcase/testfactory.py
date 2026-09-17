@@ -1768,6 +1768,7 @@ class TestFactory:
             key_type, value_type = param_type.args[0], param_type.args[1]
         key_raw = _proper_type_to_raw(key_type) if key_type is not None else None
         entries: list[cst.DictElement] = []
+        seen_keys: set[str] = set()
         for _ in range(size):
             if (
                 key_raw is not None
@@ -1777,7 +1778,10 @@ class TestFactory:
             ):
                 key_expr = literalgen.generate_literal(key_raw, self._constant_provider)
             else:
-                key_expr = literalgen.gen_dict_key(self._constant_provider)
+                key_expr = literalgen.gen_dict_key(self._constant_provider, excluded_keys=seen_keys)
+            parsed_k = literalgen.parse_literal(key_expr, str)
+            if isinstance(parsed_k, str):
+                seen_keys.add(parsed_k)
             value_expr, cursor = self._collection_element(test_case, value_type, cursor, depth + 1)
             entries.append(cst.DictElement(key=key_expr, value=value_expr))
         return cst.Dict(elements=entries), cursor

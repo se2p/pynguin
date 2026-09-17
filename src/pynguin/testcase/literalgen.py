@@ -121,7 +121,42 @@ def map_abstract_collection(raw: type | None) -> type | None:
     return None
 
 
-def infer_literal_type(expr: cst.BaseExpression) -> type | None:  # noqa: C901
+def _infer_number_type(expr: cst.BaseExpression) -> type | None:
+    target = (
+        expr.expression
+        if isinstance(expr, cst.UnaryOperation) and isinstance(expr.operator, cst.Minus)
+        else expr
+    )
+    if isinstance(target, cst.Integer):
+        return int
+    if isinstance(target, cst.Float):
+        return float
+    if (
+        isinstance(expr, cst.Call)
+        and isinstance(expr.func, cst.Name)
+        and expr.func.value == "complex"
+    ):
+        return complex
+    return None
+
+
+def _infer_collection_type(expr: cst.BaseExpression) -> type | None:
+    match expr:
+        case cst.List():
+            return list
+        case cst.Dict():
+            return dict
+        case cst.Tuple():
+            return tuple
+        case cst.Set():
+            return set
+        case cst.Call(func=cst.Name(value="set")):
+            return set
+        case _:
+            return None
+
+
+def infer_literal_type(expr: cst.BaseExpression) -> type | None:
     """Infer the Python literal type of a CST expression if possible.
 
     Args:
@@ -130,37 +165,19 @@ def infer_literal_type(expr: cst.BaseExpression) -> type | None:  # noqa: C901
     Returns:
         The inferred Python literal type, or None if unknown.
     """
-    if isinstance(expr, cst.Name) and expr.value in {"True", "False"}:
-        return bool
-    if isinstance(expr, cst.Integer) or (
-        isinstance(expr, cst.UnaryOperation)
-        and isinstance(expr.operator, cst.Minus)
-        and isinstance(expr.expression, cst.Integer)
-    ):
-        return int
-    if isinstance(expr, cst.Float) or (
-        isinstance(expr, cst.UnaryOperation)
-        and isinstance(expr.operator, cst.Minus)
-        and isinstance(expr.expression, cst.Float)
-    ):
-        return float
+    if isinstance(expr, cst.Name):
+        if expr.value in {"True", "False"}:
+            return bool
+        if expr.value == "None":
+            return type(None)
+        return None
     if isinstance(expr, cst.SimpleString):
         val = expr.evaluated_value
-        if isinstance(val, bytes):
-            return bytes
-        if isinstance(val, str):
-            return str
-    if isinstance(expr, cst.List):
-        return list
-    if isinstance(expr, cst.Dict):
-        return dict
-    if isinstance(expr, cst.Tuple):
-        return tuple
-    if isinstance(expr, cst.Set) or (
-        isinstance(expr, cst.Call) and isinstance(expr.func, cst.Name) and expr.func.value == "set"
-    ):
-        return set
-    return None
+        return bytes if isinstance(val, bytes) else str
+    num_type = _infer_number_type(expr)
+    if num_type is not None:
+        return num_type
+    return _infer_collection_type(expr)
 
 
 # ---------------------------------------------------------------------------
@@ -627,20 +644,36 @@ def _gen_tuple(
     return cst.Tuple(elements=_tuple_elements(raw_elems))
 
 
-def gen_dict_key(constant_provider: ConstantProvider) -> cst.BaseExpression:
+def gen_dict_key(
+    constant_provider: ConstantProvider,
+    excluded_keys: Collection[str] = (),
+) -> cst.BaseExpression:
     """Generate a dictionary key CST node.
 
     Prefers seeded string constants when available to target key-dependent branches.
 
     Args:
         constant_provider: Provider that may supply seeded string values.
+        excluded_keys: Optional keys to avoid if alternatives are available.
 
     Returns:
         A CST expression for a string literal key.
     """
-    seeded = constant_provider.get_constant_for(str)
-    if seeded is not None:
-        return cst.SimpleString(repr(seeded))
+    candidates: list[str] = []
+    try:
+        all_seeded = constant_provider.get_all_constants_for(str)
+        candidates = [c for c in all_seeded if c not in excluded_keys]
+    except (AttributeError, KeyError):
+        pass
+
+    if not candidates:
+        seeded = constant_provider.get_constant_for(str)
+        if seeded is not None and seeded not in excluded_keys:
+            candidates = [seeded]
+
+    if candidates:
+        chosen = randomness.choice(candidates)
+        return cst.SimpleString(repr(chosen))
     return _gen_str(constant_provider)
 
 
@@ -959,14 +992,31 @@ def _insert_missing_dict_key(
             and isinstance(elem.key, cst.Name)
             and elem.key.value == "None"
         )
-        if parsed_key == key_val or is_none:
+        if (parsed_key == key_val and parsed_key is not None) or is_none:
             delems[i] = cst.DictElement(key=elem.key, value=new_val_cst)
             return delems
     delems.append(cst.DictElement(key=new_key_cst, value=new_val_cst))
     return delems
 
 
-def _mutate_dict(  # noqa: C901
+def _apply_dict_trace_mutation(
+    delems: list[cst.BaseDictElement],
+    collection_trace: CollectionTrace,
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression],
+) -> list[cst.BaseDictElement] | None:
+    """Apply missing-key addition or unused-key pruning from a collection trace."""
+    if collection_trace.missing_keys:
+        safe_missing = [k for k in collection_trace.missing_keys if is_safe_key(k)]
+        if safe_missing:
+            return _insert_missing_dict_key(delems, safe_missing, constant_provider, element_pool)
+
+    if collection_trace.accessed_keys and delems:
+        return _prune_unused_dict_element(delems, collection_trace.accessed_keys)
+    return None
+
+
+def _mutate_dict(
     expr: cst.BaseExpression,
     constant_provider: ConstantProvider,
     element_pool: Sequence[cst.BaseExpression] = (),
@@ -993,18 +1043,11 @@ def _mutate_dict(  # noqa: C901
     delems = list(expr.elements)
 
     if collection_trace is not None:
-        if collection_trace.missing_keys:
-            safe_missing = [k for k in collection_trace.missing_keys if is_safe_key(k)]
-            if safe_missing:
-                new_elems = _insert_missing_dict_key(
-                    delems, safe_missing, constant_provider, element_pool
-                )
-                return expr.with_changes(elements=new_elems)
-
-        if collection_trace.accessed_keys and delems:
-            pruned = _prune_unused_dict_element(delems, collection_trace.accessed_keys)
-            if pruned is not None:
-                return expr.with_changes(elements=pruned)
+        updated = _apply_dict_trace_mutation(
+            delems, collection_trace, constant_provider, element_pool
+        )
+        if updated is not None:
+            return expr.with_changes(elements=updated)
 
     if delems:
         action = randomness.next_int(0, 3)
@@ -1024,9 +1067,20 @@ def _mutate_dict(  # noqa: C901
                 )
                 delems[idx] = cst.DictElement(key=elem.key, value=mutated_val)
                 return expr.with_changes(elements=delems)
+            if isinstance(elem, cst.StarredDictElement):
+                mutated_val = mutate_literal(
+                    elem.value,
+                    None,
+                    constant_provider,
+                    element_pool,
+                )
+                delems[idx] = cst.StarredDictElement(value=mutated_val)
+                return expr.with_changes(elements=delems)
 
+    existing_keys = [parse_literal(e.key, str) for e in delems if isinstance(e, cst.DictElement)]
+    str_keys = [k for k in existing_keys if isinstance(k, str)]
     new_entry = cst.DictElement(
-        key=gen_dict_key(constant_provider),
+        key=gen_dict_key(constant_provider, excluded_keys=str_keys),
         value=_element_value(constant_provider, element_pool),
     )
     delems.append(new_entry)
@@ -1118,6 +1172,8 @@ def generate_literal(  # noqa: C901
         return _gen_tuple(constant_provider, element_pool)
     if raw is dict:
         return _gen_dict(constant_provider, element_pool)
+    if element_pool and randomness.next_bool():
+        return randomness.choice(element_pool)
     return cst.Name("None")
 
 
@@ -1174,6 +1230,10 @@ def _dispatch_mutate(  # noqa: C901
         return _mutate_dict(expr, constant_provider, element_pool, collection_trace)
     if raw is set:
         return _mutate_set(expr, constant_provider, element_pool)
+    if raw is type(None):
+        return _element_value(constant_provider, element_pool)
+    if element_pool and randomness.next_bool():
+        return randomness.choice(element_pool)
     return generate_literal(raw, constant_provider, element_pool)
 
 

@@ -594,7 +594,11 @@ class SubjectProperties:
         dependencies = code_meta.cdg.get_control_dependencies(node)
         for dep in dependencies:
             for pid, meta in self.existing_predicates.items():
-                if meta.code_object_id == code_object_id and meta.node == dep.node:
+                if (
+                    meta.code_object_id == code_object_id
+                    and meta.node == dep.node
+                    and not getattr(meta, "is_auxiliary", False)
+                ):
                     if pid not in self.coverage_predicates:
                         self.coverage_predicates[pid] = set()
                     if dep.branch_value not in self.coverage_predicates[pid]:
@@ -742,7 +746,7 @@ class SubjectProperties:
         nodes_predicates = {
             meta.node: pred_id
             for pred_id, meta in self.existing_predicates.items()
-            if meta.code_object_id == code_object_id
+            if meta.code_object_id == code_object_id and not getattr(meta, "is_auxiliary", False)
         }
 
         for node in nodes:
@@ -1683,8 +1687,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
         This helper provides guidance for subscripts like ``container[key]`` by
         reporting a membership distance ``key in container`` before the subscript
-        executes. To control overhead, it only computes a distance when the
-        container is sized and its size does not exceed ``max_container_size``.
+        executes.
 
         Args:
             value1: The prospective key/index to look up (e.g., ``key``).

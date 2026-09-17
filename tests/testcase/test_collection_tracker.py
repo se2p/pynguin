@@ -466,3 +466,43 @@ def test_observer_unhandled_keyerror_associates_missing_key():
 
     assert 0 in result.collection_trace
     assert "missing_param" in result.collection_trace[0].missing_keys
+
+
+def test_observer_unhandled_keyerror_ambiguous_multiple_dicts_not_attributed():
+    observer = RemoteCollectionTrackingObserver()
+    executor = MagicMock()
+    namespace = {"var_0": {"a": 1}, "var_1": {"b": 2}}
+
+    test_case = MagicMock()
+    stmt_0 = Statement(
+        node=cst.parse_statement("var_0 = {'a': 1}\n"),
+        bound_variable="var_0",
+        bound_type=dict,
+        accessible=None,
+    )
+    stmt_1 = Statement(
+        node=cst.parse_statement("var_1 = {'b': 2}\n"),
+        bound_variable="var_1",
+        bound_type=dict,
+        accessible=None,
+    )
+    stmt_2 = Statement(
+        node=cst.parse_statement("func(var_0, var_1)\n"),
+        bound_variable="var_2",
+        bound_type=None,
+        accessible=MagicMock(),
+    )
+    test_case.statements.return_value = [stmt_0, stmt_1, stmt_2]
+
+    observer.before_test_case_execution(test_case)
+    observer.after_statement_execution(stmt_0, executor, namespace, None)
+    observer.after_statement_execution(stmt_1, executor, namespace, None)
+
+    result = ExecutionResult()
+    result.exceptions[2] = KeyError("ambiguous_key")
+
+    observer.after_test_case_execution(executor, test_case, result)
+
+    # Neither var_0 nor var_1 should be falsely attributed
+    assert 0 not in result.collection_trace or not result.collection_trace[0].missing_keys
+    assert 1 not in result.collection_trace or not result.collection_trace[1].missing_keys

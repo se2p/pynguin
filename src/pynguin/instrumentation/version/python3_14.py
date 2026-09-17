@@ -231,6 +231,10 @@ class Python314InstrumentationInstructionsGenerator(
                 return super()._generate_argument_instructions(arg, position, lineno)
 
 
+# In Python 3.14, BINARY_SUBSCR was replaced by BINARY_OP with oparg NB_SUBSCR (value 26).
+_NB_SUBSCR = 26
+
+
 class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
     """Branch coverage adapter for Python 3.14.
 
@@ -247,7 +251,7 @@ class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
         if instr.name in python3_10.BINARY_SUBSCR_NAMES:
             return True
         if instr.name == "BINARY_OP":
-            return getattr(instr.arg, "name", None) == "SUBSCR" or instr.arg == 26
+            return getattr(instr.arg, "name", None) == "SUBSCR" or instr.arg == _NB_SUBSCR
         return False
 
 

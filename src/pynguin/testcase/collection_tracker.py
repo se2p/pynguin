@@ -490,10 +490,14 @@ class RemoteCollectionTrackingObserver(RemoteExecutionObserver):
             if not (is_safe_key(missing_key) and 0 <= stmt_idx < len(statements)):
                 continue
             used_vars = statements[stmt_idx].used_variables()
+            matching_positions: list[int] = []
             for pos, tracked in self._local_state.tracked_collections.items():
                 if not (isinstance(tracked, TrackedDict) and 0 <= pos < len(statements)):
                     continue
                 tracked_var = statements[pos].bound_variable
                 if tracked_var is not None and tracked_var in used_vars:
-                    trace_entry = result.collection_trace.setdefault(pos, CollectionTrace())
-                    trace_entry.missing_keys.add(missing_key)
+                    matching_positions.append(pos)
+            if len(matching_positions) == 1:
+                target_pos = matching_positions[0]
+                trace_entry = result.collection_trace.setdefault(target_pos, CollectionTrace())
+                trace_entry.missing_keys.add(missing_key)

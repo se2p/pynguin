@@ -828,3 +828,51 @@ def test_mutate_dict_value_mutation(monkeypatch):
     assert len(mutated.elements) == 1
     assert _eval(mutated.elements[0].key) == "k"
     assert _eval(mutated.elements[0].value) == 10
+
+
+def test_gen_dict_key_respects_excluded_keys():
+    provider = _FixedConstantProvider()
+    key_cst = lg.gen_dict_key(provider, excluded_keys={"seeded-value"})
+    assert isinstance(key_cst, cst.SimpleString)
+    assert _eval(key_cst) != "seeded-value"
+
+
+def test_infer_literal_type_complex_and_none():
+    complex_call = cst.Call(
+        func=cst.Name("complex"),
+        args=[cst.Arg(value=cst.Integer("1")), cst.Arg(value=cst.Integer("2"))],
+    )
+    assert lg.infer_literal_type(complex_call) is complex
+    assert lg.infer_literal_type(cst.Name("None")) is type(None)
+    assert lg.infer_literal_type(cst.Name("var_0")) is None
+
+
+def test_insert_missing_dict_key_none_not_shadowed_by_variable():
+    # Dict element with an unparseable variable key (e.g. var_0)
+    expr = cst.Dict(
+        elements=[
+            cst.DictElement(key=cst.Name("var_0"), value=cst.Integer("1")),
+        ]
+    )
+    trace = CollectionTrace(
+        accessed_keys=set(),
+        missing_keys={None},
+    )
+    provider = EmptyConstantProvider()
+    mutated = lg._mutate_dict(expr, provider, collection_trace=trace)
+    assert isinstance(mutated, cst.Dict)
+    # Must append None key, not match var_0
+    assert len(mutated.elements) == 2
+    assert isinstance(mutated.elements[0].key, cst.Name)
+    assert mutated.elements[0].key.value == "var_0"
+    assert isinstance(mutated.elements[1].key, cst.Name)
+    assert mutated.elements[1].key.value == "None"
+
+
+def test_mutate_literal_variable_reference_not_converted_to_none():
+    var_expr = cst.Name("var_0")
+    pool = [cst.Name("var_1"), cst.Name("var_2")]
+    provider = EmptyConstantProvider()
+    mutated = lg.mutate_literal(var_expr, None, provider, element_pool=pool)
+    assert isinstance(mutated, cst.Name)
+    assert mutated.value in {"var_0", "var_1", "var_2"}

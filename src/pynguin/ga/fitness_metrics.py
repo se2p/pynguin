@@ -90,8 +90,13 @@ def compute_branch_distance_fitness(
 
     # Check if all predicates are covered
     predicate_fitness: float = 0.0
-    targets = subject_properties.coverage_predicates or {
+    all_targets = subject_properties.coverage_predicates or {
         pid: {True, False} for pid in subject_properties.existing_predicates
+    }
+    targets = {
+        pid: vals
+        for pid, vals in all_targets.items()
+        if getattr(subject_properties.existing_predicates[pid], "is_auxiliary", False) is not True
     }
     for predicate, values in targets.items():
         if True in values and predicate not in exclude_true:
@@ -147,8 +152,13 @@ def compute_branch_distance_fitness_is_covered(
     exclude_false = set() if exclude_false is None else exclude_false
 
     # Check if all predicates are covered
-    targets = subject_properties.coverage_predicates or {
+    all_targets = subject_properties.coverage_predicates or {
         pid: {True, False} for pid in subject_properties.existing_predicates
+    }
+    targets = {
+        pid: vals
+        for pid, vals in all_targets.items()
+        if getattr(subject_properties.existing_predicates[pid], "is_auxiliary", False) is not True
     }
     for predicate, values in targets.items():
         if (

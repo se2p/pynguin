@@ -19,3 +19,10 @@ def check_kwargs(**kwargs) -> int:
     if kwargs["secret"] == 99:
         return 100
     return -1
+
+
+def check_dict_none(d: dict[str, int]) -> int:
+    """Function that accesses a dict key in a None comparison."""
+    if d["null_key"] is None:
+        return 1
+    return 0
