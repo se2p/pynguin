@@ -464,6 +464,11 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             )
             return
 
+        if not maybe_jump.is_cond_jump():
+            return
+
+        self._wire_subscript_predicates(ast_info, cfg, code_object_id, node)
+
         try:
             maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
                 COMPARE_OP_POS,
@@ -512,9 +517,6 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
                 maybe_jump,
                 maybe_jump_index,
             )
-            return
-
-        if not maybe_jump.is_cond_jump():
             return
 
         if maybe_compare is not None and maybe_compare_index is not None:

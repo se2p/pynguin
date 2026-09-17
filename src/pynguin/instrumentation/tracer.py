@@ -407,6 +407,9 @@ class PredicateMetaData:
     # The node in the program graph, that defines this predicate.
     node: BasicBlockNode
 
+    # Whether this predicate is an auxiliary predicate (e.g. emitted before subscripts).
+    is_auxiliary: bool = False
+
 
 @dataclass
 class SubjectProperties:
@@ -558,9 +561,9 @@ class SubjectProperties:
             the id of the predicate, which can be used to identify the predicate
             during instrumentation.
         """
-        assert (meta.node, meta.code_object_id) not in {
-            (p.node, p.code_object_id) for p in self.existing_predicates.values()
-        }, "Predicate with the same node already registered"
+        assert (meta.node, meta.code_object_id, meta.is_auxiliary) not in {
+            (p.node, p.code_object_id, p.is_auxiliary) for p in self.existing_predicates.values()
+        }, "Predicate with the same node and auxiliary status already registered"
         predicate_id = len(self.existing_predicates)
         self.existing_predicates[predicate_id] = meta
         if is_goal:
@@ -591,7 +594,11 @@ class SubjectProperties:
         dependencies = code_meta.cdg.get_control_dependencies(node)
         for dep in dependencies:
             for pid, meta in self.existing_predicates.items():
-                if meta.code_object_id == code_object_id and meta.node == dep.node:
+                if (
+                    meta.code_object_id == code_object_id
+                    and meta.node == dep.node
+                    and not getattr(meta, "is_auxiliary", False)
+                ):
                     if pid not in self.coverage_predicates:
                         self.coverage_predicates[pid] = set()
                     if dep.branch_value not in self.coverage_predicates[pid]:
@@ -739,7 +746,7 @@ class SubjectProperties:
         nodes_predicates = {
             meta.node: pred_id
             for pred_id, meta in self.existing_predicates.items()
-            if meta.code_object_id == code_object_id
+            if meta.code_object_id == code_object_id and not getattr(meta, "is_auxiliary", False)
         }
 
         for node in nodes:
@@ -1680,8 +1687,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
         This helper provides guidance for subscripts like ``container[key]`` by
         reporting a membership distance ``key in container`` before the subscript
-        executes. To control overhead, it only computes a distance when the
-        container is sized and its size does not exceed ``max_container_size``.
+        executes.
 
         Args:
             value1: The prospective key/index to look up (e.g., ``key``).

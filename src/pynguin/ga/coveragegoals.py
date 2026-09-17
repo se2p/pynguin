@@ -394,6 +394,8 @@ class BranchGoalPool:
         goal_map: dict[int, list[BranchGoal]] = {}
         for predicate_id, values in subject_properties.coverage_predicates.items():
             meta = subject_properties.existing_predicates[predicate_id]
+            if getattr(meta, "is_auxiliary", False) is True:
+                continue
             entry: list[BranchGoal] = [
                 BranchGoal(meta.code_object_id, predicate_id, value=val) for val in values
             ]
