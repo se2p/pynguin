@@ -59,6 +59,7 @@ from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
+from pynguin.analyses import generics
 from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvider
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
@@ -70,7 +71,6 @@ from pynguin.analyses.syntaxtree import (
 from pynguin.analyses.typesystem import (
     ANY,
     AnyType,
-    InferredSignature,
     Instance,
     NoneType,
     ProperType,
@@ -108,7 +108,7 @@ if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Sequence
 
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
@@ -1501,23 +1501,6 @@ def overlaps_line_ranges(ast_node: ast.AST | None, parsed_line_ranges: set[int])
     return any(line in parsed_line_ranges for line in range(start_line, end_line + 1))
 
 
-def _collect_signature_type_vars(signature: InferredSignature) -> list[TypeVarType]:
-    """Collect all unique TypeVarTypes present in a signature."""
-    type_vars: list[TypeVarType] = []
-    seen: set[str] = set()
-    for param_type in signature.original_parameters.values():
-        for tv in param_type.get_type_vars():
-            if tv.name not in seen:
-                seen.add(tv.name)
-                type_vars.append(tv)
-    if signature.return_type is not None:
-        for tv in signature.return_type.get_type_vars():
-            if tv.name not in seen:
-                seen.add(tv.name)
-                type_vars.append(tv)
-    return type_vars
-
-
 def _should_skip_function(func_name: str, func: FunctionType, *, add_to_test: bool) -> bool:
     """Check if a function should be skipped from analysis."""
     if __should_skip_by_visibility(func_name.rpartition(".")[2], add_to_test=add_to_test):
@@ -1538,50 +1521,6 @@ def _should_skip_function(func_name: str, func: FunctionType, *, add_to_test: bo
             LOGGER.debug("Skipping async generator %s outside of SUT", func_name)
         return True
     return False
-
-
-def _instantiate_generic_function(
-    *,
-    func_name: str,
-    func: FunctionType,
-    inferred_signature: InferredSignature,
-    func_tvs: list[TypeVarType],
-    expected_exceptions: set[str],
-    func_ast: ASTFunctionDef | None,
-    description: FunctionDescription | None,
-    cyclomatic_complexity: int | None,
-    test_cluster: ModuleTestCluster,
-    add_to_test: bool,
-    module_tree: Module | None,
-    ml_data: MLCallableData | None,
-) -> None:
-    """Instantiate and register generic variants of a function."""
-    candidates = [test_cluster.type_system.get_candidate_types_for_type_var(tv) for tv in func_tvs]
-    combos = list(itertools.islice(itertools.product(*candidates), 10))
-    for combo in combos:
-        substitutions: dict[str | typing.TypeVar | TypeVarType, ProperType] = {}
-        for tv, cand in zip(func_tvs, combo, strict=True):
-            substitutions[tv] = cand
-            substitutions[tv.name] = cand
-            if tv.raw_type_var is not None:
-                substitutions[tv.raw_type_var] = cand
-        subst_sig = inferred_signature.substitute(substitutions)
-        inst_func = GenericFunction(func, subst_sig, expected_exceptions, func_name)
-        inst_data = CallableData(
-            accessible=inst_func,
-            tree=func_ast,
-            description=description,
-            cyclomatic_complexity=cyclomatic_complexity,
-        )
-        if (
-            config.configuration.pynguinml.ml_testing_enabled
-            and module_tree is not None
-            and ml_data is not None
-        ):
-            test_cluster.add_ml_data(inst_func, ml_data)
-        test_cluster.add_generator(inst_func)
-        if add_to_test:
-            test_cluster.add_accessible_object_under_test(inst_func, inst_data)
 
 
 def __analyse_function(
@@ -1641,20 +1580,17 @@ def __analyse_function(
         )
     effective_add_to_test = add_to_test and overlaps_line_ranges(func_ast, parsed_line_ranges)
 
-    func_tvs = _collect_signature_type_vars(inferred_signature)
+    func_tvs = generics.collect_signature_type_vars(inferred_signature)
     if func_tvs:
-        _instantiate_generic_function(
+        generics.instantiate_generic_function(
             func_name=func_name,
             func=func,
             inferred_signature=inferred_signature,
             func_tvs=func_tvs,
             expected_exceptions=expected_exceptions,
-            func_ast=func_ast,
-            description=description,
-            cyclomatic_complexity=cyclomatic_complexity,
+            function_data=function_data,
             test_cluster=test_cluster,
             add_to_test=effective_add_to_test,
-            module_tree=module_tree,
             ml_data=ml_data,
         )
         test_cluster.add_generator(generic_function)
@@ -1662,83 +1598,6 @@ def __analyse_function(
         test_cluster.add_generator(generic_function)
         if effective_add_to_test:
             test_cluster.add_accessible_object_under_test(generic_function, function_data)
-
-
-def _instantiate_generic_constructors(
-    *,
-    type_info: TypeInfo,
-    generic: GenericConstructor,
-    expected_exceptions: set[str],
-    constructor_ast: ASTFunctionDef | None,
-    description: FunctionDescription | None,
-    cyclomatic_complexity: int | None,
-    test_cluster: ModuleTestCluster,
-    add_to_test: bool,
-    ml_data: MLCallableData | None = None,
-) -> list[Instance]:
-    """Instantiate and register generic constructor variants.
-
-    Args:
-        type_info: The owner TypeInfo.
-        generic: Base generic constructor.
-        expected_exceptions: Expected exceptions set.
-        constructor_ast: AST node for the constructor.
-        description: Function description.
-        cyclomatic_complexity: Cyclomatic complexity.
-        test_cluster: Target test cluster.
-        add_to_test: Whether to add as an accessible object under test.
-        ml_data: Optional ML metadata.
-
-    Returns:
-        List of created concrete Instance objects.
-    """
-    instantiated_types: list[Instance] = []
-    param_candidates = [
-        test_cluster.type_system.get_candidate_types_for_type_var(tv)
-        for tv in type_info.type_parameters
-    ]
-    combos = list(itertools.islice(itertools.product(*param_candidates), 10))
-    for combo in combos:
-        concrete_instance = Instance(type_info, combo)
-        instantiated_types.append(concrete_instance)
-        substitutions: dict[str | typing.TypeVar | TypeVarType, ProperType] = {}
-        for tv, candidate in zip(type_info.type_parameters, combo, strict=True):
-            tv_name = tv.name if isinstance(tv, TypeVarType) else tv.__name__
-            substitutions[tv] = candidate
-            substitutions[tv_name] = candidate
-            if isinstance(tv, TypeVarType) and tv.raw_type_var is not None:
-                substitutions[tv.raw_type_var] = candidate
-
-        subst_sig = generic.inferred_signature.substitute(substitutions)
-        subst_sig.return_type = concrete_instance
-        inst_constructor = GenericConstructor(
-            type_info,
-            subst_sig,
-            expected_exceptions,
-            generated_type=concrete_instance,
-        )
-        if (
-            config.configuration.pynguinml.ml_testing_enabled
-            and type_info.raw_type.__module__ != "builtins"
-            and ml_data is not None
-        ):
-            test_cluster.add_ml_data(inst_constructor, ml_data)
-
-        inst_method_data = CallableData(
-            accessible=inst_constructor,
-            tree=constructor_ast,
-            description=description,
-            cyclomatic_complexity=cyclomatic_complexity,
-        )
-        if not (
-            type_info.is_abstract
-            or type_info.raw_type in COLLECTIONS
-            or type_info.raw_type in PRIMITIVES
-        ):
-            test_cluster.add_generator(inst_constructor)
-            if add_to_test:
-                test_cluster.add_accessible_object_under_test(inst_constructor, inst_method_data)
-    return instantiated_types
 
 
 def _create_constructor_or_enum(
@@ -1825,16 +1684,15 @@ def __analyse_class(
     if type_info.is_generic and not (
         isinstance(type_info.raw_type, type) and issubclass(type_info.raw_type, enum.Enum)
     ):
-        instantiated_types = _instantiate_generic_constructors(
+        instantiated_types = generics.instantiate_generic_constructors(
             type_info=type_info,
-            generic=generic,  # type: ignore[arg-type]
+            generic_constructor=generic,  # type: ignore[arg-type]
             expected_exceptions=expected_exceptions,
-            constructor_ast=constructor_ast,
-            description=description,
-            cyclomatic_complexity=cyclomatic_complexity,
+            constructor_data=method_data,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
             ml_data=ml_data,
+            collections_or_primitives=(*COLLECTIONS, *PRIMITIVES),
         )
 
     if not (
@@ -1949,103 +1807,6 @@ def __add_symbols(class_ast: ClassDef | None, type_info: TypeInfo) -> None:
     type_info.attributes.difference_update(IGNORED_SYMBOLS)
 
 
-def _register_instantiated_method(
-    *,
-    type_info: TypeInfo,
-    method: (
-        FunctionType
-        | BuiltinFunctionType
-        | WrapperDescriptorType
-        | MethodDescriptorType
-        | MethodType
-    ),
-    method_name: str,
-    signature: InferredSignature,
-    base_substitutions: Mapping[str | typing.TypeVar | TypeVarType, ProperType],
-    expected_exceptions: set[str],
-    method_ast: ASTFunctionDef | None,
-    description: FunctionDescription | None,
-    cyclomatic_complexity: int | None,
-    test_cluster: ModuleTestCluster,
-    add_to_test: bool,
-    instantiated_owner: Instance | None,
-    ml_data: MLCallableData | None = None,
-) -> None:
-    """Register concrete instantiated variants of a method.
-
-    Args:
-        type_info: The owner TypeInfo.
-        method: The method callable.
-        method_name: Name of the method.
-        signature: The original signature to substitute.
-        base_substitutions: Type substitutions already derived from the owner class.
-        expected_exceptions: Set of expected exception type names.
-        method_ast: The AST node of the method.
-        description: Parsed function description.
-        cyclomatic_complexity: McCabe complexity score.
-        test_cluster: The test cluster to register into.
-        add_to_test: Whether to add as an accessible object under test.
-        instantiated_owner: The instantiated owner Instance if any.
-        ml_data: Optional ML callable metadata.
-    """
-    inst_sig = signature.substitute(base_substitutions)
-    rem_tvs = _collect_signature_type_vars(inst_sig)
-    if rem_tvs:
-        m_candidates = [
-            test_cluster.type_system.get_candidate_types_for_type_var(tv) for tv in rem_tvs
-        ]
-        m_combos = list(itertools.islice(itertools.product(*m_candidates), 10))
-        for m_combo in m_combos:
-            m_subst = dict(base_substitutions)
-            for tv, cand in zip(rem_tvs, m_combo, strict=True):
-                m_subst[tv] = cand
-                m_subst[tv.name] = cand
-                if tv.raw_type_var is not None:
-                    m_subst[tv.raw_type_var] = cand
-            final_sig = signature.substitute(m_subst)
-            inst_m = GenericMethod(
-                type_info,
-                method,
-                final_sig,
-                expected_exceptions,
-                method_name,
-                instantiated_owner=instantiated_owner,
-            )
-            inst_m_data = CallableData(
-                accessible=inst_m,
-                tree=method_ast,
-                description=description,
-                cyclomatic_complexity=cyclomatic_complexity,
-            )
-            if ml_data is not None:
-                test_cluster.add_ml_data(inst_m, ml_data)
-            test_cluster.add_generator(inst_m)
-            test_cluster.add_modifier(type_info, inst_m)
-            if add_to_test:
-                test_cluster.add_accessible_object_under_test(inst_m, inst_m_data)
-    else:
-        inst_m = GenericMethod(
-            type_info,
-            method,
-            inst_sig,
-            expected_exceptions,
-            method_name,
-            instantiated_owner=instantiated_owner,
-        )
-        inst_m_data = CallableData(
-            accessible=inst_m,
-            tree=method_ast,
-            description=description,
-            cyclomatic_complexity=cyclomatic_complexity,
-        )
-        if ml_data is not None:
-            test_cluster.add_ml_data(inst_m, ml_data)
-        test_cluster.add_generator(inst_m)
-        test_cluster.add_modifier(type_info, inst_m)
-        if add_to_test:
-            test_cluster.add_accessible_object_under_test(inst_m, inst_m_data)
-
-
 def _should_skip_method(
     type_info: TypeInfo,
     method_name: str,
@@ -2152,7 +1913,7 @@ def __analyse_method(
         )
     effective_add_to_test = add_to_test and overlaps_line_ranges(method_ast, parsed_line_ranges)
 
-    _register_generic_or_normal_method(
+    generics.register_generic_or_normal_method(
         type_info=type_info,
         method_name=method_name,
         method=method,
@@ -2160,89 +1921,11 @@ def __analyse_method(
         method_data=method_data,
         inferred_signature=inferred_signature,
         expected_exceptions=expected_exceptions,
-        method_ast=method_ast,
-        description=description,
-        cyclomatic_complexity=cyclomatic_complexity,
         test_cluster=test_cluster,
         effective_add_to_test=effective_add_to_test,
         instantiated_types=instantiated_types,
         ml_data=ml_data,
     )
-
-
-def _register_generic_or_normal_method(
-    *,
-    type_info: TypeInfo,
-    method_name: str,
-    method: (
-        FunctionType
-        | BuiltinFunctionType
-        | WrapperDescriptorType
-        | MethodDescriptorType
-        | MethodType
-    ),
-    generic_method: GenericMethod,
-    method_data: CallableData,
-    inferred_signature: InferredSignature,
-    expected_exceptions: set[str],
-    method_ast: ASTFunctionDef | None,
-    description: FunctionDescription | None,
-    cyclomatic_complexity: int | None,
-    test_cluster: ModuleTestCluster,
-    effective_add_to_test: bool,
-    instantiated_types: list[Instance] | None,
-    ml_data: MLCallableData | None,
-) -> None:
-    if instantiated_types:
-        for inst_type in instantiated_types:
-            substitutions: dict[str | typing.TypeVar | TypeVarType, ProperType] = {}
-            for tv, candidate in zip(type_info.type_parameters, inst_type.args, strict=True):
-                tv_name = tv.name if isinstance(tv, TypeVarType) else tv.__name__
-                substitutions[tv] = candidate
-                substitutions[tv_name] = candidate
-                if isinstance(tv, TypeVarType) and tv.raw_type_var is not None:
-                    substitutions[tv.raw_type_var] = candidate
-
-            _register_instantiated_method(
-                type_info=type_info,
-                method=method,
-                method_name=method_name,
-                signature=inferred_signature,
-                base_substitutions=substitutions,
-                expected_exceptions=expected_exceptions,
-                method_ast=method_ast,
-                description=description,
-                cyclomatic_complexity=cyclomatic_complexity,
-                test_cluster=test_cluster,
-                add_to_test=effective_add_to_test,
-                instantiated_owner=inst_type,
-                ml_data=ml_data,
-            )
-        test_cluster.add_generator(generic_method)
-        test_cluster.add_modifier(type_info, generic_method)
-    elif _collect_signature_type_vars(inferred_signature):
-        _register_instantiated_method(
-            type_info=type_info,
-            method=method,
-            method_name=method_name,
-            signature=inferred_signature,
-            base_substitutions={},
-            expected_exceptions=expected_exceptions,
-            method_ast=method_ast,
-            description=description,
-            cyclomatic_complexity=cyclomatic_complexity,
-            test_cluster=test_cluster,
-            add_to_test=effective_add_to_test,
-            instantiated_owner=None,
-            ml_data=ml_data,
-        )
-        test_cluster.add_generator(generic_method)
-        test_cluster.add_modifier(type_info, generic_method)
-    else:
-        test_cluster.add_generator(generic_method)
-        test_cluster.add_modifier(type_info, generic_method)
-        if effective_add_to_test:
-            test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
 
 class _ParseResults(dict):  # noqa: FURB189

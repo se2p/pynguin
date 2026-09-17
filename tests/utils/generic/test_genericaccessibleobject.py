@@ -320,4 +320,3 @@ def test_generic_method_instantiated_owner(type_system):
     assert m1 != m2
     assert hash(m1) != hash(m2)
     assert owner_inst in m1.get_dependencies({})
-

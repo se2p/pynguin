@@ -1890,4 +1890,3 @@ def test_testfactory_emit_generic_constructor_and_method():
     code = test_case.to_code()
     assert "Box(" in code
     cst.parse_module(code)
-

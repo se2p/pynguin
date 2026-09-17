@@ -1153,4 +1153,3 @@ def test_analyse_generic_classes():
         assert isinstance(mod.instantiated_owner, Instance)
         assert not mod.instantiated_owner.contains_type_vars()
         assert not mod.inferred_signature.contains_type_vars()
-
