@@ -14,6 +14,7 @@ import copy
 import inspect
 import logging
 import threading
+import unittest.mock
 from typing import TYPE_CHECKING, Any, cast
 
 import libcst as cst
@@ -327,6 +328,10 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
             return
 
         value = namespace[bound_variable]
+        if isinstance(value, unittest.mock.MagicMock):
+            # A mock's runtime type is ``MagicMock``; recording it would pollute
+            # type inference for the position, so skip it.
+            return
         self._return_type_local_state.return_type_trace[position] = type(value)
 
         # TODO(fk) Hardcoded support for generics.

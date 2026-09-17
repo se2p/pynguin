@@ -12,6 +12,7 @@ import copy
 import keyword
 import logging
 import threading
+import unittest.mock
 from collections.abc import Sized
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
@@ -80,6 +81,10 @@ def _is_blacklisted_value(value: Any) -> bool:
     """
     if value is None:
         return False
+    if isinstance(value, unittest.mock.MagicMock):
+        # Mock values are never asserted on: a mock returns another mock for every
+        # attribute access and call, so any assertion would be meaningless and brittle.
+        return True
     typ = type(value)
     if is_primitive_type(typ) or is_collection_type(typ):
         return False

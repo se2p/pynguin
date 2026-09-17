@@ -19,11 +19,12 @@ import collections.abc
 import inspect
 import logging
 import types
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import libcst as cst
 
 import pynguin.configuration as config
+import pynguin.testcase.mock_templates_store as _mock_store
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TupleType
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.typesystem import InferredSignature
+    from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
     from pynguin.testcase.execution_result import ExecutionResult
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
@@ -1209,7 +1211,13 @@ class TestFactory:
                 continue
 
             raw = _proper_type_to_raw(param_type)
-            value, cursor = self._resolve_arg_value(test_case, param_type, raw, cursor, depth)
+            mock_var, cursor = self._maybe_mock_untyped_param(
+                test_case, accessible, name, param_type, cursor
+            )
+            if mock_var is not None:
+                value: cst.BaseExpression = cst.Name(mock_var)
+            else:
+                value, cursor = self._resolve_arg_value(test_case, param_type, raw, cursor, depth)
 
             if star:
                 args.append(cst.Arg(value=value, star=star))
@@ -1220,7 +1228,7 @@ class TestFactory:
 
         return args, cursor
 
-    def _resolve_arg_value(
+    def _resolve_arg_value(  # noqa: C901
         self,
         test_case: tc.TestCase,
         param_type: ProperType,
@@ -1245,6 +1253,9 @@ class TestFactory:
         Returns:
             A tuple of (CST expression, updated cursor).
         """
+        mock_var, cursor = self._maybe_mock_typed_param(test_case, param_type, cursor)
+        if mock_var is not None:
+            return cst.Name(mock_var), cursor
         if self._wants_callable_value(param_type, raw):
             # A ``Callable`` parameter has no generator in the cluster; it needs a
             # callable *value* (a function, a class, or a lambda) instead.
@@ -1283,6 +1294,107 @@ class TestFactory:
         if any_var is not None and randomness.next_bool():
             return cst.Name(any_var), cursor
         return self._fallback_literal_value(raw), cursor
+
+    # ------------------------------------------------------------------
+    # Mock injection (LLM mock-generation feature)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _mock_template_for(fqn: str) -> MockTemplate:
+        """Template for *fqn*: proxy hints when available, else a bare MagicMock.
+
+        Args:
+            fqn: The fully-qualified name of the class to mock.
+
+        Returns:
+            The mock template for that class.
+        """
+        template = _mock_store.MOCK_TEMPLATES_BY_TARGET.get(fqn)
+        if template is not None:
+            return template
+
+        from pynguin.large_language_model.mock_generation.mock_generator import (  # noqa: PLC0415
+            MockTemplate,
+        )
+
+        dep = fqn.rsplit(".", maxsplit=1)[-1].lower()
+        return MockTemplate(
+            dependency=dep,
+            import_path=fqn.split(".", maxsplit=1)[0],
+            mock_target=fqn,
+            setup_code=f"mock_{dep} = MagicMock()",
+        )
+
+    def _maybe_mock_typed_param(
+        self,
+        test_case: tc.TestCase,
+        param_type: ProperType,
+        position: int,
+    ) -> tuple[str | None, int]:
+        """Inject a mock when *param_type* resolves to a mock-target class.
+
+        Args:
+            test_case: The test case being built.
+            param_type: The parameter's inferred type.
+            position: The insertion position.
+
+        Returns:
+            A tuple of (mock variable name or ``None``, updated cursor).
+        """
+        if not _mock_store.MOCK_TARGETS or not isinstance(param_type, Instance):
+            return None, position
+        raw_type = _proper_type_to_raw(param_type)
+        if raw_type is None:
+            return None, position
+        fqn = f"{getattr(raw_type, '__module__', '')}.{getattr(raw_type, '__name__', '')}"
+        if fqn not in _mock_store.MOCK_TARGETS:
+            return None, position
+        from pynguin.testcase.mock_statement import create_mock_statement  # noqa: PLC0415
+
+        var_name = create_mock_statement(
+            test_case, self._mock_template_for(fqn), position, bound_type=raw_type
+        )
+        return var_name, position + 1
+
+    def _maybe_mock_untyped_param(
+        self,
+        test_case: tc.TestCase,
+        accessible: gao.GenericCallableAccessibleObject | None,
+        parameter_name: str,
+        parameter_type: ProperType,
+        position: int,
+    ) -> tuple[str | None, int]:
+        """Inject a mock for an untyped parameter statically bound to a boundary.
+
+        The mock-generation pipeline records ``(callable, param) -> boundary FQN``
+        for untyped parameters whose usage matches a boundary class. When such a
+        parameter has no resolved type, a mock is inserted directly -- no type
+        tracing required.
+
+        Args:
+            test_case: The test case being built.
+            accessible: The callable whose parameter is being satisfied.
+            parameter_name: The parameter's name.
+            parameter_type: The parameter's inferred type.
+            position: The insertion position.
+
+        Returns:
+            A tuple of (mock variable name or ``None``, updated cursor).
+        """
+        if accessible is None or not _mock_store.MOCK_UNTYPED_PARAMS:
+            return None, position
+        if not isinstance(parameter_type, AnyType):
+            return None, position
+        call = accessible.callable
+        module = getattr(call, "__module__", "") or ""
+        qualname = getattr(call, "__qualname__", "") or getattr(call, "__name__", "") or ""
+        fqn = _mock_store.MOCK_UNTYPED_PARAMS.get((f"{module}.{qualname}", parameter_name))
+        if fqn is None:
+            return None, position
+        from pynguin.testcase.mock_statement import create_mock_statement  # noqa: PLC0415
+
+        var_name = create_mock_statement(test_case, self._mock_template_for(fqn), position)
+        return var_name, position + 1
 
     def _emit_primitive_statement(
         self, test_case: tc.TestCase, raw: type, position: int
@@ -1932,6 +2044,8 @@ class TestFactory:
         if not (0 <= position < test_case.size()):
             return False
         stmt = test_case.get_statement(position)
+        if stmt.mock_info is not None:
+            return self._mutate_mock(test_case, position)
         if stmt.bound_type is type:
             return self._mutate_class_literal(test_case, position)
         if stmt.bound_type is None or stmt.bound_type not in literalgen.LITERAL_TYPES:
@@ -1983,6 +2097,89 @@ class TestFactory:
             ),
         )
         return True
+
+    def _mutate_mock(self, test_case: tc.TestCase, position: int) -> bool:
+        """Mutate the mock statement at *position* by re-picking setup values.
+
+        Each mutable setup's chosen candidate is replaced -- with probability
+        ``change_parameter_probability`` -- by another candidate drawn at random
+        from its seeded pool, and each method-config parameter value is perturbed
+        type-aware.  The node is then re-rendered from the new state.  This is the
+        only way a mock's return values change; crossover moves a mock as a unit
+        without recombining its setups.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the mock statement to mutate.
+
+        Returns:
+            True if the mock was mutated.
+        """
+        from pynguin.testcase.mock_statement import build_mock_statement  # noqa: PLC0415
+
+        stmt = test_case.get_statement(position)
+        info = stmt.mock_info
+        if info is None or stmt.bound_variable is None:
+            return False
+        template = info.template
+        prob = config.configuration.search_algorithm.change_parameter_probability
+        changed = False
+
+        new_choices = list(info.setup_choices)
+        for index, setup in enumerate(template.mutable_setups):
+            if len(setup.candidates) > 1 and randomness.next_float() < prob:
+                # next_int's upper bound is exclusive, so pass len (not len - 1).
+                choice = randomness.next_int(0, len(setup.candidates))
+                if choice != new_choices[index]:
+                    new_choices[index] = choice
+                    changed = True
+
+        new_values = dict(info.parameter_values)
+        for param in template.parameters:
+            if randomness.next_float() < prob:
+                current = new_values.get(param.name, param.default_value)
+                mutated = self._mutate_mock_value(param.param_type, current)
+                if mutated != current:
+                    new_values[param.name] = mutated
+                    changed = True
+
+        if not changed:
+            return False
+
+        new_stmt = build_mock_statement(
+            stmt.bound_variable,
+            template,
+            new_choices,
+            new_values,
+            bound_type=stmt.bound_type,
+        )
+        new_stmt.assertions = list(stmt.assertions)
+        test_case.replace_statement(position, new_stmt)
+        return True
+
+    @staticmethod
+    def _mutate_mock_value(param_type: str, current: Any) -> Any:
+        """Return a mutated version of *current* based on *param_type*.
+
+        Unknown or complex types are returned unchanged.
+
+        Args:
+            param_type: Python type-hint string (e.g. ``"int"``, ``"str"``).
+            current: The current parameter value.
+
+        Returns:
+            A new value of the same broad type, or *current* on failure.
+        """
+        if param_type == "int" and isinstance(current, int):
+            return current + randomness.next_int(-10, 10)
+        if param_type == "float" and isinstance(current, float):
+            return current + randomness.next_gaussian() * 10.0
+        if param_type == "bool":
+            return randomness.next_bool()
+        if param_type == "str" and isinstance(current, str):
+            return randomness.next_string(max(1, len(current)))
+        # dict, list, Any, etc.: return as-is -- no simple mutation.
+        return current
 
     def _regen_args_in_place(  # noqa: C901
         self,

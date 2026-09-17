@@ -18,6 +18,7 @@ from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
+    from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
@@ -114,6 +115,30 @@ class MLStatementInfo:
 
 
 @dataclasses.dataclass
+class MockStatementInfo:
+    """Metadata describing a mock statement.
+
+    There are no statement subclasses, so a mock is a plain :class:`Statement`
+    carrying this metadata (mirroring :class:`MLStatementInfo`). The statement's
+    ``node`` renders the ``var = MagicMock()`` construction together with one
+    assignment per configured setup; this metadata records the state the search
+    needs to mutate that node without re-running the whole pipeline.
+
+    ``setup_choices`` selects one candidate per ``template.mutable_setups`` entry
+    (the pools seeded from branch constants), and ``parameter_values`` holds the
+    current value of each method-config parameter. Mutation re-picks these and
+    re-renders the node; :meth:`TestCase.clone` and
+    :meth:`TestCase.append_test_case_from` propagate the metadata unchanged, so a
+    mock moves through crossover as a single unit whose setups are never
+    recombined.
+    """
+
+    template: MockTemplate
+    setup_choices: list[int] = dataclasses.field(default_factory=list)
+    parameter_values: dict[str, object] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass
 class Statement:
     """Wraps a single libcst statement node."""
 
@@ -123,6 +148,7 @@ class Statement:
     assertions: list[ass.Assertion] = dataclasses.field(default_factory=list)
     accessible: GenericAccessibleObject | None = None
     ml_info: MLStatementInfo | None = None
+    mock_info: MockStatementInfo | None = None
     local_search_applied: bool = dataclasses.field(default=False, compare=False, repr=False)
     """Whether local search already tried the same-datatype strategy on this exact
     value once, used to decide when to escape a local optimum by randomizing the
@@ -401,6 +427,7 @@ class TestCase:  # noqa: PLR0904
                     assertions=list(stmt.assertions),
                     accessible=stmt.accessible,
                     ml_info=stmt.ml_info,
+                    mock_info=stmt.mock_info,
                 )
             )
 
@@ -582,6 +609,7 @@ class TestCase:  # noqa: PLR0904
                 assertions=list(stmt.assertions),
                 accessible=stmt.accessible,
                 ml_info=stmt.ml_info,
+                mock_info=stmt.mock_info,
             )
             s._used_vars = stmt._used_vars  # noqa: SLF001 # propagate cached set; nodes are immutable
             cloned.append(s)
@@ -648,6 +676,12 @@ class TestCase:  # noqa: PLR0904
                 if bv in alive_vars:
                     # Variable is used later or in assertions. Not alive before this stmt.
                     alive_vars.remove(bv)
+                    alive_vars.update(_get_used_variables(stmt))
+                elif stmt.mock_info is not None:
+                    # A dangling (unused) mock is a measured output of the mock
+                    # approach and is kept intact; transforming its multi-line
+                    # ``var = MagicMock(); var.x = ...`` node into bare expressions
+                    # would corrupt it.
                     alive_vars.update(_get_used_variables(stmt))
                 else:
                     # Variable is NOT used later. Transform Assign to Expr.

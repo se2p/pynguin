@@ -365,5 +365,28 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of exploratory moves that were successful (i.e., changed fitness)
     LocalSearchSuccessfulExploratoryMoves = "LocalSearchSuccessfulExploratoryMoves"
 
+    # ========= LLM mock generation =========
+
+    # Total number of classes classified as mock targets for the module under test
+    MockTargetsTotal = "MockTargetsTotal"
+
+    # Number of mock targets decided by heuristic base rules (no LLM needed)
+    MockTargetsFromRules = "MockTargetsFromRules"
+
+    # Number of mock targets decided by the LLM via proxy-cache classification
+    MockTargetsFromLLM = "MockTargetsFromLLM"
+
+    # Number of mock targets for which return-value hints were produced
+    MockHintTargets = "MockHintTargets"
+
+    # Number of untyped parameters bound directly to a boundary mock (no type tracing)
+    MockUntypedParams = "MockUntypedParams"
+
+    # Wall-clock seconds spent in the mock-generation pipeline (classify + hints)
+    MockGenerationTime = "MockGenerationTime"
+
+    # Number of MockStatements present in the final generated test suite
+    MockStatementsInserted = "MockStatementsInserted"
+
     def __repr__(self):
         return f"{self.name}"

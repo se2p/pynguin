@@ -17,6 +17,7 @@ import logging
 import sys
 import threading
 import time
+import unittest.mock
 from abc import abstractmethod
 from queue import Empty, Queue
 from types import ModuleType
@@ -500,6 +501,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         }
         namespace.update(vars(module))
         namespace[module_alias] = module
+        # Make MagicMock available to generated ``var = MagicMock()`` statements.
+        namespace["MagicMock"] = unittest.mock.MagicMock
         return namespace
 
     def execute_source(self, code_str: str, namespace: dict[str, Any]) -> BaseException | None:
