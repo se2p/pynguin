@@ -830,15 +830,20 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         node: cf.BasicBlockNode,
         lineno: int | _UNSET | None,
         is_goal: bool = True,
+        is_auxiliary: bool = False,
     ) -> int:
-        """Return an existing predicate id for this (node, code_object_id) or create one.
+        """Return an existing predicate id for this node or create one.
 
         Branch coverage enforces a single predicate per basic block node.
         This helper reuses an existing id if present; otherwise, it registers
         a new predicate for the given node.
         """
         for pid, meta in self._subject_properties.existing_predicates.items():
-            if meta.node is node and meta.code_object_id == code_object_id:
+            if (
+                meta.node is node
+                and meta.code_object_id == code_object_id
+                and meta.is_auxiliary == is_auxiliary
+            ):
                 return pid
 
         return self._subject_properties.register_predicate(
@@ -846,9 +851,43 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
                 node=node,
+                is_auxiliary=is_auxiliary,
             ),
             is_goal=is_goal,
         )
+
+    @staticmethod
+    def _is_subscr_instruction(instr: Instr) -> bool:
+        """Check if instruction is a subscript read operation."""
+        return instr.name in BINARY_SUBSCR_NAMES
+
+    def _wire_subscript_predicates(
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+    ) -> None:
+        """Wire auxiliary subscript predicates for subscript operations."""
+        for instr_original_index, (instr_index, instr) in enumerate(
+            node.instrumentation_original_instructions
+        ):
+            if (
+                ast_info is not None
+                and isinstance(instr.lineno, int)
+                and not ast_info.should_track_line(instr.lineno)
+            ):
+                continue
+            if self._is_subscr_instruction(instr):
+                self.visit_subscr_access(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    instr,
+                    instr_index,
+                    instr_original_index,
+                )
 
     def visit_node(  # noqa: D102, C901
         self,
@@ -890,26 +929,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         if not maybe_jump.is_cond_jump():
             return
 
-        # Wire auxiliary subscript predicates for BINARY_SUBSCR.
-        for instr_original_index, (instr_index, instr) in enumerate(
-            node.instrumentation_original_instructions
-        ):
-            if (
-                ast_info is not None
-                and isinstance(instr.lineno, int)
-                and not ast_info.should_track_line(instr.lineno)
-            ):
-                continue
-            if instr.name in BINARY_SUBSCR_NAMES:
-                self.visit_subscr_access(
-                    ast_info,
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_original_index,
-                )
+        self._wire_subscript_predicates(ast_info, cfg, code_object_id, node)
 
         try:
             maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
@@ -1262,11 +1282,12 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         Even if the subscript raises (e.g., KeyError), we still get a meaningful
         branch-distance signal for guiding the search.
         """
-        is_goal = ast_info is None or ast_info.should_cover_line(
-            instr.lineno  # type: ignore[arg-type]
-        )
         predicate_id = self._get_or_register_predicate(
-            code_object_id=code_object_id, node=node, lineno=instr.lineno, is_goal=is_goal
+            code_object_id=code_object_id,
+            node=node,
+            lineno=instr.lineno,
+            is_goal=False,
+            is_auxiliary=True,
         )
 
         # IN predicate: (key, container) taken from the stack (after COPY_FIRST_TWO)

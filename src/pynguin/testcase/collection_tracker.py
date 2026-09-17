@@ -476,3 +476,28 @@ class RemoteCollectionTrackingObserver(RemoteExecutionObserver):
                     accessed_keys={k for k in tracked.accessed_keys if is_safe_key(k)},
                     missing_keys={k for k in tracked.missing_keys if is_safe_key(k)},
                 )
+
+        self._handle_unhandled_key_errors(test_case, result)
+
+    def _handle_unhandled_key_errors(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
+        if not result.exceptions:
+            return
+        statements = test_case.statements()
+        for stmt_idx, exc in result.exceptions.items():
+            if not (isinstance(exc, KeyError) and exc.args):
+                continue
+            missing_key = exc.args[0]
+            if not (is_safe_key(missing_key) and 0 <= stmt_idx < len(statements)):
+                continue
+            used_vars = statements[stmt_idx].used_variables()
+            matching_positions: list[int] = []
+            for pos, tracked in self._local_state.tracked_collections.items():
+                if not (isinstance(tracked, TrackedDict) and 0 <= pos < len(statements)):
+                    continue
+                tracked_var = statements[pos].bound_variable
+                if tracked_var is not None and tracked_var in used_vars:
+                    matching_positions.append(pos)
+            if len(matching_positions) == 1:
+                target_pos = matching_positions[0]
+                trace_entry = result.collection_trace.setdefault(target_pos, CollectionTrace())
+                trace_entry.missing_keys.add(missing_key)

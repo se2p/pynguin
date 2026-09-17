@@ -127,6 +127,23 @@ def test_branch_coverage_no_branch(subject_properties_mock, trace_mock):
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.0
 
 
+def test_branch_coverage_ignores_auxiliary_predicates(subject_properties_mock, trace_mock):
+    # Predicate 0 is a regular branch goal; Predicate 1 is an auxiliary predicate
+    subject_properties_mock.existing_predicates[0] = PredicateMetaData(
+        line_no=1, code_object_id=0, node=MagicMock(), is_auxiliary=False
+    )
+    subject_properties_mock.existing_predicates[1] = PredicateMetaData(
+        line_no=1, code_object_id=0, node=MagicMock(), is_auxiliary=True
+    )
+    subject_properties_mock.coverage_predicates[0] = {True, False}
+    subject_properties_mock.coverage_predicates[1] = {True, False}
+    # If auxiliary was included, total targets would be 4. Because it's ignored, total is 2.
+    # Marking true_distances[0] = 0.0 covers 1 out of 2 regular branches -> 0.5
+    trace_mock.true_distances[0] = 0.0
+    trace_mock.true_distances[1] = 0.0
+    assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.5
+
+
 def test_branch_coverage_half_code_objects(subject_properties_mock, trace_mock):
     subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock()}
     trace_mock.executed_code_objects.add(0)
