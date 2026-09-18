@@ -121,6 +121,17 @@ _LICENSE_HEADER = """\
 _COVERAGE_BY_IMPORT_COMMENT = "# Importing this module achieves coverage.\n"
 
 
+class _PytestReferenceVisitor(cst.CSTVisitor):
+    """Detects whether a CST node contains any reference to the identifier 'pytest'."""
+
+    def __init__(self) -> None:
+        self.has_pytest = False
+
+    def visit_Name(self, node: cst.Name) -> None:  # noqa: N802
+        if node.value == "pytest":
+            self.has_pytest = True
+
+
 def _xfail_decorator() -> cst.Decorator:
     """Build the ``@pytest.mark.xfail(strict=True)`` decorator node.
 
@@ -457,6 +468,11 @@ class TestSuiteWriter:
             func, func_used_exc_types = self._build_test_function(idx, tc, exc_types)
             used_exc_types.update(func_used_exc_types)
             functions.append(func)
+            if not needs_pytest:
+                visitor = _PytestReferenceVisitor()
+                func.visit(visitor)
+                if visitor.has_pytest:
+                    needs_pytest = True
 
         # An empty suite still imports the SUT below, so coverage-by-import keeps
         # working; mark the file so the emitted import gets a coverage comment and

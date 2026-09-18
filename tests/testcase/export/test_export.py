@@ -343,6 +343,65 @@ def test_write_xfail_imports_pytest(tmp_path: Path):
     assert "pytest.raises" not in content
 
 
+def test_write_imports_pytest_when_statement_references_pytest_directly(tmp_path: Path):
+    """Direct pytest references must trigger an import even without seed or uncaught errors."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("with pytest.raises(ValueError):\n    pass"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[None],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False, seed=None)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import pytest" in content
+    assert "with pytest.raises(ValueError):" in content
+
+
+def test_write_omits_pytest_when_no_pytest_reference_and_no_seed(tmp_path: Path):
+    """Tests with no pytest references and seed=None should omit import pytest."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("x", 42))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[None],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False, seed=None)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import pytest" not in content
+
+
+def test_write_imports_pytest_when_raw_seed_code_references_pytest(tmp_path: Path):
+    """Raw seed code referencing pytest must cause import pytest to be emitted."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = tc.TestCase()
+    test_case.to_code = mock.MagicMock(return_value="with pytest.raises(TypeError):\n    pass\n")
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False, seed=None)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import pytest" in content
+
+
 def test_write_imports_asyncio_for_coroutine_call(tmp_path: Path, async_function_mock):
     module_name = "tests.fixtures.accessibles.accessible"
     writer = TestSuiteWriter(no_xfail=True)
