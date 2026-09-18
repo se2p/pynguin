@@ -58,6 +58,51 @@ def test_stderr_restored_after_context():
     assert sys.stderr is sys.__stderr__
 
 
+def test_stdin_redirected_inside_context():
+    with OutputSuppressionContext():
+        assert sys.stdin is not sys.__stdin__
+        assert not sys.stdin.read()
+        assert not sys.stdin.readline()
+
+
+def test_stdin_restored_after_context():
+    with OutputSuppressionContext():
+        pass
+    assert sys.stdin is sys.__stdin__
+
+
+def test_input_raises_eof_inside_context():
+    with OutputSuppressionContext(), pytest.raises(EOFError):
+        input()
+
+
+@pytest.mark.usefixtures("_protected_fds")
+def test_fd0_redirected_to_devnull_inside_context():
+    """Fd 0 is redirected to /dev/null so OS-level reads return EOF immediately."""
+    os.fstat(0)  # pre-check: must be open
+    orig_stat = os.fstat(0)
+
+    with OutputSuppressionContext():
+        # OS-level read on fd 0 should immediately return empty bytes (EOF)
+        assert os.read(0, 1024) == b""
+
+    # After exit, fd 0 should be restored
+    assert os.fstat(0) == orig_stat
+
+
+@pytest.mark.usefixtures("_protected_fds")
+def test_fd0_restored_after_close_inside_context():
+    """Fd 0 (stdin) survives being closed by SUT code inside the context."""
+    os.fstat(0)
+
+    with OutputSuppressionContext():
+        os.close(0)
+        with pytest.raises(OSError, match="Bad file descriptor"):
+            os.fstat(0)
+
+    os.fstat(0)
+
+
 @pytest.mark.usefixtures("_protected_fds")
 def test_fd1_restored_after_close_inside_context():
     """Fd 1 (stdout) survives being closed by SUT code inside the context."""
@@ -87,14 +132,17 @@ def test_fd2_restored_after_close_inside_context():
 
 @pytest.mark.usefixtures("_protected_fds")
 def test_multiple_fds_restored_after_close():
-    """Both fd 1 and fd 2 are restored when closed simultaneously."""
+    """Fd 0, fd 1, and fd 2 are restored when closed simultaneously."""
+    os.fstat(0)
     os.fstat(1)
     os.fstat(2)
 
     with OutputSuppressionContext():
+        os.close(0)
         os.close(1)
         os.close(2)
 
+    os.fstat(0)
     os.fstat(1)
     os.fstat(2)
 
@@ -142,9 +190,11 @@ def test_explicit_restore_restores_fds():
 
     ctx.restore()
 
-    # fd 1 and Python stdout must both be back
+    # fd 1 and Python stdio must all be back
     os.fstat(1)
+    assert sys.stdin is sys.__stdin__
     assert sys.stdout is sys.__stdout__
+    assert sys.stderr is sys.__stderr__
 
 
 def test_restore_is_idempotent():
@@ -153,7 +203,9 @@ def test_restore_is_idempotent():
     ctx.__enter__()  # noqa: PLC2801
     ctx.restore()
     ctx.restore()  # second call: _restored flag is True, must be a no-op
+    assert sys.stdin is sys.__stdin__
     assert sys.stdout is sys.__stdout__
+    assert sys.stderr is sys.__stderr__
 
 
 def test_restore_then_exit_is_safe():
@@ -162,4 +214,6 @@ def test_restore_then_exit_is_safe():
     ctx.__enter__()  # noqa: PLC2801
     ctx.restore()
     ctx.__exit__(None, None, None)
+    assert sys.stdin is sys.__stdin__
     assert sys.stdout is sys.__stdout__
+    assert sys.stderr is sys.__stderr__

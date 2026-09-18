@@ -34,34 +34,36 @@ def suppress_logging():
 
 
 class OutputSuppressionContext:
-    """A context manager that suppresses stdout and stderr.
+    """A context manager that suppresses stdout/stderr and mocks stdin.
 
     Operates at two levels:
 
-    - Python level: redirects ``sys.stdout`` / ``sys.stderr`` to ``/dev/null``.
-    - OS level: saves file descriptors 0/1/2 via ``os.dup`` so that if the SUT
-      closes them (e.g. ``with open(1, 'w')`` where the int happens to be a
-      stdio fd), they are restored on exit.
+    - Python level: redirects ``sys.stdout`` / ``sys.stderr`` to ``/dev/null`` and
+      replaces ``sys.stdin`` with an empty stream so reads immediately return EOF.
+    - OS level: redirects file descriptor 0 to ``/dev/null`` and saves file
+      descriptors 0/1/2 via ``os.dup`` so that if the SUT closes or modifies them,
+      they are cleanly restored on exit.
     """
 
     # Repeatedly opening/closing devnull caused problems.
     # This is closed when Pynguin terminates, since we don't need this output
     # anyway this is acceptable.
     _null_file = open(os.devnull, mode="w")  # noqa: PLW1514, PTH123, SIM115
+    _null_in_file = open(os.devnull)  # noqa: PLW1514, PTH123, SIM115
 
     def __init__(self) -> None:
-        """Create a new context manager that suppress stdout and stderr."""
+        """Create a new context manager that suppresses stdio."""
         self._restored = False
         self._restored_lock = threading.Lock()
         self._saved_fds: dict[int, int] = {}
 
     def restore(self) -> None:
-        """Restore stdout and stderr at both Python and OS level."""
+        """Restore stdin, stdout, and stderr at both Python and OS level."""
         with self._restored_lock:
             if self._restored:
                 return
             self._restored = True
-            # Restore OS-level fds first so that sys.__stdout__ / sys.__stderr__
+            # Restore OS-level fds first so that sys.__stdin__ / sys.__stdout__ / sys.__stderr__
             # point to live fds again before we reassign the Python objects.
             for fd, saved_fd in self._saved_fds.items():
                 with contextlib.suppress(OSError):
@@ -69,6 +71,7 @@ class OutputSuppressionContext:
                 with contextlib.suppress(OSError):
                     os.close(saved_fd)
             self._saved_fds.clear()
+            sys.stdin = sys.__stdin__
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
 
@@ -77,6 +80,12 @@ class OutputSuppressionContext:
         for fd in (0, 1, 2):
             with contextlib.suppress(OSError):
                 self._saved_fds[fd] = os.dup(fd)
+        if 0 in self._saved_fds:
+            with contextlib.suppress(OSError):
+                devnull_fd = os.open(os.devnull, os.O_RDONLY)
+                os.dup2(devnull_fd, 0)
+                os.close(devnull_fd)
+        sys.stdin = self._null_in_file
         sys.stdout = self._null_file
         sys.stderr = self._null_file
 
