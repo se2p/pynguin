@@ -411,6 +411,25 @@ class PredicateMetaData:
     is_auxiliary: bool = False
 
 
+@dataclass(frozen=True)
+class ElseBranchMetaData:
+    """Stores meta data of the ``else`` branch of an ``if`` statement.
+
+    An ``else:`` header line has no bytecode of its own, so a line target on it cannot be
+    mapped to a basic block. It is resolved through the first statement of the else body
+    instead.
+    """
+
+    # Name of the file containing the if statement.
+    file_name: str
+
+    # Line number of the first statement of the else body.
+    body_line: int
+
+    # Line numbers spanned by the condition of the if statement.
+    condition_lines: frozenset[int]
+
+
 @dataclass
 class SubjectProperties:
     """Contains properties about the subject under test.
@@ -464,6 +483,10 @@ class SubjectProperties:
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
+    # Maps targeted ``else:`` header lines of if statements to their else branch.
+    # Filled by the instrumentation when line-range targeting is active.
+    targeted_else_branches: dict[int, ElseBranchMetaData] = field(default_factory=dict)
+
     # Cache for line control dependencies:
     # line_id -> (is_root_dependent, ((predicate_id, branch_value), ...))
     _line_control_dependencies: dict[int, tuple[bool, tuple[tuple[int, bool], ...]]] = field(
@@ -495,6 +518,7 @@ class SubjectProperties:
         self.existing_predicates.clear()
         self.coverage_predicates.clear()
         self.existing_lines.clear()
+        self.targeted_else_branches.clear()
         self._line_control_dependencies.clear()
         self.instrumentation_tracer.reset()
 
@@ -521,6 +545,7 @@ class SubjectProperties:
             existing_predicates=self.existing_predicates,
             coverage_predicates=self.coverage_predicates,
             existing_lines=self.existing_lines,
+            targeted_else_branches=self.targeted_else_branches,
         )
         props._line_control_dependencies = self._line_control_dependencies
         return props
@@ -606,6 +631,38 @@ class SubjectProperties:
                         added.add(pid)
         return added
 
+    def _add_else_branch_predicates(self, else_branch: ElseBranchMetaData) -> set[int]:
+        # The else body is entered through the branch of the condition that skips the if
+        # body: False for `if x`, but True for `if not x`. Take it from the control
+        # dependencies of the else body's first statement.
+        added: set[int] = set()
+        for code_object_id, code_meta in self.existing_code_objects.items():
+            if code_meta.code_object.co_filename != else_branch.file_name:
+                continue
+            condition_predicates = {
+                meta.node: pid
+                for pid, meta in self.existing_predicates.items()
+                if meta.code_object_id == code_object_id
+                and meta.line_no in else_branch.condition_lines
+            }
+            if not condition_predicates:
+                continue
+            for node in code_meta.cfg.basic_block_nodes:
+                # Nodes that are excluded from coverage are not part of the CDG.
+                if node not in code_meta.cdg.graph or all(
+                    instr.lineno != else_branch.body_line for instr in node.original_instructions
+                ):
+                    continue
+                for dep in code_meta.cdg.get_control_dependencies(node):
+                    pid = condition_predicates.get(dep.node)
+                    if pid is None:
+                        continue
+                    branch_values = self.coverage_predicates.setdefault(pid, set())
+                    if dep.branch_value not in branch_values:
+                        branch_values.add(dep.branch_value)
+                        added.add(pid)
+        return added
+
     def ensure_controlling_predicates_for_lines(
         self, target_lines: Iterable[int] | None = None
     ) -> set[int]:
@@ -614,6 +671,10 @@ class SubjectProperties:
         For target lines that do not have a direct goal predicate in `coverage_predicates`,
         this method maps the line to its basic block in the CFG and finds the controlling
         predicates via the CDG, adding them to `coverage_predicates`.
+
+        A targeted ``else:`` header of an if statement (see `targeted_else_branches`) has
+        no basic block. It adds only the branch of the if condition that leads into the
+        else body.
 
         Args:
             target_lines: Target line numbers to check. If None, uses line numbers from
@@ -646,6 +707,10 @@ class SubjectProperties:
             return set()
 
         added_predicates: set[int] = set()
+        for line in sorted(uncovered_lines & self.targeted_else_branches.keys()):
+            added_predicates.update(
+                self._add_else_branch_predicates(self.targeted_else_branches[line])
+            )
         for code_object_id, code_meta in self.existing_code_objects.items():
             for node in code_meta.cfg.graph.nodes:
                 if not isinstance(node, BasicBlockNode):

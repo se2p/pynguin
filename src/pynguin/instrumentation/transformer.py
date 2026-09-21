@@ -628,6 +628,43 @@ class AstInfo:
 
         return True
 
+    def targeted_else_branches(self, file_name: str) -> dict[int, tracer.ElseBranchMetaData]:
+        """Find the ``else:`` header lines of if statements that are line-range targets.
+
+        Only if statements are considered, not the else blocks of loops or try statements.
+
+        Args:
+            file_name: The name of the file containing the AST.
+
+        Returns:
+            A mapping from each targeted else header line to its else branch.
+        """
+        else_branches: dict[int, tracer.ElseBranchMetaData] = {}
+        if not self.module.only_cover_line_ranges:
+            return else_branches
+
+        for if_node in nodes_of_class(self.ast, ast.If):
+            if not if_node.orelse or (
+                _has_elif_block(if_node) and if_node.orelse[0].col_offset == if_node.col_offset
+            ):
+                continue
+            targeted_lines = self.module.only_cover_line_ranges.intersection(
+                self._else_lines(if_node)
+            )
+            if not targeted_lines:
+                continue
+            # From the `if` keyword, since a parenthesized condition may start on the next line.
+            condition_end = if_node.test.end_lineno or if_node.test.lineno
+            else_branch = tracer.ElseBranchMetaData(
+                file_name=file_name,
+                body_line=if_node.orelse[0].lineno,
+                condition_lines=frozenset(range(if_node.lineno, condition_end + 1)),
+            )
+            for line in targeted_lines:
+                else_branches[line] = else_branch
+
+        return else_branches
+
 
 class InstrumentationAdapter(Protocol):
     """Protocol for byte-code instrumentation adapters.
@@ -1443,6 +1480,14 @@ class InstrumentationTransformer:
             code.co_filename,
             to_cover_config=self._to_cover_config,
         )
+
+        if (
+            module_ast_info is not None
+            and (module_scope := module_ast_info.get_scope(0)) is not None
+        ):
+            self._subject_properties.targeted_else_branches.update(
+                module_scope.targeted_else_branches(code.co_filename)
+            )
 
         return self._instrument_code_recursive(code, module_ast_info)
 
