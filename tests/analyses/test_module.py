@@ -23,6 +23,7 @@ from pynguin.analyses.module import (
     _ModuleParseResult,
     analyse_module,
     generate_test_cluster,
+    is_file_loader_module,
     parse_module,
 )
 from pynguin.analyses.type_inference import HintInference
@@ -31,7 +32,10 @@ from pynguin.configuration import ElementVisibility
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.testcase.testcase import TestCase
 from pynguin.testcase.testfactory import TestFactory
-from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.exceptions import (
+    CannotInstrumentCompiledModuleError,
+    ConstructionFailedException,
+)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericCallableAccessibleObject,
@@ -1063,3 +1067,41 @@ def test_import_module_timeout():
         pytest.raises(TestExecutionTimeoutError),
     ):
         module.import_module("slow_module")
+
+
+def test_is_file_loader_module_pure_python():
+    os_module = importlib.import_module("os")
+    gen_module = importlib.import_module("pynguin.generator")
+
+    assert is_file_loader_module(os_module) is True
+    assert is_file_loader_module(gen_module) is True
+
+
+def test_is_file_loader_module_c_extension():
+    math_module = importlib.import_module("math")
+    json_module = importlib.import_module("_json")
+
+    assert is_file_loader_module(math_module) is False
+    assert is_file_loader_module(json_module) is False
+
+
+def test_is_file_loader_module_none_loader():
+    mock_module = MagicMock(spec=[])
+    assert is_file_loader_module(mock_module) is False
+
+
+def test_is_file_loader_module_so_file():
+    mock_module = MagicMock()
+    mock_module.__loader__ = MagicMock(spec=module.FileLoader)
+    mock_module.__file__ = "test.so"
+    assert is_file_loader_module(mock_module) is False
+
+
+@pytest.mark.parametrize("mod_name", ["math", "_json"])
+def test_generate_test_cluster_raises_on_c_extension(mod_name):
+    with pytest.raises(CannotInstrumentCompiledModuleError) as exc_info:
+        generate_test_cluster(mod_name, allow_c_module=False)
+    assert f"Module '{mod_name}' is a compiled C-extension or non-FileLoader module." in str(
+        exc_info.value
+    )
+    assert "Compiled C-extension modules cannot be instrumented." in str(exc_info.value)

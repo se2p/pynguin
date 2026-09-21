@@ -25,6 +25,7 @@ import types
 import typing
 from ast import Assign, AsyncFunctionDef, ClassDef, FunctionDef, Lambda, Module
 from collections import defaultdict
+from importlib.abc import FileLoader
 from pathlib import Path
 from types import (
     BuiltinFunctionType,
@@ -83,6 +84,7 @@ from pynguin.configuration import ElementVisibility, TypeInferenceStrategy
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
+    CannotInstrumentCompiledModuleError,
     ConstraintValidationError,
     ConstructionFailedException,
 )
@@ -2171,18 +2173,54 @@ def analyse_dependency_module(
     cluster.type_system.push_attributes_down()
 
 
+def is_file_loader_module(module: ModuleType) -> bool:
+    """Check if the given module was loaded using a FileLoader.
+
+    Compiled C-extensions (such as .so, .pyd, or mypyc-compiled modules),
+    builtins, and frozen modules do not use a FileLoader and cannot be instrumented.
+
+    Args:
+        module: The module to check
+
+    Returns:
+        True if the module has a FileLoader and is not a compiled binary extension,
+        False otherwise.
+    """
+    loader = getattr(module, "__loader__", None)
+    if loader is None and hasattr(module, "__spec__") and module.__spec__ is not None:
+        loader = getattr(module.__spec__, "loader", None)
+    if not isinstance(loader, FileLoader):
+        return False
+    module_file = getattr(module, "__file__", "")
+    return not (bool(module_file) and Path(module_file).suffix in {".so", ".pyd", ".dylib"})
+
+
 def generate_test_cluster(
     module_name: str,
+    *,
+    allow_c_module: bool = True,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
     Args:
         module_name: The name of the root module
+        allow_c_module: Whether to allow C-extension or non-FileLoader modules.
+            Defaults to True for general cluster analysis (e.g. typeshed).
 
     Returns:
         A new test cluster for the given module
+
+    Raises:
+        CannotInstrumentCompiledModuleError: If allow_c_module is False and the module
+            is a compiled C-extension or non-FileLoader module.
     """
-    return analyse_module(parse_module(module_name))
+    parsed = parse_module(module_name)
+    if not allow_c_module and not is_file_loader_module(parsed.module):
+        raise CannotInstrumentCompiledModuleError(
+            f"Module '{module_name}' is a compiled C-extension or non-FileLoader module. "
+            "Compiled C-extension modules cannot be instrumented."
+        )
+    return analyse_module(parsed)
 
 
 def get_type_provider(
