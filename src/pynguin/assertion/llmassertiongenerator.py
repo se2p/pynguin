@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from typing import TYPE_CHECKING
 
+import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -84,15 +86,26 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
     whole test and no reference-copying is required.
     """
 
-    def __init__(self, test_cluster: ModuleTestCluster, model: LLMAgent | None = None):
+    def __init__(
+        self,
+        test_cluster: ModuleTestCluster,
+        model: LLMAgent | None = None,
+        *,
+        start_time: float | None = None,
+        maximum_time: float | None = None,
+    ):
         """Initialize the LLMAssertionGenerator with the given test cluster.
 
         Args:
-            test_cluster (TestCluster): The test cluster used for generating assertions.
-            model (LLMAgent): The LLM model to use for generating assertions.
+            test_cluster: The test cluster used for generating assertions.
+            model: The LLM model to use for generating assertions.
+            start_time: Optional start timestamp (monotonic) for budgeting assertion generation.
+            maximum_time: Optional maximum wall-clock time in seconds for assertion generation.
         """
         self._model = model if model is not None else LLMAgent()
         self._test_cluster = test_cluster
+        self._start_time = start_time
+        self._maximum_time = maximum_time
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
         """Process a test case chromosome to add assertions.
@@ -122,7 +135,22 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         """
         total_assertions_added = 0
         total_assertions_from_llm = 0
-        for test_case in test_cases:
+        maximum_time = (
+            self._maximum_time
+            if self._maximum_time is not None
+            else config.configuration.test_case_output.maximum_llm_assertion_time
+        )
+        start_time = self._start_time if self._start_time is not None else time.monotonic()
+        for idx, test_case in enumerate(test_cases):
+            if maximum_time >= 0 and time.monotonic() - start_time >= maximum_time:
+                _logger.info(
+                    "LLM assertion generation time budget of %ss exceeded; "
+                    "checked %i of %i test case(s).",
+                    maximum_time,
+                    idx,
+                    len(test_cases),
+                )
+                break
             if test_case.size() == 0:
                 continue
             code = test_case.to_test_function().code

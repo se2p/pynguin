@@ -47,6 +47,7 @@ allow_stale_assertions = false
 filter_assertions_in_subprocess = true
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
+maximum_llm_assertion_time = -1
 maximum_mutation_time = -1
 maximum_mutants = -1
 post_process = true
@@ -285,8 +286,8 @@ def expected_txt(tmp_path):
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'filter_assertions_in_subprocess=True, '
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
- "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_mutation_time=-1, "
- 'maximum_mutants=-1, post_process=True, '
+ "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_llm_assertion_time=-1, "
+ 'maximum_mutation_time=-1, maximum_mutants=-1, post_process=True, '
  'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
  "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
  "'BACKWARD'>), float_precision=0.01, format_with_black=True, no_xfail=False, "
@@ -687,6 +688,8 @@ True
 True
 --test_case_output.max_length_test_case
 2500
+--test_case_output.maximum_llm_assertion_time
+-1
 --test_case_output.maximum_mutants
 -1
 --test_case_output.maximum_mutation_time
