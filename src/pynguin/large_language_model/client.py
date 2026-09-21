@@ -11,20 +11,26 @@ from __future__ import annotations
 
 import abc
 import ast
+import asyncio
+import concurrent.futures
 import logging
 import random
 import re
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pynguin.configuration as config
 from pynguin.large_language_model.cache import LLMCache
 from pynguin.utils.openai_key_resolver import get_llm_url, get_model_name, require_api_key
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
     from pydantic import SecretStr
 
     from pynguin.large_language_model.request import RenderedRequest
+
+_T = TypeVar("_T")
 
 try:
     import openai
@@ -120,6 +126,27 @@ def extract_python_code(text: str | None) -> str:
     return "\n\n".join(cleaned_blocks) + "\n"
 
 
+def _run_coroutine_sync(coro: Coroutine[Any, Any, _T]) -> _T:
+    """Run a coroutine synchronously, handling both existing and new event loops.
+
+    Args:
+        coro: The coroutine to execute.
+
+    Returns:
+        The result of the coroutine.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    if not loop.is_running():
+        return loop.run_until_complete(coro)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
+
 class LLMClient(abc.ABC):
     """Abstract base class for LLM clients."""
 
@@ -133,6 +160,79 @@ class LLMClient(abc.ABC):
         Returns:
             The LLM response content or None on failure.
         """
+
+    async def send_async(
+        self, request: RenderedRequest, timeout: float | None = None
+    ) -> str | None:
+        """Sends a rendered request asynchronously to the LLM.
+
+        Args:
+            request: The request payload.
+            timeout: Per-attempt timeout in seconds overriding the configured
+                ``request_timeout``; *None* uses the configured value.
+
+        Returns:
+            The LLM response content or None on failure.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.send, request)
+
+    async def send_batch_async(
+        self,
+        requests: list[RenderedRequest],
+        timeout: float | None = None,
+        max_concurrency: int | None = None,
+    ) -> list[str | None]:
+        """Sends a batch of requests concurrently with bounded concurrency.
+
+        Args:
+            requests: The list of RenderedRequests to send.
+            timeout: Per-attempt timeout in seconds overriding the configured
+                ``request_timeout``; *None* uses the configured value.
+            max_concurrency: Maximum number of concurrent requests. Defaults to
+                the configured ``max_concurrency``.
+
+        Returns:
+            List of LLM response strings in the same order as the requests.
+        """
+        if not requests:
+            return []
+        if max_concurrency is None:
+            max_concurrency = getattr(
+                config.configuration.large_language_model, "max_concurrency", 5
+            )
+        if max_concurrency <= 0:
+            max_concurrency = 1
+
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def _send_one(req: RenderedRequest) -> str | None:
+            async with semaphore:
+                return await self.send_async(req, timeout=timeout)
+
+        return list(await asyncio.gather(*[_send_one(req) for req in requests]))
+
+    def send_batch(
+        self,
+        requests: list[RenderedRequest],
+        timeout: float | None = None,
+        max_concurrency: int | None = None,
+    ) -> list[str | None]:
+        """Sends a batch of requests concurrently from synchronous code.
+
+        Args:
+            requests: The list of RenderedRequests to send.
+            timeout: Per-attempt timeout in seconds overriding the configured
+                ``request_timeout``; *None* uses the configured value.
+            max_concurrency: Maximum number of concurrent requests. Defaults to
+                the configured ``max_concurrency``.
+
+        Returns:
+            List of LLM response strings in the same order as the requests.
+        """
+        return _run_coroutine_sync(
+            self.send_batch_async(requests, timeout=timeout, max_concurrency=max_concurrency)
+        )
 
     @abc.abstractmethod
     def get_usage(self) -> dict[str, Any]:
@@ -198,7 +298,20 @@ class OpenAIClient(LLMClient):
         # multiply with the retry loop in ``send`` and make a single logical request
         # cost ``max_retries * 3 * request_timeout``.  Retrying is this class's job.
         kwargs["max_retries"] = 0
+        self._client_kwargs = kwargs
         self._client = openai.OpenAI(**kwargs)
+        self._async_client: openai.AsyncOpenAI | None = None
+
+    @property
+    def async_client(self) -> openai.AsyncOpenAI:
+        """Returns the AsyncOpenAI client instance (lazily initialized).
+
+        Returns:
+            The AsyncOpenAI instance.
+        """
+        if self._async_client is None:
+            self._async_client = openai.AsyncOpenAI(**self._client_kwargs)
+        return self._async_client
 
     @property
     def model(self) -> str:
@@ -393,3 +506,148 @@ class OpenAIClient(LLMClient):
                 time.sleep(wait)
 
         return None
+
+    async def send_async(  # noqa: C901, PLR0914, PLR0915
+        self, request: RenderedRequest, timeout: float | None = None
+    ) -> str | None:
+        """Sends a query asynchronously to OpenAI with retry policy, timeout, and usage tracking.
+
+        Args:
+            request: The RenderedRequest payload.
+            timeout: Per-attempt timeout in seconds overriding the configured
+                ``request_timeout``; *None* uses the configured value.
+
+        Returns:
+            The response string, or None if failed.
+        """
+        if getattr(config.configuration.large_language_model, "enable_response_caching", False):
+            cached = self._cache.get(request)
+            if cached is not None:
+                return cached
+
+        max_attempts = config.configuration.large_language_model.max_retries
+        base_backoff = 2.0
+        if timeout is None:
+            timeout = config.configuration.large_language_model.request_timeout
+        request_budget = config.configuration.large_language_model.max_request_time
+        request_started = time.perf_counter()
+
+        self._calls += 1
+
+        temperature = request.temperature
+        if temperature == 0 and self._temperature_zero_rejected:
+            temperature = _TEMPERATURE_FALLBACK
+        temperature_fallback_applied = False
+
+        for attempt in range(1, max_attempts + 1):
+            start_time = time.perf_counter()
+            try:
+                kwargs: dict[str, Any] = {
+                    "model": request.model,
+                    "messages": request.messages,
+                    "temperature": temperature,
+                    "max_tokens": request.max_tokens,
+                    "stop": request.stop,
+                }
+                if timeout is not None:
+                    kwargs["timeout"] = timeout
+                if request.enable_thinking is not None:
+                    kwargs["extra_body"] = {
+                        "chat_template_kwargs": {"enable_thinking": request.enable_thinking}
+                    }
+
+                response = await self.async_client.chat.completions.create(**kwargs)
+
+                # Token accounting
+                usage = getattr(response, "usage", None)
+                if usage is not None:
+                    self._input_tokens += getattr(usage, "prompt_tokens", 0) or 0
+                    self._output_tokens += getattr(usage, "completion_tokens", 0) or 0
+
+                content = response.choices[0].message.content
+
+                # Code verification check
+                if content:
+                    python_markdown = r"```python([\s\S]+?)(?:```|$)"
+                    if not re.search(python_markdown, content):
+                        self._calls_with_no_python_code += 1
+
+                self._time_seconds += time.perf_counter() - start_time
+
+                cache_enabled = getattr(
+                    config.configuration.large_language_model, "enable_response_caching", False
+                )
+                if cache_enabled and content is not None:
+                    self._cache.set(request, content)
+
+                return content
+
+            except Exception as exc:
+                self._time_seconds += time.perf_counter() - start_time
+
+                if (
+                    temperature == 0
+                    and not temperature_fallback_applied
+                    and _is_temperature_unsupported_error(exc)
+                ):
+                    temperature_fallback_applied = True
+                    temperature = _TEMPERATURE_FALLBACK
+                    self._temperature_zero_rejected = True
+                    _logger.warning(
+                        "Model %r rejected temperature=0; using temperature=%s for this "
+                        "and all future requests from this client.",
+                        request.model,
+                        _TEMPERATURE_FALLBACK,
+                    )
+                    continue
+
+                is_rate_limit = self._rate_limit_errors and isinstance(exc, self._rate_limit_errors)
+                is_timeout = self._timeout_errors and isinstance(exc, self._timeout_errors)
+                is_api_err = self._api_errors and isinstance(exc, self._api_errors)
+
+                if not (is_rate_limit or is_timeout or is_api_err):
+                    raise
+
+                if is_rate_limit:
+                    label = "RateLimit"
+                    jitter = 3.0
+                elif is_timeout:
+                    label = "Timeout"
+                    jitter = 2.0
+                else:
+                    label = "APIError"
+                    jitter = 2.0
+
+                wait = base_backoff * (2 ** min(attempt - 1, 6)) + random.uniform(0, jitter)  # noqa: S311
+                _logger.warning(
+                    "LLM %s on attempt %d/%d, retrying in %.1fs: %s",
+                    label,
+                    attempt,
+                    max_attempts,
+                    wait,
+                    exc,
+                )
+                if attempt >= max_attempts:
+                    _logger.error("LLM retries exhausted.")
+                    raise
+                if not _retry_fits_in_budget(
+                    budget=request_budget,
+                    elapsed=time.perf_counter() - request_started,
+                    wait=wait,
+                    timeout=timeout,
+                ):
+                    _logger.error(
+                        "LLM request budget of %.0fs exhausted after %d attempt(s); "
+                        "giving up instead of retrying.",
+                        request_budget,
+                        attempt,
+                    )
+                    raise
+                self._retries += 1
+                await asyncio.sleep(wait)
+
+        return None
+
+
+AsyncOpenAIClient = OpenAIClient
+AsyncLLMClient = LLMClient

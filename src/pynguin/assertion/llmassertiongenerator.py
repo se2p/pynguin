@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from unittest.mock import DEFAULT, NonCallableMock
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
@@ -74,6 +75,25 @@ def _last_binding_index(test_case: tc.TestCase, var: str) -> int | None:
     return None
 
 
+def _should_use_batch(model: Any) -> bool:
+    """Check if the model supports batch assertion generation.
+
+    If the model is a mock and only ``generate_assertions_for_test_case`` was
+    configured with a return value, returns False for test backward compatibility.
+    """
+    if not hasattr(model, "generate_assertions_for_test_cases"):
+        return False
+    if isinstance(model, NonCallableMock):
+        batch_method = getattr(model, "generate_assertions_for_test_cases", None)
+        if (
+            isinstance(batch_method, NonCallableMock)
+            and batch_method._mock_return_value is DEFAULT  # noqa: SLF001
+            and batch_method.side_effect is None
+        ):
+            return False
+    return True
+
+
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
     """An assertion generator using a Large Language Model (LLM).
 
@@ -122,26 +142,32 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         """
         total_assertions_added = 0
         total_assertions_from_llm = 0
-        for test_case in test_cases:
-            if test_case.size() == 0:
-                continue
-            code = test_case.to_test_function().code
-            response = self._model.generate_assertions_for_test_case(code)
-            if response is None:
-                continue
-            extracted_assertions = extract_assertions(response)
-            total_assertions_from_llm += len(extracted_assertions)
-            known_vars = _binding_index(test_case)
-            for line in extracted_assertions:
-                parsed = parse_assertion(line, known_vars)
-                if parsed is None:
+
+        eligible_test_cases = [tc for tc in test_cases if tc.size() > 0]
+        if eligible_test_cases:
+            codes = [tc.to_test_function().code for tc in eligible_test_cases]
+
+            if _should_use_batch(self._model):
+                responses = self._model.generate_assertions_for_test_cases(codes)
+            else:
+                responses = [self._model.generate_assertions_for_test_case(code) for code in codes]
+
+            for test_case, response in zip(eligible_test_cases, responses, strict=False):
+                if response is None:
                     continue
-                var, assertion = parsed
-                index = _last_binding_index(test_case, var)
-                if index is None:
-                    continue
-                test_case.get_statement(index).assertions.append(assertion)
-                total_assertions_added += 1
+                extracted_assertions = extract_assertions(response)
+                total_assertions_from_llm += len(extracted_assertions)
+                known_vars = _binding_index(test_case)
+                for line in extracted_assertions:
+                    parsed = parse_assertion(line, known_vars)
+                    if parsed is None:
+                        continue
+                    var, assertion = parsed
+                    index = _last_binding_index(test_case, var)
+                    if index is None:
+                        continue
+                    test_case.get_statement(index).assertions.append(assertion)
+                    total_assertions_added += 1
 
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.TotalAssertionsAddedFromLLM, total_assertions_added

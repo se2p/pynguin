@@ -143,6 +143,16 @@ class RefinementGranularity(str, enum.Enum):
     """Per-test readability and assertion prompts (previous behavior, most robust)."""
 
 
+class LLMMode(str, enum.Enum):
+    """The execution mode for LLM queries in search algorithms."""
+
+    SYNC = "sync"
+    """Synchronous execution: algorithms block waiting for LLM query responses."""
+
+    ASYNC = "async"
+    """Asynchronous execution: non-blocking queries dispatched in the background."""
+
+
 class MinimizationDirection(str, enum.Enum):
     """Directions for test case minimization.
 
@@ -1011,6 +1021,12 @@ class LLMConfiguration:
 
     cache_dir: str = "~/.cache/pynguin/llm"
     """The directory to store cached responses."""
+
+    max_concurrency: int = 5
+    """The maximum number of concurrent LLM requests when using async mode."""
+
+    llm_mode: LLMMode = LLMMode.SYNC
+    """The execution mode for LLM queries in search algorithms (sync or async)."""
 
 
 @dataclasses.dataclass

@@ -221,3 +221,31 @@ def test_mutation_analysis_llm_assertion_generator():
         generator._add_assertions([test_case])
 
         mock_handle_add_assertions.assert_called_once_with([test_case])
+
+
+def test_visit_test_suite_chromosome_batch_query(test_cluster, llm_agent_mock):
+    test_case_1 = _build_test_case()
+    test_case_2 = _build_test_case()
+    llm_agent_mock.generate_assertions_for_test_cases.return_value = [
+        "assert var_0 == 5",
+        "assert var_1 == 5",
+    ]
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+
+    chromosome_1 = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome_1.test_case = test_case_1
+    chromosome_2 = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome_2.test_case = test_case_2
+
+    test_suite_chromosome = TestSuiteChromosome()
+    test_suite_chromosome.add_test_case_chromosome(chromosome_1)
+    test_suite_chromosome.add_test_case_chromosome(chromosome_2)
+
+    with patch.object(stat, "set_output_variable_for_runtime_variable") as mock_set:
+        generator.visit_test_suite_chromosome(test_suite_chromosome)
+
+    llm_agent_mock.generate_assertions_for_test_cases.assert_called_once()
+    assert test_case_1.get_statement(0).assertions == [ObjectAssertion("var_0", 5)]
+    assert test_case_2.get_statement(1).assertions == [ObjectAssertion("var_1", 5)]
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsAddedFromLLM, 2)
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsReceivedFromLLM, 2)
