@@ -10,7 +10,6 @@ import contextlib
 import datetime
 import inspect
 import logging
-import pathlib
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -79,9 +78,13 @@ def get_module_path() -> Path:
     Returns:
         The file path to the module.
     """
-    return pathlib.Path(config.configuration.project_path) / (
-        config.configuration.module_name + ".py"
-    )
+    with contextlib.suppress(Exception):
+        module = import_module(config.configuration.module_name)
+        source_file = inspect.getsourcefile(module) or getattr(module, "__file__", None)
+        if source_file and Path(source_file).exists():
+            return Path(source_file)
+
+    return Path(config.configuration.project_path) / (config.configuration.module_name + ".py")
 
 
 def _truncate_to_context_budget(source: str) -> str:
@@ -121,6 +124,17 @@ def get_module_source_code() -> str:
         FileNotFoundError: If the module file is not found.
     """
     module = import_module(config.configuration.module_name)
+
+    # Prefer reading directly from the source file on disk. Inspecting via
+    # `inspect.getsource()` triggers `inspect.unwrap()`, which checks
+    # `hasattr(module, '__wrapped__')`. If the module defines module-level
+    # `__getattr__` (PEP 562), that attribute lookup executes instrumented code
+    # while the tracer is inactive, causing TracingAbortedException (Issue #271).
+    with contextlib.suppress(Exception):
+        source_file = inspect.getsourcefile(module) or getattr(module, "__file__", None)
+        if source_file and Path(source_file).exists():
+            return _truncate_to_context_budget(Path(source_file).read_text(encoding="utf-8"))
+
     return _truncate_to_context_budget(inspect.getsource(module))
 
 
@@ -181,14 +195,18 @@ def _find_lines(name: str) -> tuple[list[str], int] | None:
     parts = name.split(".")
     obj = module
     for part in parts:
-        obj = cast("ModuleType", getattr(obj, part, None))
+        try:
+            obj = cast("ModuleType", getattr(obj, part, None))
+        except Exception:  # noqa: BLE001
+            _logger.debug("Error accessing %s in %s", part, ".".join(parts), exc_info=True)
+            return None
         if obj is None:
             _logger.debug("%s not found in %s", part, ".".join(parts))
             return None
 
     try:
         return inspect.getsourcelines(obj)
-    except (OSError, TypeError, AttributeError) as e:
+    except (OSError, TypeError, AttributeError, Exception) as e:
         _logger.debug("Could not get source for %s: %s", name, e)
         return None
 
