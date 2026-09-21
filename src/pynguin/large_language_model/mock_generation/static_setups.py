@@ -7,14 +7,10 @@
 """Static, deterministic mock return-value setups derived from the SUT's AST.
 
 A bare ``MagicMock`` reaches a function's entry branches but not its
-value-dependent ones. With no LLM and no hardcoded vocabulary, this module reads
-the module under test and derives two kinds of setup. For every
-``<mocked-expr> <cmp> literal`` predicate it seeds the mock attribute chain with
-those literals so the search can flip the branch. When a mocked value is iterated
-it makes it yield one element so the loop body runs instead of raising. A mocked
-expression is one rooted at a parameter, or at a local variable assigned from a
-parameter's attribute or call chain, for example ``resp = session.get(...)`` makes
-``resp.status_code`` resolve to ``get.return_value.status_code``.
+value-dependent ones. Reading the module under test, this step derives two kinds
+of setup without the LLM: candidate return values for attribute chains compared
+against a literal, and iteration defaults so a mocked value yields one element.
+The setups are attached to the mock templates the hint generator produces.
 """
 
 from __future__ import annotations
@@ -104,9 +100,7 @@ def _chain_of(node: ast.expr, params: set[str], aliases: dict[str, str]) -> str 
     """Return the mock attribute chain for an expression rooted at a mocked value.
 
     A call becomes ``return_value``. The root must be a parameter or a local
-    variable aliased to a mocked chain. ``param.attr`` -> ``"attr"``;
-    ``resp.status_code`` where ``resp = session.get(...)`` ->
-    ``"get.return_value.status_code"``. Returns None otherwise.
+    variable aliased to a mocked chain. Returns None otherwise.
     """
     parts: list[str] = []
     current: ast.expr = node
@@ -136,8 +130,7 @@ def _chain_of(node: ast.expr, params: set[str], aliases: dict[str, str]) -> str 
 def _collect_aliases(func: ast.AST, params: set[str]) -> dict[str, str]:
     """Map a local variable to the mock chain it was assigned from.
 
-    ``resp = session.get(...)`` -> ``{"resp": "get.return_value"}``. Iterates to a
-    fixpoint so chained aliases (``a = p.x``; ``b = a.y``) resolve.
+    Iterates to a fixpoint so chained aliases resolve.
     """
     aliases: dict[str, str] = {}
     for _ in range(3):
@@ -181,10 +174,8 @@ def _collect_truthiness(
 ) -> None:
     """Seed mocked values used in truthiness / is-None guards.
 
-    Library code branches far more on ``if x.enabled:`` / ``if result is None:``
-    than on ``x == literal``. A bare mock attribute is a truthy MagicMock, so only
-    one side of each such guard is ever reached. Seed a truthy value (True) and a
-    falsy value (None) so the search can flip both sides.
+    A bare mock attribute is a truthy MagicMock, so only one side of such a guard
+    is reached. Seed a truthy value and a falsy value so the search flips both.
     """
     for node in ast.walk(func):
         if isinstance(node, ast.If | ast.While | ast.IfExp):
@@ -201,7 +192,7 @@ def _seed_test(
     elif isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
         _seed_test(test.operand, params, aliases, out)
     elif isinstance(test, ast.Compare) and len(test.ops) == 1:
-        # ``x is None`` / ``x is not None`` -> seed both a None and a non-None value.
+        # is / is-not None: seed a None and a non-None value
         if isinstance(test.ops[0], ast.Is | ast.IsNot):
             for expr, other in (
                 (test.left, test.comparators[0]),
@@ -210,9 +201,9 @@ def _seed_test(
                 chain = _chain_of(expr, params, aliases)
                 if chain and isinstance(other, ast.Constant) and other.value is None:
                     out.setdefault(chain, set()).update({None, True})
-        # ``x == literal`` is already handled by _collect_branch_constants.
+        # equality is handled by _collect_branch_constants
     else:
-        # Bare truthiness: ``if x.attr:`` -> seed a truthy and a falsy value.
+        # bare truthiness: seed a truthy and a falsy value
         chain = _chain_of(test, params, aliases)
         if chain:
             out.setdefault(chain, set()).update({True, None})
@@ -242,11 +233,11 @@ def _collect_container_magic(
     consts: dict[str, set[Any]],
     lines: set[str],
 ) -> None:
-    """Seed container dunders so ``len(x)`` / ``k in x`` / ``x[k]`` behave and branch.
+    """Seed container dunders so length, membership and subscription branch.
 
-    ``len`` and ``in`` are seeded as search-mutable values so both sides of a size
-    or membership guard are reachable; subscription gets a fixed mock element so
-    ``x[k]`` does not raise on a bare mock.
+    Length and membership are seeded as search-mutable values so both sides of a
+    guard are reachable. Subscription gets a fixed mock element so it does not
+    raise on a bare mock.
     """
     for node in ast.walk(func):
         if (
@@ -283,9 +274,8 @@ def _collect_numeric_defaults(
 ) -> None:
     """Give a numeric default to a mocked value used in arithmetic.
 
-    ``x.attr + 1`` on a bare mock raises ``TypeError``; seed ``0`` so the
-    expression runs. Skipped when the chain already has a branch constant (which
-    is itself a usable value), to avoid a redundant assignment.
+    Arithmetic on a bare mock raises ``TypeError``, so seed ``0``. Skipped when
+    the chain already has a branch constant.
     """
     for node in ast.walk(func):
         if not isinstance(node, ast.BinOp):
@@ -305,10 +295,9 @@ def _collect_iteration_defaults(
             continue
         chain = _chain_of(node.iter, params, aliases)
         if chain:
-            # e.g. `for x in resp.items()` -> make items() return a one-item list.
+            # return one-item list
             out.add(f"m.{chain} = [MagicMock()]")
         elif isinstance(node.iter, ast.Name) and node.iter.id in params:
-            # `for x in param` -> make the mock itself iterable with one item.
             out.add("m.__iter__.return_value = iter([MagicMock()])")
 
 
@@ -321,7 +310,7 @@ def _builtin_exc_names(node: ast.expr | None) -> set[str]:
 
 
 def _method_chain(func_expr: ast.expr, params: set[str], aliases: dict[str, str]) -> str | None:
-    """Mock attribute chain for the callable in a call, e.g. ``param.get`` -> ``"get"``.
+    """Mock attribute chain for the callable in a call.
 
     Returns ``""`` when the mock itself is called, or None when the callable is
     not rooted at a mocked value.

@@ -18,7 +18,7 @@ _TIMEOUT: float = 30.0
 
 
 def classify_target(target: str, context: str = "") -> dict:
-    """Classify a fully-qualified Python name as 'mock' or 'skip' via the proxy."""
+    """Classify a fully-qualified Python name as 'mock' or 'skip' via the proxy-cache."""
     response = httpx.post(
         f"{require_proxy_cache_url()}/api/v1/pynguin/mock/classify",
         json={"target": target, "context": context},
@@ -45,7 +45,7 @@ def generate_mock_config(
     dependencies: list[dict],
     usage_context: str = "",
 ) -> dict:
-    """Generate mock configurations for a function via the proxy."""
+    """Generate mock configurations for a function via the proxy-cache."""
     response = httpx.post(
         f"{require_proxy_cache_url()}/api/v1/pynguin/mock/generate-mock",
         json={

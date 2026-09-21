@@ -10,7 +10,7 @@ A bare ``MagicMock`` lets a function run past a boundary call, but branches that
 depend on the value the boundary returns stay uncovered. For each function this
 module finds the parameters that will be mocked, whether by their type annotation
 or by the attributes accessed on an untyped parameter, reads how their return
-values are used, asks the proxy for concrete setup lines, and builds
+values are used, asks the proxy-cache for concrete setup lines, and builds
 :class:`MockTemplate` hints keyed by the class FQN.
 """
 
@@ -54,7 +54,7 @@ def _annotation_fqns(node: ast.expr | None, alias_map: dict[str, str]) -> list[s
         if isinstance(cur, ast.Name):
             parts.append(alias_map.get(cur.id, cur.id))
             out.append(".".join(reversed(parts)))
-    elif isinstance(node, ast.Subscript):  # Optional[X], list[X], Union[...]
+    elif isinstance(node, ast.Subscript):
         out += _annotation_fqns(node.value, alias_map)
         sl = node.slice
         elts = sl.elts if isinstance(sl, ast.Tuple) else [sl]
@@ -86,7 +86,7 @@ def _mocked_params(
     candidate_classes: list[type],
     untyped_bindings: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    """Map parameter name → mock-target FQN for the params this function mocks."""
+    """Map parameter name to mock-target FQN for the params this function mocks."""
     result: dict[str, str] = {}
 
     for arg in (*func.args.posonlyargs, *func.args.args, *func.args.kwonlyargs):
@@ -114,11 +114,10 @@ def _resolve_untyped_params(
     candidate_classes: list[type],
     untyped_bindings: dict[str, str] | None,
 ) -> None:
-    """Populate ``result`` with mocked untyped parameters.
+    """Populate *result* with mocked untyped parameters.
 
-    When ``untyped_bindings`` is provided (even empty), it is authoritative, the
-    weak attribute matcher is skipped so we mock exactly what the injector binds
-    (and never, e.g., ``self`` on a method that had no binding).
+    When *untyped_bindings* is provided (even empty), it is authoritative and the
+    weak attribute matcher is skipped, so we mock exactly what the injector binds.
     """
     if untyped_bindings is not None:
         for param, fqn in untyped_bindings.items():
@@ -143,10 +142,8 @@ def _iter_named_functions(
 ) -> Iterator[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]:
     """Yield ``(qualname, funcdef)`` for module-level functions and class methods.
 
-    Qualnames match the injector's ``__qualname__``-style keys (``f``, ``C.m``,
-    ``C.__init__``) so their bindings line up, this is what lets constructor and
-    method boundaries (common in botocore/celery) get hinted, not just top-level
-    functions.
+    Qualnames use ``__qualname__``-style keys so they match the injector's
+    bindings for method and constructor boundaries, not just top-level functions.
     """
     for node in tree.body:
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -164,13 +161,11 @@ def generate_templates(  # noqa: PLR0914
     module_name: str = "",
     untyped_bindings: dict[tuple[str, str], str] | None = None,
 ) -> dict[str, MockTemplate]:
-    """Return return-value hint templates keyed by target FQN (needs the proxy).
+    """Return return-value hint templates keyed by target FQN (needs the proxy-cache).
 
-    For each function that mocks a parameter, ask the proxy to generate concrete
-    return-value setup lines from the function source, then accumulate them onto a
-    template per mocked class. ``untyped_bindings`` are the injector's
-    ``(callable key, param) -> boundary FQN`` map; passing them makes the hint
-    generator cover exactly the untyped params the factory injects a mock for.
+    For each function that mocks a parameter, the proxy-cache produces concrete
+    return-value setup lines, gathered into one :class:`MockTemplate` per mocked
+    class. *untyped_bindings* selects which untyped params to hint.
     """
     source = module_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
@@ -178,8 +173,7 @@ def generate_templates(  # noqa: PLR0914
     candidates = candidate_classes or []
     templates: dict[str, MockTemplate] = {}
 
-    # Index the injector's untyped bindings by callable key so each function is
-    # hinted for exactly the params the test factory will inject a mock for.
+    # Index untyped bindings by callable key so each function hints only its params
     bindings_by_func: dict[str, dict[str, str]] = {}
     for (callable_key, param), fqn in (untyped_bindings or {}).items():
         bindings_by_func.setdefault(callable_key, {})[param] = fqn
@@ -191,9 +185,7 @@ def generate_templates(  # noqa: PLR0914
         params = _mocked_params(func, alias_map, mock_targets, candidates, per_func)
         if not params:
             continue
-        # Give the LLM the attributes each param is actually accessed by and the
-        # values the function branches on, so it configures the right methods with
-        # branch-driving values instead of mocking siblings or returning None.
+        # Tell the LLM which attributes each param uses and the values it branches on
         accesses = _direct_attr_accesses(func, set(params))
         deps = [
             {
@@ -206,9 +198,7 @@ def generate_templates(  # noqa: PLR0914
         ]
         branch_constants = _branch_constants(func)
         usage_context = _usage_context(params, accesses, branch_constants)
-        # ``func_key`` (module.qualname) is the proxy cache key: module-qualified so
-        # same-named helpers in different modules don't collide, and class-qualified
-        # for methods (``C.method``) so it matches the injector's bindings.
+        # func_key (module.qualname) is the proxy-cache key, unique per module and method
         try:
             response = llm_classifier_client.generate_mock_config(
                 func_key,
@@ -231,13 +221,7 @@ def _usage_context(
     accesses: dict[str, set[str]],
     branch_constants: dict[type, list],
 ) -> str:
-    """Concrete usage facts for the LLM prompt.
-
-    Tells the model which attributes/methods each mocked parameter is accessed by
-    and the literal values the function branches on, so it configures the right
-    return values (and reaches value-dependent branches) instead of defaulting to
-    ``None`` or mocking unrelated helpers.
-    """
+    """Usage facts for the LLM prompt to provide context for the right return values."""
     parts: list[str] = []
     for name in params:
         attrs = sorted(accesses.get(name, set()))
@@ -256,10 +240,9 @@ def _usage_context(
 
 
 def _branch_constants(func: ast.AST) -> dict[type, list]:
-    """Constants a function compares against, grouped by type (branch targets).
+    """Constants a function compares against, grouped by type.
 
-    ``if code == 200 / if code >= 500`` -> ``{int: [200, 500]}``. These seed the
-    mutable return values so the search can drive each branch.
+    These seed the mutable return values so the search can drive each branch.
     """
     out: dict[type, list] = {}
     for node in ast.walk(func):
@@ -302,11 +285,11 @@ def _merge(
 ) -> None:
     """Fold a /generate-mock response into *templates*, keyed by mocked target FQN.
 
-    The proxy may echo a different ``mock_target`` than the canonical FQN, so map
-    each returned mock to a target via the dependency name we sent, falling back
-    to the echoed target, then to the sole mocked target of the function. Setup
-    lines with a primitive constant become mutable setups seeded with the
-    function's branch constants so the search can cover every branch.
+    The proxy-cache may echo a different ``mock_target`` than the canonical FQN, so
+    map each returned mock to a target via the dependency name we sent, falling
+    back to the echoed target, then to the sole mocked target of the function.
+    Setup lines with a primitive constant become mutable setups seeded with the
+    function's branch constants.
     """
     constants = branch_constants or {}
     wanted = set(params.values())
@@ -352,8 +335,7 @@ def _add_setups(template: MockTemplate, lines: list[str], constants: dict[type, 
         chain, value = parsed
         if chain in existing:
             continue
-        # Candidates come only from the function's own comparison constants (plus
-        # the value the proxy suggested), no synthesised/hardcoded values.
+        # Candidate values from _branch_constants plus the proxy-cache suggestion
         pool = [value]
         for extra in constants.get(type(value), []):
             if extra not in pool:

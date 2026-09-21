@@ -86,7 +86,7 @@ class DependencyAnalyzer:
         rules_cache_id: str | None = None,
         use_proxy: bool = False,
     ) -> None:
-        """module_path: SUT source file; rules_cache_id: proxy rules set to load."""
+        """module_path: SUT source file; rules_cache_id: proxy-cache rules set to load."""
         self._module_path = module_path
         self._use_proxy = use_proxy
         if heuristic_rules is not None:
@@ -115,8 +115,8 @@ class DependencyAnalyzer:
     def classify_targets(self, targets: list[tuple[str, Any]]) -> list[MockDecision]:
         """Classify externally-supplied (fqn, class) candidates.
 
-        targets: (canonical FQN, class object) pairs, e.g. the classes an
-        untyped parameter may resolve to under type tracing.
+        Args:
+            targets: (canonical FQN, class object) pairs to classify.
         """
         pairs: list[tuple[str, Any]] = []
         seen: set[str] = set()
@@ -172,7 +172,7 @@ class DependencyAnalyzer:
     # Classification
 
     def _classify_local(self, target: str, obj: Any) -> MockDecision | None:
-        """Deterministic classification (exception/stdlib/rule); None if proxy needed."""
+        """Deterministic classification (exception/stdlib/rule); None if proxy-cache needed."""
         if isinstance(obj, type) and issubclass(obj, BaseException):
             return MockDecision(target, "skip", "Exception class", "exception", 1.0)
         if target.split(".", 1)[0] in sys.stdlib_module_names:
@@ -194,7 +194,7 @@ class DependencyAnalyzer:
         return MockDecision(target, "unknown", "Unclassified external class", "llm", 0.0)
 
     def _classify_all(self, pairs: list[tuple[str, Any]]) -> list[MockDecision]:
-        """Classify many candidates, batching the proxy calls into one request."""
+        """Classify many candidates, batching the proxy-cache calls into one request."""
         local: dict[str, MockDecision] = {}
         proxy_needed: list[str] = []
         for target, obj in pairs:
@@ -217,7 +217,7 @@ class DependencyAnalyzer:
 
     @staticmethod
     def _classify_via_proxy_batch(targets: list[str]) -> dict[str, MockDecision]:
-        """Batch-classify *targets* via the proxy; empty dict on connection/HTTP error."""
+        """Batch-classify *targets* via the proxy-cache; empty dict on connection/HTTP error."""
         if not targets:
             return {}
         try:
@@ -238,7 +238,7 @@ class DependencyAnalyzer:
 
     @staticmethod
     def _classify_via_proxy(target: str) -> MockDecision | None:
-        """MockDecision from the proxy, or None on connection/HTTP error."""
+        """MockDecision from the proxy-cache, or None on connection/HTTP error."""
         try:
             result = llm_classifier_client.classify_target(target)
         except Exception as exc:  # noqa: BLE001

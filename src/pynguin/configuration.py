@@ -1018,20 +1018,17 @@ class MockGenerationConfiguration:
     """Configuration for mock generation."""
 
     mock_generation_enabled: bool = False
-    """Enable the mock generation pipeline (Dependency Analyzer → Context Extractor →
-    Mock Generator → MockStatement).  Requires proxy_cache_url or
-    PYNGUIN_PROXY_CACHE_URL to be set; falls back to default Pynguin if missing."""
+    """Enable the mock generation pipeline. Requires proxy_cache_url or
+    PYNGUIN_PROXY_CACHE_URL to be set, otherwise falls back to default Pynguin."""
 
     proxy_cache_url: str = ""
     """Base URL of the proxy-cache service.
     Leave empty to fall back to the PYNGUIN_PROXY_CACHE_URL environment variable."""
 
     base_rules_cache_id: str = ""
-    """Optional versioned proxy-cache identifier for pre-seeded rules produced by
-    mock_rule_generator (e.g. ``'mock-rules-local-test'``).  When provided, the
-    Dependency Analyzer uses these cached rules before querying the LLM, speeding
-    up classification of known libraries.  Not required — omit to rely purely on
-    the LLM classify endpoint."""
+    """Optional proxy-cache identifier for pre-seeded rules from mock_rule_generator.
+    When provided, the dependency analyzer consults these rules before the LLM.
+    Omit to rely purely on the LLM classify endpoint."""
 
 
 @dataclasses.dataclass

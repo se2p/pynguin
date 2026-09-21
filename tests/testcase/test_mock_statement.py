@@ -31,9 +31,7 @@ from pynguin.testcase.mock_statement import (
 )
 from pynguin.testcase.testfactory import TestFactory
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_template(
@@ -95,9 +93,7 @@ def _stmt_code(test_case) -> str:
     return cst.Module(body=[test_case.get_statement(0).node]).code
 
 
-# ---------------------------------------------------------------------------
 # Construction
-# ---------------------------------------------------------------------------
 
 
 def test_build_binds_variable_and_mock_info():
@@ -152,9 +148,7 @@ def test_default_parameter_values_helper():
     assert default_parameter_values(template) == {"a": 1, "b": "x"}
 
 
-# ---------------------------------------------------------------------------
 # Node rendering
-# ---------------------------------------------------------------------------
 
 
 def test_method_config_renders_return_value():
@@ -230,9 +224,7 @@ def test_current_setup_value_helper():
     assert current_setup_value(template, [2], 0) == 30
 
 
-# ---------------------------------------------------------------------------
 # _render_setup_line
-# ---------------------------------------------------------------------------
 
 
 def test_render_setup_line_renames_root_placeholder():
@@ -254,9 +246,7 @@ def test_render_setup_line_rejects_malformed():
     assert ms._render_setup_line("bad ((", "var_0") is None
 
 
-# ---------------------------------------------------------------------------
 # create_mock_statement (inserts into a test case)
-# ---------------------------------------------------------------------------
 
 
 def test_create_mock_statement_inserts(default_test_case):
@@ -268,9 +258,7 @@ def test_create_mock_statement_inserts(default_test_case):
     assert f"{var} = MagicMock()" in default_test_case.to_code()
 
 
-# ---------------------------------------------------------------------------
 # Clone / crossover survival
-# ---------------------------------------------------------------------------
 
 
 def test_clone_preserves_mock_info(default_test_case):
@@ -287,9 +275,7 @@ def test_clone_preserves_mock_info(default_test_case):
     assert cloned.to_code() == default_test_case.to_code()
 
 
-# ---------------------------------------------------------------------------
 # Mutation (via TestFactory)
-# ---------------------------------------------------------------------------
 
 
 def _mutable_template() -> MockTemplate:

@@ -6,57 +6,35 @@
 #
 """Finds the boundary classes reachable only through untyped parameters.
 
-This module statically collects the attributes accessed on each untyped parameter
-and matches them against the classes Pynguin can generate, so those candidate
-classes can be classified up front without proxy calls during test generation and
-without relying on parameter names. Two access patterns are handled, ``param.attr``
-inside the function that declares ``param``, and ``self.x = param`` in ``__init__``
-followed by ``self.x.attr`` in any method of the same class.
+Statically collects the attributes accessed on each untyped parameter and matches
+them against the classes Pynguin can generate, so those candidates can be
+classified up front without proxy-cache calls and without relying on parameter
+names. Both direct attribute access and constructor parameters stored on ``self``
+are handled.
 """
 
 from __future__ import annotations
 
 import ast
 
-# Attribute names reachable on Python's scalar/text primitive types. An untyped
-# parameter whose accessed attributes are *all* drawn from this set is a scalar
-# value (a str/bytes/number), not a boundary object, so it must never be bound to
-# a mock target: mocking a primitive replaces a constructable real value and
-# typically lowers coverage. Observed on redis.connection, where a URL-string
-# parameter used via replace/split/startswith was bound to a boundary and mocked,
-# killing the real parsing branches.
-#
-# Container types (list/dict/set/tuple) are deliberately excluded: their method
-# names (get/keys/append/count/...) overlap with common domain vocabulary, for
-# example an HTTP client accessed via ``.get``, and treating those as primitive
-# would drop legitimate boundary bindings.
+# Attributes on scalar/text primitives. A param accessing only these is a
+# primitive value, not a boundary (containers excluded: names overlap domain).
 _PRIMITIVE_ATTRS: frozenset[str] = frozenset().union(
     *(dir(t) for t in (str, bytes, int, float, complex, bool))
 )
 
 
 def _is_primitive_signature(attrs: set[str]) -> bool:
-    """True when every accessed attribute belongs to a scalar/text primitive type.
-
-    Such a parameter is a primitive value, not a boundary object, so it is left to
-    normal generation rather than bound to a mock target. A parameter that also
-    accesses at least one domain method (an attribute outside the primitive set)
-    is not treated as primitive and remains eligible for binding.
-    """
+    """True when every accessed attribute belongs to a scalar/text primitive type."""
     return bool(attrs) and attrs <= _PRIMITIVE_ATTRS
 
 
 def untyped_param_bindings(source: str) -> dict[tuple[str, str], set[str]]:
     """Return ``(callable_qualname, param_name) -> attribute set`` for untyped params.
 
-    ``callable_qualname`` matches the runtime ``__qualname__`` of the callable that
-    declares the parameter: ``"f"`` for a module-level function, ``"C.m"`` for a
-    method, ``"C.__init__"`` for a constructor parameter. This lets the test factory
-    inject a mock for a specific untyped parameter without type tracing.
-
-    source: the module's Python source. Bindings with an empty attribute set, and
-    bindings whose attributes are entirely built-in primitive protocol (a
-    primitive parameter, not a boundary object), are omitted.
+    *callable_qualname* matches the callable's runtime ``__qualname__``, so the
+    test factory can inject a mock for a specific untyped parameter. Bindings with
+    an empty or primitive-only attribute set are omitted.
     """
     tree = ast.parse(source)
     out: dict[tuple[str, str], set[str]] = {}
@@ -98,10 +76,7 @@ def match_param_boundaries(
             for cls in classes
             if all(_safe_hasattr(cls, a) for a in attrs)
         ]
-        # Precision guard against over-mocking: bind only on an unambiguous match,
-        # where exactly one candidate boundary class satisfies the parameter's
-        # attribute usage. Weak matches (a common attribute satisfied by several
-        # classes) and empty matches are left to normal generation.
+        # Bind only on an unambiguous single match to avoid over-mocking
         if len(hits) == 1:
             matched[key] = hits[0]
     return matched

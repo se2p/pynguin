@@ -6,10 +6,9 @@
 #
 """Extracts a function's usage context from its AST for mock generation.
 
-It records how tracked dependencies are used inside each function so the LLM
-can generate focused mock configurations. The analysis is shallow, it traverses
-only the direct body of each function and ignores control flow and nested
-definitions.
+Records how tracked dependencies are used inside each function so the LLM can
+generate focused mock configurations. The analysis is shallow. Only the direct
+body of each function is gathered, control flow and nested definitions ignored.
 """
 
 from __future__ import annotations
@@ -32,13 +31,7 @@ _logger = logging.getLogger(__name__)
 
 @dataclass
 class MethodCall:
-    """A method invoked directly on a tracked dependency variable.
-
-    Attributes:
-        method_name: Name of the called method (e.g. ``"get"``).
-        args_count: Number of positional arguments passed.
-        has_kwargs: ``True`` when any keyword arguments are present.
-    """
+    """A method invoked directly on a tracked dependency variable."""
 
     method_name: str
     args_count: int
@@ -47,14 +40,7 @@ class MethodCall:
 
 @dataclass
 class AttributeAccess:
-    """An attribute or method accessed on the *return value* of a dependency call.
-
-    Attributes:
-        attribute_name: Name of the attribute (e.g. ``"status_code"``).
-        is_method_call: ``True`` when the attribute is immediately called
-            (e.g. ``.json()``), ``False`` for plain attribute reads
-            (e.g. ``.text``).
-    """
+    """An attribute or method accessed on the return value of a dependency call."""
 
     attribute_name: str
     is_method_call: bool
@@ -62,16 +48,7 @@ class AttributeAccess:
 
 @dataclass
 class DependencyUsage:
-    """Usage context for a single dependency within a function.
-
-    Attributes:
-        dependency: Top-level dependency name (e.g. ``"requests"``).
-        variable_names: Variable names in the function that hold this
-            dependency or are assigned from its return values.
-        method_calls: Methods called directly on the dependency variable.
-        return_value_accesses: Attributes / methods accessed on return
-            values produced by calling the dependency.
-    """
+    """Usage context for a single dependency within a function."""
 
     dependency: str
     variable_names: list[str] = field(default_factory=list)
@@ -81,14 +58,7 @@ class DependencyUsage:
 
 @dataclass
 class FunctionContext:
-    """Extracted usage context for a single function.
-
-    Attributes:
-        function_name: Name of the function.
-        source_code: Original source of the function (for LLM prompts).
-        dependencies: One :class:`DependencyUsage` per tracked dependency
-            that appears inside the function.
-    """
+    """Extracted usage context for a single function."""
 
     function_name: str
     source_code: str
@@ -174,16 +144,6 @@ class ContextExtractor:
             :class:`FunctionContext` when the function uses at least one
             tracked dependency, ``None`` otherwise.
         """
-        """Extract usage context from a single function AST node.
-
-        Args:
-            func_node: AST node for the function definition.
-            source: Full module source (used to slice out the function text).
-
-        Returns:
-            :class:`FunctionContext` when the function uses at least one
-            tracked dependency, ``None`` otherwise.
-        """
         dep_vars, return_vars = self._find_dependency_variables(func_node, alias_map or {})
         if not dep_vars:
             return None
@@ -225,27 +185,17 @@ class ContextExtractor:
         func_node: ast.FunctionDef | ast.AsyncFunctionDef,
         alias_map: dict[str, str],
     ) -> tuple[dict[str, str], dict[str, str]]:
-        """Map variable names → source dependency within *func_node*.
+        """Map variable names to their source dependency within *func_node*.
 
-        Returns two separate dicts:
-
-        - *dep_vars*: variables that **are** the dependency or a direct alias.
-          Seeded from three sources:
-
-          1. Function parameters whose name matches a tracked dependency.
-          2. Names used directly in the body that match a tracked dependency
-             (e.g. ``httpx.post(...)``).
-          3. Names imported *from* a tracked dependency at module level
-             (e.g. ``from urllib3.poolmanager import PoolManager`` →
-             ``PoolManager`` maps to ``urllib3``).
-
-        - *return_vars*: variables that hold a return value produced by calling
-          a dependency (e.g. ``response = session.get(...)``).
+        Returns two dicts. *dep_vars* holds variables that are the dependency or
+        a direct alias, seeded from function parameters, direct dependency
+        references in the body, and names imported from a tracked dependency.
+        *return_vars* holds variables assigned from a dependency call.
 
         Args:
             func_node: Function AST node to inspect.
-            alias_map: ``{imported_name: top_level_package}`` built from the
-                module's import statements by :meth:`_build_import_alias_map`.
+            alias_map: ``{imported_name: top_level_package}`` from
+                :meth:`_build_import_alias_map`.
 
         Returns:
             Tuple of ``(dep_vars, return_vars)``.
@@ -253,13 +203,12 @@ class ContextExtractor:
         dep_vars: dict[str, str] = {}
         return_vars: dict[str, str] = {}
 
-        # 1. Parameters whose name is a tracked dependency.
+        # Parameters whose name is a tracked dependency
         for arg in func_node.args.args + func_node.args.posonlyargs + func_node.args.kwonlyargs:
             if arg.arg in self._dependencies:
                 dep_vars[arg.arg] = arg.arg
 
-        # 2 & 3. Names appearing in the function body that are either a direct
-        #         dependency module reference OR an alias imported from one.
+        # Names in the body that are a direct dependency reference or an import alias
         for node in self._walk_body(func_node):
             if not isinstance(node, ast.Name):
                 continue
@@ -315,10 +264,7 @@ class ContextExtractor:
         return None
 
     def _call_dep(self, expr: ast.expr, dep_vars: dict[str, str]) -> str | None:
-        """Return dep name if *expr* is (ultimately) a call on a dep var.
-
-        Handles ``dep.method(...)``, ``dep.method(...).attr``, etc.
-        """
+        """Return dep name if *expr* is (ultimately) a call on a dep var."""
         if isinstance(expr, ast.Call):
             return self._call_dep(expr.func, dep_vars)
         if isinstance(expr, ast.Attribute):
@@ -335,10 +281,6 @@ class ContextExtractor:
         dep_vars: dict[str, str],
     ) -> dict[str, list[MethodCall]]:
         """Extract method calls made directly on tracked dependency variables.
-
-        Only *dep_vars* (direct dep references and aliases) are considered,
-        return-value variables are handled by
-        :meth:`_extract_return_value_accesses`.
 
         Args:
             func_node: Function AST node.
@@ -422,23 +364,13 @@ class ContextExtractor:
     def _build_import_alias_map(self, tree: ast.AST) -> dict[str, str]:
         """Build ``{local_name: top_level_package}`` from module-level imports.
 
-        Handles all import forms:
-
-        * ``from urllib3.poolmanager import PoolManager``
-          → ``{"PoolManager": "urllib3"}``
-        * ``from urllib3.util import Timeout as TimeoutSauce``
-          → ``{"TimeoutSauce": "urllib3"}``
-        * ``import urllib3 as u3``
-          → ``{"u3": "urllib3"}``
-
-        Only imports whose top-level package is a tracked dependency are
-        included, so the returned dict stays small.
+        Only imports whose top-level package is a tracked dependency are included.
 
         Args:
             tree: Parsed AST of the full module.
 
         Returns:
-            Mapping of local name → tracked top-level dependency package.
+            Mapping of local name to tracked top-level dependency package.
         """
         alias_map: dict[str, str] = {}
         for node in ast.walk(tree):

@@ -178,7 +178,6 @@ def test_domain_method_survives_alongside_primitive_attrs():
 
 
 def test_dict_style_get_still_bound():
-    # `get` overlaps with dict but is common domain vocabulary (e.g. HTTP client);
-    # it is not treated as primitive.
+    # `get` overlaps with dict but is common domain vocabulary, not primitive
     src = "def f(s):\n    return s.get('/x')\n"
     assert untyped_param_bindings(src) == {("f", "s"): {"get"}}

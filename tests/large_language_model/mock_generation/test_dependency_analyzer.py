@@ -189,8 +189,8 @@ def test_classify_all_batches_proxy_and_keeps_local(tmp_path):
     pairs = [
         ("json.decoder.JSONDecoder", None),  # stdlib -> local skip
         ("redis.exceptions.RedisError", ConnectionError),  # exception -> local skip
-        ("urllib3.poolmanager.PoolManager", object),  # proxy
-        ("some.other.Client", object),  # proxy
+        ("urllib3.poolmanager.PoolManager", object),  # proxy-cache
+        ("some.other.Client", object),  # proxy-cache
     ]
     batch_result = {
         "urllib3.poolmanager.PoolManager": {"decision": "mock", "reason": "net", "confidence": 0.9},

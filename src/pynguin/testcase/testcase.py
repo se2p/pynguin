@@ -119,18 +119,13 @@ class MockStatementInfo:
     """Metadata describing a mock statement.
 
     There are no statement subclasses, so a mock is a plain :class:`Statement`
-    carrying this metadata (mirroring :class:`MLStatementInfo`). The statement's
-    ``node`` renders the ``var = MagicMock()`` construction together with one
-    assignment per configured setup; this metadata records the state the search
-    needs to mutate that node without re-running the whole pipeline.
+    carrying this metadata (mirroring :class:`MLStatementInfo`). It records the
+    state the search needs to mutate the mock node without re-running the pipeline.
 
-    ``setup_choices`` selects one candidate per ``template.mutable_setups`` entry
-    (the pools seeded from branch constants), and ``parameter_values`` holds the
-    current value of each method-config parameter. Mutation re-picks these and
-    re-renders the node; :meth:`TestCase.clone` and
-    :meth:`TestCase.append_test_case_from` propagate the metadata unchanged, so a
-    mock moves through crossover as a single unit whose setups are never
-    recombined.
+    *setup_choices* selects one candidate per ``template.mutable_setups`` entry and
+    *parameter_values* holds each method-config parameter value. :meth:`TestCase.clone`
+    and :meth:`TestCase.append_test_case_from` propagate it, so a mock moves through
+    crossover as one unit whose setups are never recombined.
     """
 
     template: MockTemplate

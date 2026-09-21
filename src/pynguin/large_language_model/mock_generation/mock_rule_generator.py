@@ -4,21 +4,17 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-r"""Creates heuristic base rules for the dependency analyzer.
+"""Creates heuristic base rules for the dependency analyzer.
 
 Mines the test suites of Python projects to discover which external libraries are
-mocked, producing a flat list of entries in the same schema as proxy-cache
-``classify_library`` responses so the dependency analyzer can use them without LLM
-calls. Two signals are mined, ``@patch`` targets such as
-``@patch('urllib3.poolmanager.PoolManager')``, and mock-helper imports where
-``responses`` implies ``requests``, ``moto`` implies ``boto3``, and so on.
+mocked, producing entries in the same schema as proxy-cache ``classify_library``
+responses so the dependency analyzer can use them without LLM calls. Two signals
+are mined: ``@patch`` targets, and mock-helper imports that imply a real library.
 
 CLI usage::
 
-    python -m pynguin.large_language_model.mock_generation.mock_rule_generator \
-        --projects ./projects/requests ./projects/httpx \
-        --cache my-rules \
-        --min-files 2
+    python -m pynguin.large_language_model.mock_generation.mock_rule_generator
+        --projects <dir> [<dir> ...] --cache <rule-id> --min-files <n>
 """
 
 from __future__ import annotations
@@ -89,13 +85,13 @@ def top_level(name: str) -> str:
 
 
 def _is_dotted_name(value: str) -> bool:
-    """True when *value* is a dotted Python name with at least one dot (e.g. a.b.C)."""
+    """True when *value* is a dotted Python name with at least one dot."""
     parts = value.split(".")
     return len(parts) >= 2 and all(part.isidentifier() for part in parts)
 
 
 def _attr_to_dotted(node: ast.expr) -> str | None:
-    """Return the dotted name for an attribute chain (``a.b.C``), else None."""
+    """Return the dotted name for an attribute chain, else None."""
     parts: list[str] = []
     while isinstance(node, ast.Attribute):
         parts.append(node.attr)
@@ -107,15 +103,7 @@ def _attr_to_dotted(node: ast.expr) -> str | None:
 
 
 def build_import_map(source: str) -> dict[str, str]:
-    """Map an imported name → the full dotted path it refers to.
-
-    Examples::
-
-        "from requests import Session"   → {"Session": "requests.Session"}
-        "from urllib3.util import retry" → {"retry": "urllib3.util.retry"}
-        "import boto3"                   → {"boto3": "boto3"}
-        "import redis.client as rc"      → {"rc": "redis.client"}
-    """
+    """Map an imported name to the full dotted path it refers to."""
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -132,7 +120,7 @@ def build_import_map(source: str) -> dict[str, str]:
 
 
 def _patch_target(call: ast.Call) -> set[str]:
-    """Extract the mocked target FQN from a ``patch("a.b.C")`` call node, if any."""
+    """Extract the mocked target FQN from a ``patch(...)`` call node, if any."""
     func = call.func
     is_patch = (isinstance(func, ast.Name) and func.id == "patch") or (
         isinstance(func, ast.Attribute) and func.attr == "patch"
@@ -148,9 +136,7 @@ def _patch_target(call: ast.Call) -> set[str]:
 def _spec_target(call: ast.Call, import_map: dict[str, str]) -> set[str]:
     """Extract the mocked target FQN from a ``Mock(spec=...)`` / ``MagicMock(spec=...)`` call.
 
-    Handles two forms:
-    * ``spec=redis.StrictRedis`` → ``redis.StrictRedis``
-    * ``spec=MongoClient``       → resolved via *import_map* to ``pymongo.MongoClient``
+    A dotted ``spec`` is used directly; a bare name is resolved via *import_map*.
     """
     func = call.func
     is_mock = (isinstance(func, ast.Name) and func.id in {"Mock", "MagicMock", "patch"}) or (
@@ -175,10 +161,9 @@ def resolve_target(dotted: str) -> tuple[str, str]:
     """Resolve *dotted* to ``(fqn, kind)``, best-effort.
 
     kind is one of ``class`` / ``function`` / ``module`` / ``constant`` /
-    ``unresolved``. A class (or any member of a class, e.g. a patched method)
-    resolves to the class's canonical FQN with kind ``class``; other importable
-    objects keep the dotted name with their kind; names whose library is not
-    importable are ``unresolved``.
+    ``unresolved``. A class or class member resolves to the class's canonical FQN
+    with kind ``class``, other importable objects keep the dotted name with their
+    kind, and names whose library is not importable are ``unresolved``.
     """
     parts = dotted.split(".")
     module = None
@@ -302,10 +287,10 @@ class MockRuleGenerator:
         return sorted(found)
 
     def extract_mocked_targets(self, test_file: Path) -> set[str]:
-        """Return the set of mocked target FQNs (``a.b.C``) found in *test_file*.
+        """Return the set of mocked target FQNs found in *test_file*.
 
-        Combines ``@patch("a.b.C")`` targets and ``Mock(spec=...)`` specs. Framework
-        (unittest/pytest/…) and standard-library targets are dropped.
+        Combines ``@patch`` targets and ``Mock(spec=...)`` specs. Framework and
+        standard-library targets are dropped.
 
         Raises:
             OSError: If the file cannot be read.

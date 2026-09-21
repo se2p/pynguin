@@ -46,25 +46,17 @@ class MockMethodConfig:
 
 @dataclass(frozen=True)
 class RaiseException:
-    """A mutable-setup candidate that makes the mocked call raise a builtin exception.
-
-    Used as a ``side_effect`` candidate: rendered as a bare exception name (e.g.
-    ``mock.get.side_effect = KeyError``) so an error-handling branch guarded by
-    ``except <name>`` is reached. Only builtin exceptions are used, so no import
-    is needed in the generated test.
-    """
+    """A mutable-setup candidate that makes the mocked call raise a builtin exception."""
 
     name: str
 
 
 @dataclass
 class MutableSetup:
-    """A return-value assignment whose constant varies across tests.
+    """A return-value assignment whose constant the search varies across tests.
 
-    target: attribute chain after the mock variable, e.g.
-    ``get.return_value.status_code``. candidates: the values to explore, seeded
-    from the function's branch constants so the search covers each branch. A
-    candidate may also be a :class:`RaiseException` marker for side-effect setups.
+    *target* is the attribute chain after the mock variable. *candidates* are the
+    values to explore and may include a :class:`RaiseException` marker.
     """
 
     target: str
@@ -82,8 +74,8 @@ class MockTemplate:
     setup_code: str = ""
     parameters: list[MockParameter] = field(default_factory=list)
     attribute_values: dict[str, Any] = field(default_factory=dict)
-    # Raw proxy return-value setup lines, e.g. "mock.request.return_value.status = 200".
-    # The leading placeholder name is renamed to the mock variable at render time.
+    # Raw proxy-cache return-value setup lines. The leading placeholder name is
+    # renamed to the mock variable at render time.
     setup_lines: list[str] = field(default_factory=list)
     # Return-value assignments whose constant the search varies across tests.
     mutable_setups: list[MutableSetup] = field(default_factory=list)
@@ -120,10 +112,11 @@ class MockGenerator:
     ) -> None:
         """Classify the module's external classes and record the mock targets.
 
-        module_path: SUT source file. base_rules_cache_id: proxy rules set to use.
-        candidate_classes: classes an untyped parameter may resolve to under type
-        tracing; supplied only when type tracing is enabled so their boundaries
-        are classified eagerly (no proxy calls during test generation).
+        Args:
+            module_path: SUT source file.
+            base_rules_cache_id: proxy-cache rule set to consult before the LLM.
+            candidate_classes: classes an untyped parameter may resolve to, so
+                their boundaries are classified up front.
         """
         analyzer = DependencyAnalyzer(
             module_path,
@@ -134,7 +127,7 @@ class MockGenerator:
         if candidate_classes:
             decisions += self._classify_untyped_candidates(analyzer, module_path, candidate_classes)
 
-        # Deduplicate by target (a class may be found via imports and via tracing).
+        # Deduplicate by target (a class may be found more than once).
         mock_by_target: dict[str, MockDecision] = {}
         for decision in decisions:
             if decision.decision == "mock" and decision.target not in mock_by_target:

@@ -8,21 +8,12 @@
 
 There are no :class:`~pynguin.testcase.testcase.Statement` subclasses in the
 current architecture, so a mock is a plain ``Statement`` whose ``node`` renders
-the ``var = MagicMock()`` construction together with one assignment per
-configured setup, e.g.::
-
-    var_0 = MagicMock()
-    var_0.get.return_value.status_code = 200
-
-The whole mock lives in a single ``node`` so that cloning, single-point
-crossover and variable renaming treat it as one atomic unit.  The search-mutable
-state (which candidate is chosen for each :class:`~pynguin.large_language_model.\
-mock_generation.mock_generator.MutableSetup`, and the value of each method-config
-parameter) is carried in the statement's
-:class:`~pynguin.testcase.testcase.MockStatementInfo`; mutation re-picks a
-candidate and re-renders the node (see
-:meth:`~pynguin.testcase.testfactory.TestFactory.mutate_value`), mirroring how ML
-statements use ``ml_info``.
+the ``MagicMock`` construction together with one assignment per configured setup.
+The whole mock lives in a single ``node`` so cloning, single-point crossover and
+variable renaming treat it as one atomic unit. The search-mutable state is carried
+in the statement's :class:`~pynguin.testcase.testcase.MockStatementInfo`, so
+mutation re-picks a candidate and re-renders the node, mirroring how ML statements
+use ``ml_info``.
 """
 
 from __future__ import annotations
@@ -99,10 +90,10 @@ def _magic_mock_call() -> cst.Call:
 def _value_to_expr(value: Any) -> cst.BaseExpression:
     """Convert a Python constant (or :class:`RaiseException`) to a CST expression.
 
-    A :class:`RaiseException` marker renders as a bare builtin-exception name
-    (e.g. ``KeyError``) so it can be assigned to ``side_effect`` and make the
-    mocked call raise.  Any value whose ``repr`` does not parse back into an
-    expression falls back to ``MagicMock()``.
+    A :class:`RaiseException` marker renders as a bare builtin-exception name so it
+    can be assigned to ``side_effect`` and make the mocked call raise. Any value
+    whose ``repr`` does not parse back into an expression falls back to
+    ``MagicMock()``.
 
     Args:
         value: The value to render.
@@ -154,7 +145,7 @@ def _render_setup_line(line: str, var_name: str) -> cst.Assign | None:
     attribute chain rooted at a name, so arbitrary code cannot slip in.
 
     Args:
-        line: The raw setup line, e.g. ``"mock.request.return_value.status = 200"``.
+        line: The raw setup line rooted at a placeholder name.
         var_name: The mock variable name the placeholder is renamed to.
 
     Returns:

@@ -126,8 +126,7 @@ def _is_blacklisted_value(value: Any) -> bool:
     if value is None:
         return False
     if isinstance(value, unittest.mock.MagicMock):
-        # Mock values are never asserted on: a mock returns another mock for every
-        # attribute access and call, so any assertion would be meaningless and brittle.
+        # Mock values do not need an assertion
         return True
     if _is_unstable_runtime_value(value):
         return True

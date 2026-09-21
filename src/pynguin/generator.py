@@ -488,7 +488,7 @@ def _apply_static_setups(module_path: Path, mock_targets: set[str]) -> None:
     Reads the module under test and attaches branch-constant mutable setups and
     iteration defaults (from ``static_setups.module_setups``) to each mock
     target's template, creating a bare template when none exists. Setups already
-    present (e.g. from the proxy) are not duplicated.
+    present from the proxy-cache are not duplicated.
 
     Args:
         module_path: SUT source file.
@@ -544,7 +544,7 @@ def _setup_mock_generation(test_cluster: ModuleTestCluster) -> None:
 def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
     """Run the mock pipeline and store templates for statement insertion.
 
-    Feeds the proxy-generated mock templates to the test factory (via the shared
+    Feeds the proxy-cache-generated mock templates to the test factory (via the shared
     ``mock_templates_store``) so that, when Pynguin needs a value of a
     mocked-library type, it inserts a mock statement configured from the
     corresponding template (return values / side effects included).
@@ -576,7 +576,7 @@ def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
 
     if not get_proxy_cache_url():
         _LOGGER.warning(
-            "Mock generation is enabled but no proxy URL found. "
+            "Mock generation is enabled but no proxy-cache URL found. "
             "Set PYNGUIN_PROXY_CACHE_URL or --proxy_cache_url. "
             "Falling back to default Pynguin without mocks."
         )
@@ -647,7 +647,7 @@ def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
 
         # Static, deterministic return-value setups derived from the SUT itself
         # (branch constants + iteration defaults), so bare mocks reach value-
-        # dependent branches even when the proxy returned no hints.
+        # dependent branches even when the proxy-cache returned no hints.
         _apply_static_setups(Path(str(module.__file__)), gen.mock_targets)
 
         for fqn, template in templates.items():

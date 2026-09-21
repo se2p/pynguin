@@ -329,8 +329,7 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
 
         value = namespace[bound_variable]
         if isinstance(value, unittest.mock.MagicMock):
-            # A mock's runtime type is ``MagicMock``; recording it would pollute
-            # type inference for the position, so skip it.
+            # Skip MagicMock runtime type to not pollute type inference
             return
         self._return_type_local_state.return_type_trace[position] = type(value)
 
