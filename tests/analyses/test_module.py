@@ -1070,10 +1070,10 @@ def test_import_module_timeout():
 
 
 def test_is_file_loader_module_pure_python():
-    os_module = importlib.import_module("os")
+    exc_module = importlib.import_module("pynguin.utils.exceptions")
     gen_module = importlib.import_module("pynguin.generator")
 
-    assert is_file_loader_module(os_module) is True
+    assert is_file_loader_module(exc_module) is True
     assert is_file_loader_module(gen_module) is True
 
 
