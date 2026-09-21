@@ -5,10 +5,18 @@
 #  SPDX-License-Identifier: MIT
 #
 
+import importlib
+
 import pytest
 
 import pynguin.configuration as config
-from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.large_language_model.llmagent import (
+    LLMAgent,
+    get_module_path,
+    get_module_source_code,
+)
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
@@ -133,3 +141,54 @@ def test_openai_model_query_cache(mocker):
     response_cached = model.query(prompt)
     assert response_cached == "Test response"
     assert model.llm_calls_counter == 1  # Counter should not increment on cache hit
+
+
+def test_get_module_path_for_package(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "markupsafe")
+    path = get_module_path()
+    assert path.name == "__init__.py"
+    assert path.parent.name == "markupsafe"
+    assert path.exists()
+
+
+def test_get_module_path_for_single_file(monkeypatch, tmp_path):
+    foo_file = tmp_path / "my_single_mod.py"
+    foo_file.write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(config.configuration, "project_path", str(tmp_path))
+    monkeypatch.setattr(config.configuration, "module_name", "my_single_mod")
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    path = get_module_path()
+    assert path.name == "my_single_mod.py"
+    assert path.exists()
+
+
+def test_get_module_source_code_with_module_level_getattr(monkeypatch, tmp_path):
+    """Ensure modules with module-level __getattr__ do not trigger TracingAbortedException.
+
+    Regression test for Issue #271.
+    """
+    code = (
+        "def __getattr__(name):\n"
+        "    if name == 'val':\n"
+        "        return 42\n"
+        "    raise AttributeError(name)\n"
+    )
+    mod_file = tmp_path / "mod_with_getattr.py"
+    mod_file.write_text(code, encoding="utf-8")
+    monkeypatch.setattr(config.configuration, "project_path", str(tmp_path))
+    monkeypatch.setattr(config.configuration, "module_name", "mod_with_getattr")
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    props = SubjectProperties()
+    install_import_hook("mod_with_getattr", props)
+    # Import SUT under active tracer (as Pynguin does in _load_sut)
+    with props.instrumentation_tracer:
+        importlib.import_module("mod_with_getattr")
+
+    # Post-import: tracer is stopped (_current_thread_identifier is None)
+    props.instrumentation_tracer.init_trace()
+
+    source = get_module_source_code()
+    assert "def __getattr__(name):" in source
+    assert "return 42" in source
