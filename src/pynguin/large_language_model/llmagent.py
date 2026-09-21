@@ -129,7 +129,7 @@ def get_module_source_code() -> str:
     # `inspect.getsource()` triggers `inspect.unwrap()`, which checks
     # `hasattr(module, '__wrapped__')`. If the module defines module-level
     # `__getattr__` (PEP 562), that attribute lookup executes instrumented code
-    # while the tracer is inactive, causing TracingAbortedException (Issue #271).
+    # while the tracer is inactive, causing TracingAbortedException.
     with contextlib.suppress(Exception):
         source_file = inspect.getsourcefile(module) or getattr(module, "__file__", None)
         if source_file and Path(source_file).exists():
