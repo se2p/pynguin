@@ -20,6 +20,7 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generator as gen
 from pynguin.configuration import CoverageMetric
+from pynguin.utils.exceptions import CannotInstrumentCompiledModuleError
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.timeout import TestExecutionTimeoutError
 
@@ -69,6 +70,19 @@ def test_setup_test_cluster_not_empty():
         tc.num_accessible_objects_under_test.return_value = 1
         gen_mock.return_value = tc
         assert gen._setup_test_cluster()
+
+
+def test_setup_test_cluster_cannot_instrument_compiled_module():
+    gen.set_configuration(
+        configuration=MagicMock(
+            module_name="my_c_module",
+        )
+    )
+    with mock.patch(
+        "pynguin.generator.generate_test_cluster",
+        side_effect=CannotInstrumentCompiledModuleError("Compiled C-extension error"),
+    ):
+        assert gen._setup_test_cluster() is None
 
 
 def test_setup_path_invalid_dir(tmp_path):

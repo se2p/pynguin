@@ -6,6 +6,19 @@
 #
 """Provides custom exception types."""
 
+from __future__ import annotations
+
+
+class PynguinException(Exception):  # noqa: N818
+    """Base exception type for Pynguin."""
+
+
+PynguinError = PynguinException
+
+
+class CannotInstrumentCompiledModuleError(PynguinException):
+    """Raised when the SUT is a compiled C-extension or non-FileLoader module."""
+
 
 class ConfigurationException(BaseException):
     """An exception type that's raised if the generator has no proper configuration."""
