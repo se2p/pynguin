@@ -215,6 +215,46 @@ def test_generate_assertions_tracks_total_assertions_for_mutation_analysis():
     track_mock.assert_called_once_with(RuntimeVariable.Assertions, 3)
 
 
+def test_generate_assertions_shares_budget_for_llm():
+    orig_ass_gen = config.configuration.test_case_output.assertion_generation
+    orig_max_time = config.configuration.test_case_output.maximum_mutation_time
+    try:
+        config.configuration.test_case_output.assertion_generation = config.AssertionGenerator.LLM
+        config.configuration.test_case_output.maximum_mutation_time = 42
+
+        test_case = MagicMock()
+        test_case.get_assertions.return_value = [MagicMock()]
+        chromosome = MagicMock(test_case=test_case)
+        generation_result = MagicMock(test_case_chromosomes=[chromosome])
+        executor = MagicMock()
+        test_cluster = MagicMock()
+
+        with (
+            mock.patch("time.monotonic", return_value=100.0),
+            mock.patch.object(gen.lag, "LLMAssertionGenerator") as llm_gen_cls_mock,
+            mock.patch.object(gen, "_setup_mutation_analysis_assertion_generator") as setup_mock,
+            mock.patch.object(gen.stat, "track_output_variable"),
+        ):
+            llm_gen_mock = MagicMock()
+            llm_gen_cls_mock.return_value = llm_gen_mock
+            mutation_gen_mock = MagicMock()
+            setup_mock.return_value = mutation_gen_mock
+
+            gen._generate_assertions(executor, generation_result, test_cluster)
+
+            llm_gen_cls_mock.assert_called_once_with(
+                test_cluster, start_time=100.0, maximum_time=42
+            )
+            setup_mock.assert_called_once_with(executor, start_time=100.0, maximum_time=42)
+            assert generation_result.accept.call_args_list == [
+                mock.call(llm_gen_mock),
+                mock.call(mutation_gen_mock),
+            ]
+    finally:
+        config.configuration.test_case_output.assertion_generation = orig_ass_gen
+        config.configuration.test_case_output.maximum_mutation_time = orig_max_time
+
+
 def test__setup_report_dir(tmp_path: Path):
     path = tmp_path / "foo" / "bar"
     config.configuration.statistics_output.report_dir = path.absolute()

@@ -28,6 +28,7 @@ import logging
 import math
 import random
 import sys
+import time
 import types
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -1058,6 +1059,9 @@ def _setup_mutant_generator() -> mu.Mutator:
 
 def _setup_mutation_analysis_assertion_generator(
     executor: TestCaseExecutor,
+    *,
+    start_time: float | None = None,
+    maximum_time: float | None = None,
 ) -> ag.MutationAnalysisAssertionGenerator:
     _LOGGER.info("Setup mutation generator")
     mutant_generator = _setup_mutant_generator()
@@ -1075,13 +1079,18 @@ def _setup_mutation_analysis_assertion_generator(
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
-            executor, mutation_controller
+            executor,
+            mutation_controller,
+            start_time=start_time,
+            maximum_time=maximum_time,
         )
     else:
         assertion_generator = ag.MutationAnalysisAssertionGenerator(
             executor,
             mutation_controller,
             filtering_executor=ag.create_filtering_executor(executor),
+            start_time=start_time,
+            maximum_time=maximum_time,
         )
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
@@ -1094,8 +1103,20 @@ def _generate_assertions(executor, generation_result, test_cluster):
         _LOGGER.info("Start generating assertions")
         generator: cv.ChromosomeVisitor
         if ass_gen == config.AssertionGenerator.LLM:
-            generation_result.accept(lag.LLMAssertionGenerator(test_cluster))
-            generator = _setup_mutation_analysis_assertion_generator(executor)
+            start_time = time.monotonic()
+            maximum_time = config.configuration.test_case_output.maximum_mutation_time
+            generation_result.accept(
+                lag.LLMAssertionGenerator(
+                    test_cluster,
+                    start_time=start_time,
+                    maximum_time=maximum_time,
+                )
+            )
+            generator = _setup_mutation_analysis_assertion_generator(
+                executor,
+                start_time=start_time,
+                maximum_time=maximum_time,
+            )
         elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
             generator = _setup_mutation_analysis_assertion_generator(executor)
         else:

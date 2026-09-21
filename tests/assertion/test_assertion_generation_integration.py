@@ -23,6 +23,7 @@ import builtins
 import importlib
 import inspect
 import threading
+import time
 from unittest import mock
 
 import libcst as cst
@@ -36,6 +37,9 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
+from pynguin.assertion.llmassertiongenerator import (
+    MutationAnalysisLLMAssertionGenerator,
+)
 from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
@@ -578,6 +582,55 @@ def test_mutation_analysis_truncated_by_time_budget(subject_properties: SubjectP
             suite.accept(gen)
 
             # The budget cut every mutant; the run still completes cleanly.
+            assert len(gen._testing_mutation_summary.mutant_information) == 0
+
+            _assert_no_execution_threads_leaked()
+    finally:
+        config.configuration.test_case_output.maximum_mutation_time = original_budget
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_llm_with_shared_start_time_budget_exhausted(
+    subject_properties: SubjectProperties,
+):
+    module = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
+    config.configuration.seeding.seed = 42
+    original_budget = config.configuration.test_case_output.maximum_mutation_time
+    # Overall budget is 10s, but start_time was 20s ago, so remaining budget is exhausted.
+    config.configuration.test_case_output.maximum_mutation_time = 10
+    alias = get_module_alias(module)
+    try:
+        with install_import_hook(module, subject_properties):
+            with subject_properties.instrumentation_tracer:
+                module_type = importlib.import_module(module)
+                importlib.reload(module_type)
+
+            test_case = _tc_mutation_killing(alias)
+            suite = _suite(test_case)
+
+            mutant_generator = mu.FirstOrderMutator([
+                *mo.standard_operators,
+                *mo.experimental_operators,
+            ])
+            module_ast = _module_ast(module_type)
+            controller = _mutation_controller(mutant_generator, module_type, module_ast)
+
+            num_created = controller.mutant_count()
+            assert num_created > 0
+
+            # Simulate that the LLM assertion phase took 20s before mutation analysis started
+            past_start_time = time.monotonic() - 20.0
+            gen = MutationAnalysisLLMAssertionGenerator(
+                TestCaseExecutor(subject_properties),
+                controller,
+                testing=True,
+                start_time=past_start_time,
+                maximum_time=10.0,
+            )
+            suite.accept(gen)
+
+            # The shared budget cut every mutant; the run completes cleanly with 0 mutants checked.
             assert len(gen._testing_mutation_summary.mutant_information) == 0
 
             _assert_no_execution_threads_leaked()

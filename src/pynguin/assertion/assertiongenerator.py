@@ -321,6 +321,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         *,
         filtering_executor: ex.TestCaseExecutor | None = None,
         testing: bool = False,
+        start_time: float | None = None,
+        maximum_time: float | None = None,
     ):
         """Initializes the generator.
 
@@ -330,6 +332,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             filtering_executor: Executor used for the assertion-filtering pass; see
                 :class:`AssertionGenerator`. Defaults to in-process filtering.
             testing: Enable test mode, currently required for integration testing.
+            start_time: Optional start timestamp (monotonic) for budgeting assertion generation.
+            maximum_time: Optional maximum wall-clock time in seconds for assertion generation.
         """
         super().__init__(plain_executor, filtering_executor=filtering_executor)
 
@@ -352,6 +356,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         # Some debug information
         self._testing = testing
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
+        self._start_time = start_time
+        self._maximum_time = maximum_time
 
     def _execute_test_case_on_mutant(
         self,
@@ -424,8 +430,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         test_cases: list[tc.TestCase],
         mutant_count: int,
     ) -> Generator[Iterable[ex.ExecutionResult | None] | None, None, None]:
-        maximum_time = config.configuration.test_case_output.maximum_mutation_time
-        start_time = time.monotonic()
+        maximum_time = (
+            self._maximum_time
+            if self._maximum_time is not None
+            else config.configuration.test_case_output.maximum_mutation_time
+        )
+        start_time = self._start_time if self._start_time is not None else time.monotonic()
 
         for idx, (mutated_module, _) in enumerate(
             self._mutation_controller.create_mutants(), start=1

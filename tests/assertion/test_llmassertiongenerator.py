@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.stats as stat
@@ -214,10 +215,85 @@ def test_mutation_analysis_llm_assertion_generator():
         MutationAnalysisAssertionGenerator, "_handle_add_assertions"
     ) as mock_handle_add_assertions:
         generator = MutationAnalysisLLMAssertionGenerator(
-            plain_executor=plain_executor, mutation_controller=mutation_controller
+            plain_executor=plain_executor,
+            mutation_controller=mutation_controller,
+            start_time=123.0,
+            maximum_time=456.0,
         )
+
+        assert generator._start_time == 123.0
+        assert generator._maximum_time == 456.0
 
         test_case = MagicMock(spec=tc.TestCase)
         generator._add_assertions([test_case])
 
         mock_handle_add_assertions.assert_called_once_with([test_case])
+
+
+def test_add_assertions_stops_when_budget_exceeded(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    generator = LLMAssertionGenerator(
+        test_cluster, llm_agent_mock, start_time=0.0, maximum_time=10.0
+    )
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
+
+    with (
+        patch("time.monotonic", return_value=15.0),
+        patch.object(stat, "set_output_variable_for_runtime_variable") as mock_set,
+    ):
+        generator.visit_test_case_chromosome(chromosome)
+
+    llm_agent_mock.generate_assertions_for_test_case.assert_not_called()
+    assert test_case.get_statement(0).assertions == []
+    assert test_case.get_statement(1).assertions == []
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsAddedFromLLM, 0)
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsReceivedFromLLM, 0)
+
+
+def test_add_assertions_stops_midway_when_budget_exceeded(test_cluster, llm_agent_mock):
+    tc1 = _build_test_case()
+    tc2 = _build_test_case()
+
+    llm_agent_mock.generate_assertions_for_test_case.return_value = "assert var_0 == 5"
+
+    generator = LLMAssertionGenerator(
+        test_cluster, llm_agent_mock, start_time=100.0, maximum_time=5.0
+    )
+
+    # First test case is checked at t=102 (within budget 105);
+    # Second test case is checked at t=106 (exceeds budget 105).
+    monotonic_times = [102.0, 106.0]
+    with (
+        patch("time.monotonic", side_effect=monotonic_times),
+        patch.object(stat, "set_output_variable_for_runtime_variable") as mock_set,
+    ):
+        generator._add_assertions_for([tc1, tc2])
+
+    assert llm_agent_mock.generate_assertions_for_test_case.call_count == 1
+    assert tc1.get_statement(0).assertions == [ObjectAssertion("var_0", 5)]
+    assert tc2.get_statement(0).assertions == []
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsAddedFromLLM, 1)
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsReceivedFromLLM, 1)
+
+
+def test_add_assertions_uses_config_maximum_mutation_time_by_default(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
+
+    original_time = config.configuration.test_case_output.maximum_mutation_time
+    try:
+        config.configuration.test_case_output.maximum_mutation_time = 5
+        # Simulated elapsed time exceeds 5
+        with (
+            patch("time.monotonic", side_effect=[0.0, 10.0]),
+            patch.object(stat, "set_output_variable_for_runtime_variable") as mock_set,
+        ):
+            generator.visit_test_case_chromosome(chromosome)
+
+        llm_agent_mock.generate_assertions_for_test_case.assert_not_called()
+        mock_set.assert_any_call(RuntimeVariable.TotalAssertionsAddedFromLLM, 0)
+    finally:
+        config.configuration.test_case_output.maximum_mutation_time = original_time
