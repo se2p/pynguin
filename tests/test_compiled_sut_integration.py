@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import pynguin.configuration as config
+from pynguin.analyses.module import is_file_loader_module
 from pynguin.generator import ReturnCode, run_pynguin, set_configuration
 
 if TYPE_CHECKING:
@@ -77,7 +78,9 @@ def test_run_pynguin_blib2to3_compiled_c_extension(
         base_config: Fixture providing test configuration.
         caplog: Fixture capturing log messages.
     """
-    pytest.importorskip("blib2to3.pgen2.literals")
+    mod = pytest.importorskip("blib2to3.pgen2.literals")
+    if is_file_loader_module(mod):
+        pytest.skip("blib2to3.pgen2.literals is not compiled as a C-extension in this environment")
     module_name = "blib2to3.pgen2.literals"
     base_config.module_name = module_name
     set_configuration(base_config)
