@@ -138,7 +138,7 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         maximum_time = (
             self._maximum_time
             if self._maximum_time is not None
-            else config.configuration.test_case_output.maximum_mutation_time
+            else config.configuration.test_case_output.maximum_llm_assertion_time
         )
         start_time = self._start_time if self._start_time is not None else time.monotonic()
         for idx, test_case in enumerate(test_cases):

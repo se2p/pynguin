@@ -277,15 +277,17 @@ def test_add_assertions_stops_midway_when_budget_exceeded(test_cluster, llm_agen
     mock_set.assert_any_call(RuntimeVariable.TotalAssertionsReceivedFromLLM, 1)
 
 
-def test_add_assertions_uses_config_maximum_mutation_time_by_default(test_cluster, llm_agent_mock):
+def test_add_assertions_uses_config_maximum_llm_assertion_time_by_default(
+    test_cluster, llm_agent_mock
+):
     test_case = _build_test_case()
     generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
     chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     chromosome.test_case = test_case
 
-    original_time = config.configuration.test_case_output.maximum_mutation_time
+    original_time = config.configuration.test_case_output.maximum_llm_assertion_time
     try:
-        config.configuration.test_case_output.maximum_mutation_time = 5
+        config.configuration.test_case_output.maximum_llm_assertion_time = 5
         # Simulated elapsed time exceeds 5
         with (
             patch("time.monotonic", side_effect=[0.0, 10.0]),
@@ -296,4 +298,4 @@ def test_add_assertions_uses_config_maximum_mutation_time_by_default(test_cluste
         llm_agent_mock.generate_assertions_for_test_case.assert_not_called()
         mock_set.assert_any_call(RuntimeVariable.TotalAssertionsAddedFromLLM, 0)
     finally:
-        config.configuration.test_case_output.maximum_mutation_time = original_time
+        config.configuration.test_case_output.maximum_llm_assertion_time = original_time

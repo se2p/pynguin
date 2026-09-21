@@ -28,7 +28,6 @@ import logging
 import math
 import random
 import sys
-import time
 import types
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -1103,20 +1102,8 @@ def _generate_assertions(executor, generation_result, test_cluster):
         _LOGGER.info("Start generating assertions")
         generator: cv.ChromosomeVisitor
         if ass_gen == config.AssertionGenerator.LLM:
-            start_time = time.monotonic()
-            maximum_time = config.configuration.test_case_output.maximum_mutation_time
-            generation_result.accept(
-                lag.LLMAssertionGenerator(
-                    test_cluster,
-                    start_time=start_time,
-                    maximum_time=maximum_time,
-                )
-            )
-            generator = _setup_mutation_analysis_assertion_generator(
-                executor,
-                start_time=start_time,
-                maximum_time=maximum_time,
-            )
+            generation_result.accept(lag.LLMAssertionGenerator(test_cluster))
+            generator = _setup_mutation_analysis_assertion_generator(executor)
         elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
             generator = _setup_mutation_analysis_assertion_generator(executor)
         else:
