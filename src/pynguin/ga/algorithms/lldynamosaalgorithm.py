@@ -154,13 +154,19 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
                 eligible.add(gao)
         return eligible
 
-    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
-        """Identifies the highest-priority uncovered target, queries an LLM.
+    def _select_uncovered_targets(
+        self,
+    ) -> tuple[
+        dict[GenericCallableAccessibleObject, float],
+        dict[GenericCallableAccessibleObject, str],
+    ]:
+        """Identifies the highest-priority uncovered target, priority = 1 - coverage.
 
-         and processes the result into a list of test case chromosomes.
+        Runs synchronously on the main thread to safely inspect the archive and test
+        cluster before any background LLM queries are dispatched.
 
         Returns:
-            A list of `TestCaseChromosome` objects derived from the LLM query result.
+            A tuple containing the single-target coverage map and its diagnostics.
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
 
@@ -201,15 +207,15 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             gao: self._diagnose_callable(gao, line_annotations) for gao in targeted_gao_coverage_map
         }
         diagnostics = {gao: hint for gao, hint in diagnostics.items() if hint}
+        return targeted_gao_coverage_map, diagnostics
 
-        llm_query_results = self.model.call_llm_for_uncovered_targets(
-            targeted_gao_coverage_map, diagnostics
-        )
+    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
+        """Identifies the highest-priority uncovered target, queries an LLM.
 
-        return self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
-            llm_query_results=llm_query_results,
-            test_cluster=self.test_cluster,
-            test_factory=self._test_factory,
-            fitness_functions=self._test_case_fitness_functions,
-            coverage_functions=self._test_suite_coverage_functions,
-        )
+         and processes the result into a list of test case chromosomes.
+
+        Returns:
+            A list of `TestCaseChromosome` objects derived from the LLM query result.
+        """
+        targets_map, diagnostics = self._select_uncovered_targets()
+        return self._query_llm_for_targets(targets_map, diagnostics)

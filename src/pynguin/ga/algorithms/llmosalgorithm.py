@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 import logging
 import time
@@ -188,8 +189,14 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         if self._llm_query_strategy.is_in_progress():
             return
 
+        targets_map, diagnostics = self._select_uncovered_targets()
+        if not targets_map:
+            return
+
         self._stall_intervention_count += 1
-        llm_chromosomes = self._llm_query_strategy.execute(self.target_uncovered_callables)
+        llm_chromosomes = self._llm_query_strategy.execute(
+            functools.partial(self._query_llm_for_targets, targets_map, diagnostics)
+        )
         if llm_chromosomes:
             self._integrate_llm_chromosomes(llm_chromosomes)
 
@@ -210,13 +217,19 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 return remaining >= min_budget
         return True
 
-    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
-        """Identifies uncovered targets, queries an LLM for test cases.
+    def _select_uncovered_targets(
+        self,
+    ) -> tuple[
+        dict[GenericCallableAccessibleObject, float],
+        dict[GenericCallableAccessibleObject, str],
+    ]:
+        """Identifies uncovered targets from the current archive solutions and derives diagnostics.
 
-         and processes the results into a list of test case chromosomes.
+        Runs synchronously on the main thread to safely inspect the archive and test
+        cluster before any background LLM queries are dispatched.
 
         Returns:
-            A list of `TestCaseChromosome` objects derived from the LLM query results.
+            A tuple of (filtered_gao_coverage_map, diagnostics).
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
 
@@ -239,10 +252,29 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             gao: self._diagnose_callable(gao, line_annotations) for gao in filtered_gao_coverage_map
         }
         diagnostics = {gao: hint for gao, hint in diagnostics.items() if hint}
+        return filtered_gao_coverage_map, diagnostics
 
-        llm_query_results = self.model.call_llm_for_uncovered_targets(
-            filtered_gao_coverage_map, diagnostics
-        )
+    def _query_llm_for_targets(
+        self,
+        targets_map: dict[GenericCallableAccessibleObject, float],
+        diagnostics: dict[GenericCallableAccessibleObject, str],
+    ) -> list[tcc.TestCaseChromosome]:
+        """Queries the LLM for uncovered targets and parses results into chromosomes.
+
+        Safe to run asynchronously on a background thread because it does not access the
+        archive.
+
+        Args:
+            targets_map: Mapping of callables to their coverage ratio.
+            diagnostics: Mapping of callables to diagnostic hints.
+
+        Returns:
+            A list of TestCaseChromosome objects.
+        """
+        if not targets_map:
+            return []
+
+        llm_query_results = self.model.call_llm_for_uncovered_targets(targets_map, diagnostics)
 
         return self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
             llm_query_results=llm_query_results,
@@ -251,6 +283,17 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             fitness_functions=self._test_case_fitness_functions,
             coverage_functions=self._test_suite_coverage_functions,
         )
+
+    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
+        """Identifies uncovered targets, queries an LLM for test cases.
+
+         and processes the results into a list of test case chromosomes.
+
+        Returns:
+            A list of `TestCaseChromosome` objects derived from the LLM query results.
+        """
+        targets_map, diagnostics = self._select_uncovered_targets()
+        return self._query_llm_for_targets(targets_map, diagnostics)
 
     @staticmethod
     def _diagnose_callable(
