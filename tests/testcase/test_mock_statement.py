@@ -224,6 +224,12 @@ def test_current_setup_value_helper():
     assert current_setup_value(template, [2], 0) == 30
 
 
+def test_current_setup_value_empty_candidates_raises():
+    template = _make_template(mutable_setups=[MutableSetup(target="a", candidates=[])])
+    with pytest.raises(ValueError, match="no candidates"):
+        current_setup_value(template, [0], 0)
+
+
 # _render_setup_line
 
 

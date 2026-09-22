@@ -72,8 +72,13 @@ def current_setup_value(template: MockTemplate, setup_choices: list[int], index:
 
     Returns:
         The candidate value currently selected for that setup.
+
+    Raises:
+        ValueError: If the setup has no candidates to choose from.
     """
     setup = template.mutable_setups[index]
+    if not setup.candidates:
+        raise ValueError(f"MutableSetup {setup.target!r} has no candidates")
     choice = setup_choices[index] % len(setup.candidates)
     return setup.candidates[choice]
 
