@@ -41,6 +41,9 @@ class ModuleResult:
     suite_coverage: float | None = None
     suite_tests: int | None = None
     suite_error: str | None = None
+    # Filesystem path to the persisted run directory (exported test_*.py, statistics.csv,
+    # coverage json), set only when the run was invoked with --output-dir; None otherwise.
+    output_path: str | None = None
 
 
 @dataclass(frozen=True)

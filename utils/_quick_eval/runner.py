@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import json
 import os
 import re
@@ -21,6 +22,8 @@ from .report import fmt_pct
 from .stats import ModuleResult, parse_statistics_csv
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from .tasks import ModuleTask
 
 # Wall-clock cap for running one generated suite under coverage.py. Generated tests
@@ -323,6 +326,24 @@ def _result_from_stats(
     )
 
 
+@contextlib.contextmanager
+def _run_dir(output_dir: str | None, module: str) -> Iterator[str]:
+    """Yield the directory Pynguin writes its output and report into.
+
+    Without ``output_dir`` this is a throwaway temp dir deleted on exit (the historical
+    behaviour). With ``output_dir`` set, the run is persisted under ``<output_dir>/<module>/``
+    so the exported tests and report survive for inspection; the per-module subdir keeps
+    parallel jobs from colliding.
+    """
+    if output_dir is None:
+        with tempfile.TemporaryDirectory(prefix="pynguin_eval_") as tmpdir:
+            yield tmpdir
+    else:
+        run_dir = Path(output_dir) / module
+        run_dir.mkdir(parents=True, exist_ok=True)
+        yield str(run_dir)
+
+
 def run_module(
     task: ModuleTask,
     budget: int,
@@ -334,11 +355,13 @@ def run_module(
     no_assertions: bool = False,
     timeout: int = DEFAULT_TIMEOUT_S,
     extra_args: list[str] | None = None,
+    output_dir: str | None = None,
 ) -> ModuleResult:
     """Run Pynguin on one module and return its coverage (and optional mutation/LLM) result.
 
     The timeout is a wall-clock limit for the whole run, not just the search phase;
-    see DEFAULT_TIMEOUT_S.
+    see DEFAULT_TIMEOUT_S. When ``output_dir`` is set the run directory (exported tests and
+    report) is persisted under ``<output_dir>/<module>/`` and recorded on the result.
     """
     include_llm = llm_mode != LLM_MODE_NONE
     if not Path(task.project_path).exists():
@@ -351,7 +374,7 @@ def run_module(
             exit_code=-1,
             error=f"project-path does not exist: {task.project_path}",
         )
-    with tempfile.TemporaryDirectory(prefix="pynguin_eval_") as tmpdir:
+    with _run_dir(output_dir, task.module) as tmpdir:
         start = time.monotonic()
         cmd = [
             python_exe,
@@ -404,7 +427,10 @@ def run_module(
         suite = _measure_generated_suite(
             python_exe, tmpdir, task.module, timeout=min(timeout, _SUITE_TIMEOUT_S)
         )
-    return _result_from_stats(task, stats, duration, exit_code, error, suite=suite)
+        result = _result_from_stats(task, stats, duration, exit_code, error, suite=suite)
+        if output_dir is not None:
+            result.output_path = tmpdir
+        return result
 
 
 def ensure_llm_available(python_exe: str) -> None:
@@ -505,6 +531,7 @@ def run_eval(
     no_assertions: bool = False,
     timeout: int = DEFAULT_TIMEOUT_S,
     extra_args: list[str] | None = None,
+    output_dir: str | None = None,
 ) -> list[ModuleResult]:
     """Run Pynguin on all tasks in parallel and return results."""
     if llm_mode != LLM_MODE_NONE:
@@ -525,6 +552,7 @@ def run_eval(
                 no_assertions=no_assertions,
                 timeout=timeout,
                 extra_args=extra_args,
+                output_dir=output_dir,
             ): task
             for task in tasks
         }
