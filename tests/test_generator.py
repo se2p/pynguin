@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import importlib
 import random
 import random as _random
 import sys
@@ -418,9 +419,25 @@ def test__reload_instrumentation_loader_import_timeout():
 
 def test__reload_instrumentation_loader_reload_timeout():
     with (
-        mock.patch("importlib.import_module", return_value=MagicMock()),
-        mock.patch("sys.meta_path", [MagicMock(spec=gen.InstrumentationFinder)]),
-        mock.patch("importlib.reload", side_effect=TestExecutionTimeoutError("Timed out")),
+        mock.patch.object(importlib, "import_module", return_value=MagicMock()),
+        mock.patch.object(sys, "meta_path", [MagicMock(spec=gen.InstrumentationFinder)]),
+        mock.patch.object(importlib, "reload", side_effect=TestExecutionTimeoutError("Timed out")),
+    ):
+        gen.set_configuration(configuration=MagicMock(log_file=None, module_name="foo"))
+        assert (
+            gen._reload_instrumentation_loader(
+                coverage_metrics=set(),
+                dynamic_constant_provider=None,
+                subject_properties=MagicMock(),
+            )
+            is False
+        )
+
+
+def test__reload_instrumentation_loader_finder_not_found():
+    with (
+        mock.patch.object(importlib, "import_module", return_value=MagicMock()),
+        mock.patch.object(sys, "meta_path", []),
     ):
         gen.set_configuration(configuration=MagicMock(log_file=None, module_name="foo"))
         assert (

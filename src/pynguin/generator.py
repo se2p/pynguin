@@ -517,7 +517,9 @@ def _reload_instrumentation_loader(
         if isinstance(finder, InstrumentationFinder):
             first_finder = finder
             break
-    assert first_finder is not None
+    if first_finder is None:
+        _LOGGER.error("InstrumentationFinder not found in sys.meta_path")
+        return False
     first_finder.update_instrumentation_metrics(
         subject_properties=subject_properties,
         coverage_metrics=coverage_metrics,
