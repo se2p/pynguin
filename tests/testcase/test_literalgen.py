@@ -259,9 +259,11 @@ def test_parse_int_roundtrip(value):
     assert lg._parse_int(lg._int_to_cst(value)) == value
 
 
-@pytest.mark.parametrize("value", [0.0, 1.5, -3.25, 100.0])
+@pytest.mark.parametrize("value", [0.0, -0.0, 1.5, -3.25, 100.0])
 def test_parse_float_roundtrip(value):
-    assert lg._parse_float(lg._float_to_cst(value)) == value
+    result = lg._parse_float(lg._float_to_cst(value))
+    assert result == value
+    assert math.copysign(1.0, result) == math.copysign(1.0, value)
 
 
 def test_parse_helpers_reject_wrong_nodes():

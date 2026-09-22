@@ -41,6 +41,7 @@ def render(assertion: ass.Assertion, **kwargs) -> str | None:
         (1.5, 0.01, "assert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)"),
         (-2.0, 0.01, "assert var_0 == pytest.approx(-2.0, abs=0.01, rel=0.01)"),
         (0.0, 0.01, "assert var_0 == pytest.approx(0.0, abs=0.01, rel=0.01)"),
+        (-0.0, 0.01, "assert var_0 == pytest.approx(-0.0, abs=0.01, rel=0.01)"),
         (1.5, 0.001, "assert var_0 == pytest.approx(1.5, abs=0.001, rel=0.001)"),
         (
             float("nan"),
@@ -84,10 +85,12 @@ Dummy = enum.Enum("Dummy", "a")
         # `==` comparison for everything else
         (46, "assert var_0 == 46"),
         (-5, "assert var_0 == -5"),
+        (-0.0, "assert var_0 == -0.0"),
         ("hi", "assert var_0 == 'hi'"),
         (b"by", "assert var_0 == b'by'"),
         ([3, 8], "assert var_0 == [3, 8]"),
         ([1.5], "assert var_0 == [1.5]"),  # nested float goes through _make_float_literal
+        ([-0.0], "assert var_0 == [-0.0]"),
         ([[3, 8], {"foo"}], "assert var_0 == [[3, 8], {'foo'}]"),
         ((1,), "assert var_0 == (1, )"),
         ((1, 2), "assert var_0 == (1, 2)"),
