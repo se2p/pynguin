@@ -229,7 +229,7 @@ def _float_to_cst(value: float) -> cst.BaseExpression:
         if "." not in float_str and "e" not in float_str:
             float_str += ".0"
         inner = cst.Float(float_str)
-    if value < 0:
+    if math.copysign(1.0, value) < 0:
         return cst.UnaryOperation(
             operator=cst.Minus(),
             expression=inner,
