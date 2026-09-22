@@ -191,3 +191,43 @@ def test_async_archive_update_concurrent_with_llm_query(monkeypatch):
 
     assert llm_chromosome in algorithm._population
     algorithm._llm_query_strategy.shutdown()
+
+
+def test_llmosa_generate_tests_calls_cancel_all_on_shutdown(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "llm_mode", LLMMode.ASYNC)
+    algorithm = LLMOSAAlgorithm()
+    algorithm.before_search_start = MagicMock()
+    algorithm._get_random_population = MagicMock(return_value=[])
+    algorithm._archive = MagicMock()
+    algorithm._target_initial_uncovered_goals = MagicMock()
+    algorithm._compute_dominance = MagicMock()
+    algorithm.before_first_search_iteration = MagicMock()
+    algorithm.resources_left = MagicMock(return_value=False)
+    algorithm._finalize_generation = MagicMock(return_value=MagicMock())
+    algorithm.model = MagicMock()
+
+    algorithm.generate_tests()
+
+    algorithm.model.cancel_all.assert_called_once()
+
+
+def test_lldynamosa_generate_tests_calls_cancel_all_on_shutdown(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "llm_mode", LLMMode.ASYNC)
+    algorithm = LLDynaMOSAAlgorithm()
+    algorithm._executor = MagicMock()
+    algorithm.before_search_start = MagicMock()
+    algorithm._get_random_population = MagicMock(return_value=[])
+    algorithm._archive = MagicMock()
+    algorithm._archive.solutions = []
+    algorithm._target_initial_uncovered_goals = MagicMock()
+    algorithm._ranking_function = MagicMock()
+    algorithm.before_first_search_iteration = MagicMock()
+    algorithm.resources_left = MagicMock(return_value=False)
+    algorithm.after_search_finish = MagicMock()
+    algorithm.create_test_suite = MagicMock(return_value=MagicMock())
+    algorithm._get_best_individuals = MagicMock(return_value=[])
+    algorithm.model = MagicMock()
+
+    algorithm.generate_tests()
+
+    algorithm.model.cancel_all.assert_called_once()

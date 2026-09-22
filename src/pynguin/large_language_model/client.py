@@ -248,6 +248,10 @@ class LLMClient(abc.ABC):
     def reset_usage(self) -> None:
         """Resets all usage counters to zero."""
 
+    @abc.abstractmethod
+    def cancel_all(self) -> None:
+        """Forcefully cancel all in-flight requests and close client connections."""
+
 
 class OpenAIClient(LLMClient):
     """A thread-safe instance-based OpenAI client."""
@@ -278,6 +282,7 @@ class OpenAIClient(LLMClient):
         self._output_tokens = 0
         self._time_seconds = 0.0
         self._calls_with_no_python_code = 0
+        self._is_cancelled = False
 
         # Once a model rejects an explicit temperature of 0, remember it so all future
         # requests from this client skip the doomed attempt and use the fallback directly.
@@ -484,6 +489,9 @@ class OpenAIClient(LLMClient):
         Returns:
             The response string, or None if failed.
         """
+        if self._is_cancelled:
+            return None
+
         if getattr(config.configuration.large_language_model, "enable_response_caching", False):
             cached = self._cache.get(request)
             if cached is not None:
@@ -513,6 +521,8 @@ class OpenAIClient(LLMClient):
                 elapsed = time.perf_counter() - start_time
                 return self._record_response(request, response, elapsed)
             except Exception as exc:  # noqa: BLE001
+                if self._is_cancelled:
+                    return None
                 elapsed = time.perf_counter() - start_time
                 with self._lock:
                     self._time_seconds += elapsed
@@ -560,6 +570,9 @@ class OpenAIClient(LLMClient):
         Returns:
             The response string, or None if failed.
         """
+        if self._is_cancelled:
+            return None
+
         if getattr(config.configuration.large_language_model, "enable_response_caching", False):
             cached = self._cache.get(request)
             if cached is not None:
@@ -589,6 +602,8 @@ class OpenAIClient(LLMClient):
                 elapsed = time.perf_counter() - start_time
                 return self._record_response(request, response, elapsed)
             except Exception as exc:  # noqa: BLE001
+                if self._is_cancelled:
+                    return None
                 elapsed = time.perf_counter() - start_time
                 with self._lock:
                     self._time_seconds += elapsed
@@ -622,3 +637,19 @@ class OpenAIClient(LLMClient):
                 await asyncio.sleep(wait)
 
         return None
+
+    def cancel_all(self) -> None:
+        """Forcefully cancel all in-flight requests and close client connections."""
+        with self._lock:
+            self._is_cancelled = True
+        if hasattr(self, "_client") and self._client is not None:
+            try:
+                self._client.close()
+            except Exception:
+                _logger.exception("Error closing OpenAI sync client.")
+        with self._lock:
+            if hasattr(self, "_async_client") and self._async_client is not None:
+                try:
+                    _run_coroutine_sync(self._async_client.close())
+                except Exception:
+                    _logger.exception("Error closing OpenAI async client.")

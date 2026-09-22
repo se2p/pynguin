@@ -153,3 +153,35 @@ def test_send_batch_sync(monkeypatch):
     assert len(results) == 4
     for i, res in enumerate(results):
         assert res == f"sync resp req_{i}"
+
+
+def test_cancel_all_closes_clients_and_aborts_subsequent_requests(monkeypatch):
+    client = _make_client(monkeypatch)
+    _ = client.async_client
+    async_mock_close = AsyncMock()
+    client._async_client.close = async_mock_close
+
+    assert client._is_cancelled is False
+
+    client.cancel_all()
+
+    assert client._is_cancelled is True
+    client._client.close.assert_called_once()
+    async_mock_close.assert_called_once()
+
+    req = _request("test")
+    assert client.send(req) is None
+    assert asyncio.run(client.send_async(req)) is None
+
+
+def test_cancel_all_during_in_flight_send(monkeypatch):
+    client = _make_client(monkeypatch)
+
+    def fake_create(**_kwargs):
+        client.cancel_all()
+        raise RuntimeError("Socket closed")
+
+    client._client.chat.completions.create = MagicMock(side_effect=fake_create)
+    req = _request("test")
+    result = client.send(req)
+    assert result is None

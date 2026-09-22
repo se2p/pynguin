@@ -220,7 +220,7 @@ def _find_lines(name: str) -> tuple[list[str], int] | None:
         return None
 
 
-class LLMAgent:
+class LLMAgent:  # noqa: PLR0904
     """A class to interact with OpenAI's language model for generating unit tests."""
 
     def __init__(self):
@@ -285,6 +285,20 @@ class LLMAgent:
             The number of LLM API calls that has no Python code.
         """
         return self._llm_calls_with_no_python_code
+
+    @property
+    def client(self) -> OpenAIClient:
+        """Returns the underlying LLM client.
+
+        Returns:
+            The OpenAIClient instance.
+        """
+        return self._client
+
+    def cancel_all(self) -> None:
+        """Cancel all in-flight requests and close client connections."""
+        if hasattr(self, "_client") and hasattr(self._client, "cancel_all"):
+            self._client.cancel_all()
 
     def query(self, prompt: Prompt) -> str | None:
         """Sends a query to the OpenAI API and returns the response.

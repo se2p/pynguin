@@ -152,6 +152,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 self.evolve()
                 self.after_search_iteration(self.create_test_suite(self._archive.solutions))
         finally:
+            if hasattr(self.model, "cancel_all"):
+                self.model.cancel_all()
             self._llm_query_strategy.shutdown()
 
         return self._finalize_generation()

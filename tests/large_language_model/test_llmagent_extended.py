@@ -521,3 +521,21 @@ def test_shorten_line_annotations_fail(monkeypatch):
     result = shorten_line_annotations(annotations, "foo")
 
     assert result == []
+
+
+def test_llmagent_client_property_and_cancel_all(monkeypatch):
+    mock_secret = MagicMock()
+    mock_secret.get_secret_value.return_value = "fake"
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.require_api_key", lambda: mock_secret
+    )
+    monkeypatch.setattr("pynguin.large_language_model.client.require_api_key", lambda: mock_secret)
+    monkeypatch.setattr("pynguin.large_language_model.client.get_llm_url", lambda: None)
+    monkeypatch.setattr("pynguin.large_language_model.client.openai.OpenAI", MagicMock)
+
+    agent = LLMAgent()
+    assert agent.client is agent._client
+
+    with patch.object(agent._client, "cancel_all") as mock_cancel:
+        agent.cancel_all()
+        mock_cancel.assert_called_once()
