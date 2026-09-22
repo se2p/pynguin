@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, cast
 
 import libcst as cst
 
-from pynguin.assertion.assertion import FloatAssertion
+from pynguin.assertion.assertion import FloatAssertion, IsInstanceAssertion
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.testcase.execution import OutputSuppressionContext, suppress_logging
 from pynguin.utils.exceptions import TracingAbortedException
@@ -447,6 +447,11 @@ class TestSuiteWriter:
         needs_pytest = False
         needs_asyncio = False
         used_exc_types: set[type[BaseException]] = set()
+        # Non-builtin modules referenced by ``isinstance`` assertions (e.g.
+        # ``collections`` for ``isinstance(x, collections.defaultdict)``). These are
+        # rendered as ``<alias>.<qualname>`` and must be imported under that alias, or
+        # the exported test raises ``NameError``.
+        used_isinstance_modules: set[str] = set()
 
         # Build one test function per test case chromosome in the suite
         for idx, individual in enumerate(suite.test_case_chromosomes):
@@ -467,6 +472,13 @@ class TestSuiteWriter:
                 needs_pytest = True
             func, func_used_exc_types = self._build_test_function(idx, tc, exc_types)
             used_exc_types.update(func_used_exc_types)
+            for stmt in tc.statements():
+                for assertion in stmt.assertions:
+                    if isinstance(assertion, IsInstanceAssertion) and assertion.module not in {
+                        "builtins",
+                        module_name,
+                    }:
+                        used_isinstance_modules.add(assertion.module)
             functions.append(func)
             if not needs_pytest:
                 visitor = _PytestReferenceVisitor()
@@ -494,6 +506,16 @@ class TestSuiteWriter:
         for mod in sorted(by_module):
             names = ", ".join(sorted(set(by_module[mod])))
             exc_import_stmts.append(cst.parse_statement(f"from {mod} import {names}\n"))
+
+        # Import the modules referenced by ``isinstance`` assertions under the alias the
+        # assertion rendering uses (``get_module_alias``). Skip any whose alias collides
+        # with the SUT alias, which is already bound below.
+        assertion_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+        for mod in sorted(used_isinstance_modules):
+            alias = get_module_alias(mod)
+            if alias == module_alias:
+                continue
+            assertion_import_stmts.append(cst.parse_statement(f"import {mod} as {alias}\n"))
 
         # Build the full module: [sys.path preamble +] import(s) + test functions
         # Use explicit import of all public names instead of `import *` so that
@@ -542,6 +564,7 @@ class TestSuiteWriter:
                     *patch_nodes,
                     *exc_import_stmts,
                     *sut_import_stmts,
+                    *assertion_import_stmts,
                     fixture,
                     *functions,
                 ]
@@ -557,7 +580,15 @@ class TestSuiteWriter:
                     cast("cst.SimpleStatementLine", cst.parse_statement("import asyncio\n"))
                 )
             import_stmts.extend(sut_import_stmts)
-            module = cst.Module(body=[*preamble, *import_stmts, *exc_import_stmts, *functions])
+            module = cst.Module(
+                body=[
+                    *preamble,
+                    *import_stmts,
+                    *exc_import_stmts,
+                    *assertion_import_stmts,
+                    *functions,
+                ]
+            )
 
         output = module.code
         if format_with_black:
