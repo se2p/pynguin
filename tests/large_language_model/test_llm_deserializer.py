@@ -673,6 +673,26 @@ def test_parse_assertion_isinstance_unknown_receiver_returns_none():
     assert parse_assertion(node, _known(x=int)) is None
 
 
+def test_parse_assertion_isinstance_non_sut_module_resolves_to_real_module(monkeypatch):
+    """A dotted type from a non-SUT module keeps that module, not the SUT module.
+
+    Regression for #275: every dotted type used to be attributed to
+    ``config.module_name``, so ``collections.defaultdict`` was exported as
+    ``<sut_alias>.defaultdict`` and raised ``AttributeError`` at runtime.
+    """
+    monkeypatch.setattr(config.configuration, "module_name", "pytutils.trees")
+    node = cst.parse_statement("assert isinstance(x, collections.defaultdict)").body[0]
+    result = parse_assertion(node, _known(x=None))
+    assert result == ("x", IsInstanceAssertion("x", "collections", "defaultdict"))
+
+
+def test_parse_assertion_isinstance_unresolvable_module_not_lifted(monkeypatch):
+    """A dotted type that resolves to no importable module is left for the raw fallback."""
+    monkeypatch.setattr(config.configuration, "module_name", "pytutils.trees")
+    node = cst.parse_statement("assert isinstance(x, nonexistent_pkg.Thing)").body[0]
+    assert parse_assertion(node, _known(x=None)) is None
+
+
 def test_parse_assertion_len_equality():
     node = cst.parse_statement("assert len(x) == 3").body[0]
     result = parse_assertion(node, _known(x=list))

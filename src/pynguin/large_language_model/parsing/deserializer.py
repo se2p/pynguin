@@ -574,14 +574,40 @@ def normalize_sut_references(module: cst.Module, module_name: str, module_alias:
 # ---------------------------------------------------------------------------
 
 
+def _module_has_type(module: str, qualname: str) -> bool:
+    """Whether *qualname* resolves to an attribute of the importable *module*."""
+    try:
+        obj: Any = importlib.import_module(module)
+    except BaseException:  # noqa: BLE001
+        return False
+    for part in qualname.split("."):
+        if not hasattr(obj, part):
+            return False
+        obj = getattr(obj, part)
+    return True
+
+
 def _resolve_type_ref(node: cst.BaseExpression) -> tuple[str, str] | tuple[None, None]:
     if isinstance(node, cst.Name):
         if node.value in dir(builtins):
             return "builtins", node.value
         return None, None
     chain = _dotted_chain(node)
-    if chain and len(chain) >= 2:
+    if not (chain and len(chain) >= 2):
+        return None, None
+    # A reference through the canonical SUT alias (e.g. ``mod_.Foo``) names a type
+    # in the module under test.
+    if chain[0] == get_module_alias(config.configuration.module_name):
         return config.configuration.module_name, ".".join(chain[1:])
+    # Otherwise the chain is ``<module...>.<Type>`` (e.g. ``collections.defaultdict``);
+    # the module is everything but the last component. Attributing every dotted type
+    # to the SUT module produced ``<sut>.<Type>`` references that raise ``AttributeError``
+    # at runtime. Only lift the assertion when the type actually resolves, so a
+    # hallucinated or non-module reference is left for the raw-assert fallback instead
+    # of being mis-attributed.
+    module, qualname = ".".join(chain[:-1]), chain[-1]
+    if _module_has_type(module, qualname):
+        return module, qualname
     return None, None
 
 
