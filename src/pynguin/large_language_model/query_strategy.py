@@ -150,7 +150,7 @@ class AsyncLLMQueryStrategy(LLMQueryStrategy):
 
     def shutdown(self) -> None:
         """Shut down background executor and cancel pending futures."""
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self._executor.shutdown(wait=True, cancel_futures=True)
 
 
 def get_query_strategy(mode: LLMMode | str | None = None) -> LLMQueryStrategy:

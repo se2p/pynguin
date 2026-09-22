@@ -97,6 +97,24 @@ def test_async_strategy_exception_handling():
         strategy.shutdown()
 
 
+def test_async_strategy_shutdown_waits_for_running_task():
+    strategy = AsyncLLMQueryStrategy()
+    completed = False
+
+    def slow_query_fn() -> str:
+        time.sleep(0.05)
+        nonlocal completed
+        completed = True
+        return "done"
+
+    strategy.execute(slow_query_fn)
+    assert strategy.is_in_progress() is True
+    assert completed is False
+
+    strategy.shutdown()
+    assert completed is True
+
+
 def test_get_query_strategy():
     assert isinstance(get_query_strategy(LLMMode.SYNC), SyncLLMQueryStrategy)
     assert isinstance(get_query_strategy("sync"), SyncLLMQueryStrategy)
