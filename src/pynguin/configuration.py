@@ -381,6 +381,11 @@ class TestCaseOutputConfiguration:
     """The order of the generated higher order mutants in the mutation analysis
     assertion generation method."""
 
+    maximum_llm_assertion_time: int = -1
+    """Maximum wall-clock time in seconds for generating assertions via LLM
+    (-1 = unlimited). When the budget is exceeded, no further test cases are
+    queried."""
+
     maximum_mutation_time: int = -1
     """Maximum wall-clock time in seconds for executing tests against mutants
     during assertion generation (-1 = unlimited). When the budget is exceeded the
