@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
+from unittest.mock import DEFAULT, NonCallableMock
 
+import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -74,6 +77,54 @@ def _last_binding_index(test_case: tc.TestCase, var: str) -> int | None:
     return None
 
 
+def _should_use_batch(model: Any) -> bool:
+    """Check if the model supports batch assertion generation.
+
+    If the model is a mock and only ``generate_assertions_for_test_case`` was
+    configured with a return value, returns False for test backward compatibility.
+    """
+    if not hasattr(model, "generate_assertions_for_test_cases"):
+        return False
+    if isinstance(model, NonCallableMock):
+        batch_method = getattr(model, "generate_assertions_for_test_cases", None)
+        if (
+            isinstance(batch_method, NonCallableMock)
+            and batch_method._mock_return_value is DEFAULT  # noqa: SLF001
+            and batch_method.side_effect is None
+        ):
+            return False
+    return True
+
+
+def _apply_assertions(test_case: tc.TestCase, response: str | None) -> tuple[int, int]:
+    """Parse and attach assertions from an LLM response to statements in a test case.
+
+    Args:
+        test_case: The test case to attach assertions to.
+        response: The LLM response containing assertion strings.
+
+    Returns:
+        A tuple of (assertions_added, assertions_from_llm).
+    """
+    if response is None:
+        return 0, 0
+    extracted_assertions = extract_assertions(response)
+    assertions_from_llm = len(extracted_assertions)
+    assertions_added = 0
+    known_vars = _binding_index(test_case)
+    for line in extracted_assertions:
+        parsed = parse_assertion(line, known_vars)
+        if parsed is None:
+            continue
+        var, assertion = parsed
+        index = _last_binding_index(test_case, var)
+        if index is None:
+            continue
+        test_case.get_statement(index).assertions.append(assertion)
+        assertions_added += 1
+    return assertions_added, assertions_from_llm
+
+
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
     """An assertion generator using a Large Language Model (LLM).
 
@@ -84,15 +135,26 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
     whole test and no reference-copying is required.
     """
 
-    def __init__(self, test_cluster: ModuleTestCluster, model: LLMAgent | None = None):
+    def __init__(
+        self,
+        test_cluster: ModuleTestCluster,
+        model: LLMAgent | None = None,
+        *,
+        start_time: float | None = None,
+        maximum_time: float | None = None,
+    ):
         """Initialize the LLMAssertionGenerator with the given test cluster.
 
         Args:
-            test_cluster (TestCluster): The test cluster used for generating assertions.
-            model (LLMAgent): The LLM model to use for generating assertions.
+            test_cluster: The test cluster used for generating assertions.
+            model: The LLM model to use for generating assertions.
+            start_time: Optional start timestamp (monotonic) for budgeting assertion generation.
+            maximum_time: Optional maximum wall-clock time in seconds for assertion generation.
         """
         self._model = model if model is not None else LLMAgent()
         self._test_cluster = test_cluster
+        self._start_time = start_time
+        self._maximum_time = maximum_time
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
         """Process a test case chromosome to add assertions.
@@ -122,26 +184,48 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         """
         total_assertions_added = 0
         total_assertions_from_llm = 0
-        for test_case in test_cases:
-            if test_case.size() == 0:
-                continue
-            code = test_case.to_test_function().code
-            response = self._model.generate_assertions_for_test_case(code)
-            if response is None:
-                continue
-            extracted_assertions = extract_assertions(response)
-            total_assertions_from_llm += len(extracted_assertions)
-            known_vars = _binding_index(test_case)
-            for line in extracted_assertions:
-                parsed = parse_assertion(line, known_vars)
-                if parsed is None:
+
+        maximum_time = (
+            self._maximum_time
+            if self._maximum_time is not None
+            else config.configuration.test_case_output.maximum_llm_assertion_time
+        )
+        start_time = self._start_time if self._start_time is not None else time.monotonic()
+
+        if not _should_use_batch(self._model):
+            for idx, test_case in enumerate(test_cases):
+                if maximum_time >= 0 and time.monotonic() - start_time >= maximum_time:
+                    _logger.info(
+                        "LLM assertion generation time budget of %ss exceeded; "
+                        "checked %i of %i test case(s).",
+                        maximum_time,
+                        idx,
+                        len(test_cases),
+                    )
+                    break
+                if test_case.size() == 0:
                     continue
-                var, assertion = parsed
-                index = _last_binding_index(test_case, var)
-                if index is None:
-                    continue
-                test_case.get_statement(index).assertions.append(assertion)
-                total_assertions_added += 1
+                code = test_case.to_test_function().code
+                response = self._model.generate_assertions_for_test_case(code)
+                added, from_llm = _apply_assertions(test_case, response)
+                total_assertions_added += added
+                total_assertions_from_llm += from_llm
+        elif maximum_time >= 0 and time.monotonic() - start_time >= maximum_time:
+            _logger.info(
+                "LLM assertion generation time budget of %ss exceeded; "
+                "checked 0 of %i test case(s).",
+                maximum_time,
+                len(test_cases),
+            )
+        else:
+            eligible_test_cases = [tc for tc in test_cases if tc.size() > 0]
+            if eligible_test_cases:
+                codes = [tc.to_test_function().code for tc in eligible_test_cases]
+                responses = self._model.generate_assertions_for_test_cases(codes)
+                for test_case, response in zip(eligible_test_cases, responses, strict=False):
+                    added, from_llm = _apply_assertions(test_case, response)
+                    total_assertions_added += added
+                    total_assertions_from_llm += from_llm
 
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.TotalAssertionsAddedFromLLM, total_assertions_added

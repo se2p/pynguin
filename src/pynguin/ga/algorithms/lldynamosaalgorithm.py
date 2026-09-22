@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import inspect
 import logging
-import time
 from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm, _GoalsManager
-from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
+from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm, _StallTracker
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -61,6 +60,16 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             self._logger.info("Coverage after LLM call: %5f", coverage_after)
             stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
 
+    def _integrate_llm_chromosomes(self, llm_chromosomes: list[tcc.TestCaseChromosome]) -> None:
+        """Integrate LLM chromosomes and update DynaMOSA goals.
+
+        Args:
+            llm_chromosomes: Newly generated LLM chromosomes.
+        """
+        super()._integrate_llm_chromosomes(llm_chromosomes)
+        if hasattr(self, "_goals_manager"):
+            self._goals_manager.update(self._population)
+
     def _maybe_intervene_on_stall(self) -> None:
         """Query the LLM on a stall, then unlock any goals the result just covered.
 
@@ -68,7 +77,6 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         must be unlocked immediately to avoid losing coverage during truncation.
         """
         super()._maybe_intervene_on_stall()
-        self._goals_manager.update(self._population)
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
@@ -96,40 +104,18 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
 
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
-        llm_config = config.configuration.large_language_model
-        last_length_of_covered_goals = len(self._archive.covered_goals)
-        plateau_counter = 0
-        max_plateau_len = llm_config.max_plateau_len
-        last_gain_time = time.time()
-        while self.resources_left() and len(self._archive.uncovered_goals) > 0:
-            if llm_config.call_llm_on_stall_detection:
-                current_covered = len(self._archive.covered_goals)
-                if current_covered != last_length_of_covered_goals:
-                    plateau_counter = 0
-                    last_gain_time = time.time()
-                else:
-                    plateau_counter += 1
-                last_length_of_covered_goals = current_covered
-
-                if llm_config.stall_detection_window_seconds > 0:
-                    stalled = (
-                        time.time() - last_gain_time >= llm_config.stall_detection_window_seconds
-                    )
-                else:
-                    stalled = plateau_counter > max_plateau_len
-
-                if stalled:
-                    self._maybe_intervene_on_stall()
-                    # Reset stall tracking after a firing (or a suppressed attempt) so
-                    # we wait for a fresh plateau before querying again.
-                    plateau_counter = 0
-                    last_gain_time = time.time()
-                    if llm_config.stall_detection_window_seconds <= 0:
-                        max_plateau_len *= 2
-            self.evolve()
-            if config.configuration.local_search.local_search:
-                self.local_search()
-            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
+        stall_tracker = _StallTracker(len(self._archive.covered_goals))
+        try:
+            while self.resources_left() and len(self._archive.uncovered_goals) > 0:
+                self._poll_and_handle_stall(stall_tracker)
+                self.evolve()
+                if config.configuration.local_search.local_search:
+                    self.local_search()
+                self.after_search_iteration(self.create_test_suite(self._archive.solutions))
+        finally:
+            if hasattr(self.model, "cancel_all"):
+                self.model.cancel_all()
+            self._llm_query_strategy.shutdown()
 
         self.after_search_finish()
         return self.create_test_suite(
@@ -170,13 +156,19 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
                 eligible.add(gao)
         return eligible
 
-    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
-        """Identifies the highest-priority uncovered target, queries an LLM.
+    def _select_uncovered_targets(
+        self,
+    ) -> tuple[
+        dict[GenericCallableAccessibleObject, float],
+        dict[GenericCallableAccessibleObject, str],
+    ]:
+        """Identifies the highest-priority uncovered target, priority = 1 - coverage.
 
-         and processes the result into a list of test case chromosomes.
+        Runs synchronously on the main thread to safely inspect the archive and test
+        cluster before any background LLM queries are dispatched.
 
         Returns:
-            A list of `TestCaseChromosome` objects derived from the LLM query result.
+            A tuple containing the single-target coverage map and its diagnostics.
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
 
@@ -217,15 +209,15 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             gao: self._diagnose_callable(gao, line_annotations) for gao in targeted_gao_coverage_map
         }
         diagnostics = {gao: hint for gao, hint in diagnostics.items() if hint}
+        return targeted_gao_coverage_map, diagnostics
 
-        llm_query_results = self.model.call_llm_for_uncovered_targets(
-            targeted_gao_coverage_map, diagnostics
-        )
+    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
+        """Identifies the highest-priority uncovered target, queries an LLM.
 
-        return self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
-            llm_query_results=llm_query_results,
-            test_cluster=self.test_cluster,
-            test_factory=self._test_factory,
-            fitness_functions=self._test_case_fitness_functions,
-            coverage_functions=self._test_suite_coverage_functions,
-        )
+         and processes the result into a list of test case chromosomes.
+
+        Returns:
+            A list of `TestCaseChromosome` objects derived from the LLM query result.
+        """
+        targets_map, diagnostics = self._select_uncovered_targets()
+        return self._query_llm_for_targets(targets_map, diagnostics)

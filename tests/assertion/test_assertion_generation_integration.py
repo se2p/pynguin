@@ -23,6 +23,7 @@ import builtins
 import importlib
 import inspect
 import threading
+import time
 from unittest import mock
 
 import libcst as cst
@@ -36,6 +37,9 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
+from pynguin.assertion.llmassertiongenerator import (
+    MutationAnalysisLLMAssertionGenerator,
+)
 from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
@@ -585,6 +589,55 @@ def test_mutation_analysis_truncated_by_time_budget(subject_properties: SubjectP
         config.configuration.test_case_output.maximum_mutation_time = original_budget
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_llm_with_shared_start_time_budget_exhausted(
+    subject_properties: SubjectProperties,
+):
+    module = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
+    config.configuration.seeding.seed = 42
+    original_budget = config.configuration.test_case_output.maximum_mutation_time
+    # Overall budget is 10s, but start_time was 20s ago, so remaining budget is exhausted.
+    config.configuration.test_case_output.maximum_mutation_time = 10
+    alias = get_module_alias(module)
+    try:
+        with install_import_hook(module, subject_properties):
+            with subject_properties.instrumentation_tracer:
+                module_type = importlib.import_module(module)
+                importlib.reload(module_type)
+
+            test_case = _tc_mutation_killing(alias)
+            suite = _suite(test_case)
+
+            mutant_generator = mu.FirstOrderMutator([
+                *mo.standard_operators,
+                *mo.experimental_operators,
+            ])
+            module_ast = _module_ast(module_type)
+            controller = _mutation_controller(mutant_generator, module_type, module_ast)
+
+            num_created = controller.mutant_count()
+            assert num_created > 0
+
+            # Simulate that the LLM assertion phase took 20s before mutation analysis started
+            past_start_time = time.monotonic() - 20.0
+            gen = MutationAnalysisLLMAssertionGenerator(
+                TestCaseExecutor(subject_properties),
+                controller,
+                testing=True,
+                start_time=past_start_time,
+                maximum_time=10.0,
+            )
+            suite.accept(gen)
+
+            # The shared budget cut every mutant; the run completes cleanly with 0 mutants checked.
+            assert len(gen._testing_mutation_summary.mutant_information) == 0
+
+            _assert_no_execution_threads_leaked()
+    finally:
+        config.configuration.test_case_output.maximum_mutation_time = original_budget
+
+
 @pytest.mark.parametrize(
     "module,tc_factory,expected_source,killed,timeout",
     [
@@ -838,3 +891,65 @@ def test_write_exports_expected_and_unexpected_exception_branches(
         assert f"with pytest.raises({raised.__name__}):" in source
         assert "\n        some_call()\n" in source
         assert "xfail" not in source
+
+
+def test_negative_zero_assertion_generation(subject_properties: SubjectProperties):
+    """Assertion generation handles -0.0 without CSTValidationError or dropping assertions."""
+    module_name = "tests.fixtures.examples.assertions"
+    config.configuration.module_name = module_name
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+
+        test_case = make_test_case(
+            float_stmt("float_0", -0.0),
+        )
+        suite = _suite(test_case)
+        gen = ag.AssertionGenerator(TestCaseExecutor(subject_properties))
+        suite.accept(gen)
+
+        assert _render(test_case) == (
+            "def test_0():\n"
+            "    float_0 = -0.0\n"
+            "    assert float_0 == pytest.approx(-0.0, abs=0.01, rel=0.01)\n"
+            "    assert assertions_.static_state == 0\n"
+        )
+        _assert_no_execution_threads_leaked()
+
+
+def test_negative_zero_mutation_analysis_assertion_generation(
+    subject_properties: SubjectProperties,
+):
+    """Mutation analysis handles test cases containing -0.0 without thread crash."""
+    module_name = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module_name
+    alias = get_module_alias(module_name)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+
+        test_case = make_test_case(
+            float_stmt("float_0", -0.0),
+            int_stmt("int_0", 1),
+            call_stmt("float_1", f"{alias}.foo(int_0)", bound_type=float),
+        )
+        suite = _suite(test_case)
+
+        mutant_generator = mu.FirstOrderMutator(
+            [*mo.standard_operators, *mo.experimental_operators],
+            maximum_mutants=2,
+            sampling_seed=42,
+        )
+        module_ast = _module_ast(module)
+        controller = _mutation_controller(mutant_generator, module, module_ast)
+
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(subject_properties), controller, testing=True
+        )
+        suite.accept(gen)
+
+        summary = gen._testing_mutation_summary
+        assert len(summary.get_timeout()) == 0
+        _assert_no_execution_threads_leaked()

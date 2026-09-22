@@ -118,6 +118,7 @@ def test_inherits_evolve_from_dynamosa_not_mosa():
         "_target_initial_uncovered_goals",
         "_maybe_intervene_on_stall",
         "_eligible_gaos_for_targeting",
+        "_select_uncovered_targets",
         "target_uncovered_callables",
     ],
 )
@@ -172,13 +173,16 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, lldynamosa_al
 def test_maybe_intervene_on_stall_updates_goals_manager(lldynamosa_algorithm):
     """Tests that a stall intervention unlocks goals, not just archive.update()."""
     llm_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
-    lldynamosa_algorithm.target_uncovered_callables = MagicMock(return_value=[llm_chromosome])
+    mock_gao = MagicMock(spec=GenericCallableAccessibleObject)
+    lldynamosa_algorithm._select_uncovered_targets = MagicMock(return_value=({mock_gao: 0.0}, {}))
+    lldynamosa_algorithm._query_llm_for_targets = MagicMock(return_value=[llm_chromosome])
     existing_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     lldynamosa_algorithm._population = [existing_chromosome]
 
     lldynamosa_algorithm._maybe_intervene_on_stall()
 
-    lldynamosa_algorithm.target_uncovered_callables.assert_called_once()
+    lldynamosa_algorithm._select_uncovered_targets.assert_called_once()
+    lldynamosa_algorithm._query_llm_for_targets.assert_called_once()
     assert lldynamosa_algorithm._population == [llm_chromosome, existing_chromosome]
     lldynamosa_algorithm._goals_manager.update.assert_called_once_with(
         lldynamosa_algorithm._population

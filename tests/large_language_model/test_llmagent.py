@@ -181,9 +181,8 @@ def test_get_module_source_code_with_module_level_getattr(monkeypatch, tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
 
     props = SubjectProperties()
-    install_import_hook("mod_with_getattr", props)
     # Import SUT under active tracer (as Pynguin does in _load_sut)
-    with props.instrumentation_tracer:
+    with install_import_hook("mod_with_getattr", props), props.instrumentation_tracer:
         importlib.import_module("mod_with_getattr")
 
     # Post-import: tracer is stopped (_current_thread_identifier is None)

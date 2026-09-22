@@ -82,7 +82,10 @@ from pynguin.testcase.execution import (
     TestCaseExecutor,
 )
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.exceptions import (
+    CannotInstrumentCompiledModuleError,
+    ConfigurationException,
+)
 from pynguin.utils.report import (
     get_coverage_report,
     render_coverage_report,
@@ -155,7 +158,11 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
     try:
         test_cluster = generate_test_cluster(
             config.configuration.module_name,
+            allow_c_module=False,
         )
+    except CannotInstrumentCompiledModuleError as ex:
+        _LOGGER.error("%s", ex)
+        return None
     except ModuleNotFoundError as ex:
         _LOGGER.exception(
             """Module %s could not be found. This is likely due to a missing dependency.
@@ -827,7 +834,9 @@ def _reload_instrumentation_loader(
         if isinstance(finder, InstrumentationFinder):
             first_finder = finder
             break
-    assert first_finder is not None
+    if first_finder is None:
+        _LOGGER.error("InstrumentationFinder not found in sys.meta_path")
+        return False
     first_finder.update_instrumentation_metrics(
         subject_properties=subject_properties,
         coverage_metrics=coverage_metrics,
@@ -1378,6 +1387,9 @@ def _setup_mutant_generator() -> mu.Mutator:
 
 def _setup_mutation_analysis_assertion_generator(
     executor: TestCaseExecutor,
+    *,
+    start_time: float | None = None,
+    maximum_time: float | None = None,
 ) -> ag.MutationAnalysisAssertionGenerator:
     _LOGGER.info("Setup mutation generator")
     mutant_generator = _setup_mutant_generator()
@@ -1395,13 +1407,18 @@ def _setup_mutation_analysis_assertion_generator(
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
-            executor, mutation_controller
+            executor,
+            mutation_controller,
+            start_time=start_time,
+            maximum_time=maximum_time,
         )
     else:
         assertion_generator = ag.MutationAnalysisAssertionGenerator(
             executor,
             mutation_controller,
             filtering_executor=ag.create_filtering_executor(executor),
+            start_time=start_time,
+            maximum_time=maximum_time,
         )
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())

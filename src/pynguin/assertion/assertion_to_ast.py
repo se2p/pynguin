@@ -111,7 +111,7 @@ def _make_float_literal(value: float) -> cst.BaseExpression:
     if math.isinf(value):
         literal = "'inf'" if value > 0 else "'-inf'"
         return cst.Call(func=cst.Name("float"), args=[cst.Arg(value=cst.SimpleString(literal))])
-    if value < 0:
+    if math.copysign(1.0, value) < 0:
         return cst.UnaryOperation(operator=cst.Minus(), expression=cst.Float(str(-value)))
     return cst.Float(str(value))
 

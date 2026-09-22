@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 import logging
 import time
@@ -29,10 +30,51 @@ import operator
 import pynguin.configuration as config
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.query_strategy import get_query_strategy
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
 from pynguin.utils.report import CoverageReport, LineAnnotation, get_coverage_report
+
+
+class _StallTracker:
+    """Tracks coverage plateau and stall conditions for LLM interventions."""
+
+    def __init__(self, initial_covered: int) -> None:
+        self._llm_config = config.configuration.large_language_model
+        self.last_length_of_covered_goals = initial_covered
+        self.plateau_counter = 0
+        self.max_plateau_len = self._llm_config.max_plateau_len
+        self.last_gain_time = time.time()
+
+    def check_stall(self, current_covered: int) -> bool:
+        """Updates plateau tracking and returns True if search has stalled.
+
+        Args:
+            current_covered: Current number of covered goals in archive.
+
+        Returns:
+            True if search has stalled, False otherwise.
+        """
+        if current_covered != self.last_length_of_covered_goals:
+            self.plateau_counter = 0
+            self.last_gain_time = time.time()
+        else:
+            self.plateau_counter += 1
+        self.last_length_of_covered_goals = current_covered
+
+        if self._llm_config.stall_detection_window_seconds > 0:
+            return (
+                time.time() - self.last_gain_time >= self._llm_config.stall_detection_window_seconds
+            )
+        return self.plateau_counter > self.max_plateau_len
+
+    def reset(self) -> None:
+        """Resets tracking state after an intervention."""
+        self.plateau_counter = 0
+        self.last_gain_time = time.time()
+        if self._llm_config.stall_detection_window_seconds <= 0:
+            self.max_plateau_len *= 2
 
 
 class LLMOSAAlgorithm(MOSAAlgorithm):
@@ -43,6 +85,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self.model = LLMAgent()
+        self._llm_query_strategy = get_query_strategy()
         # Counts only stall-triggered interventions, kept separate from the model's
         # global llm_calls_counter (which also counts pre-search/seeding queries) so
         # that ``max_llm_interventions`` caps stall queries independently.
@@ -60,12 +103,31 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
             llm_chromosomes = self.target_uncovered_callables()
-            self._population += llm_chromosomes
+            self._population = llm_chromosomes + self._population
             self._archive.update(self._population)
 
             coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
             self._logger.info("Coverage after LLM call: %5f", coverage_after)
             stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
+
+    def _poll_and_handle_stall(self, stall_tracker: _StallTracker) -> None:
+        """Polls for background LLM results and checks stall detection.
+
+        Args:
+            stall_tracker: State tracker for stall detection.
+        """
+        pending_chromosomes = self._llm_query_strategy.poll()
+        if pending_chromosomes:
+            self._integrate_llm_chromosomes(pending_chromosomes)
+
+        if config.configuration.large_language_model.call_llm_on_stall_detection:
+            current_covered = len(self._archive.covered_goals)
+            if (
+                stall_tracker.check_stall(current_covered)
+                and not self._llm_query_strategy.is_in_progress()
+            ):
+                self._maybe_intervene_on_stall()
+                stall_tracker.reset()
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
@@ -80,42 +142,33 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         self._compute_dominance()
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
-        llm_config = config.configuration.large_language_model
-        last_length_of_covered_goals = len(self._archive.covered_goals)
-        plateau_counter = 0
-        max_plateau_len = llm_config.max_plateau_len
-        last_gain_time = time.time()
-        while (
-            self.resources_left() and self._number_of_goals - len(self._archive.covered_goals) != 0
-        ):
-            if llm_config.call_llm_on_stall_detection:
-                current_covered = len(self._archive.covered_goals)
-                if current_covered != last_length_of_covered_goals:
-                    plateau_counter = 0
-                    last_gain_time = time.time()
-                else:
-                    plateau_counter += 1
-                last_length_of_covered_goals = current_covered
-
-                if llm_config.stall_detection_window_seconds > 0:
-                    stalled = (
-                        time.time() - last_gain_time >= llm_config.stall_detection_window_seconds
-                    )
-                else:
-                    stalled = plateau_counter > max_plateau_len
-
-                if stalled:
-                    self._maybe_intervene_on_stall()
-                    # Reset stall tracking after a firing (or a suppressed attempt) so
-                    # we wait for a fresh plateau before querying again.
-                    plateau_counter = 0
-                    last_gain_time = time.time()
-                    if llm_config.stall_detection_window_seconds <= 0:
-                        max_plateau_len *= 2
-            self.evolve()
-            self.after_search_iteration(self.create_test_suite(self._archive.solutions))
+        stall_tracker = _StallTracker(len(self._archive.covered_goals))
+        try:
+            while (
+                self.resources_left()
+                and self._number_of_goals - len(self._archive.covered_goals) != 0
+            ):
+                self._poll_and_handle_stall(stall_tracker)
+                self.evolve()
+                self.after_search_iteration(self.create_test_suite(self._archive.solutions))
+        finally:
+            if hasattr(self.model, "cancel_all"):
+                self.model.cancel_all()
+            self._llm_query_strategy.shutdown()
 
         return self._finalize_generation()
+
+    def _integrate_llm_chromosomes(self, llm_chromosomes: list[tcc.TestCaseChromosome]) -> None:
+        """Integrates newly generated LLM test case chromosomes into the population.
+
+        Args:
+            llm_chromosomes: List of test case chromosomes from the LLM.
+        """
+        self._population = llm_chromosomes + self._population
+        self._logger.info(
+            "Added %d LLM test case chromosomes to the population.",
+            len(llm_chromosomes),
+        )
 
     def _maybe_intervene_on_stall(self) -> None:
         """Query the LLM for uncovered targets on a stall, respecting cap and budget.
@@ -135,13 +188,19 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 llm_config.min_remaining_budget_for_llm,
             )
             return
+        if self._llm_query_strategy.is_in_progress():
+            return
+
+        targets_map, diagnostics = self._select_uncovered_targets()
+        if not targets_map:
+            return
+
         self._stall_intervention_count += 1
-        llm_chromosomes = self.target_uncovered_callables()
-        self._population = llm_chromosomes + self._population
-        self._logger.info(
-            "Added %d LLM test case chromosomes to the population.",
-            len(llm_chromosomes),
+        llm_chromosomes = self._llm_query_strategy.execute(
+            functools.partial(self._query_llm_for_targets, targets_map, diagnostics)
         )
+        if llm_chromosomes:
+            self._integrate_llm_chromosomes(llm_chromosomes)
 
     def _enough_budget_for_llm(self) -> bool:
         """Whether enough search time remains to fire a stall-triggered LLM query.
@@ -160,13 +219,19 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 return remaining >= min_budget
         return True
 
-    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
-        """Identifies uncovered targets, queries an LLM for test cases.
+    def _select_uncovered_targets(
+        self,
+    ) -> tuple[
+        dict[GenericCallableAccessibleObject, float],
+        dict[GenericCallableAccessibleObject, str],
+    ]:
+        """Identifies uncovered targets from the current archive solutions and derives diagnostics.
 
-         and processes the results into a list of test case chromosomes.
+        Runs synchronously on the main thread to safely inspect the archive and test
+        cluster before any background LLM queries are dispatched.
 
         Returns:
-            A list of `TestCaseChromosome` objects derived from the LLM query results.
+            A tuple of (filtered_gao_coverage_map, diagnostics).
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
 
@@ -189,10 +254,29 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             gao: self._diagnose_callable(gao, line_annotations) for gao in filtered_gao_coverage_map
         }
         diagnostics = {gao: hint for gao, hint in diagnostics.items() if hint}
+        return filtered_gao_coverage_map, diagnostics
 
-        llm_query_results = self.model.call_llm_for_uncovered_targets(
-            filtered_gao_coverage_map, diagnostics
-        )
+    def _query_llm_for_targets(
+        self,
+        targets_map: dict[GenericCallableAccessibleObject, float],
+        diagnostics: dict[GenericCallableAccessibleObject, str],
+    ) -> list[tcc.TestCaseChromosome]:
+        """Queries the LLM for uncovered targets and parses results into chromosomes.
+
+        Safe to run asynchronously on a background thread because it does not access the
+        archive.
+
+        Args:
+            targets_map: Mapping of callables to their coverage ratio.
+            diagnostics: Mapping of callables to diagnostic hints.
+
+        Returns:
+            A list of TestCaseChromosome objects.
+        """
+        if not targets_map:
+            return []
+
+        llm_query_results = self.model.call_llm_for_uncovered_targets(targets_map, diagnostics)
 
         return self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
             llm_query_results=llm_query_results,
@@ -201,6 +285,17 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             fitness_functions=self._test_case_fitness_functions,
             coverage_functions=self._test_suite_coverage_functions,
         )
+
+    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
+        """Identifies uncovered targets, queries an LLM for test cases.
+
+         and processes the results into a list of test case chromosomes.
+
+        Returns:
+            A list of `TestCaseChromosome` objects derived from the LLM query results.
+        """
+        targets_map, diagnostics = self._select_uncovered_targets()
+        return self._query_llm_for_targets(targets_map, diagnostics)
 
     @staticmethod
     def _diagnose_callable(

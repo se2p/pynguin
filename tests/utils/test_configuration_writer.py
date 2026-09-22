@@ -47,6 +47,7 @@ allow_stale_assertions = false
 filter_assertions_in_subprocess = true
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
+maximum_llm_assertion_time = -1
 maximum_mutation_time = -1
 maximum_mutants = -1
 post_process = true
@@ -103,6 +104,8 @@ request_timeout = 30.0
 max_request_time = 300.0
 enable_thinking = false
 cache_dir = "~/.cache/pynguin/llm"
+max_concurrency = 5
+llm_mode = "sync"
 
 [mock_generation]
 mock_generation_enabled = false
@@ -290,8 +293,8 @@ def expected_txt(tmp_path):
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'filter_assertions_in_subprocess=True, '
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
- "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_mutation_time=-1, "
- 'maximum_mutants=-1, post_process=True, '
+ "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_llm_assertion_time=-1, "
+ 'maximum_mutation_time=-1, maximum_mutants=-1, post_process=True, '
  'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
  "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
  "'BACKWARD'>), float_precision=0.01, format_with_black=True, no_xfail=False, "
@@ -317,7 +320,8 @@ def expected_txt(tmp_path):
  'max_llm_interventions=-1, min_remaining_budget_for_llm=45, '
  'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
  'max_request_time=300.0, enable_thinking=False, '
- "cache_dir='~/.cache/pynguin/llm'), "
+ "cache_dir='~/.cache/pynguin/llm', max_concurrency=5, llm_mode=<LLMMode.SYNC: "
+ "'sync'>), "
  'mock_generation=MockGenerationConfiguration(mock_generation_enabled=False, '
  "proxy_cache_url='', base_rules_cache_id=''), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
@@ -439,8 +443,12 @@ False
 False
 --large_language_model.hybrid_initial_population
 False
+--large_language_model.llm_mode
+SYNC
 --large_language_model.llm_test_case_percentage
 0.5
+--large_language_model.max_concurrency
+5
 --large_language_model.max_context_chars
 64000
 --large_language_model.max_llm_interventions
@@ -696,6 +704,8 @@ True
 True
 --test_case_output.max_length_test_case
 2500
+--test_case_output.maximum_llm_assertion_time
+-1
 --test_case_output.maximum_mutants
 -1
 --test_case_output.maximum_mutation_time
