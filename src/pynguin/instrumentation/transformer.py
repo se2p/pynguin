@@ -599,7 +599,9 @@ class AstInfo:
         """Check if the conditional statement at the line number should be covered.
 
         This means that the conditional statement must have all its branches in the cover lines,
-        as well as all conditional instructions in which it is contained.
+        as well as all conditional instructions in which it is contained. With line ranges,
+        the ``else:`` line of an if statement does not have to be a target itself, it only
+        must not be excluded.
 
         Args:
             lineno: The line number of the conditional statement.
@@ -619,14 +621,29 @@ class AstInfo:
                     or (isinstance(branch_node, ast.If) and _has_elif_block(branch_node))
                     or (
                         isinstance(branch_node, ast.If | ast.For | ast.While)
-                        and all(
-                            self.should_cover_line(else_lineno)
-                            for else_lineno in self._else_lines(branch_node)
-                        )
+                        and self._else_lines_in_cover(branch_node)
                     )
                 )
 
         return True
+
+    def _else_lines_in_cover(self, node: _ast.If | _ast.For | _ast.While) -> bool:
+        """Check if the else lines of the node are in cover.
+
+        With line ranges, the else lines of an if statement need not be targeted, only not excluded.
+
+        Args:
+            node: The if, for or while node.
+
+        Returns:
+            True if they are in cover, False otherwise.
+        """
+        if isinstance(node, ast.If) and self.module.only_cover_line_ranges:
+            return all(
+                else_lineno not in self.module.no_cover_lines
+                for else_lineno in self._else_lines(node)
+            )
+        return all(self.should_cover_line(else_lineno) for else_lineno in self._else_lines(node))
 
     def targeted_else_branches(self, file_name: str) -> dict[int, tracer.ElseBranchMetaData]:
         """Find the ``else:`` header lines of if statements that are line-range targets.

@@ -107,3 +107,9 @@ def else_body_no_cover(x: int) -> int:
         return 1
     else:
         return 2  # pynguin: no cover
+
+def else_header_no_cover(x: int) -> int:
+    if x > 0:
+        return 1
+    else:  # pynguin: no cover
+        return 2

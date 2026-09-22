@@ -760,7 +760,7 @@ def test_get_scope_decorated_function_lookup(tmp_path):
     ],
 )
 def test_ast_info_targeted_else_branches(line_range, expected_else_branches):
-    module_path = get_module_path("tests.fixtures.instrumentation.else_targets")
+    module_path = get_module_path("tests.fixtures.instrumentation.if_else_targets")
     module_ast_info = ModuleAstInfo.from_path(
         module_path,
         to_cover_config=ToCoverConfiguration(only_cover_line_ranges=[line_range]),
@@ -779,10 +779,36 @@ def test_ast_info_targeted_else_branches(line_range, expected_else_branches):
 
 
 def test_ast_info_targeted_else_branches_without_line_ranges():
-    module_path = get_module_path("tests.fixtures.instrumentation.else_targets")
+    module_path = get_module_path("tests.fixtures.instrumentation.if_else_targets")
     module_ast_info = ModuleAstInfo.from_path(module_path, to_cover_config=ToCoverConfiguration())
     assert module_ast_info is not None
     module_scope = module_ast_info.get_scope(0)
     assert module_scope is not None
 
     assert module_scope.targeted_else_branches(module_path) == {}
+
+
+@pytest.mark.parametrize(
+    "line_range, lineno, expected",
+    [
+        pytest.param("9", 9, True, id="if-line"),
+        pytest.param("18", 18, True, id="nested-if-line"),
+        pytest.param("54", 54, True, id="elif-line"),
+        pytest.param("9-10", 9, True, id="range-without-else-line"),
+        pytest.param("11", 9, False, id="else-line-only"),
+        pytest.param("112", 112, False, id="else-line-no-cover"),
+        pytest.param("90", 90, False, id="loop-with-else-unchanged"),
+    ],
+)
+def test_ast_info_only_cover_line_ranges_should_cover_conditional_statement(
+    line_range, lineno, expected
+):
+    module_ast_info = ModuleAstInfo.from_path(
+        get_module_path("tests.fixtures.instrumentation.if_else_targets"),
+        to_cover_config=ToCoverConfiguration(only_cover_line_ranges=[line_range]),
+    )
+    assert module_ast_info is not None
+    module_scope = module_ast_info.get_scope(0)
+    assert module_scope is not None
+
+    assert module_scope.should_cover_conditional_statement(lineno) is expected
