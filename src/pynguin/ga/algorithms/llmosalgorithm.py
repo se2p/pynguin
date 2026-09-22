@@ -36,6 +36,46 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.report import CoverageReport, LineAnnotation, get_coverage_report
 
 
+class _StallTracker:
+    """Tracks coverage plateau and stall conditions for LLM interventions."""
+
+    def __init__(self, initial_covered: int) -> None:
+        self._llm_config = config.configuration.large_language_model
+        self.last_length_of_covered_goals = initial_covered
+        self.plateau_counter = 0
+        self.max_plateau_len = self._llm_config.max_plateau_len
+        self.last_gain_time = time.time()
+
+    def check_stall(self, current_covered: int) -> bool:
+        """Updates plateau tracking and returns True if search has stalled.
+
+        Args:
+            current_covered: Current number of covered goals in archive.
+
+        Returns:
+            True if search has stalled, False otherwise.
+        """
+        if current_covered != self.last_length_of_covered_goals:
+            self.plateau_counter = 0
+            self.last_gain_time = time.time()
+        else:
+            self.plateau_counter += 1
+        self.last_length_of_covered_goals = current_covered
+
+        if self._llm_config.stall_detection_window_seconds > 0:
+            return (
+                time.time() - self.last_gain_time >= self._llm_config.stall_detection_window_seconds
+            )
+        return self.plateau_counter > self.max_plateau_len
+
+    def reset(self) -> None:
+        """Resets tracking state after an intervention."""
+        self.plateau_counter = 0
+        self.last_gain_time = time.time()
+        if self._llm_config.stall_detection_window_seconds <= 0:
+            self.max_plateau_len *= 2
+
+
 class LLMOSAAlgorithm(MOSAAlgorithm):
     """Implements the Many-Objective Sorting Algorithm MOSA with LLM."""
 
@@ -62,12 +102,31 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
             llm_chromosomes = self.target_uncovered_callables()
-            self._population += llm_chromosomes
+            self._population = llm_chromosomes + self._population
             self._archive.update(self._population)
 
             coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
             self._logger.info("Coverage after LLM call: %5f", coverage_after)
             stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
+
+    def _poll_and_handle_stall(self, stall_tracker: _StallTracker) -> None:
+        """Polls for background LLM results and checks stall detection.
+
+        Args:
+            stall_tracker: State tracker for stall detection.
+        """
+        pending_chromosomes = self._llm_query_strategy.poll()
+        if pending_chromosomes:
+            self._integrate_llm_chromosomes(pending_chromosomes)
+
+        if config.configuration.large_language_model.call_llm_on_stall_detection:
+            current_covered = len(self._archive.covered_goals)
+            if (
+                stall_tracker.check_stall(current_covered)
+                and not self._llm_query_strategy.is_in_progress()
+            ):
+                self._maybe_intervene_on_stall()
+                stall_tracker.reset()
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
@@ -82,45 +141,13 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         self._compute_dominance()
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
-        llm_config = config.configuration.large_language_model
-        last_length_of_covered_goals = len(self._archive.covered_goals)
-        plateau_counter = 0
-        max_plateau_len = llm_config.max_plateau_len
-        last_gain_time = time.time()
+        stall_tracker = _StallTracker(len(self._archive.covered_goals))
         try:
             while (
                 self.resources_left()
                 and self._number_of_goals - len(self._archive.covered_goals) != 0
             ):
-                pending_chromosomes = self._llm_query_strategy.poll()
-                if pending_chromosomes:
-                    self._integrate_llm_chromosomes(pending_chromosomes)
-
-                if llm_config.call_llm_on_stall_detection:
-                    current_covered = len(self._archive.covered_goals)
-                    if current_covered != last_length_of_covered_goals:
-                        plateau_counter = 0
-                        last_gain_time = time.time()
-                    else:
-                        plateau_counter += 1
-                    last_length_of_covered_goals = current_covered
-
-                    if llm_config.stall_detection_window_seconds > 0:
-                        stalled = (
-                            time.time() - last_gain_time
-                            >= llm_config.stall_detection_window_seconds
-                        )
-                    else:
-                        stalled = plateau_counter > max_plateau_len
-
-                    if stalled and not self._llm_query_strategy.is_in_progress():
-                        self._maybe_intervene_on_stall()
-                        # Reset stall tracking after a firing (or a suppressed attempt) so
-                        # we wait for a fresh plateau before querying again.
-                        plateau_counter = 0
-                        last_gain_time = time.time()
-                        if llm_config.stall_detection_window_seconds <= 0:
-                            max_plateau_len *= 2
+                self._poll_and_handle_stall(stall_tracker)
                 self.evolve()
                 self.after_search_iteration(self.create_test_suite(self._archive.solutions))
         finally:

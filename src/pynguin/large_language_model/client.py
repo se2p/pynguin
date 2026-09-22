@@ -16,6 +16,7 @@ import concurrent.futures
 import logging
 import random
 import re
+import threading
 import time
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -270,6 +271,7 @@ class OpenAIClient(LLMClient):
         self._model = model or get_model_name()
 
         # Metrics/usage tracking
+        self._lock = threading.RLock()
         self._calls = 0
         self._retries = 0
         self._input_tokens = 0
@@ -309,9 +311,10 @@ class OpenAIClient(LLMClient):
         Returns:
             The AsyncOpenAI instance.
         """
-        if self._async_client is None:
-            self._async_client = openai.AsyncOpenAI(**self._client_kwargs)
-        return self._async_client
+        with self._lock:
+            if self._async_client is None:
+                self._async_client = openai.AsyncOpenAI(**self._client_kwargs)
+            return self._async_client
 
     @property
     def model(self) -> str:
@@ -337,27 +340,140 @@ class OpenAIClient(LLMClient):
         Returns:
             A dict of metrics.
         """
-        return {
-            "calls": self._calls,
-            "retries": self._retries,
-            "input_tokens": self._input_tokens,
-            "output_tokens": self._output_tokens,
-            "time_seconds": self._time_seconds,
-            "calls_with_no_python_code": self._calls_with_no_python_code,
-        }
+        with self._lock:
+            return {
+                "calls": self._calls,
+                "retries": self._retries,
+                "input_tokens": self._input_tokens,
+                "output_tokens": self._output_tokens,
+                "time_seconds": self._time_seconds,
+                "calls_with_no_python_code": self._calls_with_no_python_code,
+            }
 
     def reset_usage(self) -> None:
         """Resets all usage counters."""
-        self._calls = 0
-        self._retries = 0
-        self._input_tokens = 0
-        self._output_tokens = 0
-        self._time_seconds = 0.0
-        self._calls_with_no_python_code = 0
+        with self._lock:
+            self._calls = 0
+            self._retries = 0
+            self._input_tokens = 0
+            self._output_tokens = 0
+            self._time_seconds = 0.0
+            self._calls_with_no_python_code = 0
 
-    def send(  # noqa: C901, PLR0914, PLR0915
-        self, request: RenderedRequest, timeout: float | None = None
+    def _build_request_kwargs(
+        self,
+        request: RenderedRequest,
+        temperature: float,
+        timeout: float | None,
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "model": request.model,
+            "messages": request.messages,
+            "temperature": temperature,
+            "max_tokens": request.max_tokens,
+            "stop": request.stop,
+        }
+        if timeout is not None:
+            kwargs["timeout"] = timeout
+        if request.enable_thinking is not None:
+            kwargs["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": request.enable_thinking}
+            }
+        return kwargs
+
+    def _record_response(
+        self,
+        request: RenderedRequest,
+        response: Any,
+        elapsed: float,
     ) -> str | None:
+        usage = getattr(response, "usage", None)
+        prompt_tokens = (getattr(usage, "prompt_tokens", 0) or 0) if usage is not None else 0
+        completion_tokens = (
+            (getattr(usage, "completion_tokens", 0) or 0) if usage is not None else 0
+        )
+
+        content = response.choices[0].message.content
+
+        has_no_code = False
+        if content:
+            python_markdown = r"```python([\s\S]+?)(?:```|$)"
+            if not re.search(python_markdown, content):
+                has_no_code = True
+
+        with self._lock:
+            self._input_tokens += prompt_tokens
+            self._output_tokens += completion_tokens
+            self._time_seconds += elapsed
+            if has_no_code:
+                self._calls_with_no_python_code += 1
+
+        cache_enabled = getattr(
+            config.configuration.large_language_model, "enable_response_caching", False
+        )
+        if cache_enabled and content is not None:
+            self._cache.set(request, content)
+
+        return content
+
+    def _handle_retry_error(
+        self,
+        *,
+        exc: Exception,
+        attempt: int,
+        max_attempts: int,
+        base_backoff: float,
+        request_budget: float,
+        request_started: float,
+        timeout: float | None,
+    ) -> float:
+        is_rate_limit = self._rate_limit_errors and isinstance(exc, self._rate_limit_errors)
+        is_timeout = self._timeout_errors and isinstance(exc, self._timeout_errors)
+        is_api_err = self._api_errors and isinstance(exc, self._api_errors)
+
+        if not (is_rate_limit or is_timeout or is_api_err):
+            raise exc
+
+        if is_rate_limit:
+            label = "RateLimit"
+            jitter = 3.0
+        elif is_timeout:
+            label = "Timeout"
+            jitter = 2.0
+        else:
+            label = "APIError"
+            jitter = 2.0
+
+        wait = base_backoff * (2 ** min(attempt - 1, 6)) + random.uniform(0, jitter)  # noqa: S311
+        _logger.warning(
+            "LLM %s on attempt %d/%d, retrying in %.1fs: %s",
+            label,
+            attempt,
+            max_attempts,
+            wait,
+            exc,
+        )
+        if attempt >= max_attempts:
+            _logger.error("LLM retries exhausted.")
+            raise exc
+        if not _retry_fits_in_budget(
+            budget=request_budget,
+            elapsed=time.perf_counter() - request_started,
+            wait=wait,
+            timeout=timeout,
+        ):
+            _logger.error(
+                "LLM request budget of %.0fs exhausted after %d attempt(s); "
+                "giving up instead of retrying.",
+                request_budget,
+                attempt,
+            )
+            raise exc
+        with self._lock:
+            self._retries += 1
+        return wait
+
+    def send(self, request: RenderedRequest, timeout: float | None = None) -> str | None:
         """Sends a query to OpenAI with retry policy, timeout, and usage tracking.
 
         Args:
@@ -380,65 +496,27 @@ class OpenAIClient(LLMClient):
         request_budget = config.configuration.large_language_model.max_request_time
         request_started = time.perf_counter()
 
-        # Count one logical request, regardless of how many retry attempts it takes.
-        self._calls += 1
+        with self._lock:
+            self._calls += 1
 
-        # Temperature may be adjusted at runtime if the model rejects the value of 0.
-        # If a previous request already learned that this client's model rejects 0,
-        # start from the fallback right away instead of paying the failed attempt again.
         temperature = request.temperature
-        if temperature == 0 and self._temperature_zero_rejected:
-            temperature = _TEMPERATURE_FALLBACK
+        with self._lock:
+            if temperature == 0 and self._temperature_zero_rejected:
+                temperature = _TEMPERATURE_FALLBACK
         temperature_fallback_applied = False
 
         for attempt in range(1, max_attempts + 1):
             start_time = time.perf_counter()
             try:
-                kwargs: dict[str, Any] = {
-                    "model": request.model,
-                    "messages": request.messages,
-                    "temperature": temperature,
-                    "max_tokens": request.max_tokens,
-                    "stop": request.stop,
-                }
-                if timeout is not None:
-                    kwargs["timeout"] = timeout
-                if request.enable_thinking is not None:
-                    kwargs["extra_body"] = {
-                        "chat_template_kwargs": {"enable_thinking": request.enable_thinking}
-                    }
-
+                kwargs = self._build_request_kwargs(request, temperature, timeout)
                 response = self._client.chat.completions.create(**kwargs)
+                elapsed = time.perf_counter() - start_time
+                return self._record_response(request, response, elapsed)
+            except Exception as exc:  # noqa: BLE001
+                elapsed = time.perf_counter() - start_time
+                with self._lock:
+                    self._time_seconds += elapsed
 
-                # Token accounting
-                usage = getattr(response, "usage", None)
-                if usage is not None:
-                    self._input_tokens += getattr(usage, "prompt_tokens", 0) or 0
-                    self._output_tokens += getattr(usage, "completion_tokens", 0) or 0
-
-                content = response.choices[0].message.content
-
-                # Code verification check
-                if content:
-                    python_markdown = r"```python([\s\S]+?)(?:```|$)"
-                    if not re.search(python_markdown, content):
-                        self._calls_with_no_python_code += 1
-
-                self._time_seconds += time.perf_counter() - start_time
-
-                cache_enabled = getattr(
-                    config.configuration.large_language_model, "enable_response_caching", False
-                )
-                if cache_enabled and content is not None:
-                    self._cache.set(request, content)
-
-                return content
-
-            except Exception as exc:
-                self._time_seconds += time.perf_counter() - start_time
-
-                # Some models/endpoints reject an explicit temperature of 0. Fall back
-                # once to a small positive temperature and retry immediately.
                 if (
                     temperature == 0
                     and not temperature_fallback_applied
@@ -446,9 +524,8 @@ class OpenAIClient(LLMClient):
                 ):
                     temperature_fallback_applied = True
                     temperature = _TEMPERATURE_FALLBACK
-                    # Remember for all future requests from this client so the warning
-                    # and the failed attempt happen at most once per client.
-                    self._temperature_zero_rejected = True
+                    with self._lock:
+                        self._temperature_zero_rejected = True
                     _logger.warning(
                         "Model %r rejected temperature=0; using temperature=%s for this "
                         "and all future requests from this client.",
@@ -457,57 +534,20 @@ class OpenAIClient(LLMClient):
                     )
                     continue
 
-                # Check dynamic exceptions
-                is_rate_limit = self._rate_limit_errors and isinstance(exc, self._rate_limit_errors)
-                is_timeout = self._timeout_errors and isinstance(exc, self._timeout_errors)
-                is_api_err = self._api_errors and isinstance(exc, self._api_errors)
-
-                if not (is_rate_limit or is_timeout or is_api_err):
-                    # Bubble up unexpected exceptions
-                    raise
-
-                # Pick a correct label and jitter bound per error kind.
-                if is_rate_limit:
-                    label = "RateLimit"
-                    jitter = 3.0
-                elif is_timeout:
-                    label = "Timeout"
-                    jitter = 2.0
-                else:
-                    label = "APIError"
-                    jitter = 2.0
-
-                wait = base_backoff * (2 ** min(attempt - 1, 6)) + random.uniform(0, jitter)  # noqa: S311
-                _logger.warning(
-                    "LLM %s on attempt %d/%d, retrying in %.1fs: %s",
-                    label,
-                    attempt,
-                    max_attempts,
-                    wait,
-                    exc,
-                )
-                if attempt >= max_attempts:
-                    _logger.error("LLM retries exhausted.")
-                    raise
-                if not _retry_fits_in_budget(
-                    budget=request_budget,
-                    elapsed=time.perf_counter() - request_started,
-                    wait=wait,
+                wait = self._handle_retry_error(
+                    exc=exc,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    base_backoff=base_backoff,
+                    request_budget=request_budget,
+                    request_started=request_started,
                     timeout=timeout,
-                ):
-                    _logger.error(
-                        "LLM request budget of %.0fs exhausted after %d attempt(s); "
-                        "giving up instead of retrying.",
-                        request_budget,
-                        attempt,
-                    )
-                    raise
-                self._retries += 1
+                )
                 time.sleep(wait)
 
         return None
 
-    async def send_async(  # noqa: C901, PLR0914, PLR0915
+    async def send_async(
         self, request: RenderedRequest, timeout: float | None = None
     ) -> str | None:
         """Sends a query asynchronously to OpenAI with retry policy, timeout, and usage tracking.
@@ -532,58 +572,26 @@ class OpenAIClient(LLMClient):
         request_budget = config.configuration.large_language_model.max_request_time
         request_started = time.perf_counter()
 
-        self._calls += 1
+        with self._lock:
+            self._calls += 1
 
         temperature = request.temperature
-        if temperature == 0 and self._temperature_zero_rejected:
-            temperature = _TEMPERATURE_FALLBACK
+        with self._lock:
+            if temperature == 0 and self._temperature_zero_rejected:
+                temperature = _TEMPERATURE_FALLBACK
         temperature_fallback_applied = False
 
         for attempt in range(1, max_attempts + 1):
             start_time = time.perf_counter()
             try:
-                kwargs: dict[str, Any] = {
-                    "model": request.model,
-                    "messages": request.messages,
-                    "temperature": temperature,
-                    "max_tokens": request.max_tokens,
-                    "stop": request.stop,
-                }
-                if timeout is not None:
-                    kwargs["timeout"] = timeout
-                if request.enable_thinking is not None:
-                    kwargs["extra_body"] = {
-                        "chat_template_kwargs": {"enable_thinking": request.enable_thinking}
-                    }
-
+                kwargs = self._build_request_kwargs(request, temperature, timeout)
                 response = await self.async_client.chat.completions.create(**kwargs)
-
-                # Token accounting
-                usage = getattr(response, "usage", None)
-                if usage is not None:
-                    self._input_tokens += getattr(usage, "prompt_tokens", 0) or 0
-                    self._output_tokens += getattr(usage, "completion_tokens", 0) or 0
-
-                content = response.choices[0].message.content
-
-                # Code verification check
-                if content:
-                    python_markdown = r"```python([\s\S]+?)(?:```|$)"
-                    if not re.search(python_markdown, content):
-                        self._calls_with_no_python_code += 1
-
-                self._time_seconds += time.perf_counter() - start_time
-
-                cache_enabled = getattr(
-                    config.configuration.large_language_model, "enable_response_caching", False
-                )
-                if cache_enabled and content is not None:
-                    self._cache.set(request, content)
-
-                return content
-
-            except Exception as exc:
-                self._time_seconds += time.perf_counter() - start_time
+                elapsed = time.perf_counter() - start_time
+                return self._record_response(request, response, elapsed)
+            except Exception as exc:  # noqa: BLE001
+                elapsed = time.perf_counter() - start_time
+                with self._lock:
+                    self._time_seconds += elapsed
 
                 if (
                     temperature == 0
@@ -592,7 +600,8 @@ class OpenAIClient(LLMClient):
                 ):
                     temperature_fallback_applied = True
                     temperature = _TEMPERATURE_FALLBACK
-                    self._temperature_zero_rejected = True
+                    with self._lock:
+                        self._temperature_zero_rejected = True
                     _logger.warning(
                         "Model %r rejected temperature=0; using temperature=%s for this "
                         "and all future requests from this client.",
@@ -601,53 +610,15 @@ class OpenAIClient(LLMClient):
                     )
                     continue
 
-                is_rate_limit = self._rate_limit_errors and isinstance(exc, self._rate_limit_errors)
-                is_timeout = self._timeout_errors and isinstance(exc, self._timeout_errors)
-                is_api_err = self._api_errors and isinstance(exc, self._api_errors)
-
-                if not (is_rate_limit or is_timeout or is_api_err):
-                    raise
-
-                if is_rate_limit:
-                    label = "RateLimit"
-                    jitter = 3.0
-                elif is_timeout:
-                    label = "Timeout"
-                    jitter = 2.0
-                else:
-                    label = "APIError"
-                    jitter = 2.0
-
-                wait = base_backoff * (2 ** min(attempt - 1, 6)) + random.uniform(0, jitter)  # noqa: S311
-                _logger.warning(
-                    "LLM %s on attempt %d/%d, retrying in %.1fs: %s",
-                    label,
-                    attempt,
-                    max_attempts,
-                    wait,
-                    exc,
-                )
-                if attempt >= max_attempts:
-                    _logger.error("LLM retries exhausted.")
-                    raise
-                if not _retry_fits_in_budget(
-                    budget=request_budget,
-                    elapsed=time.perf_counter() - request_started,
-                    wait=wait,
+                wait = self._handle_retry_error(
+                    exc=exc,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    base_backoff=base_backoff,
+                    request_budget=request_budget,
+                    request_started=request_started,
                     timeout=timeout,
-                ):
-                    _logger.error(
-                        "LLM request budget of %.0fs exhausted after %d attempt(s); "
-                        "giving up instead of retrying.",
-                        request_budget,
-                        attempt,
-                    )
-                    raise
-                self._retries += 1
+                )
                 await asyncio.sleep(wait)
 
         return None
-
-
-AsyncOpenAIClient = OpenAIClient
-AsyncLLMClient = LLMClient

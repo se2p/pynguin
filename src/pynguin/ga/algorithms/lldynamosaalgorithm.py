@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import inspect
 import logging
-import time
 from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm, _GoalsManager
-from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
+from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm, _StallTracker
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -105,42 +104,10 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
 
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
-        llm_config = config.configuration.large_language_model
-        last_length_of_covered_goals = len(self._archive.covered_goals)
-        plateau_counter = 0
-        max_plateau_len = llm_config.max_plateau_len
-        last_gain_time = time.time()
+        stall_tracker = _StallTracker(len(self._archive.covered_goals))
         try:
             while self.resources_left() and len(self._archive.uncovered_goals) > 0:
-                pending_chromosomes = self._llm_query_strategy.poll()
-                if pending_chromosomes:
-                    self._integrate_llm_chromosomes(pending_chromosomes)
-
-                if llm_config.call_llm_on_stall_detection:
-                    current_covered = len(self._archive.covered_goals)
-                    if current_covered != last_length_of_covered_goals:
-                        plateau_counter = 0
-                        last_gain_time = time.time()
-                    else:
-                        plateau_counter += 1
-                    last_length_of_covered_goals = current_covered
-
-                    if llm_config.stall_detection_window_seconds > 0:
-                        stalled = (
-                            time.time() - last_gain_time
-                            >= llm_config.stall_detection_window_seconds
-                        )
-                    else:
-                        stalled = plateau_counter > max_plateau_len
-
-                    if stalled and not self._llm_query_strategy.is_in_progress():
-                        self._maybe_intervene_on_stall()
-                        # Reset stall tracking after a firing (or a suppressed attempt) so
-                        # we wait for a fresh plateau before querying again.
-                        plateau_counter = 0
-                        last_gain_time = time.time()
-                        if llm_config.stall_detection_window_seconds <= 0:
-                            max_plateau_len *= 2
+                self._poll_and_handle_stall(stall_tracker)
                 self.evolve()
                 if config.configuration.local_search.local_search:
                     self.local_search()
