@@ -418,6 +418,36 @@ class TestSuite:
     assert result.counts[Disposition.ASSERTION_LIFTED] == 1
 
 
+def test_deserialize_nested_class_with_self_attributes_runs(test_cluster):
+    """End-to-end: a nested class using ``self.`` deserializes into runnable code.
+
+    Regression for issue #274: the rewriter used to strip ``self.`` from nested local
+    classes, so the emitted (compound-admitted) test raised ``UnboundLocalError`` at
+    runtime and contributed no coverage. The exported code must both parse and execute.
+    """
+    code = """
+class TestCounter:
+    def test_bump(self):
+        class Counter:
+            def __init__(self):
+                self.n = 0
+            def bump(self):
+                self.n += 1
+                return self.n
+        c = Counter()
+        r = c.bump()
+        assert r == 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=True)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    source = result.test_cases[0].to_code()
+    assert "self.n = 0" in source
+    assert "self.n += 1" in source
+    # The exported test must run without raising.
+    exec(source, {})  # noqa: S102
+
+
 # ---------------------------------------------------------------------------
 # Assertion shapes (through the full deserializer, using directly-fed CST so the
 # rewriter's comparison-hoisting does not obscure the shape under test).

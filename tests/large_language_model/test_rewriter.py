@@ -103,6 +103,66 @@ def test_rewrite_tests(llm_output, expected_snippet):
         assert line in final_code
 
 
+def test_rewrite_tests_preserves_self_in_nested_class():
+    """A local class defined inside a test method keeps its own ``self.`` attributes.
+
+    ``self`` inside the nested class's methods refers to the nested instance, not the
+    unittest test-class instance, so stripping it would corrupt the class and make the
+    emitted test raise ``UnboundLocalError``/``AttributeError`` at runtime.
+    """
+    llm_output = """
+class TestCounter:
+    def test_bump(self):
+        class Counter:
+            def __init__(self):
+                self.n = 0
+            def bump(self):
+                self.n += 1
+                return self.n
+        c = Counter()
+        r = c.bump()
+        assert r == 1
+"""
+    final_code = "\n".join(rewriter.rewrite_tests(llm_output).values())
+    # The nested class must keep its instance-attribute access untouched.
+    assert "self.n = 0" in final_code
+    assert "self.n += 1" in final_code
+    assert "return self.n" in final_code
+    # The rewritten function must actually run without error.
+    namespace: dict = {}
+    exec(final_code, namespace)  # noqa: S102
+    next(fn for name, fn in namespace.items() if name.startswith("test_"))()
+
+
+def test_rewrite_tests_strips_self_at_test_method_scope():
+    """The test method's own ``self.`` (unittest instance) is still stripped."""
+    llm_output = """
+class TestFoo:
+    def setUp(self):
+        self.value = 5
+
+    def test_use(self):
+        result = self.value + 1
+        assert result == 6
+"""
+    final_code = "\n".join(rewriter.rewrite_tests(llm_output).values())
+    assert "result = value + 1" in final_code
+    assert "self.value" not in final_code
+
+
+def test_rewrite_tests_preserves_self_in_nested_function():
+    """``self`` used inside a nested ``def`` is a parameter of that function, not the test."""
+    llm_output = """
+class TestFoo:
+    def test_helper(self):
+        def describe(self):
+            return self.name
+        assert describe is not None
+"""
+    final_code = "\n".join(rewriter.rewrite_tests(llm_output).values())
+    assert "return self.name" in final_code
+
+
 def test_stmt_rewriter_replace_with_varname():
     """Test the replace_with_varname method of StmtRewriter."""
     visitor = rewriter.StmtRewriter()
