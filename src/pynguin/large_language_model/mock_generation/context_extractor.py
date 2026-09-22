@@ -20,6 +20,8 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from pynguin.large_language_model.mock_generation.ast_helpers import import_alias_map
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -361,10 +363,8 @@ class ContextExtractor:
 
     # Helpers
 
-    def _build_import_alias_map(self, tree: ast.AST) -> dict[str, str]:
-        """Build ``{local_name: top_level_package}`` from module-level imports.
-
-        Only imports whose top-level package is a tracked dependency are included.
+    def _build_import_alias_map(self, tree: ast.Module) -> dict[str, str]:
+        """Build ``{local_name: top_level_package}`` for tracked dependencies only.
 
         Args:
             tree: Parsed AST of the full module.
@@ -372,21 +372,12 @@ class ContextExtractor:
         Returns:
             Mapping of local name to tracked top-level dependency package.
         """
-        alias_map: dict[str, str] = {}
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                pkg = node.module.split(".", 1)[0]
-                if pkg in self._dependencies:
-                    for alias in node.names:
-                        local_name = alias.asname or alias.name
-                        alias_map[local_name] = pkg
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    pkg = alias.name.split(".", 1)[0]
-                    if pkg in self._dependencies:
-                        local_name = alias.asname or alias.name
-                        alias_map[local_name] = pkg
-        return alias_map
+        result: dict[str, str] = {}
+        for local_name, dotted in import_alias_map(tree).items():
+            pkg = dotted.split(".", 1)[0]
+            if pkg in self._dependencies:
+                result[local_name] = pkg
+        return result
 
     @staticmethod
     def _walk_body(

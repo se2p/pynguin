@@ -21,13 +21,13 @@ import logging
 from typing import TYPE_CHECKING
 
 from pynguin.large_language_model.mock_generation import llm_classifier_client
+from pynguin.large_language_model.mock_generation.ast_helpers import import_alias_map, param_names
 from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
 from pynguin.large_language_model.mock_generation.mock_rule_generator import (
     canonical_fqn,
 )
 from pynguin.large_language_model.mock_generation.untyped_param_analyzer import (
     _direct_attr_accesses,
-    _untyped_arg_names,
     match_candidate_classes,
 )
 
@@ -66,20 +66,7 @@ def _annotation_fqns(node: ast.expr | None, alias_map: dict[str, str]) -> list[s
     return out
 
 
-def _alias_map(tree: ast.Module) -> dict[str, str]:
-    """Map imported names to their full dotted path (for annotation resolution)."""
-    out: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            for a in node.names:
-                out[a.asname or a.name] = f"{node.module}.{a.name}"
-        elif isinstance(node, ast.Import):
-            for a in node.names:
-                out[a.asname or a.name.split(".")[0]] = a.name
-    return out
-
-
-def _mocked_params(
+def mocked_params(
     func: ast.FunctionDef | ast.AsyncFunctionDef,
     alias_map: dict[str, str],
     mock_targets: set[str],
@@ -125,7 +112,7 @@ def _resolve_untyped_params(
                 result[param] = fqn
         return
 
-    untyped = _untyped_arg_names(func) - result.keys()
+    untyped = param_names(func, untyped_only=True) - result.keys()
     if not (untyped and candidate_classes):
         return
 
@@ -137,7 +124,7 @@ def _resolve_untyped_params(
                 break
 
 
-def _iter_named_functions(
+def iter_named_functions(
     tree: ast.Module,
 ) -> Iterator[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]:
     """Yield ``(qualname, funcdef)`` for module-level functions and class methods.
@@ -169,7 +156,7 @@ def generate_templates(  # noqa: PLR0914
     """
     source = module_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
-    alias_map = _alias_map(tree)
+    alias_map = import_alias_map(tree)
     candidates = candidate_classes or []
     templates: dict[str, MockTemplate] = {}
 
@@ -179,10 +166,10 @@ def generate_templates(  # noqa: PLR0914
         bindings_by_func.setdefault(callable_key, {})[param] = fqn
 
     injector_mode = untyped_bindings is not None
-    for qualname, func in _iter_named_functions(tree):
+    for qualname, func in iter_named_functions(tree):
         func_key = f"{module_name}.{qualname}" if module_name else qualname
         per_func = bindings_by_func.get(func_key, {}) if injector_mode else None
-        params = _mocked_params(func, alias_map, mock_targets, candidates, per_func)
+        params = mocked_params(func, alias_map, mock_targets, candidates, per_func)
         if not params:
             continue
         # Tell the LLM which attributes each param uses and the values it branches on

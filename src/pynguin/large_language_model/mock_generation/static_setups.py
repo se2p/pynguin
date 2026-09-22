@@ -19,6 +19,7 @@ import ast
 import builtins as _builtins
 from typing import Any
 
+from pynguin.large_language_model.mock_generation.ast_helpers import param_names
 from pynguin.large_language_model.mock_generation.mock_generator import RaiseException
 
 #: Literal types that can be rendered as an ``ast.Constant`` candidate.
@@ -34,8 +35,73 @@ _BUILTIN_EXCEPTIONS = frozenset(
 )
 
 
+def function_param_setups(
+    func: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> dict[str, tuple[list[tuple[str, list[Any]]], list[str]]]:
+    """Derive static setups per parameter of a single function.
+
+    Each parameter is analysed on its own so a setup is attributed to the single
+    parameter (and therefore the single mock target) it comes from, rather than
+    shared across every mock in the module.
+
+    Args:
+        func: The function AST node.
+
+    Returns:
+        A mapping of parameter name to ``(mutable, lines)``, where ``mutable`` is
+        a list of ``(attribute_chain, candidates)`` and ``lines`` is a list of
+        fixed ``"m.<chain> = <rhs>"`` setup lines. Parameters with no setups are
+        omitted.
+    """
+    result: dict[str, tuple[list[tuple[str, list[Any]]], list[str]]] = {}
+    for param in param_names(func):
+        single = {param}
+        aliases = _collect_aliases(func, single)
+        constants: dict[str, set[Any]] = {}
+        lines: set[str] = set()
+        side_effects: dict[str, set[str]] = {}
+        _collect_branch_constants(func, single, aliases, constants)
+        _collect_truthiness(func, single, aliases, constants)
+        _collect_container_magic(func, single, aliases, constants, lines)
+        _collect_iteration_defaults(func, single, aliases, lines)
+        _collect_numeric_defaults(func, single, aliases, constants, lines)
+        _collect_exception_setups(func, single, aliases, side_effects)
+        mutable = _build_mutable(constants, side_effects)
+        if mutable or lines:
+            result[param] = (mutable, sorted(lines))
+    return result
+
+
+def _build_mutable(
+    constants: dict[str, set[Any]], side_effects: dict[str, set[str]]
+) -> list[tuple[str, list[Any]]]:
+    """Build the ``(chain, candidates)`` list from collected constants and side-effects.
+
+    Args:
+        constants: Branch/truthiness constants keyed by attribute chain.
+        side_effects: Builtin exception names keyed by method chain.
+
+    Returns:
+        The list of search-mutable setups.
+    """
+    mutable: list[tuple[str, list[Any]]] = []
+    for chain, values in constants.items():
+        candidates = _candidates(values)
+        if candidates:
+            mutable.append((chain, candidates))
+    for method_chain, names in side_effects.items():
+        target = f"{method_chain}.side_effect" if method_chain else "side_effect"
+        # None = no side effect (happy path); each RaiseException flips an except.
+        mutable.append((target, [None, *(RaiseException(name=n) for n in sorted(names))]))
+    return mutable
+
+
 def module_setups(source: str) -> tuple[list[tuple[str, list[Any]]], list[str]]:
-    """Derive mock setups from parameter usage in *source*.
+    """Derive mock setups from parameter usage across the whole module.
+
+    Aggregates :func:`function_param_setups` over every function. Use
+    :func:`function_param_setups` when setups must stay attributed to a single
+    parameter (as the generator does when attaching them per mock target).
 
     Args:
         source: the module-under-test source code.
@@ -52,32 +118,17 @@ def module_setups(source: str) -> tuple[list[tuple[str, list[Any]]], list[str]]:
     except SyntaxError:
         return [], []
 
-    constants: dict[str, set[Any]] = {}
+    merged: dict[str, list[Any]] = {}
     lines: set[str] = set()
-    side_effects: dict[str, set[str]] = {}
     for func in _iter_functions(tree):
-        params = _param_names(func)
-        if not params:
-            continue
-        aliases = _collect_aliases(func, params)
-        _collect_branch_constants(func, params, aliases, constants)
-        _collect_truthiness(func, params, aliases, constants)
-        _collect_container_magic(func, params, aliases, constants, lines)
-        _collect_iteration_defaults(func, params, aliases, lines)
-        _collect_numeric_defaults(func, params, aliases, constants, lines)
-        _collect_exception_setups(func, params, aliases, side_effects)
-
-    mutable: list[tuple[str, list[Any]]] = []
-    for chain, values in constants.items():
-        candidates = _candidates(values)
-        if candidates:
-            mutable.append((chain, candidates))
-    for method_chain, names in side_effects.items():
-        target = f"{method_chain}.side_effect" if method_chain else "side_effect"
-        # None = no side effect (happy path); each RaiseException flips an except.
-        candidates = [None, *(RaiseException(name=n) for n in sorted(names))]
-        mutable.append((target, candidates))
-    return mutable, sorted(lines)
+        for mutable, param_lines in function_param_setups(func).values():
+            for chain, candidates in mutable:
+                bucket = merged.setdefault(chain, [])
+                for candidate in candidates:
+                    if candidate not in bucket:
+                        bucket.append(candidate)
+            lines.update(param_lines)
+    return list(merged.items()), sorted(lines)
 
 
 def _iter_functions(tree: ast.AST):
@@ -85,15 +136,6 @@ def _iter_functions(tree: ast.AST):
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             yield node
-
-
-def _param_names(func: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
-    args = func.args
-    return {
-        a.arg
-        for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)
-        if a.arg not in {"self", "cls"}
-    }
 
 
 def _chain_of(node: ast.expr, params: set[str], aliases: dict[str, str]) -> str | None:

@@ -8,8 +8,13 @@
 
 from __future__ import annotations
 
+import ast
+
 from pynguin.large_language_model.mock_generation.mock_generator import RaiseException
-from pynguin.large_language_model.mock_generation.static_setups import module_setups
+from pynguin.large_language_model.mock_generation.static_setups import (
+    function_param_setups,
+    module_setups,
+)
 
 
 def test_branch_constant_direct_attribute():
@@ -69,6 +74,25 @@ def test_string_constant_candidate():
 
 def test_syntax_error_is_safe():
     assert module_setups("def broken(") == ([], [])
+
+
+def test_function_param_setups_attributes_each_setup_to_its_own_parameter():
+    src = (
+        "def f(http, db):\n"
+        "    if http.get().status == 200:\n"
+        "        return 1\n"
+        "    for row in db.query():\n"
+        "        print(row)\n"
+    )
+    func = ast.parse(src).body[0]
+    per_param = function_param_setups(func)
+
+    # http's branch constant is attributed only to http.
+    assert ("get.return_value.status", [200, 201]) in per_param["http"][0]
+    assert per_param["http"][1] == []
+    # db's iteration default is attributed only to db.
+    assert per_param["db"][0] == []
+    assert per_param["db"][1] == ["m.query.return_value = [MagicMock()]"]
 
 
 def test_alias_local_from_param_call():

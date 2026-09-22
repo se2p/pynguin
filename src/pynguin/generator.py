@@ -482,30 +482,55 @@ def _untyped_param_bindings(
     return {(f"{module_name}.{qualname}", param): fqn for (qualname, param), fqn in matched.items()}
 
 
-def _apply_static_setups(module_path: Path, mock_targets: set[str]) -> None:
-    """Merge SUT-derived return-value setups into every mock target's template.
+def _apply_static_setups(  # noqa: C901
+    module_path: Path,
+    mock_targets: set[str],
+    candidate_classes: list[type],
+    module_name: str,
+    untyped_bindings: dict[tuple[str, str], str],
+) -> None:
+    """Attach SUT-derived static setups to each parameter's own mock target.
 
-    Reads the module under test and attaches branch-constant mutable setups and
-    iteration defaults (from ``static_setups.module_setups``) to each mock
-    target's template, creating a bare template when none exists. Setups already
+    For every mocked parameter, the branch-constant, iteration-default and
+    side-effect setups derived from that parameter's usage are attached to the
+    template of the target it binds to, so two dependencies in one module never
+    share setups. A bare template is created when none exists, and setups already
     present from the proxy-cache are not duplicated.
 
     Args:
         module_path: SUT source file.
         mock_targets: FQNs that will be mocked.
+        candidate_classes: classes an untyped parameter could match.
+        module_name: The module under test, used to build the callable key.
+        untyped_bindings: injector's ``(callable key, param) -> boundary FQN`` map.
     """
+    import ast  # noqa: PLC0415
+
     import pynguin.testcase.mock_templates_store as _mock_store  # noqa: PLC0415
-    from pynguin.large_language_model.mock_generation import static_setups  # noqa: PLC0415
+    from pynguin.large_language_model.mock_generation import (  # noqa: PLC0415
+        ast_helpers,
+        mock_hint_generator,
+        static_setups,
+    )
     from pynguin.large_language_model.mock_generation.mock_generator import (  # noqa: PLC0415
         MockTemplate,
         MutableSetup,
     )
 
-    mutable, lines = static_setups.module_setups(module_path.read_text(encoding="utf-8"))
-    if not mutable and not lines:
+    try:
+        tree = ast.parse(module_path.read_text(encoding="utf-8"))
+    except SyntaxError:
         return
+    alias_map = ast_helpers.import_alias_map(tree)
+    candidates = candidate_classes or []
 
-    for fqn in mock_targets:
+    # Index the injector's untyped bindings by callable key, as generate_templates does.
+    bindings_by_func: dict[str, dict[str, str]] = {}
+    for (callable_key, param), fqn in (untyped_bindings or {}).items():
+        bindings_by_func.setdefault(callable_key, {})[param] = fqn
+    injector_mode = untyped_bindings is not None
+
+    def template_for(fqn: str) -> MockTemplate:
         template = _mock_store.MOCK_TEMPLATES_BY_TARGET.get(fqn)
         if template is None:
             dep = fqn.rsplit(".", maxsplit=1)[-1].lower()
@@ -513,13 +538,31 @@ def _apply_static_setups(module_path: Path, mock_targets: set[str]) -> None:
                 dependency=dep, import_path=fqn.split(".", maxsplit=1)[0], mock_target=fqn
             )
             _mock_store.MOCK_TEMPLATES_BY_TARGET[fqn] = template
-        existing = {s.target for s in template.mutable_setups}
-        for chain, candidates in mutable:
-            if chain not in existing:
-                template.mutable_setups.append(MutableSetup(target=chain, candidates=candidates))
-        for line in lines:
-            if line not in template.setup_lines:
-                template.setup_lines.append(line)
+        return template
+
+    for qualname, func in mock_hint_generator.iter_named_functions(tree):
+        func_key = f"{module_name}.{qualname}" if module_name else qualname
+        per_func = bindings_by_func.get(func_key, {}) if injector_mode else None
+        params_to_target = mock_hint_generator.mocked_params(
+            func, alias_map, mock_targets, candidates, per_func
+        )
+        if not params_to_target:
+            continue
+        per_param = static_setups.function_param_setups(func)
+        for param, target in params_to_target.items():
+            setups = per_param.get(param)
+            if setups is None:
+                continue
+            mutable, lines = setups
+            template = template_for(target)
+            existing = {s.target for s in template.mutable_setups}
+            for chain, cands in mutable:
+                if chain not in existing:
+                    template.mutable_setups.append(MutableSetup(target=chain, candidates=cands))
+                    existing.add(chain)
+            for line in lines:
+                if line not in template.setup_lines:
+                    template.setup_lines.append(line)
 
 
 def _setup_mock_generation(test_cluster: ModuleTestCluster) -> None:
@@ -648,7 +691,13 @@ def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
         # Static, deterministic return-value setups derived from the SUT itself
         # (branch constants + iteration defaults), so bare mocks reach value-
         # dependent branches even when the proxy-cache returned no hints.
-        _apply_static_setups(Path(str(module.__file__)), gen.mock_targets)
+        _apply_static_setups(
+            Path(str(module.__file__)),
+            gen.mock_targets,
+            candidate_classes,
+            module_name,
+            _mock_store.MOCK_UNTYPED_PARAMS,
+        )
 
         for fqn, template in templates.items():
             for setup in template.mutable_setups:

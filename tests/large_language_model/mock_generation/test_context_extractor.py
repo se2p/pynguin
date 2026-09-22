@@ -75,9 +75,6 @@ def test_function_context_fields():
     assert fc.dependencies == []
 
 
-# 1. Simple method call
-
-
 def test_simple_method_call():
     src = """
 def fetch(session):
@@ -92,9 +89,6 @@ def fetch(session):
     assert mc.has_kwargs is False
 
 
-# 2. Method call with kwargs
-
-
 def test_method_call_with_kwargs():
     src = """
 def fetch(session):
@@ -105,9 +99,6 @@ def fetch(session):
     assert mc.method_name == "get"
     assert mc.args_count == 1
     assert mc.has_kwargs is True
-
-
-# 3. Attribute access on return value
 
 
 def test_attribute_access_on_return_value():
@@ -125,9 +116,6 @@ def fetch(session):
     assert sc.is_method_call is False
 
 
-# 4. Method call on return value (.json())
-
-
 def test_method_call_on_return_value():
     src = """
 def fetch(session):
@@ -140,9 +128,6 @@ def fetch(session):
     json_acc = next((a for a in accesses if a.attribute_name == "json"), None)
     assert json_acc is not None
     assert json_acc.is_method_call is True
-
-
-# 5. Full example from spec
 
 
 def test_full_fetch_user_example():
@@ -173,9 +158,6 @@ def fetch_user(session, user_id):
     assert sc_acc.is_method_call is False
 
 
-# 6. Multiple dependencies in one function
-
-
 def test_multiple_dependencies():
     src = """
 def save_user_to_db(http_client, db_connection, user_id):
@@ -203,9 +185,6 @@ def save_user_to_db(http_client, db_connection, user_id):
     assert execute_call.args_count == 2
 
 
-# 7. Variable alias (s = session)
-
-
 def test_variable_alias():
     src = """
 def fetch(session):
@@ -216,9 +195,6 @@ def fetch(session):
     d = dep(ctx, "session")
     assert "s" in d.variable_names
     assert any(m.method_name == "get" for m in d.method_calls)
-
-
-# 8. Dependency as function parameter (not imported module)
 
 
 def test_dependency_as_parameter():
@@ -232,7 +208,6 @@ def use_client(requests):
     assert d.method_calls[0].method_name == "get"
 
 
-# 9. Nested function definitions are not analysed as separate entries
 #    but are also not descended into for the outer function
 
 
@@ -255,9 +230,6 @@ def outer(session):
     assert "post" not in outer_calls
 
 
-# 10. Class methods that use dependencies
-
-
 def test_class_method_with_dependency():
     src = """
 class MyService:
@@ -271,9 +243,6 @@ class MyService:
     d = dep(fetch_ctx, "session")
     assert d.method_calls[0].method_name == "get"
     assert any(a.attribute_name == "text" for a in d.return_value_accesses)
-
-
-# 11. No tracked dependency used — returns nothing
 
 
 def test_no_dependency_returns_empty():
@@ -293,18 +262,12 @@ def test_extract_from_function_returns_none_when_no_dep():
     assert result is None
 
 
-# 12. Lambda functions — skipped (not FunctionDef nodes)
-
-
 def test_lambda_not_extracted():
     src = """
 handler = lambda session: session.get("/")
 """
     results = extract(src, ["session"])
     assert results == []
-
-
-# 13. Multiple method calls on the same dependency
 
 
 def test_multiple_calls_on_same_dependency():
@@ -319,9 +282,6 @@ def work(db):
     assert names == ["begin", "execute", "commit"]
 
 
-# 14. Chained call: session.get(url).json()
-
-
 def test_chained_call():
     src = """
 def fetch(session):
@@ -331,9 +291,6 @@ def fetch(session):
     d = dep(ctx, "session")
     # session.get() should be captured as a method call
     assert any(m.method_name == "get" for m in d.method_calls)
-
-
-# 15. extract_from_file reads the path
 
 
 def test_extract_from_file(tmp_path: Path):
@@ -359,9 +316,6 @@ def test_extract_from_file_syntax_error(tmp_path: Path):
         ContextExtractor(dependencies=["x"]).extract_from_file(p)
 
 
-# 16. source_code field contains the function text
-
-
 def test_source_code_field_contains_function():
     src = """
 def fetch(session):
@@ -370,9 +324,6 @@ def fetch(session):
     ctx = first(src, ["session"])
     assert "def fetch" in ctx.source_code
     assert "session.get" in ctx.source_code
-
-
-# 17. Untracked dependency in same function is ignored
 
 
 def test_untracked_dependency_ignored():
@@ -387,9 +338,6 @@ def fn(session, logger):
     assert "logger" not in dep_names
 
 
-# 18. Async function is extracted
-
-
 def test_async_function_extracted():
     src = """
 async def fetch(session):
@@ -398,9 +346,6 @@ async def fetch(session):
 """
     contexts = extract(src, ["session"])
     assert any(c.function_name == "fetch" for c in contexts)
-
-
-# 19. Empty function body
 
 
 def test_empty_function_body():

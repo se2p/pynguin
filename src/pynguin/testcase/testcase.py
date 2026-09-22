@@ -132,6 +132,22 @@ class MockStatementInfo:
     setup_choices: list[int] = dataclasses.field(default_factory=list)
     parameter_values: dict[str, object] = dataclasses.field(default_factory=dict)
 
+    def clone(self) -> MockStatementInfo:
+        """Return a copy with independent mutable state.
+
+        The template is shared (read-only after generation); the mutable
+        *setup_choices* and *parameter_values* are copied so mutating the clone
+        does not affect the original.
+
+        Returns:
+            A copy of this metadata.
+        """
+        return MockStatementInfo(
+            template=self.template,
+            setup_choices=list(self.setup_choices),
+            parameter_values=dict(self.parameter_values),
+        )
+
 
 @dataclasses.dataclass
 class Statement:
@@ -422,7 +438,7 @@ class TestCase:  # noqa: PLR0904
                     assertions=list(stmt.assertions),
                     accessible=stmt.accessible,
                     ml_info=stmt.ml_info,
-                    mock_info=stmt.mock_info,
+                    mock_info=stmt.mock_info.clone() if stmt.mock_info is not None else None,
                 )
             )
 
@@ -604,7 +620,7 @@ class TestCase:  # noqa: PLR0904
                 assertions=list(stmt.assertions),
                 accessible=stmt.accessible,
                 ml_info=stmt.ml_info,
-                mock_info=stmt.mock_info,
+                mock_info=stmt.mock_info.clone() if stmt.mock_info is not None else None,
             )
             s._used_vars = stmt._used_vars  # noqa: SLF001 # propagate cached set; nodes are immutable
             cloned.append(s)
@@ -673,10 +689,10 @@ class TestCase:  # noqa: PLR0904
                     alive_vars.remove(bv)
                     alive_vars.update(_get_used_variables(stmt))
                 elif stmt.mock_info is not None:
-                    # A dangling (unused) mock is a measured output of the mock
-                    # approach and is kept intact; transforming its multi-line
-                    # ``var = MagicMock(); var.x = ...`` node into bare expressions
-                    # would corrupt it.
+                    # An unused mock is left intact rather than transformed:
+                    # rewriting its multi-statement node into bare expressions would
+                    # corrupt it. Coverage-preserving minimization removes unused
+                    # mocks as whole statements instead.
                     alive_vars.update(_get_used_variables(stmt))
                 else:
                     # Variable is NOT used later. Transform Assign to Expr.

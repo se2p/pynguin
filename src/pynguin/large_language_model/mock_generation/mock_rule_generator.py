@@ -34,6 +34,7 @@ from typing import Any
 
 import httpx
 
+from pynguin.large_language_model.mock_generation.ast_helpers import import_alias_map
 from pynguin.large_language_model.mock_generation.proxy_cache_resolver import (
     require_proxy_cache_url,
 )
@@ -108,15 +109,7 @@ def build_import_map(source: str) -> dict[str, str]:
         tree = ast.parse(source)
     except SyntaxError:
         return {}
-    mapping: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                mapping[alias.asname or alias.name.split(".")[0]] = alias.name
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            for alias in node.names:
-                mapping[alias.asname or alias.name] = f"{node.module}.{alias.name}"
-    return mapping
+    return import_alias_map(tree)
 
 
 def _patch_target(call: ast.Call) -> set[str]:
@@ -302,7 +295,7 @@ class MockRuleGenerator:
             _logger.debug("Skipping unparseable file: %s", test_file)
             return set()
 
-        import_map = build_import_map(source)
+        import_map = import_alias_map(tree)
         targets: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):

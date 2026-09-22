@@ -216,11 +216,11 @@ def render_mock_node(
             )
         )
 
-    # var.<attr> = <value> for each proxy return-value hint.
+    # var.<attr> = <value> for each proxy-cache return-value hint.
     for attr, value in template.attribute_values.items():
         body.append(_assign(_attribute_chain(var_name, [attr]), _value_to_expr(value)))
 
-    # Raw proxy return-value setup lines with the placeholder renamed to var_name.
+    # Raw proxy-cache return-value setup lines with the placeholder renamed to var_name.
     for line in template.setup_lines:
         assign = _render_setup_line(line, var_name)
         if assign is not None:
@@ -229,6 +229,8 @@ def render_mock_node(
     # var.<target> = <chosen value>, where the value varies across tests so
     # value-dependent branches are covered.
     for index, setup in enumerate(template.mutable_setups):
+        if not setup.candidates:
+            continue
         body.append(
             _assign(
                 _attribute_chain(var_name, setup.target.split(".")),

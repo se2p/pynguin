@@ -278,8 +278,7 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
             i = 0
             while i < test_case.size():
                 statement = test_case.get_statement(i)
-                # Mocks are not being removed by minimization. Dangling mocks are measured
-                if statement.bound_variable in protected or statement.mock_info is not None:
+                if statement.bound_variable in protected:
                     i += 1
                     continue
                 test_clone = test_case.clone()
@@ -312,7 +311,7 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
             i = test_case.size() - 1
             while i >= 0:
                 statement = test_case.get_statement(i)
-                if statement.bound_variable in protected or statement.mock_info is not None:
+                if statement.bound_variable in protected:
                     i -= 1
                     continue
                 test_clone = test_case.clone()
@@ -434,7 +433,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 test_clone.remove_statement_with_forward_dependencies(i)
 
                 exit_code = self._executor.execute_with_exit_code(test_clone)
-                if exit_code != 0 and test_case.get_statement(i).mock_info is None:
+                if exit_code != 0:
                     removed = test_case.remove_statement_with_forward_dependencies(i)
                     self._removed_statements += len(removed)
                     statements_changed = True
@@ -492,7 +491,7 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
                 i = 0
                 while i < test_case.size():
                     statement = test_case.get_statement(i)
-                    if statement.bound_variable in protected or statement.mock_info is not None:
+                    if statement.bound_variable in protected:
                         i += 1
                         continue
                     test_suite_clone = chromosome.clone()

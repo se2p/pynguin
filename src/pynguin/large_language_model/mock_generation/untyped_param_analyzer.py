@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import ast
 
+from pynguin.large_language_model.mock_generation.ast_helpers import param_names
+
 # Attributes on scalar/text primitives. A param accessing only these is a
 # primitive value, not a boundary (containers excluded: names overlap domain).
 _PRIMITIVE_ATTRS: frozenset[str] = frozenset().union(
@@ -106,16 +108,6 @@ def _safe_hasattr(cls: type, attr: str) -> bool:
         return False
 
 
-def _untyped_arg_names(func: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
-    """Names of parameters that carry no annotation (excluding self/cls)."""
-    args = func.args
-    return {
-        a.arg
-        for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)
-        if a.annotation is None and a.arg not in {"self", "cls"}
-    }
-
-
 def _direct_attr_accesses(node: ast.AST, names: set[str]) -> dict[str, set[str]]:
     """Attributes accessed as ``<name>.<attr>`` for each name in *names*."""
     out: dict[str, set[str]] = {}
@@ -135,7 +127,7 @@ def _add_function_bindings(
     out: dict[tuple[str, str], set[str]],
 ) -> None:
     """Record ``(qualname, param) -> attrs`` for untyped params used directly."""
-    untyped = _untyped_arg_names(func)
+    untyped = param_names(func, untyped_only=True)
     if not untyped:
         return
     direct = _direct_attr_accesses(func, untyped)
@@ -191,7 +183,7 @@ def _add_class_bindings(cls: ast.ClassDef, out: dict[tuple[str, str], set[str]])
     # attributed to the constructor (qualname "C.__init__").
     init = next((m for m in methods if m.name == "__init__"), None)
     if init is not None:
-        bindings = _self_param_bindings(init, _untyped_arg_names(init))
+        bindings = _self_param_bindings(init, param_names(init, untyped_only=True))
         if bindings:
             self_attrs: dict[str, set[str]] = {}
             for method in methods:

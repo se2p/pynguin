@@ -275,6 +275,31 @@ def test_clone_preserves_mock_info(default_test_case):
     assert cloned.to_code() == default_test_case.to_code()
 
 
+def test_clone_mock_info_has_independent_mutable_state(default_test_case):
+    template = _make_template(parameters=[_make_param("status_code", "int", 200)])
+    var = default_test_case.next_var_name()
+    default_test_case.add_statement(build_mock_statement(var, template, setup_choices=[0]))
+    original_info = default_test_case.get_statement(0).mock_info
+
+    cloned_info = default_test_case.clone().get_statement(0).mock_info
+    # Mutating the clone's mutable state must not affect the original.
+    cloned_info.setup_choices.append(9)
+    cloned_info.parameter_values["status_code"] = 999
+    assert original_info.setup_choices == [0]
+    assert original_info.parameter_values["status_code"] == 200
+    # The (read-only) template is shared.
+    assert cloned_info.template is original_info.template
+
+
+def test_render_skips_setup_with_empty_candidates():
+    template = _make_template(
+        mutable_setups=[MutableSetup(target="get.return_value", candidates=[])]
+    )
+    # Empty candidates must not crash (no ZeroDivisionError) and are skipped.
+    code = _node_code(render_mock_node("var_0", template, [0], {}))
+    assert code.strip() == "var_0 = MagicMock()"
+
+
 # Mutation (via TestFactory)
 
 

@@ -228,7 +228,7 @@ class DependencyAnalyzer:
         return {
             target: MockDecision(
                 target,
-                result["decision"],
+                result.get("decision", "unknown"),
                 result.get("reason", ""),
                 "llm",
                 float(result.get("confidence", 0.5)),
@@ -246,7 +246,7 @@ class DependencyAnalyzer:
             return None
         return MockDecision(
             target,
-            result["decision"],
+            result.get("decision", "unknown"),
             result.get("reason", ""),
             "llm",
             float(result.get("confidence", 0.5)),
