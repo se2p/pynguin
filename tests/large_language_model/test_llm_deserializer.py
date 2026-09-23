@@ -418,6 +418,36 @@ class TestSuite:
     assert result.counts[Disposition.ASSERTION_LIFTED] == 1
 
 
+def test_deserialize_nested_class_with_self_attributes_runs(test_cluster):
+    """End-to-end: a nested class using ``self.`` deserializes into runnable code.
+
+    Regression for issue #274: the rewriter used to strip ``self.`` from nested local
+    classes, so the emitted (compound-admitted) test raised ``UnboundLocalError`` at
+    runtime and contributed no coverage. The exported code must both parse and execute.
+    """
+    code = """
+class TestCounter:
+    def test_bump(self):
+        class Counter:
+            def __init__(self):
+                self.n = 0
+            def bump(self):
+                self.n += 1
+                return self.n
+        c = Counter()
+        r = c.bump()
+        assert r == 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=True)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    source = result.test_cases[0].to_code()
+    assert "self.n = 0" in source
+    assert "self.n += 1" in source
+    # The exported test must run without raising.
+    exec(source, {})  # noqa: S102
+
+
 # ---------------------------------------------------------------------------
 # Assertion shapes (through the full deserializer, using directly-fed CST so the
 # rewriter's comparison-hoisting does not obscure the shape under test).
@@ -671,6 +701,26 @@ def test_parse_assertion_isinstance_module_attribute(monkeypatch):
 def test_parse_assertion_isinstance_unknown_receiver_returns_none():
     node = cst.parse_statement("assert isinstance(y, int)").body[0]
     assert parse_assertion(node, _known(x=int)) is None
+
+
+def test_parse_assertion_isinstance_non_sut_module_resolves_to_real_module(monkeypatch):
+    """A dotted type from a non-SUT module keeps that module, not the SUT module.
+
+    Regression for #275: every dotted type used to be attributed to
+    ``config.module_name``, so ``collections.defaultdict`` was exported as
+    ``<sut_alias>.defaultdict`` and raised ``AttributeError`` at runtime.
+    """
+    monkeypatch.setattr(config.configuration, "module_name", "pytutils.trees")
+    node = cst.parse_statement("assert isinstance(x, collections.defaultdict)").body[0]
+    result = parse_assertion(node, _known(x=None))
+    assert result == ("x", IsInstanceAssertion("x", "collections", "defaultdict"))
+
+
+def test_parse_assertion_isinstance_unresolvable_module_not_lifted(monkeypatch):
+    """A dotted type that resolves to no importable module is left for the raw fallback."""
+    monkeypatch.setattr(config.configuration, "module_name", "pytutils.trees")
+    node = cst.parse_statement("assert isinstance(x, nonexistent_pkg.Thing)").body[0]
+    assert parse_assertion(node, _known(x=None)) is None
 
 
 def test_parse_assertion_len_equality():

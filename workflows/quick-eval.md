@@ -208,6 +208,7 @@ apples-to-apples. Only a *reproducible* crash/regression is real.
 | `--seed N` | random seed | 0 |
 | `--save FILE` / `--save-baseline` / `--save-current` | archive results as JSON | — |
 | `--output {table,json}` | `run` output format | table |
+| `--output-dir DIR` | (`run` only) persist each module's run dir (exported `test_*.py`, `statistics.csv`, coverage json) under `DIR/<module>/` instead of a temp dir deleted after the run | — |
 
 Baseline venvs are cached at `~/.cache/pynguin-eval/venvs/<commit>/`, so repeated
 `compare-branch` runs against the same ref reuse the install.

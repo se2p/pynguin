@@ -184,6 +184,59 @@ def test_add_assertions_various_shapes(test_cluster, llm_agent_mock):
     assert test_case.get_statement(3).assertions == [CollectionLengthAssertion("var_3", 2)]
 
 
+def test_add_assertions_on_in_place_mutated_arg_lands_after_mutating_call(
+    test_cluster, llm_agent_mock
+):
+    """Regression test for issue #276.
+
+    An assertion about a dict that is filled in place by a later call must be
+    attached after that call, not after the binding that created the empty dict.
+    """
+    test_case = tc.TestCase()
+    test_case.add_statement(_make_statement("var_0 = {}", bound_variable="var_0", bound_type=dict))
+    # A later call reads (and, in the SUT, mutates in place) var_0. Its own
+    # bound variable is the return value var_1, not var_0.
+    test_case.add_statement(
+        _make_statement("var_1 = populate(var_0)", bound_variable="var_1", bound_type=int)
+    )
+    llm_agent_mock.generate_assertions_for_test_case.return_value = (
+        "assert var_0 == {'KEY': 'value'}"
+    )
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
+
+    generator.visit_test_case_chromosome(chromosome)
+
+    # The assertion must land on the mutating call (index 1), not the binding (index 0).
+    assert test_case.get_statement(0).assertions == []
+    assert test_case.get_statement(1).assertions == [ObjectAssertion("var_0", {"KEY": "value"})]
+
+
+def test_add_assertions_attaches_to_last_binding_when_variable_is_rebound(
+    test_cluster, llm_agent_mock
+):
+    """A rebound variable's assertion attaches to the last binding, not an earlier read."""
+    test_case = tc.TestCase()
+    test_case.add_statement(_make_statement("var_0 = 5", bound_variable="var_0", bound_type=int))
+    # Reads var_0 but does not rebind it.
+    test_case.add_statement(
+        _make_statement("var_1 = use(var_0)", bound_variable="var_1", bound_type=int)
+    )
+    # Rebinds var_0; no later statement reads it.
+    test_case.add_statement(_make_statement("var_0 = 9", bound_variable="var_0", bound_type=int))
+    llm_agent_mock.generate_assertions_for_test_case.return_value = "assert var_0 == 9"
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
+
+    generator.visit_test_case_chromosome(chromosome)
+
+    assert test_case.get_statement(0).assertions == []
+    assert test_case.get_statement(1).assertions == []
+    assert test_case.get_statement(2).assertions == [ObjectAssertion("var_0", 9)]
+
+
 def test_visit_test_suite_chromosome(test_cluster, llm_agent_mock):
     test_case = _build_test_case()
     llm_agent_mock.generate_assertions_for_test_case.return_value = "assert var_0 == 5"

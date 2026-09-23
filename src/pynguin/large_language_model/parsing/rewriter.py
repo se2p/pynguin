@@ -721,6 +721,15 @@ class TestClassRewriter(ast.NodeTransformer):
         Returns:
             ast.AST: The modified AST node with `self` references replaced.
         """
+        # Do not descend into nested scopes: a nested ``def``/``class``/``lambda``
+        # introduces its own ``self`` binding (e.g. a locally-defined class whose
+        # methods take ``self``), so rewriting ``self.<attr>`` inside it would corrupt
+        # legitimate instance-attribute access and produce code that raises at runtime.
+        # Only the test method's own ``self`` (the unittest test-class instance) is
+        # rewritten.
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+            return node
+
         # Handle `self.<variable>` replacement
         if (
             isinstance(node, ast.Attribute)

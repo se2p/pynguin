@@ -51,6 +51,7 @@ def print_results_table(results: list[ModuleResult]) -> None:
     """Print a Rich table of coverage results."""
     show_mutation = any(r.mutation_score is not None for r in results)
     show_llm = any(r.llm_calls is not None for r in results)
+    show_output = any(r.output_path is not None for r in results)
     table = Table(title="Quick Eval Results")
     table.add_column("Project")
     table.add_column("Module")
@@ -67,6 +68,8 @@ def print_results_table(results: list[ModuleResult]) -> None:
         table.add_column("Parsed Stmts", justify="right")
     table.add_column("Time (s)", justify="right")
     table.add_column("Exit")
+    if show_output:
+        table.add_column("Output Dir")
     for r in sorted(results, key=lambda x: x.module):
         suite_cell = (
             fmt_pct(r.suite_coverage) if r.suite_coverage is not None else (r.suite_error or "N/A")
@@ -93,6 +96,8 @@ def print_results_table(results: list[ModuleResult]) -> None:
                 str(r.llm_parsed_stmts) if r.llm_parsed_stmts is not None else "-",
             ])
         row += [f"{r.duration_s:.0f}", str(r.exit_code)]
+        if show_output:
+            row.append(r.output_path or "-")
         table.add_row(*row)
     console.print(table)
 
@@ -215,6 +220,7 @@ def results_to_json(results: list[ModuleResult], git_ref: str, budget: int, seed
                 "suite_coverage": r.suite_coverage,
                 "suite_tests": r.suite_tests,
                 "suite_error": r.suite_error,
+                "output_path": r.output_path,
                 "duration_s": round(r.duration_s, 1),
                 "exit_code": r.exit_code,
                 "error": r.error,

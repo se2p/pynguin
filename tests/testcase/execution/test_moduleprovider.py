@@ -74,6 +74,19 @@ def test_get_missing_submodule(module_provider):
         module_provider.get_module("tests.fixtures.examples.simple.foo")
 
 
+def test_get_submodule_shadowed_by_package_attribute(module_provider):
+    # A package __init__ that re-exports a symbol whose name equals a real
+    # submodule (e.g. ``from slugify.slugify import slugify``) shadows that
+    # submodule with the function. Resolving the submodule must not raise and
+    # must return the module, not the shadowing attribute. Regression for #277.
+    module_name = "tests.fixtures.examples.shadowed_submodule.shadowed"
+    # Force the getattr fallback path by removing the already-registered submodule.
+    sys.modules.pop(module_name, None)
+    module = module_provider.get_module(module_name)
+    assert module.__name__ == module_name
+    assert callable(module.shadowed)
+
+
 def test_get_valid_module_with_alias(module_provider):
     assert simple == module_provider.get_module("tests.fixtures.examples.module_alias.deprecated")
 

@@ -14,6 +14,8 @@ import time
 from typing import TYPE_CHECKING, Any
 from unittest.mock import DEFAULT, NonCallableMock
 
+import libcst as cst
+
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
@@ -77,6 +79,76 @@ def _last_binding_index(test_case: tc.TestCase, var: str) -> int | None:
     return None
 
 
+class _CallArgumentNameCollector(cst.CSTVisitor):
+    """Collect the names of variables that appear anywhere inside a ``Call`` node.
+
+    A variable is only mutated in place by a subsequent statement when it is passed
+    into a call -- as an argument (``f(var)``, ``f(k=var)``) or as the receiver of a
+    method call (``var.append(x)``). Names read outside any call (``var_1 = var_0``,
+    ``var_0 + 1``) cannot mutate the object, so they are ignored.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the collector."""
+        self.names: set[str] = set()
+        self._call_depth = 0
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        self._call_depth += 1
+        return True
+
+    def leave_Call(self, original_node: cst.Call) -> None:  # noqa: N802
+        self._call_depth -= 1
+
+    def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
+        if self._call_depth > 0:
+            self.names.add(node.value)
+        return True
+
+
+def _passes_variable_to_call(statement: tc.Statement, var: str) -> bool:
+    """Return whether *statement* passes *var* into a call (a possible in-place mutation).
+
+    Args:
+        statement: The statement to inspect.
+        var: The variable name to look for.
+
+    Returns:
+        True if *var* appears inside any call in the statement.
+    """
+    collector = _CallArgumentNameCollector()
+    statement.node.visit(collector)
+    return var in collector.names
+
+
+def _last_reference_index(test_case: tc.TestCase, var: str) -> int | None:
+    """Return the statement index an assertion about *var* should be attached to.
+
+    An LLM assertion describes *var*'s value at the end of the test, so it must be
+    attached after the last statement that can affect *var*. That is the later of the
+    last statement that (re)binds *var* and the last statement that passes *var* into a
+    call, since such a call may mutate *var* in place (an out-parameter dict/list passed
+    by reference). Attaching only after the last binding places the assertion before such
+    a mutating call, making it observe the pre-mutation value (issue #276). Plain reads
+    that cannot mutate *var* (e.g. ``var_1 = var_0``) do not move the assertion.
+
+    Args:
+        test_case: The test case to search.
+        var: The variable name to look for.
+
+    Returns:
+        The statement index, or ``None`` if *var* is never bound.
+    """
+    binding = _last_binding_index(test_case, var)
+    if binding is None:
+        return None
+    last = binding
+    for index in range(binding + 1, test_case.size()):
+        if _passes_variable_to_call(test_case.get_statement(index), var):
+            last = index
+    return last
+
+
 def _should_use_batch(model: Any) -> bool:
     """Check if the model supports batch assertion generation.
 
@@ -117,7 +189,7 @@ def _apply_assertions(test_case: tc.TestCase, response: str | None) -> tuple[int
         if parsed is None:
             continue
         var, assertion = parsed
-        index = _last_binding_index(test_case, var)
+        index = _last_reference_index(test_case, var)
         if index is None:
             continue
         test_case.get_statement(index).assertions.append(assertion)
