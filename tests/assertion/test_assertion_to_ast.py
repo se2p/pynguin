@@ -180,6 +180,14 @@ def test_isinstance_assertion(module, qualname, expected):
     assert render(assertion) == expected
 
 
+def test_isinstance_assertion_with_module_aliases():
+    assertion = ass.IsInstanceAssertion("var_0", "foo.bar", "Baz")
+    assert (
+        render(assertion, module_aliases={"foo.bar": "custom_alias_"})
+        == "assert isinstance(var_0, custom_alias_.Baz)"
+    )
+
+
 # --- CollectionLengthAssertion ------------------------------------------------
 
 
