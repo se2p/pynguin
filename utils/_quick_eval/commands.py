@@ -53,6 +53,7 @@ def cmd_run(args: argparse.Namespace, extra_args: list[str]) -> int:
         no_assertions=args.no_assertions,
         timeout=args.timeout,
         extra_args=extra_args,
+        output_dir=args.output_dir,
     )
     console.print()
     print_results_table(results)

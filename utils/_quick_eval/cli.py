@@ -119,6 +119,13 @@ def main(argv: list[str] | None = None) -> int:
     _add_run_options(p_run)
     p_run.add_argument("--save", metavar="FILE", help="Save results as JSON to FILE")
     p_run.add_argument("--output", choices=["table", "json"], default="table")
+    p_run.add_argument(
+        "--output-dir",
+        metavar="DIR",
+        help="Persist each module's run directory (exported test_*.py, statistics.csv, "
+        "coverage json) under DIR/<module>/ instead of a temp dir deleted after the run. "
+        "Lets you inspect the generated tests' readability, naming and assertions.",
+    )
 
     p_cmp = sub.add_parser("compare", help="Compare two saved result JSON files")
     p_cmp.add_argument("baseline", help="Baseline results JSON file")
