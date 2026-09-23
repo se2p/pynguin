@@ -252,7 +252,10 @@ def register_generic_or_normal_method(
         instantiated_types: Concrete Instances of the owner class, if any.
         ml_data: Optional ML metadata.
     """
+    is_generic = False
+
     if instantiated_types:
+        is_generic = True
         for inst_type in instantiated_types:
             base_subst = make_substitutions(type_info.type_parameters, inst_type.args)
             _instantiate_method_with_owner(
@@ -268,9 +271,8 @@ def register_generic_or_normal_method(
                 instantiated_owner=inst_type,
                 ml_data=ml_data,
             )
-        test_cluster.add_generator(generic_method)
-        test_cluster.add_modifier(type_info, generic_method)
     elif collect_signature_type_vars(inferred_signature):
+        is_generic = True
         _instantiate_method_with_owner(
             type_info=type_info,
             method=method,
@@ -284,6 +286,8 @@ def register_generic_or_normal_method(
             instantiated_owner=None,
             ml_data=ml_data,
         )
+
+    if is_generic:
         test_cluster.add_generator(generic_method)
         test_cluster.add_modifier(type_info, generic_method)
     else:
@@ -311,38 +315,31 @@ def _instantiate_method_with_owner(
     instantiated_owner: Instance | None,
     ml_data: MLCallableData | None,
 ) -> None:
+    """Instantiate a method with a specific owner instance and substitute remaining TypeVars.
+
+    Args:
+        type_info: Owner TypeInfo.
+        method: Method callable.
+        method_name: Method name string.
+        signature: Method inferred signature.
+        base_substitutions: Initial substitutions from the owner instance.
+        expected_exceptions: Set of expected exception names.
+        method_data: Base CallableData.
+        test_cluster: Target ModuleTestCluster.
+        add_to_test: Whether method is an accessible object under test.
+        instantiated_owner: Concrete Instance of the owner, or None.
+        ml_data: Optional ML metadata.
+    """
     inst_sig = signature.substitute(base_substitutions)
     rem_tvs = collect_signature_type_vars(inst_sig)
-    if rem_tvs:
-        combos = generate_candidate_combinations(
-            test_cluster.type_system, rem_tvs, max_combinations=10
-        )
-        for combo in combos:
-            m_subst = make_substitutions(rem_tvs, combo, base_substitutions)
-            final_sig = signature.substitute(m_subst)
-            inst_m = GenericMethod(
-                type_info,
-                method,
-                final_sig,
-                expected_exceptions,
-                method_name,
-                instantiated_owner=instantiated_owner,
-            )
-            inst_data = dataclasses.replace(method_data, accessible=inst_m)
-            _register_accessible(
-                test_cluster=test_cluster,
-                accessible=inst_m,
-                callable_data=inst_data,
-                is_generator=True,
-                modifier_owner=type_info,
-                add_to_test=add_to_test,
-                ml_data=ml_data,
-            )
-    else:
+    combos = generate_candidate_combinations(test_cluster.type_system, rem_tvs, max_combinations=10)
+    for combo in combos:
+        m_subst = make_substitutions(rem_tvs, combo, base_substitutions)
+        final_sig = signature.substitute(m_subst)
         inst_m = GenericMethod(
             type_info,
             method,
-            inst_sig,
+            final_sig,
             expected_exceptions,
             method_name,
             instantiated_owner=instantiated_owner,
