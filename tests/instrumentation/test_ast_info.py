@@ -11,7 +11,10 @@ from pathlib import Path
 import pytest
 
 from pynguin.configuration import ToCoverConfiguration
-from pynguin.instrumentation.transformer import ModuleAstInfo
+from pynguin.instrumentation.transformer import (
+    ModuleAstInfo,
+    _is_type_checking,  # noqa: PLC2701
+)
 
 
 def get_module_path(module_name: str, extension: str = ".py") -> str:
@@ -596,3 +599,146 @@ def test_ast_info_only_cover_line_ranges_empty_unchanged():
         scope = module_ast_info.get_scope(scope_line)
         assert scope is not None
         assert scope.should_be_covered() is True
+
+
+def test_is_type_checking_patterns():
+    for code in [
+        "if TYPE_CHECKING:\n    pass\n",
+        "if typing.TYPE_CHECKING:\n    pass\n",
+        "if typing_extensions.TYPE_CHECKING:\n    pass\n",
+        "if t.TYPE_CHECKING:\n    pass\n",
+        "if te.TYPE_CHECKING:\n    pass\n",
+        "if types.TYPE_CHECKING:\n    pass\n",
+        "if custom_mod.TYPE_CHECKING:\n    pass\n",
+    ]:
+        parsed = ast.parse(code)
+        if_node = parsed.body[0]
+        assert isinstance(if_node, ast.If)
+        assert _is_type_checking(if_node) is True
+
+    # Non-type-checking conditionals
+    for code in [
+        "if DEBUG:\n    pass\n",
+        "if obj.ATTR:\n    pass\n",
+        "if True:\n    pass\n",
+    ]:
+        parsed = ast.parse(code)
+        if_node = parsed.body[0]
+        assert isinstance(if_node, ast.If)
+        assert _is_type_checking(if_node) is False
+
+
+def test_type_checking_with_else_block(tmp_path):
+    source = (
+        "from typing import TYPE_CHECKING\n"  # 1
+        "if TYPE_CHECKING:\n"  # 2
+        "    from foo import Bar\n"  # 3
+        "    extra = 1\n"  # 4
+        "else:\n"  # 5
+        "    if True:\n"  # 6
+        "        Bar = int\n"  # 7
+        "    else:\n"  # 8
+        "        Bar = float\n"  # 9
+        "def use_bar():\n"  # 10
+        "    return Bar()\n"  # 11
+    )
+    file_path = tmp_path / "type_checking_else.py"
+    file_path.write_text(source)
+
+    module_ast_info = ModuleAstInfo.from_path(
+        str(file_path),
+        to_cover_config=ToCoverConfiguration(),
+    )
+    assert module_ast_info is not None
+
+    # Lines 2, 3, 4 should be excluded (the if TYPE_CHECKING block)
+    assert 2 in module_ast_info.no_cover_lines
+    assert 3 in module_ast_info.no_cover_lines
+    assert 4 in module_ast_info.no_cover_lines
+
+    # Lines in the else block must NOT be excluded
+    assert 6 not in module_ast_info.no_cover_lines
+    assert 7 not in module_ast_info.no_cover_lines
+    assert 9 not in module_ast_info.no_cover_lines
+
+    # Module scope checks
+    module_scope = module_ast_info.get_scope(0)
+    assert module_scope is not None
+    assert module_scope.should_cover_line(2) is False
+    assert module_scope.should_cover_line(3) is False
+    assert module_scope.should_cover_line(4) is False
+    assert module_scope.should_cover_line(7) is True
+    assert module_scope.should_cover_line(9) is True
+
+    # The if TYPE_CHECKING branch should not be a coverage goal
+    assert module_scope.should_cover_conditional_statement(2) is False
+    # The branch inside the else block should be a coverage goal
+    assert module_scope.should_cover_conditional_statement(6) is True
+
+
+def test_type_checking_decorated_functions_excluded(tmp_path):
+    source = (
+        "from typing import TYPE_CHECKING, overload\n"  # 1
+        "if TYPE_CHECKING:\n"  # 2
+        "    @overload\n"  # 3
+        "    def stub(x: int) -> int:\n"  # 4
+        "        if x > 0:\n"  # 5
+        "            return 1\n"  # 6
+        "        return 0\n"  # 7
+        "def runtime_func():\n"  # 8
+        "    return 42\n"  # 9
+    )
+    file_path = tmp_path / "type_checking_overload.py"
+    file_path.write_text(source)
+
+    module_ast_info = ModuleAstInfo.from_path(
+        str(file_path),
+        to_cover_config=ToCoverConfiguration(),
+    )
+    assert module_ast_info is not None
+
+    # Lines 2..7 are inside if TYPE_CHECKING
+    for line in range(2, 8):
+        assert line in module_ast_info.no_cover_lines
+
+    # Scope lookup for stub by decorator line (3) or def line (4)
+    scope_by_dec = module_ast_info.get_scope(3)
+    assert scope_by_dec is not None
+    assert scope_by_dec.should_be_covered() is False
+
+    scope_by_def = module_ast_info.get_scope(4)
+    assert scope_by_def is not None
+    assert scope_by_def.should_be_covered() is False
+
+    # runtime_func should be covered
+    runtime_scope = module_ast_info.get_scope(8)
+    assert runtime_scope is not None
+    assert runtime_scope.should_be_covered() is True
+
+
+def test_get_scope_decorated_function_lookup(tmp_path):
+    source = (
+        "def dec(fn):\n"  # 1
+        "    return fn\n"  # 2
+        "@dec\n"  # 3
+        "def my_func():\n"  # 4
+        "    return 1\n"  # 5
+    )
+    file_path = tmp_path / "decorated.py"
+    file_path.write_text(source)
+
+    module_ast_info = ModuleAstInfo.from_path(
+        str(file_path),
+        to_cover_config=ToCoverConfiguration(),
+    )
+    assert module_ast_info is not None
+
+    # Lookup by decorator line (matching Python bytecode co_firstlineno)
+    scope_dec = module_ast_info.get_scope(3)
+    assert scope_dec is not None
+    assert scope_dec.should_be_covered() is True
+
+    # Lookup by def line
+    scope_def = module_ast_info.get_scope(4)
+    assert scope_def is not None
+    assert scope_def.should_be_covered() is True
