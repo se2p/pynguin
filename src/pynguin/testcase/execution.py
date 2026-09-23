@@ -136,13 +136,20 @@ class ModuleProvider:
 
         try:
             submodule = getattr(package, submodule_name)
-        except AttributeError as e:
+        except AttributeError:
+            submodule = None
+
+        if submodule is not None and inspect.ismodule(submodule):
+            return submodule
+
+        # The attribute is missing or shadowed by a non-module: a package
+        # ``__init__`` doing ``from pkg.sub import sub`` binds the name ``sub`` to
+        # the re-exported function/class, hiding the ``pkg.sub`` submodule. Resolve
+        # the submodule by its fully-qualified name instead of trusting ``getattr``.
+        try:
+            return importlib.import_module(module_name)
+        except ImportError as e:
             raise ModuleNotImportedError(module_name) from e
-
-        if not inspect.ismodule(submodule):
-            raise ModuleNotImportedError(module_name)
-
-        return submodule
 
     def get_module(self, module_name: str) -> ModuleType:
         """Provides a module.
