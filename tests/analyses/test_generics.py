@@ -389,3 +389,74 @@ def test_register_generic_or_normal_method_plain(cluster: ModuleTestCluster):
 
     assert gen_method in cluster.accessible_objects_under_test
     assert gen_method in cluster.modifiers[type_info]
+
+
+def test_instantiate_generics_in_cluster(cluster: ModuleTestCluster):
+    class Box(typing.Generic[T]):
+        def __init__(self, value):
+            self.value = value
+
+        def get_value(self):
+            return self.value
+
+    type_info = cluster.type_system.to_type_info(Box)
+    assert type_info is not None
+    tv_t = TypeVarType("T", raw_type_var=T)
+
+    ctor_sig = InferredSignature(
+        signature=inspect.signature(Box.__init__),
+        original_return_type=NoneType(),
+        original_parameters={"value": tv_t},
+        type_system=cluster.type_system,
+    )
+    base_ctor = GenericConstructor(type_info, ctor_sig, set())
+    ctor_data = _make_callable_data(base_ctor)
+    cluster.add_generator(base_ctor)
+    cluster.add_accessible_object_under_test(base_ctor, ctor_data)
+
+    method_sig = InferredSignature(
+        signature=inspect.signature(Box.get_value),
+        original_return_type=tv_t,
+        original_parameters={},
+        type_system=cluster.type_system,
+    )
+    base_method = GenericMethod(type_info, Box.get_value, method_sig, set(), "get_value")
+    m_data = _make_callable_data(base_method)
+    cluster.add_generator(base_method)
+    cluster.add_modifier(type_info, base_method)
+    cluster.add_accessible_object_under_test(base_method, m_data)
+
+    def generic_standalone(x):
+        return x
+
+    fn_sig = InferredSignature(
+        signature=inspect.signature(generic_standalone),
+        original_return_type=tv_t,
+        original_parameters={"x": tv_t},
+        type_system=cluster.type_system,
+    )
+    base_fn = GenericFunction(generic_standalone, fn_sig, set(), "generic_standalone")
+    fn_data = _make_callable_data(base_fn)
+    cluster.add_generator(base_fn)
+    cluster.add_accessible_object_under_test(base_fn, fn_data)
+
+    generics.instantiate_generics_in_cluster(cluster)
+
+    assert base_ctor not in cluster.accessible_objects_under_test
+    assert base_method not in cluster.accessible_objects_under_test
+    assert base_fn not in cluster.accessible_objects_under_test
+
+    inst_ctors = [
+        obj for obj in cluster.accessible_objects_under_test if isinstance(obj, GenericConstructor)
+    ]
+    assert len(inst_ctors) > 0
+
+    inst_methods = [
+        obj for obj in cluster.accessible_objects_under_test if isinstance(obj, GenericMethod)
+    ]
+    assert len(inst_methods) > 0
+
+    inst_funcs = [
+        obj for obj in cluster.accessible_objects_under_test if isinstance(obj, GenericFunction)
+    ]
+    assert len(inst_funcs) > 0

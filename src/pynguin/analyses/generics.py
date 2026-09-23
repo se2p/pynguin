@@ -12,9 +12,12 @@ the resulting constructors, methods, and functions into the ModuleTestCluster.
 from __future__ import annotations
 
 import dataclasses
+import enum
 import itertools
+import types
 from typing import TYPE_CHECKING, Any
 
+import pynguin.analyses.module as module_analysis
 import pynguin.configuration as config
 from pynguin.analyses.typesystem import (
     InferredSignature,
@@ -30,9 +33,9 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericFunction,
     GenericMethod,
 )
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
-    import types
     import typing
     from collections.abc import Mapping, Sequence
 
@@ -354,3 +357,204 @@ def _instantiate_method_with_owner(
             add_to_test=add_to_test,
             ml_data=ml_data,
         )
+
+
+def _remove_accessible_under_test(
+    test_cluster: ModuleTestCluster, obj: GenericAccessibleObject
+) -> None:
+    test_cluster.accessible_objects_under_test.discard(obj)
+    test_cluster.function_data_for_accessibles.pop(obj, None)
+
+
+def _instantiate_single_generic_function(
+    test_cluster: ModuleTestCluster, gen_func: GenericFunction
+) -> None:
+    func_tvs = collect_signature_type_vars(gen_func.inferred_signature)
+    if not func_tvs:
+        return
+
+    is_under_test = gen_func in test_cluster.accessible_objects_under_test
+    func_data = test_cluster.function_data_for_accessibles.get(gen_func)
+    if func_data is None:
+        func_data = module_analysis.CallableData(
+            accessible=gen_func,
+            tree=None,
+            description=None,
+            cyclomatic_complexity=None,
+        )
+    ml_data = test_cluster.get_ml_data_for(gen_func)
+
+    func_obj = gen_func.callable
+    if not isinstance(func_obj, types.FunctionType):
+        return
+    func_name = str(gen_func.function_name or getattr(func_obj, "__name__", ""))
+    instantiate_generic_function(
+        func_name=func_name,
+        func=func_obj,
+        inferred_signature=gen_func.inferred_signature,
+        func_tvs=func_tvs,
+        expected_exceptions=gen_func.expected_exceptions,
+        function_data=func_data,
+        test_cluster=test_cluster,
+        add_to_test=is_under_test,
+        ml_data=ml_data,
+    )
+    if is_under_test:
+        _remove_accessible_under_test(test_cluster, gen_func)
+
+
+def _instantiate_generic_functions_in_cluster(test_cluster: ModuleTestCluster) -> None:
+    candidate_funcs: OrderedSet[GenericFunction] = OrderedSet()
+    for gens in test_cluster.generators.values():
+        for gen in gens:
+            if isinstance(gen, GenericFunction):
+                candidate_funcs.add(gen)
+    for obj in test_cluster.accessible_objects_under_test:
+        if isinstance(obj, GenericFunction):
+            candidate_funcs.add(obj)
+
+    for gen_func in candidate_funcs:
+        _instantiate_single_generic_function(test_cluster, gen_func)
+
+
+def _find_constructor_for_type(
+    test_cluster: ModuleTestCluster, type_info: TypeInfo
+) -> GenericConstructor | None:
+    inst_type = Instance(type_info)
+    for g in test_cluster.generators.get(inst_type, ()):
+        if isinstance(g, GenericConstructor) and g.owner == type_info:
+            return g
+    for obj in test_cluster.accessible_objects_under_test:
+        if isinstance(obj, GenericConstructor) and obj.owner == type_info:
+            return obj
+    return None
+
+
+def _instantiate_methods_for_owner(
+    test_cluster: ModuleTestCluster,
+    type_info: TypeInfo,
+    instantiated_types: Sequence[Instance],
+) -> None:
+    modifiers = [
+        m for m in list(test_cluster.modifiers.get(type_info, ())) if isinstance(m, GenericMethod)
+    ]
+    for m in modifiers:
+        m_under_test = m in test_cluster.accessible_objects_under_test
+        m_data = test_cluster.function_data_for_accessibles.get(m)
+        if m_data is None:
+            m_data = module_analysis.CallableData(
+                accessible=m,
+                tree=None,
+                description=None,
+                cyclomatic_complexity=None,
+            )
+        m_ml_data = test_cluster.get_ml_data_for(m)
+        m_name = m.method_name or getattr(m.callable, "__name__", "")
+        for inst_owner in instantiated_types:
+            base_subst = make_substitutions(type_info.type_parameters, inst_owner.args)
+            _instantiate_method_with_owner(
+                type_info=type_info,
+                method=m.callable,
+                method_name=m_name,
+                signature=m.inferred_signature,
+                base_substitutions=base_subst,
+                expected_exceptions=m.expected_exceptions,
+                method_data=m_data,
+                test_cluster=test_cluster,
+                add_to_test=m_under_test,
+                instantiated_owner=inst_owner,
+                ml_data=m_ml_data,
+            )
+        if m_under_test:
+            _remove_accessible_under_test(test_cluster, m)
+
+
+def _instantiate_generic_class(test_cluster: ModuleTestCluster, type_info: TypeInfo) -> None:
+    base_constructor = _find_constructor_for_type(test_cluster, type_info)
+    if base_constructor is None:
+        return
+
+    is_under_test = base_constructor in test_cluster.accessible_objects_under_test
+    ctor_data = test_cluster.function_data_for_accessibles.get(base_constructor)
+    if ctor_data is None:
+        ctor_data = module_analysis.CallableData(
+            accessible=base_constructor,
+            tree=None,
+            description=None,
+            cyclomatic_complexity=None,
+        )
+    ml_data = test_cluster.get_ml_data_for(base_constructor)
+
+    instantiated_types = instantiate_generic_constructors(
+        type_info=type_info,
+        generic_constructor=base_constructor,
+        expected_exceptions=base_constructor.expected_exceptions,
+        constructor_data=ctor_data,
+        test_cluster=test_cluster,
+        add_to_test=is_under_test,
+        ml_data=ml_data,
+        collections_or_primitives=(*module_analysis.COLLECTIONS, *module_analysis.PRIMITIVES),
+    )
+    if is_under_test:
+        _remove_accessible_under_test(test_cluster, base_constructor)
+
+    _instantiate_methods_for_owner(test_cluster, type_info, instantiated_types)
+
+
+def _instantiate_methods_in_non_generic_classes(
+    test_cluster: ModuleTestCluster, type_info: TypeInfo
+) -> None:
+    modifiers = [
+        m
+        for m in list(test_cluster.modifiers.get(type_info, ()))
+        if isinstance(m, GenericMethod) and collect_signature_type_vars(m.inferred_signature)
+    ]
+    for m in modifiers:
+        m_under_test = m in test_cluster.accessible_objects_under_test
+        m_data = test_cluster.function_data_for_accessibles.get(m)
+        if m_data is None:
+            m_data = module_analysis.CallableData(
+                accessible=m,
+                tree=None,
+                description=None,
+                cyclomatic_complexity=None,
+            )
+        m_ml_data = test_cluster.get_ml_data_for(m)
+        m_name = m.method_name or getattr(m.callable, "__name__", "")
+        _instantiate_method_with_owner(
+            type_info=type_info,
+            method=m.callable,
+            method_name=m_name,
+            signature=m.inferred_signature,
+            base_substitutions={},
+            expected_exceptions=m.expected_exceptions,
+            method_data=m_data,
+            test_cluster=test_cluster,
+            add_to_test=m_under_test,
+            instantiated_owner=None,
+            ml_data=m_ml_data,
+        )
+        if m_under_test:
+            _remove_accessible_under_test(test_cluster, m)
+
+
+def _instantiate_generic_classes_and_methods_in_cluster(
+    test_cluster: ModuleTestCluster,
+) -> None:
+    for type_info in list(test_cluster.type_system.get_all_types()):
+        if type_info.is_generic and not (
+            isinstance(type_info.raw_type, type) and issubclass(type_info.raw_type, enum.Enum)
+        ):
+            _instantiate_generic_class(test_cluster, type_info)
+        elif not type_info.is_generic:
+            _instantiate_methods_in_non_generic_classes(test_cluster, type_info)
+
+
+def instantiate_generics_in_cluster(test_cluster: ModuleTestCluster) -> None:
+    """Instantiate generic functions, classes, and methods in the test cluster.
+
+    Args:
+        test_cluster: The module test cluster to process.
+    """
+    _instantiate_generic_functions_in_cluster(test_cluster)
+    _instantiate_generic_classes_and_methods_in_cluster(test_cluster)

@@ -1580,24 +1580,9 @@ def __analyse_function(
         )
     effective_add_to_test = add_to_test and overlaps_line_ranges(func_ast, parsed_line_ranges)
 
-    func_tvs = generics.collect_signature_type_vars(inferred_signature)
-    if func_tvs:
-        generics.instantiate_generic_function(
-            func_name=func_name,
-            func=func,
-            inferred_signature=inferred_signature,
-            func_tvs=func_tvs,
-            expected_exceptions=expected_exceptions,
-            function_data=function_data,
-            test_cluster=test_cluster,
-            add_to_test=effective_add_to_test,
-            ml_data=ml_data,
-        )
-        test_cluster.add_generator(generic_function)
-    else:
-        test_cluster.add_generator(generic_function)
-        if effective_add_to_test:
-            test_cluster.add_accessible_object_under_test(generic_function, function_data)
+    test_cluster.add_generator(generic_function)
+    if effective_add_to_test:
+        test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
 def _create_constructor_or_enum(
@@ -1680,21 +1665,6 @@ def __analyse_class(
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    instantiated_types: list[Instance] = []
-    if type_info.is_generic and not (
-        isinstance(type_info.raw_type, type) and issubclass(type_info.raw_type, enum.Enum)
-    ):
-        instantiated_types = generics.instantiate_generic_constructors(
-            type_info=type_info,
-            generic_constructor=generic,  # type: ignore[arg-type]
-            expected_exceptions=expected_exceptions,
-            constructor_data=method_data,
-            test_cluster=test_cluster,
-            add_to_test=add_to_test,
-            ml_data=ml_data,
-            collections_or_primitives=(*COLLECTIONS, *PRIMITIVES),
-        )
-
     if not (
         type_info.is_abstract
         or type_info.raw_type in COLLECTIONS
@@ -1703,7 +1673,7 @@ def __analyse_class(
         # Don't add constructors for abstract classes and for builtins. We generate
         # the latter ourselves.
         test_cluster.add_generator(generic)
-        if add_to_test and not type_info.is_generic:
+        if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
     try:
@@ -1721,7 +1691,6 @@ def __analyse_class(
             class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
-            instantiated_types=instantiated_types or None,
         )
 
     __analyse_fields(
@@ -1862,7 +1831,6 @@ def __analyse_method(
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
     parsed_line_ranges: set[int] | None = None,
-    instantiated_types: list[Instance] | None = None,
 ) -> None:
     if _should_skip_method(type_info, method_name, method, add_to_test=add_to_test):
         return
@@ -1913,19 +1881,10 @@ def __analyse_method(
         )
     effective_add_to_test = add_to_test and overlaps_line_ranges(method_ast, parsed_line_ranges)
 
-    generics.register_generic_or_normal_method(
-        type_info=type_info,
-        method_name=method_name,
-        method=method,
-        generic_method=generic_method,
-        method_data=method_data,
-        inferred_signature=inferred_signature,
-        expected_exceptions=expected_exceptions,
-        test_cluster=test_cluster,
-        effective_add_to_test=effective_add_to_test,
-        instantiated_types=instantiated_types,
-        ml_data=ml_data,
-    )
+    test_cluster.add_generator(generic_method)
+    test_cluster.add_modifier(type_info, generic_method)
+    if effective_add_to_test:
+        test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
 
 class _ParseResults(dict):  # noqa: FURB189
@@ -2192,6 +2151,7 @@ def analyse_module(
         type_inference_provider=type_provider,
         test_cluster=test_cluster,
     )
+    generics.instantiate_generics_in_cluster(test_cluster)
     collect_provider_metrics(type_provider)
     return test_cluster
 
@@ -2258,6 +2218,7 @@ def analyse_dependency_module(
         seen_functions=seen_functions,
     )
     cluster.type_system.push_attributes_down()
+    generics.instantiate_generics_in_cluster(cluster)
 
 
 def is_file_loader_module(module: ModuleType) -> bool:
