@@ -123,7 +123,6 @@ def _goal_lines(
         pytest.param("else_after_comment", "80", [(77, False)], id="comment-before-else"),
         pytest.param("else_with_pass", "86", [(84, False)], id="else-pass"),
         pytest.param("else_body_no_cover", "108", [], id="else-body-no-cover"),
-        pytest.param("loop_else", "93", [], id="loop-else-not-handled"),
         pytest.param("simple", "9-11", [(9, False), (9, True)], id="if-and-else-unchanged"),
         pytest.param(
             "else_with_single_if", "68", [(68, False), (68, True)], id="if-with-else-if-unchanged"
@@ -176,6 +175,34 @@ def test_targeted_if_line_goals(
 
 
 @pytest.mark.parametrize(
+    "function_name, line_range, expected_goals",
+    [
+        pytest.param("loop_else", "93", [(90, False)], id="for-with-break"),
+        pytest.param(
+            "while_else_break", "138", [(134, False), (134, False)], id="while-with-break"
+        ),
+        pytest.param("for_else_no_break", "121", [], id="for-without-break"),
+        pytest.param("while_else_no_break", "145", [], id="while-without-break"),
+        pytest.param("nested_for_else_no_break", "129", [(126, True)], id="nested-without-break"),
+        pytest.param(
+            "loop_else_starts_with_loop", "153", [(150, True)], id="else-body-starts-with-loop"
+        ),
+    ],
+)
+def test_targeted_loop_else_goals(
+    subject_properties: SubjectProperties,
+    function_name: str,
+    line_range: str,
+    expected_goals: list[tuple[int, bool]],
+):
+    _instrument_target(subject_properties, function_name, line_range)
+
+    goals = BranchGoalPool(subject_properties).branch_goals
+
+    assert _goal_lines(subject_properties, goals) == expected_goals
+
+
+@pytest.mark.parametrize(
     "function_name, line_range, else_args, if_args",
     [
         pytest.param("simple", "11", (0,), (1,), id="simple"),
@@ -183,6 +210,11 @@ def test_targeted_if_line_goals(
         pytest.param("compound_and", "27", (1, 0), (1, 1), id="and"),
         pytest.param("negated", "39", (True,), (False,), id="negated-condition"),
         pytest.param("else_with_loop", "62", (0, [1]), (1, [1]), id="else-body-starts-with-loop"),
+        pytest.param("loop_else", "93", ([-1],), ([1],), id="for-with-break"),
+        pytest.param("while_else_break", "138", (2,), (5,), id="while-with-break"),
+        pytest.param(
+            "nested_for_else_no_break", "129", (1, [1]), (0, [1]), id="nested-without-break"
+        ),
     ],
 )
 def test_targeted_else_goal_is_covered_only_by_else_branch(
@@ -237,4 +269,24 @@ def test_targeted_nested_goals_are_root_goals_for_dynamosa(
     graph = dyna._BranchFitnessGraph(fitness_functions, subject_properties)
 
     assert _goal_lines(subject_properties, pool.branch_goals) == expected_goals
+    assert {fitness.goal for fitness in graph.root_branches} == set(pool.branch_goals)
+
+
+@pytest.mark.parametrize(
+    "function_name, line_range",
+    [
+        pytest.param("while_else_break", "138", id="while-with-break"),
+        pytest.param("nested_for_else_no_break", "129", id="nested-without-break"),
+    ],
+)
+def test_targeted_loop_else_goals_are_root_goals_for_dynamosa(
+    subject_properties: SubjectProperties, function_name: str, line_range: str
+):
+    _instrument_target(subject_properties, function_name, line_range)
+    pool = BranchGoalPool(subject_properties)
+    fitness_functions = create_branch_coverage_fitness_functions(MagicMock(), pool)
+
+    graph = dyna._BranchFitnessGraph(fitness_functions, subject_properties)
+
+    assert pool.branch_goals
     assert {fitness.goal for fitness in graph.root_branches} == set(pool.branch_goals)

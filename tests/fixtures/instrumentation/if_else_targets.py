@@ -113,3 +113,54 @@ def else_header_no_cover(x: int) -> int:
         return 1
     else:  # pynguin: no cover
         return 2
+
+def for_else_no_break(xs: list[int]) -> int:
+    total = 0
+    for x in xs:
+        total += x
+    else:
+        total = -total
+    return total
+
+def nested_for_else_no_break(a: int, xs: list[int]) -> int:
+    if a > 0:
+        for x in xs:
+            a += x
+        else:
+            a = 7
+    return a
+
+def while_else_break(n: int) -> int:
+    while n > 0:
+        if n == 3:
+            break
+        n -= 1
+    else:
+        return 0
+    return 1
+
+def while_else_no_break(n: int) -> int:
+    while n > 0:
+        n -= 1
+    else:
+        n = 7
+    return n
+
+def loop_else_starts_with_loop(a: int, xs: list[int], ys: list[int]) -> int:
+    if a > 0:
+        for x in xs:
+            a += x
+        else:
+            for y in ys:
+                a -= y
+    return a
+
+def multi_line_for_else(xs: list[int]) -> int:
+    for x in (
+        xs
+    ):
+        if x > 0:
+            break
+    else:
+        return 0
+    return 1

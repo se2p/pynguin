@@ -646,9 +646,9 @@ class AstInfo:
         return all(self.should_cover_line(else_lineno) for else_lineno in self._else_lines(node))
 
     def targeted_else_branches(self, file_name: str) -> dict[int, tracer.ElseBranchMetaData]:
-        """Find the ``else:`` header lines of if statements that are line-range targets.
+        """Find the targeted ``else:`` header lines of if statements and for/while loops.
 
-        Only if statements are considered, not the else blocks of loops or try statements.
+        The else blocks of try statements are not considered.
 
         Args:
             file_name: The name of the file containing the AST.
@@ -660,22 +660,31 @@ class AstInfo:
         if not self.module.only_cover_line_ranges:
             return else_branches
 
-        for if_node in nodes_of_class(self.ast, ast.If):
-            if not if_node.orelse or (
-                _has_elif_block(if_node) and if_node.orelse[0].col_offset == if_node.col_offset
+        nodes: list[ast.If | ast.For | ast.While] = [
+            *nodes_of_class(self.ast, ast.If),
+            *nodes_of_class(self.ast, ast.For),
+            *nodes_of_class(self.ast, ast.While),
+        ]
+        for node in nodes:
+            if not node.orelse or (
+                isinstance(node, ast.If)
+                and _has_elif_block(node)
+                and node.orelse[0].col_offset == node.col_offset
             ):
                 continue
-            targeted_lines = self.module.only_cover_line_ranges.intersection(
-                self._else_lines(if_node)
-            )
+            targeted_lines = self.module.only_cover_line_ranges.intersection(self._else_lines(node))
             if not targeted_lines:
                 continue
-            # From the `if` keyword, since a parenthesized condition may start on the next line.
-            condition_end = if_node.test.end_lineno or if_node.test.lineno
+            # From the keyword to the end of the condition or iterable: a parenthesized
+            # condition may start on the next line, and a for loop's predicate is on the
+            # line of its iterable.
+            header = node.iter if isinstance(node, ast.For) else node.test
+            header_end = header.end_lineno or header.lineno
             else_branch = tracer.ElseBranchMetaData(
                 file_name=file_name,
-                body_line=if_node.orelse[0].lineno,
-                condition_lines=frozenset(range(if_node.lineno, condition_end + 1)),
+                body_line=node.orelse[0].lineno,
+                body_end_line=node.orelse[-1].end_lineno or node.orelse[-1].lineno,
+                condition_lines=frozenset(range(node.lineno, header_end + 1)),
             )
             for line in targeted_lines:
                 else_branches[line] = else_branch

@@ -413,20 +413,23 @@ class PredicateMetaData:
 
 @dataclass(frozen=True)
 class ElseBranchMetaData:
-    """Stores meta data of the ``else`` branch of an ``if`` statement.
+    """Stores meta data of the ``else`` branch of an ``if`` statement or a loop.
 
     An ``else:`` header line has no bytecode of its own, so a line target on it cannot be
     mapped to a basic block. It is resolved through the first statement of the else body
     instead.
     """
 
-    # Name of the file containing the if statement.
+    # Name of the file containing the if statement or loop.
     file_name: str
 
     # Line number of the first statement of the else body.
     body_line: int
 
-    # Line numbers spanned by the condition of the if statement.
+    # Line number of the last line of the else body.
+    body_end_line: int
+
+    # Line numbers spanned by the condition of the if statement or the header of the loop.
     condition_lines: frozenset[int]
 
 
@@ -632,36 +635,58 @@ class SubjectProperties:
         return added
 
     def _add_else_branch_predicates(self, else_branch: ElseBranchMetaData) -> set[int]:
-        # The else body is entered through the branch of the condition that skips the if
-        # body: False for `if x`, but True for `if not x`. Take it from the control
-        # dependencies of the else body's first statement.
+        # The else body is entered through a branch of the condition or loop header: False
+        # for `if x`, True for `if not x`, False for a loop that runs out. Take it from the
+        # control dependencies of the else body's first statement. A loop without a break
+        # has no such branch so take the branches the else body depends on instead, like
+        # an enclosing if.
         added: set[int] = set()
         for code_object_id, code_meta in self.existing_code_objects.items():
             if code_meta.code_object.co_filename != else_branch.file_name:
                 continue
-            condition_predicates = {
-                meta.node: pid
-                for pid, meta in self.existing_predicates.items()
-                if meta.code_object_id == code_object_id
-                and meta.line_no in else_branch.condition_lines
-            }
-            if not condition_predicates:
-                continue
-            for node in code_meta.cfg.basic_block_nodes:
-                # Nodes that are excluded from coverage are not part of the CDG.
-                if node not in code_meta.cdg.graph or all(
-                    instr.lineno != else_branch.body_line for instr in node.original_instructions
+            header_dependencies: list[tuple[int, bool]] = []  # filter
+            other_dependencies: list[tuple[int, bool]] = []  # fallback
+            for pid, branch_value in self._line_control_dependencies_of(
+                code_object_id, code_meta, else_branch.body_line
+            ):
+                line_no = self.existing_predicates[pid].line_no
+                if line_no in else_branch.condition_lines:
+                    header_dependencies.append((pid, branch_value))
+                elif not (
+                    isinstance(line_no, int)
+                    and else_branch.body_line <= line_no <= else_branch.body_end_line
                 ):
-                    continue
-                for dep in code_meta.cdg.get_control_dependencies(node):
-                    pid = condition_predicates.get(dep.node)
-                    if pid is None:
-                        continue
-                    branch_values = self.coverage_predicates.setdefault(pid, set())
-                    if dep.branch_value not in branch_values:
-                        branch_values.add(dep.branch_value)
-                        added.add(pid)
+                    other_dependencies.append((pid, branch_value))
+            for pid, branch_value in header_dependencies or other_dependencies:
+                branch_values = self.coverage_predicates.setdefault(pid, set())
+                if branch_value not in branch_values:
+                    branch_values.add(branch_value)
+                    added.add(pid)
         return added
+
+    def _line_control_dependencies_of(
+        self, code_object_id: int, code_meta: CodeObjectMetaData, line: int
+    ) -> list[tuple[int, bool]]:
+        # (predicate id, branch value) of the direct control dependencies of the basic
+        # blocks with code on the line.
+        predicates = {
+            meta.node: pid
+            for pid, meta in self.existing_predicates.items()
+            if meta.code_object_id == code_object_id
+        }
+        dependencies: list[tuple[int, bool]] = []
+        for node in code_meta.cfg.basic_block_nodes:
+            # Nodes that are excluded from coverage are not part of the CDG.
+            if node not in code_meta.cdg.graph:
+                continue
+            if all(instr.lineno != line for instr in node.original_instructions):
+                continue
+            dependencies.extend(
+                (predicates[dep.node], dep.branch_value)
+                for dep in code_meta.cdg.get_control_dependencies(node)
+                if dep.node in predicates
+            )
+        return dependencies
 
     def ensure_controlling_predicates_for_lines(
         self, target_lines: Iterable[int] | None = None

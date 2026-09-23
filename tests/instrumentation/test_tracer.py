@@ -73,7 +73,9 @@ def test_line_registration(subject_properties: SubjectProperties):
 
 
 def test_targeted_else_branches_are_shared_and_reset(subject_properties: SubjectProperties):
-    else_branch = ElseBranchMetaData(file_name="foo", body_line=3, condition_lines=frozenset({1}))
+    else_branch = ElseBranchMetaData(
+        file_name="foo", body_line=3, body_end_line=3, condition_lines=frozenset({1})
+    )
     subject_properties.targeted_else_branches[2] = else_branch
 
     shared = subject_properties.sharing_registries()

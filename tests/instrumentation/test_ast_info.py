@@ -747,15 +747,18 @@ def test_get_scope_decorated_function_lookup(tmp_path):
 @pytest.mark.parametrize(
     "line_range, expected_else_branches",
     [
-        pytest.param("11", {11: (12, {9})}, id="simple"),
-        pytest.param("8-13", {11: (12, {9})}, id="range"),
-        pytest.param("20", {20: (21, {18})}, id="nested"),
-        pytest.param("48", {48: (49, {43, 44, 45})}, id="multi-line-condition"),
-        pytest.param("51-57", {56: (57, {54})}, id="elif-chain"),
-        pytest.param("70", {70: (71, {68})}, id="else-body-is-single-if"),
-        pytest.param("79-80", {79: (81, {77}), 80: (81, {77})}, id="comment-before-else"),
+        pytest.param("11", {11: (12, 12, {9})}, id="simple"),
+        pytest.param("8-13", {11: (12, 12, {9})}, id="range"),
+        pytest.param("20", {20: (21, 21, {18})}, id="nested"),
+        pytest.param("48", {48: (49, 49, {43, 44, 45})}, id="multi-line-condition"),
+        pytest.param("51-57", {56: (57, 57, {54})}, id="elif-chain"),
+        pytest.param("70", {70: (71, 74, {68})}, id="else-body-is-single-if"),
+        pytest.param("79-80", {79: (81, 81, {77}), 80: (81, 81, {77})}, id="comment-before-else"),
         pytest.param("9", {}, id="if-line"),
-        pytest.param("93", {}, id="loop-else"),
+        pytest.param("93", {93: (94, 94, {90})}, id="for-else"),
+        pytest.param("138", {138: (139, 139, {134})}, id="while-else"),
+        pytest.param("153", {153: (154, 155, {151})}, id="for-else-body-starts-with-loop"),
+        pytest.param("164", {164: (165, 165, {159, 160})}, id="multi-line-for-else"),
         pytest.param("102", {}, id="try-else"),
     ],
 )
@@ -772,7 +775,7 @@ def test_ast_info_targeted_else_branches(line_range, expected_else_branches):
     else_branches = module_scope.targeted_else_branches(module_path)
 
     assert {
-        line: (else_branch.body_line, set(else_branch.condition_lines))
+        line: (else_branch.body_line, else_branch.body_end_line, set(else_branch.condition_lines))
         for line, else_branch in else_branches.items()
     } == expected_else_branches
     assert all(else_branch.file_name == module_path for else_branch in else_branches.values())
