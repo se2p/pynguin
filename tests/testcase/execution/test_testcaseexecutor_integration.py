@@ -44,6 +44,9 @@ if TYPE_CHECKING:
 
 MODULE_ACCESSIBLE = "tests.fixtures.accessibles.accessible"
 MODULE_TRIANGLE = "tests.fixtures.examples.triangle"
+# A submodule whose name is shadowed by a re-exported function on its parent
+# package (``from ...shadowed import shadowed``), mirroring ``python-slugify``.
+MODULE_SHADOWED_SUBMODULE = "tests.fixtures.examples.shadowed_submodule.shadowed"
 
 
 @contextlib.contextmanager
@@ -109,6 +112,21 @@ def test_per_statement_loop_runs_and_counts_each_statement(
     assert not result.has_test_exceptions()
     assert result.num_executed_statements == size
     assert condition.current_value() == size
+
+
+def test_execute_module_with_shadowed_submodule(
+    subject_properties: SubjectProperties,
+) -> None:
+    """A SUT that is a submodule shadowed by a package attribute still executes.
+
+    Regression for #277: ``ModuleProvider`` used to raise ``ModuleNotImportedError``
+    for such modules, which the executor turned into a forced timeout, so no
+    statement ever ran. The module must now resolve and its members execute.
+    """
+    with _executor_for(MODULE_SHADOWED_SUBMODULE, subject_properties) as executor:
+        result = executor.execute(make_test_case(stmt('res = shadowed("Pynguin")')))
+    assert not result.timeout
+    assert not result.has_test_exceptions()
 
 
 def test_clean_test_case_has_no_exceptions(
