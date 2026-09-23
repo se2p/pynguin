@@ -24,7 +24,14 @@ from pynguin.assertion.assertion import ExceptionAssertion, ObjectAssertion, Ref
 from pynguin.ga.computations import TestSuiteBranchCoverageFunction, TestSuiteLineCoverageFunction
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils.orderedset import OrderedSet
-from tests.testcase._builders import assign, float_stmt, int_stmt, make_test_case, str_stmt
+from tests.testcase._builders import (
+    assign,
+    float_stmt,
+    int_stmt,
+    make_test_case,
+    stmt,
+    str_stmt,
+)
 
 # -- get_assertion_protected_variables & helpers --------------------------------------
 
@@ -80,6 +87,26 @@ def test_backward_dependencies_do_not_protect_unrelated_variables():
     result = pp.get_assertion_protected_variables(test_case)
 
     assert result == {"int_1"}
+
+
+def test_raw_assertion_protects_used_variables_and_setup():
+    # A raw ``assert`` reading int_1 (which depends on int_0) protects the whole
+    # backward chain even though it carries no lifted Assertion object.
+    root = int_stmt("int_0", 1)
+    setup = assign("int_1", "int_0 + 1", bound_type=int)
+    raw_assert = stmt("assert int_1 == 2")
+    test_case = make_test_case(root, setup, raw_assert)
+
+    result = pp.get_assertion_protected_variables(test_case)
+
+    assert {"int_0", "int_1"} <= result
+
+
+def test_is_protected_statement_recognises_raw_assertions():
+    raw_assert = stmt("assert int_0 == 1")
+    assert pp._is_protected_statement(raw_assert, set())
+    assert not pp._is_protected_statement(int_stmt("int_0", 1), set())
+    assert pp._is_protected_statement(int_stmt("int_0", 1), {"int_0"})
 
 
 # -- AssertionMinimization -------------------------------------------------------------
@@ -281,6 +308,29 @@ def test_iterative_minimization_visitor_preserves_forward_dependencies(
     assert test_case.size() == 2
     names = {s.bound_variable for s in test_case.statements()}
     assert names == {"int_0", "list_0"}
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [pp.ForwardIterativeMinimizationVisitor, pp.BackwardIterativeMinimizationVisitor],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_preserves_raw_assertion(
+    visitor_class, branch_fitness_function
+):
+    # A raw ``assert`` statement and its setup must survive minimization even
+    # though neither adds coverage (regression test for issue #279).
+    setup = int_stmt("int_0", 1)
+    raw_assert = stmt("assert int_0 == 1")
+    test_case = make_test_case(setup, raw_assert)
+    branch_fitness_function.compute_coverage.return_value = 1.0
+    visitor = visitor_class(OrderedSet([branch_fitness_function]))
+
+    visitor.visit_default_test_case(test_case)
+
+    assert visitor.removed_statements == 0
+    assert test_case.size() == 2
+    assert test_case.get_statement(1).is_raw_assertion
 
 
 # -- TestSuiteMinimizationVisitor -------------------------------------------------------
@@ -488,6 +538,26 @@ def test_combined_minimization_visitor_skips_protected_statements(line_fitness_f
     tc_result = suite.get_test_case_chromosome(0).test_case
     assert tc_result.size() == 1
     assert tc_result.get_statement(0).bound_variable == "int_0"
+
+
+def test_combined_minimization_visitor_preserves_raw_assertion(line_fitness_function):
+    # Regression test for issue #279: a raw ``assert`` and its setup must not be
+    # stripped across suite-wide statement minimization.
+    setup = int_stmt("int_0", 1)
+    raw_assert = stmt("assert int_0 == 1")
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(
+        tcc.TestCaseChromosome(test_case=make_test_case(setup, raw_assert))
+    )
+    line_fitness_function.compute_coverage.return_value = 1.0
+    visitor = pp.CombinedMinimizationVisitor(OrderedSet([line_fitness_function]))
+
+    visitor.visit_test_suite_chromosome(suite)
+
+    assert visitor.removed_statements == 0
+    tc_result = suite.get_test_case_chromosome(0).test_case
+    assert tc_result.size() == 2
+    assert tc_result.get_statement(1).is_raw_assertion
 
 
 # -- EmptyTestCaseRemover ----------------------------------------------------------------

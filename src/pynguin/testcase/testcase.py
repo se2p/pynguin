@@ -144,6 +144,25 @@ class Statement:
             next(iter(self.assertions)), ExceptionAssertion
         )
 
+    @property
+    def is_raw_assertion(self) -> bool:
+        """Whether this statement is a raw (unlifted) ``assert`` statement.
+
+        LLM-generated assertions whose shape cannot be lifted into a
+        :class:`ReferenceAssertion` are kept verbatim as a bare ``assert``
+        statement (see :meth:`LLMTestCaseDeserializer._handle_assert`). Such
+        statements bind no variable and carry no :class:`Assertion` objects, so
+        they must be recognised explicitly to be protected during minimization.
+
+        Returns:
+            True if the wrapped node is a single ``assert`` statement.
+        """
+        return (
+            isinstance(self.node, cst.SimpleStatementLine)
+            and len(self.node.body) == 1
+            and isinstance(self.node.body[0], cst.Assert)
+        )
+
     def used_variables(self) -> frozenset[str]:
         """Return (and cache) the set of variable names read by this statement.
 
@@ -613,6 +632,11 @@ class TestCase:  # noqa: PLR0904
         protected: set[str] = set()
         for statement in self._statements:
             protected.update(_get_assertion_used_variables(statement))
+            # Raw (unlifted) ``assert`` statements carry no ``Assertion`` object,
+            # so the variables they read must be protected explicitly; otherwise
+            # their setup statements are stripped during minimization.
+            if statement.is_raw_assertion:
+                protected.update(statement.used_variables())
 
         if not protected:
             return protected

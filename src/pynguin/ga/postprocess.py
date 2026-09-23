@@ -54,6 +54,23 @@ def get_assertion_protected_variables(test_case: tc.TestCase) -> set[str]:
     return test_case.get_assertion_protected_variables()
 
 
+def _is_protected_statement(statement: tc.Statement, protected: set[str]) -> bool:
+    """Whether *statement* must be kept during statement minimization.
+
+    A statement is protected if it binds a variable referenced (transitively) by
+    an assertion, or if it is itself a raw ``assert`` statement -- the latter
+    binds no variable but is an LLM-generated oracle that must survive.
+
+    Args:
+        statement: The statement to check.
+        protected: Variable names protected due to assertions.
+
+    Returns:
+        True if the statement must not be removed.
+    """
+    return statement.bound_variable in protected or statement.is_raw_assertion
+
+
 def _directly_asserted_variables(test_case: tc.TestCase) -> set[str]:
     """Collect variable names that are the direct source of a reference assertion.
 
@@ -278,7 +295,7 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
             i = 0
             while i < test_case.size():
                 statement = test_case.get_statement(i)
-                if statement.bound_variable in protected:
+                if _is_protected_statement(statement, protected):
                     i += 1
                     continue
                 test_clone = test_case.clone()
@@ -311,7 +328,7 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
             i = test_case.size() - 1
             while i >= 0:
                 statement = test_case.get_statement(i)
-                if statement.bound_variable in protected:
+                if _is_protected_statement(statement, protected):
                     i -= 1
                     continue
                 test_clone = test_case.clone()
@@ -491,7 +508,7 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
                 i = 0
                 while i < test_case.size():
                     statement = test_case.get_statement(i)
-                    if statement.bound_variable in protected:
+                    if _is_protected_statement(statement, protected):
                         i += 1
                         continue
                     test_suite_clone = chromosome.clone()

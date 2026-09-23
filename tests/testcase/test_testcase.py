@@ -22,6 +22,20 @@ def test_uses_variable_module_function():
     assert tc._uses_variable(statement, "z") is False
 
 
+@pytest.mark.parametrize(
+    ("code", "bound_variable", "expected"),
+    [
+        ("assert var_0 == 1", None, True),
+        ("assert var_0._name == var_1", None, True),
+        ("var_0 = 1", "var_0", False),
+        ("foo(var_0)", None, False),
+    ],
+    ids=["simple_assert", "attribute_assert", "assignment", "expression"],
+)
+def test_is_raw_assertion(code, bound_variable, expected):
+    assert stmt(code, bound_variable=bound_variable).is_raw_assertion is expected
+
+
 def test_clone_is_deep_copy_and_independent():
     original = make_test_case(
         int_stmt("var_0", 1),
