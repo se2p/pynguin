@@ -20,7 +20,7 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from pynguin.large_language_model.mock_generation.ast_helpers import import_alias_map
+from pynguin.mock_generation.ast_helpers import import_alias_map
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -76,7 +76,7 @@ class ContextExtractor:
     Args:
         dependencies: Top-level dependency names to track, typically the
             libraries returned by
-            :class:`~pynguin.large_language_model.mock_generation.dependency_analyzer.DependencyAnalyzer`
+            :class:`~pynguin.mock_generation.dependency_analyzer.DependencyAnalyzer`
             with ``decision="mock"``.
     """
 

@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
-from pynguin.large_language_model.mock_generation import llm_classifier_client
+from pynguin.mock_generation import llm_classifier_client
 
 if TYPE_CHECKING:
     from pathlib import Path

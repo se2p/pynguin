@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from pynguin.large_language_model.mock_generation.untyped_param_analyzer import (
+from pynguin.mock_generation.untyped_param_analyzer import (
     match_candidate_classes,
     match_param_boundaries,
     untyped_param_attr_sets,

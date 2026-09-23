@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import httpx
 
-from pynguin.large_language_model.mock_generation.proxy_cache_resolver import (
+from pynguin.mock_generation.proxy_cache_resolver import (
     require_proxy_cache_url,
 )
 

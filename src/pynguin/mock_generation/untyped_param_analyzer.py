@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import ast
 
-from pynguin.large_language_model.mock_generation.ast_helpers import param_names
+from pynguin.mock_generation.ast_helpers import param_names
 
 # Attributes on scalar/text primitives. A param accessing only these is a
 # primitive value, not a boundary (containers excluded: names overlap domain).

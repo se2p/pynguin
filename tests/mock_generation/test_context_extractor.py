@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pynguin.large_language_model.mock_generation.context_extractor import (
+from pynguin.mock_generation.context_extractor import (
     AttributeAccess,
     ContextExtractor,
     DependencyUsage,

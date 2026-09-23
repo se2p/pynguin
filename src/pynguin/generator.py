@@ -468,7 +468,7 @@ def _untyped_param_bindings(
     Returns:
         A mapping from ``(callable key, parameter name)`` to boundary FQN.
     """
-    from pynguin.large_language_model.mock_generation.untyped_param_analyzer import (  # noqa: PLC0415
+    from pynguin.mock_generation.untyped_param_analyzer import (  # noqa: PLC0415
         match_param_boundaries,
         untyped_param_bindings,
     )
@@ -514,12 +514,12 @@ def _apply_static_setups(  # noqa: C901
     import ast  # noqa: PLC0415
 
     import pynguin.testcase.mock_templates_store as _mock_store  # noqa: PLC0415
-    from pynguin.large_language_model.mock_generation import (  # noqa: PLC0415
+    from pynguin.mock_generation import (  # noqa: PLC0415
         ast_helpers,
         mock_hint_generator,
         static_setups,
     )
-    from pynguin.large_language_model.mock_generation.mock_generator import (  # noqa: PLC0415
+    from pynguin.mock_generation.mock_generator import (  # noqa: PLC0415
         MockTemplate,
         MutableSetup,
     )
@@ -620,7 +620,7 @@ def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
     if not config.configuration.mock_generation.mock_generation_enabled:
         return metrics
 
-    from pynguin.large_language_model.mock_generation.proxy_cache_resolver import (  # noqa: PLC0415
+    from pynguin.mock_generation.proxy_cache_resolver import (  # noqa: PLC0415
         get_proxy_cache_url,
     )
 
@@ -639,7 +639,7 @@ def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
         return metrics
 
     import pynguin.testcase.mock_templates_store as _mock_store  # noqa: PLC0415
-    from pynguin.large_language_model.mock_generation.mock_generator import (  # noqa: PLC0415
+    from pynguin.mock_generation.mock_generator import (  # noqa: PLC0415
         MockGenerator,
     )
 
@@ -681,7 +681,7 @@ def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
             )
 
         # Return-value hints so mocks reach value-dependent branches.
-        from pynguin.large_language_model.mock_generation import (  # noqa: PLC0415
+        from pynguin.mock_generation import (  # noqa: PLC0415
             mock_hint_generator,
         )
 

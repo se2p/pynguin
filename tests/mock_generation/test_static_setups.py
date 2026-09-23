@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import ast
 
-from pynguin.large_language_model.mock_generation.mock_generator import RaiseException
-from pynguin.large_language_model.mock_generation.static_setups import (
+from pynguin.mock_generation.mock_generator import RaiseException
+from pynguin.mock_generation.static_setups import (
     function_param_setups,
     module_setups,
 )

@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pynguin.large_language_model.mock_generation.dependency_analyzer import (
+from pynguin.mock_generation.dependency_analyzer import (
     DependencyAnalyzer,
     HeuristicRules,
     MockDecision,
@@ -23,9 +23,9 @@ from pynguin.large_language_model.mock_generation.dependency_analyzer import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CLASSIFY = "pynguin.large_language_model.mock_generation.llm_classifier_client.classify_target"
-_BATCH = "pynguin.large_language_model.mock_generation.llm_classifier_client.classify_targets_batch"
-_GET_RULES = "pynguin.large_language_model.mock_generation.llm_classifier_client.get_rules"
+_CLASSIFY = "pynguin.mock_generation.llm_classifier_client.classify_target"
+_BATCH = "pynguin.mock_generation.llm_classifier_client.classify_targets_batch"
+_GET_RULES = "pynguin.mock_generation.llm_classifier_client.get_rules"
 
 _RULES = {
     "targets": [{"target": "redis.connection.Connection", "decision": "mock", "reason": "DB"}]

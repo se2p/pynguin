@@ -12,9 +12,9 @@ from unittest.mock import patch
 
 import requests
 
-from pynguin.large_language_model.mock_generation import mock_hint_generator as hg
+from pynguin.mock_generation import mock_hint_generator as hg
 
-_GEN = "pynguin.large_language_model.mock_generation.llm_classifier_client.generate_mock_config"
+_GEN = "pynguin.mock_generation.llm_classifier_client.generate_mock_config"
 
 _TARGET = "requests.sessions.Session"
 

@@ -15,7 +15,7 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.testcase.mock_statement as ms
-from pynguin.large_language_model.mock_generation.mock_generator import (
+from pynguin.mock_generation.mock_generator import (
     MockMethodConfig,
     MockParameter,
     MockTemplate,

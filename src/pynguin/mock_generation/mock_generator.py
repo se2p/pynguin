@@ -12,14 +12,14 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from pynguin.large_language_model.mock_generation.dependency_analyzer import (
+from pynguin.mock_generation.dependency_analyzer import (
     DependencyAnalyzer,
 )
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from pynguin.large_language_model.mock_generation.dependency_analyzer import (
+    from pynguin.mock_generation.dependency_analyzer import (
         MockDecision,
     )
 
@@ -142,7 +142,7 @@ class MockGenerator:
         candidate_classes: list[type],
     ) -> list[MockDecision]:
         """Classify the classes an untyped parameter could resolve to."""
-        from pynguin.large_language_model.mock_generation.untyped_param_analyzer import (  # noqa: PLC0415
+        from pynguin.mock_generation.untyped_param_analyzer import (  # noqa: PLC0415
             match_candidate_classes,
             untyped_param_attr_sets,
         )

@@ -18,7 +18,7 @@ from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
+    from pynguin.mock_generation.mock_generator import MockTemplate
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 

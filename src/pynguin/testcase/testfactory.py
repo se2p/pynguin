@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.typesystem import InferredSignature
-    from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
+    from pynguin.mock_generation.mock_generator import MockTemplate
     from pynguin.testcase.execution_result import ExecutionResult
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
@@ -1342,7 +1342,7 @@ class TestFactory:
         if template is not None:
             return template
 
-        from pynguin.large_language_model.mock_generation.mock_generator import (  # noqa: PLC0415
+        from pynguin.mock_generation.mock_generator import (  # noqa: PLC0415
             MockTemplate,
         )
 

@@ -11,8 +11,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from pynguin.large_language_model.mock_generation.dependency_analyzer import MockDecision
-from pynguin.large_language_model.mock_generation.mock_generator import (
+from pynguin.mock_generation.dependency_analyzer import MockDecision
+from pynguin.mock_generation.mock_generator import (
     MockGenerator,
     MockMethodConfig,
     MockParameter,
@@ -22,7 +22,7 @@ from pynguin.large_language_model.mock_generation.mock_generator import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-_DA = "pynguin.large_language_model.mock_generation.mock_generator.DependencyAnalyzer"
+_DA = "pynguin.mock_generation.mock_generator.DependencyAnalyzer"
 
 
 def _decision(target: str, decision: str) -> MockDecision:

@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING, Any
 
 import libcst as cst
 
-from pynguin.large_language_model.mock_generation.mock_generator import RaiseException
+from pynguin.mock_generation.mock_generator import RaiseException
 from pynguin.testcase.testcase import MockStatementInfo, Statement, _VariableRenamer
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
-    from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
+    from pynguin.mock_generation.mock_generator import MockTemplate
 
 
 def default_setup_choices(template: MockTemplate) -> list[int]:

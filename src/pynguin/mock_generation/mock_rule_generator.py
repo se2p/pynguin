@@ -13,7 +13,7 @@ are mined: ``@patch`` targets, and mock-helper imports that imply a real library
 
 CLI usage::
 
-    python -m pynguin.large_language_model.mock_generation.mock_rule_generator
+    python -m pynguin.mock_generation.mock_rule_generator
         --projects <dir> [<dir> ...] --cache <rule-id> --min-files <n>
 """
 
@@ -34,8 +34,8 @@ from typing import Any
 
 import httpx
 
-from pynguin.large_language_model.mock_generation.ast_helpers import import_alias_map
-from pynguin.large_language_model.mock_generation.proxy_cache_resolver import (
+from pynguin.mock_generation.ast_helpers import import_alias_map
+from pynguin.mock_generation.proxy_cache_resolver import (
     require_proxy_cache_url,
 )
 

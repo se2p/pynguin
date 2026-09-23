@@ -19,8 +19,8 @@ import ast
 import builtins as _builtins
 from typing import Any
 
-from pynguin.large_language_model.mock_generation.ast_helpers import param_names
-from pynguin.large_language_model.mock_generation.mock_generator import RaiseException
+from pynguin.mock_generation.ast_helpers import param_names
+from pynguin.mock_generation.mock_generator import RaiseException
 
 #: Literal types that can be rendered as an ``ast.Constant`` candidate.
 _CONST_TYPES = (int, float, str, bool, bytes, type(None))

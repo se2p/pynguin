@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pynguin.large_language_model.mock_generation.mock_rule_generator import (
+from pynguin.mock_generation.mock_rule_generator import (
     MockRuleGenerator,
     build_import_map,
     canonical_fqn,

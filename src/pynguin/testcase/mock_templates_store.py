@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
+    from pynguin.mock_generation.mock_generator import MockTemplate
 
 # Fully-qualified class names to mock when they appear as a parameter type.
 MOCK_TARGETS: set[str] = set()

@@ -20,13 +20,13 @@ import ast
 import logging
 from typing import TYPE_CHECKING
 
-from pynguin.large_language_model.mock_generation import llm_classifier_client
-from pynguin.large_language_model.mock_generation.ast_helpers import import_alias_map, param_names
-from pynguin.large_language_model.mock_generation.mock_generator import MockTemplate
-from pynguin.large_language_model.mock_generation.mock_rule_generator import (
+from pynguin.mock_generation import llm_classifier_client
+from pynguin.mock_generation.ast_helpers import import_alias_map, param_names
+from pynguin.mock_generation.mock_generator import MockTemplate
+from pynguin.mock_generation.mock_rule_generator import (
     canonical_fqn,
 )
-from pynguin.large_language_model.mock_generation.untyped_param_analyzer import (
+from pynguin.mock_generation.untyped_param_analyzer import (
     _direct_attr_accesses,
     match_candidate_classes,
 )
@@ -308,7 +308,7 @@ def _merge(
 
 def _add_setups(template: MockTemplate, lines: list[str], constants: dict[type, list]) -> None:
     """Add setup lines to *template*, making primitive-valued ones mutable."""
-    from pynguin.large_language_model.mock_generation.mock_generator import (  # noqa: PLC0415
+    from pynguin.mock_generation.mock_generator import (  # noqa: PLC0415
         MutableSetup,
     )
 
