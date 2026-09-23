@@ -633,6 +633,35 @@ def rewrite_tests(source: str) -> dict[str, str]:
     return process_function_defs(function_definitions, module_node)
 
 
+def extract_module_level_imports(source: str) -> list[str]:
+    """Return the source of each top-level import statement in ``source``.
+
+    The LLM emits ``import``/``from ... import`` statements at module level
+    (e.g. ``from unittest.mock import patch``, ``import tempfile``). ``rewrite_tests``
+    processes each test function in isolation and therefore discards them; they are
+    collected here separately so the deserializer can re-attach the ones a given
+    test actually references.
+
+    Args:
+        source: the source code containing tests.
+
+    Returns:
+        the unparsed source of each top-level import statement, in source order.
+    """
+    try:
+        module_node = ast.parse(fixup_result(source))
+    except SyntaxError:
+        return []
+    imports: list[str] = []
+    for node in module_node.body:
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            try:
+                imports.append(ast.unparse(node))
+            except AttributeError as e:  # pragma: no cover - unparse is total for imports
+                logger.info("Got error: %s\nwhen trying to unparse a module-level import", e)
+    return imports
+
+
 def rewrite_test(fn_def_node: ast.FunctionDef):
     """Reformat the test in fn_def_node.
 

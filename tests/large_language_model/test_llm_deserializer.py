@@ -767,3 +767,112 @@ def test_parse_assertion_unparseable_string_returns_none():
 
 def test_parse_assertion_non_assert_string_returns_none():
     assert parse_assertion("x = 1", _known(x=int)) is None
+
+
+# ---------------------------------------------------------------------------
+# Module-level imports for mocking / context managers (issue #278)
+# ---------------------------------------------------------------------------
+
+
+def test_module_level_mock_import_enables_with_patch_block(test_cluster):
+    """A ``with patch(...)`` block is admitted once its import is hoisted."""
+    code = """
+from unittest.mock import patch
+
+def test_foo():
+    with patch("os.getcwd") as p:
+        x = 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    testcase = result.test_cases[0]
+    rendered = testcase.to_code()
+    assert "from unittest.mock import patch" in rendered
+    assert "with patch(" in rendered
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+
+
+def test_module_level_tempfile_import_enables_with_block(test_cluster):
+    """A ``with tempfile.TemporaryDirectory()`` block is admitted once hoisted."""
+    code = """
+import tempfile
+
+def test_foo():
+    with tempfile.TemporaryDirectory() as d:
+        y = 2
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    testcase = result.test_cases[0]
+    rendered = testcase.to_code()
+    assert "import tempfile" in rendered
+    assert "with tempfile.TemporaryDirectory()" in rendered
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
+
+
+def test_unreferenced_module_import_is_not_hoisted(test_cluster):
+    """An import a test does not reference is not attached to it."""
+    code = """
+import os
+import tempfile
+
+def test_foo():
+    with tempfile.TemporaryDirectory() as d:
+        y = 2
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    rendered = result.test_cases[0].to_code()
+    assert "import tempfile" in rendered
+    assert "import os" not in rendered
+
+
+def test_tzlocal_style_mock_test_produces_nonempty_testcase(test_cluster):
+    """The mock+attr-assign shape from the issue yields a runnable test case."""
+    code = """
+from unittest.mock import patch, MagicMock
+
+def test_localzone():
+    mock_env = MagicMock()
+    mock_env.return_value = "UTC"
+    with patch("os.environ", {"TZ": "UTC"}):
+        result = 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    testcase = result.test_cases[0]
+    assert testcase.size() > 0
+    rendered = testcase.to_code()
+    assert "mock_env.return_value" in rendered
+    assert "with patch(" in rendered
+
+
+# ---------------------------------------------------------------------------
+# Attribute-target assignments (issue #278)
+# ---------------------------------------------------------------------------
+
+
+def test_attribute_target_assignment_on_known_receiver_is_admitted(test_cluster):
+    code = """
+def test_foo():
+    m = []
+    m.attr = 5
+"""
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
+    assert testcase.size() == 2
+    assert [s.bound_variable for s in testcase.statements()] == ["m", None]
+    assert "m.attr = 5" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED] == 2
+
+
+def test_attribute_target_assignment_on_unknown_receiver_is_dropped(test_cluster):
+    code = """
+def test_foo():
+    undefined_obj.attr = 5
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.test_case.size() == 0
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})

@@ -547,3 +547,36 @@ def test_visit_async_methods():  # noqa: PLR0914
 
     result = visitor.visit_Match(match)
     assert isinstance(result, ast.Match)
+
+
+def test_extract_module_level_imports_returns_top_level_imports():
+    source = (
+        "from unittest.mock import patch\n"
+        "import tempfile\n"
+        "import os\n"
+        "\n"
+        "def test_foo():\n"
+        "    import json\n"  # not top-level -> ignored
+        "    x = 1\n"
+    )
+    assert rewriter.extract_module_level_imports(source) == [
+        "from unittest.mock import patch",
+        "import tempfile",
+        "import os",
+    ]
+
+
+def test_extract_module_level_imports_ignores_non_imports():
+    source = "x = 1\n\ndef test_foo():\n    y = 2\n"
+    assert rewriter.extract_module_level_imports(source) == []
+
+
+def test_extract_module_level_imports_tolerates_trailing_syntax_error():
+    source = (
+        "import tempfile\n"
+        "\n"
+        "def test_foo():\n"
+        "    x = 1\n"
+        "def test_broken(:\n"  # truncated / broken tail, as with early LLM abort
+    )
+    assert "import tempfile" in rewriter.extract_module_level_imports(source)
