@@ -279,6 +279,7 @@ class TestSuiteWriter:
         idx: int,
         tc: TestCase,
         exc_types: list[type[BaseException] | None],
+        module_aliases: dict[str, str] | None = None,
     ) -> tuple[cst.FunctionDef, set[type[BaseException]]]:
         """Build a test function, handling expected and unexpected failures.
 
@@ -293,6 +294,8 @@ class TestSuiteWriter:
             idx: The index used to name the test function.
             tc: The test case to render.
             exc_types: Per-statement exception types (parallel to tc.statements()).
+            module_aliases: Optional mapping from module names to their assigned aliases
+                in the generated test suite.
 
         Returns:
             A tuple of the CST function definition for this test case and the
@@ -329,7 +332,7 @@ class TestSuiteWriter:
                 is_failing = True
             # Append assertion nodes for this statement
             for assertion in stmt.assertions:
-                cst_node = assertion_to_cst(assertion)
+                cst_node = assertion_to_cst(assertion, module_aliases=module_aliases)
                 if cst_node is not None:
                     body.append(cst_node)
 
@@ -443,15 +446,40 @@ class TestSuiteWriter:
         # resolve in this process.
         canonical_name = canonical_module_name(module_name)
 
+        # Collect all non-builtin, non-SUT modules referenced by isinstance assertions,
+        # and assign collision-free aliases.
+        isinstance_module_aliases: dict[str, str] = {
+            module_name: module_alias,
+            canonical_name: module_alias,
+        }
+        used_aliases: set[str] = {module_alias}
+        used_isinstance_modules: set[str] = set()
+
+        for individual in suite.test_case_chromosomes:
+            for stmt in individual.test_case.statements():
+                for assertion in stmt.assertions:
+                    if isinstance(assertion, IsInstanceAssertion) and assertion.module not in {
+                        "builtins",
+                        module_name,
+                        canonical_name,
+                    }:
+                        used_isinstance_modules.add(assertion.module)
+
+        for mod in sorted(used_isinstance_modules):
+            candidate = get_module_alias(mod)
+            if candidate in used_aliases:
+                candidate = f"{mod.replace('.', '_')}_"
+            counter = 1
+            while candidate in used_aliases:
+                candidate = f"{mod.replace('.', '_')}_{counter}_"
+                counter += 1
+            used_aliases.add(candidate)
+            isinstance_module_aliases[mod] = candidate
+
         functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         needs_pytest = False
         needs_asyncio = False
         used_exc_types: set[type[BaseException]] = set()
-        # Non-builtin modules referenced by ``isinstance`` assertions (e.g.
-        # ``collections`` for ``isinstance(x, collections.defaultdict)``). These are
-        # rendered as ``<alias>.<qualname>`` and must be imported under that alias, or
-        # the exported test raises ``NameError``.
-        used_isinstance_modules: set[str] = set()
 
         # Build one test function per test case chromosome in the suite
         for idx, individual in enumerate(suite.test_case_chromosomes):
@@ -470,15 +498,10 @@ class TestSuiteWriter:
                 isinstance(a, FloatAssertion) for stmt in tc.statements() for a in stmt.assertions
             ):
                 needs_pytest = True
-            func, func_used_exc_types = self._build_test_function(idx, tc, exc_types)
+            func, func_used_exc_types = self._build_test_function(
+                idx, tc, exc_types, module_aliases=isinstance_module_aliases
+            )
             used_exc_types.update(func_used_exc_types)
-            for stmt in tc.statements():
-                for assertion in stmt.assertions:
-                    if isinstance(assertion, IsInstanceAssertion) and assertion.module not in {
-                        "builtins",
-                        module_name,
-                    }:
-                        used_isinstance_modules.add(assertion.module)
             functions.append(func)
             if not needs_pytest:
                 visitor = _PytestReferenceVisitor()
@@ -508,13 +531,10 @@ class TestSuiteWriter:
             exc_import_stmts.append(cst.parse_statement(f"from {mod} import {names}\n"))
 
         # Import the modules referenced by ``isinstance`` assertions under the alias the
-        # assertion rendering uses (``get_module_alias``). Skip any whose alias collides
-        # with the SUT alias, which is already bound below.
+        # assertion rendering uses.
         assertion_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         for mod in sorted(used_isinstance_modules):
-            alias = get_module_alias(mod)
-            if alias == module_alias:
-                continue
+            alias = isinstance_module_aliases[mod]
             assertion_import_stmts.append(cst.parse_statement(f"import {mod} as {alias}\n"))
 
         # Build the full module: [sys.path preamble +] import(s) + test functions

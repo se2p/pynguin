@@ -303,6 +303,30 @@ def test_write_no_extra_import_for_sut_module_isinstance_assertion(tmp_path: Pat
     assert f"import {module_name} as" not in content
 
 
+def test_write_imports_module_for_isinstance_assertion_with_colliding_alias(tmp_path: Path):
+    """A non-builtin isinstance-assertion module whose alias collides with the SUT is disambiguated.
+
+    If the assertion module's simple alias (e.g. ``accessible_`` from ``other.accessible``)
+    matches the SUT module alias, it must be assigned a unique non-colliding alias
+    (e.g. ``other_accessible_``) rather than being skipped or clobbering the SUT alias.
+    """
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    test_case.get_statement(-1).assertions.append(
+        ass.IsInstanceAssertion("int_0", "other.accessible", "SomeType")
+    )
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+    content = out_file.read_text(encoding="utf-8")
+
+    assert "import other.accessible as other_accessible_" in content
+    assert "isinstance(int_0, other_accessible_.SomeType)" in content
+    compile(content, str(out_file), "exec")
+
+
 def test_write_empty_suite_import_survives_black(tmp_path: Path):
     """The noqa/comment post-processing runs after black, and must still apply."""
     module_name = "tests.fixtures.accessibles.accessible"

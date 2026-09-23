@@ -578,7 +578,7 @@ def _module_has_type(module: str, qualname: str) -> bool:
     """Whether *qualname* resolves to an attribute of the importable *module*."""
     try:
         obj: Any = importlib.import_module(module)
-    except BaseException:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return False
     for part in qualname.split("."):
         if not hasattr(obj, part):

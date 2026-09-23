@@ -27,12 +27,15 @@ _DEFAULT_FLOAT_PRECISION = 0.01
 def assertion_to_cst(
     assertion: ass.Assertion,
     float_precision: float = _DEFAULT_FLOAT_PRECISION,
+    module_aliases: dict[str, str] | None = None,
 ) -> cst.SimpleStatementLine | None:
     """Convert an Assertion to a libcst SimpleStatementLine.
 
     Args:
         assertion: The assertion to convert.
         float_precision: The precision used for float comparisons.
+        module_aliases: Optional mapping from module names to their assigned aliases
+            in the generated test suite.
 
     Returns:
         The CST assert statement, or ``None`` for ExceptionAssertion (handled
@@ -49,7 +52,7 @@ def assertion_to_cst(
         if isinstance(assertion, ass.TypeNameAssertion):
             return _type_name_assertion_to_cst(assertion)
         if isinstance(assertion, ass.IsInstanceAssertion):
-            return _isinstance_assertion_to_cst(assertion)
+            return _isinstance_assertion_to_cst(assertion, module_aliases)
         if isinstance(assertion, ass.CollectionLengthAssertion):
             return _collection_length_assertion_to_cst(assertion)
         if isinstance(assertion, ass.ExceptionAssertion):
@@ -248,14 +251,20 @@ def _type_name_assertion_to_cst(assertion: ass.TypeNameAssertion) -> cst.SimpleS
     )
 
 
-def _isinstance_assertion_to_cst(assertion: ass.IsInstanceAssertion) -> cst.SimpleStatementLine:
+def _isinstance_assertion_to_cst(
+    assertion: ass.IsInstanceAssertion,
+    module_aliases: dict[str, str] | None = None,
+) -> cst.SimpleStatementLine:
     # assert isinstance(var, Type) or assert isinstance(var, module.Type)
     var = _name(assertion.source)
 
     if assertion.module == "builtins":
         type_expr: cst.BaseExpression = cst.Name(assertion.qualname)
     else:
-        module_alias = get_module_alias(assertion.module)
+        if module_aliases and assertion.module in module_aliases:
+            module_alias = module_aliases[assertion.module]
+        else:
+            module_alias = get_module_alias(assertion.module)
         type_expr = cst.Name(module_alias)
         for part in assertion.qualname.split("."):
             type_expr = cst.Attribute(value=type_expr, attr=cst.Name(part))
