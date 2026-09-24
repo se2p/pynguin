@@ -12,7 +12,7 @@ import pytest
 
 from pynguin.instrumentation.machinery import InstrumentationTransformer
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.instrumentation.version.python3_10 import (
+from pynguin.instrumentation.version import (
     BranchCoverageInstrumentation,
     LineCoverageInstrumentation,
 )
