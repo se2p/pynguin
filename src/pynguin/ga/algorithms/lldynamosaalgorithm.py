@@ -70,6 +70,20 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         if hasattr(self, "_goals_manager"):
             self._goals_manager.update(self._population)
 
+    def _update_archive_with_initial_tests(
+        self, working_chromosomes: list[tcc.TestCaseChromosome]
+    ) -> None:
+        """Updates the archive and unlocks dynamic goals with initial working LLM test cases.
+
+        Args:
+            working_chromosomes: List of working test case chromosomes.
+        """
+        self._goals_manager.update(working_chromosomes)
+        self._logger.info(
+            "Archive contains %d solutions covering goals after initial LLM seeding.",
+            len(self._archive.solutions),
+        )
+
     def _maybe_intervene_on_stall(self) -> None:
         """Query the LLM on a stall, then unlock any goals the result just covered.
 
@@ -87,6 +101,9 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         )
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
+
+        if config.configuration.large_language_model.hybrid_initial_population:
+            self._seed_archive_from_llm()
 
         self._population = self._get_random_population()
         self._goals_manager.update(self._population)
