@@ -27,7 +27,7 @@ from pynguin.analyses.module import (
     parse_module,
 )
 from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
+from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TypeInfo, UnionType
 from pynguin.configuration import ElementVisibility
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.testcase.testcase import TestCase
@@ -1105,3 +1105,51 @@ def test_generate_test_cluster_raises_on_c_extension(mod_name):
         exc_info.value
     )
     assert "Compiled C-extension modules cannot be instrumented." in str(exc_info.value)
+
+
+def test_analyse_generic_classes():
+    cluster = generate_test_cluster("tests.fixtures.cluster.generic_classes")
+    type_info_box = None
+    for ti in cluster.type_system.get_all_types():
+        if ti.raw_type.__name__ == "Box":
+            type_info_box = ti
+            break
+    assert type_info_box is not None
+    assert type_info_box.is_generic
+    assert len(type_info_box.type_parameters) == 1
+
+    # Box constructors should be instantiated with concrete types (int, float, str, bool)
+    instantiated_box_generators = [
+        gen
+        for gens in cluster.generators.values()
+        for gen in gens
+        if isinstance(gen, GenericConstructor)
+        and gen.owner == type_info_box
+        and len(gen.generated_type().args) > 0
+    ]
+    assert len(instantiated_box_generators) >= 4
+    for gen in instantiated_box_generators:
+        assert isinstance(gen, GenericConstructor)
+        gen_type = gen.generated_type()
+        assert isinstance(gen_type, Instance)
+        assert len(gen_type.args) == 1
+        assert not gen_type.contains_type_vars()
+
+    # Box methods should be instantiated
+    box_modifiers = cluster.modifiers[type_info_box]
+    method_names = {m.method_name for m in box_modifiers if isinstance(m, GenericMethod)}
+    assert "set_value" in method_names
+
+    # Check instantiated_owner on GenericMethod
+    instantiated_methods = [
+        mod
+        for mod in box_modifiers
+        if isinstance(mod, GenericMethod)
+        and mod.method_name == "set_value"
+        and mod.instantiated_owner is not None
+    ]
+    assert len(instantiated_methods) >= 4
+    for mod in instantiated_methods:
+        assert isinstance(mod.instantiated_owner, Instance)
+        assert not mod.instantiated_owner.contains_type_vars()
+        assert not mod.inferred_signature.contains_type_vars()

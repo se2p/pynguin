@@ -87,6 +87,63 @@ class ProperType(ABC):
     def __lt__(self, other):
         return str(self) < str(other)
 
+    def contains_type_vars(self) -> bool:
+        """Does this type contain any type variables?
+
+        Returns:
+            True if type variables are present.
+        """
+        return bool(self.get_type_vars())
+
+    def get_type_vars(self) -> set[TypeVarType]:
+        """Get all type variables contained in this type.
+
+        Returns:
+            Set of TypeVarTypes.
+        """
+        return self.accept(_TypeVarCollector())
+
+
+class TypeVarType(ProperType):
+    """Represents a type variable, e.g. T = TypeVar('T')."""
+
+    def __init__(
+        self,
+        name: str,
+        bound: ProperType | None = None,
+        constraints: tuple[ProperType, ...] = (),
+        raw_type_var: TypeVar | None = None,
+    ):
+        """Create a new TypeVarType.
+
+        Args:
+            name: The name of the type variable.
+            bound: Optional upper bound.
+            constraints: Optional tuple of type constraints.
+            raw_type_var: Optional typing.TypeVar instance.
+        """
+        self.name: Final[str] = name
+        self.bound: Final[ProperType | None] = bound
+        self.constraints: Final[tuple[ProperType, ...]] = constraints
+        self.raw_type_var: Final[TypeVar | None] = raw_type_var
+        self._hash: int | None = None
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
+        return visitor.visit_type_var_type(self)
+
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = hash((self.name, self.bound, self.constraints))
+        return self._hash
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, TypeVarType)
+            and self.name == other.name
+            and self.bound == other.bound
+            and self.constraints == other.constraints
+        )
+
 
 class AnyType(ProperType):
     """The Any Type."""
@@ -449,6 +506,17 @@ class TypeVisitor(Generic[T]):
         """
 
     @abstractmethod
+    def visit_type_var_type(self, left: TypeVarType) -> T:
+        """Visit a type variable.
+
+        Args:
+            left: the type variable
+
+        Returns:
+            result of the visit
+        """
+
+    @abstractmethod
     def visit_unsupported_type(self, left: Unsupported) -> T:
         """Visit unsupported type.
 
@@ -484,6 +552,11 @@ class _PartialTypeMatch(TypeVisitor[ProperType | None]):
     def visit_none_type(self, left: NoneType) -> ProperType | None:
         if isinstance(self.right, NoneType):
             return NONE_TYPE
+        return None
+
+    def visit_type_var_type(self, left: TypeVarType) -> ProperType | None:
+        if isinstance(self.right, TypeVarType) and left == self.right:
+            return left
         return None
 
     def visit_instance(self, left: Instance) -> ProperType | None:
@@ -541,6 +614,99 @@ def _is_partial_type_match(left: ProperType, right: ProperType) -> ProperType | 
     return left.accept(_PartialTypeMatch(right))
 
 
+class TypeSubstituteVisitor(TypeVisitor[ProperType]):
+    """Substitutes TypeVarType occurrences with concrete ProperTypes."""
+
+    def __init__(
+        self,
+        type_system: TypeSystem,
+        substitutions: Mapping[TypeVarType | str | TypeVar, ProperType],
+    ):
+        """Create a new TypeSubstituteVisitor.
+
+        Args:
+            type_system: The type system instance.
+            substitutions: Mapping from type variables to replacement ProperTypes.
+        """
+        self.type_system = type_system
+        self.substitutions = substitutions
+
+    def visit_any_type(self, left: AnyType) -> ProperType:  # noqa: D102
+        return left
+
+    def visit_none_type(self, left: NoneType) -> ProperType:  # noqa: D102
+        return left
+
+    def visit_type_var_type(self, left: TypeVarType) -> ProperType:  # noqa: D102
+        if left in self.substitutions:
+            return self.substitutions[left]
+        if left.name in self.substitutions:
+            return self.substitutions[left.name]
+        if left.raw_type_var is not None and left.raw_type_var in self.substitutions:
+            return self.substitutions[left.raw_type_var]
+        return left
+
+    def visit_instance(self, left: Instance) -> ProperType:  # noqa: D102
+        if not left.args:
+            return left
+        new_args = tuple(arg.accept(self) for arg in left.args)
+        return self.type_system._fixup_known_generics(Instance(left.type, new_args))  # noqa: SLF001
+
+    def visit_tuple_type(self, left: TupleType) -> ProperType:  # noqa: D102
+        new_args = tuple(elem.accept(self) for elem in left.args)
+        return TupleType(new_args, unknown_size=left.unknown_size)
+
+    def visit_union_type(self, left: UnionType) -> ProperType:  # noqa: D102
+        new_items = tuple(sorted(item.accept(self) for item in left.items))
+        return UnionType(new_items)
+
+    def visit_string_subtype(self, left: StringSubtype) -> ProperType:  # noqa: D102
+        return left
+
+    def visit_unsupported_type(self, left: Unsupported) -> ProperType:  # noqa: D102
+        return left
+
+
+class _TypeVarCollector(TypeVisitor[set[TypeVarType]]):
+    """Collects all TypeVarType occurrences within a ProperType."""
+
+    def visit_any_type(self, left: AnyType) -> set[TypeVarType]:
+        return set()
+
+    def visit_none_type(self, left: NoneType) -> set[TypeVarType]:
+        return set()
+
+    def visit_type_var_type(self, left: TypeVarType) -> set[TypeVarType]:
+        return {left}
+
+    def visit_instance(self, left: Instance) -> set[TypeVarType]:
+        res: set[TypeVarType] = set()
+        for arg in left.args:
+            sub_vars: set[TypeVarType] = arg.accept(self)
+            res.update(sub_vars)
+        return res
+
+    def visit_tuple_type(self, left: TupleType) -> set[TypeVarType]:
+        res: set[TypeVarType] = set()
+        for elem in left.args:
+            sub_vars: set[TypeVarType] = elem.accept(self)
+            res.update(sub_vars)
+        return res
+
+    def visit_union_type(self, left: UnionType) -> set[TypeVarType]:
+        res: set[TypeVarType] = set()
+        for item in left.items:
+            sub_vars: set[TypeVarType] = item.accept(self)
+            res.update(sub_vars)
+        return res
+
+    def visit_string_subtype(self, left: StringSubtype) -> set[TypeVarType]:
+        return set()
+
+    def visit_unsupported_type(self, left: Unsupported) -> set[TypeVarType]:
+        return set()
+
+
 class TypeStringVisitor(TypeVisitor[str]):
     """A simple visitor to convert a proper type to a string."""
 
@@ -549,6 +715,9 @@ class TypeStringVisitor(TypeVisitor[str]):
 
     def visit_none_type(self, left: NoneType) -> str:  # noqa: D102
         return "None"
+
+    def visit_type_var_type(self, left: TypeVarType) -> str:  # noqa: D102
+        return f"~{left.name}"
 
     def visit_instance(self, left: Instance) -> str:  # noqa: D102
         rep = left.type.name if left.type.module == "builtins" else left.type.full_name
@@ -582,6 +751,9 @@ class TypeReprVisitor(TypeVisitor[str]):
 
     def visit_none_type(self, left: NoneType) -> str:  # noqa: D102
         return "NoneType()"
+
+    def visit_type_var_type(self, left: TypeVarType) -> str:  # noqa: D102
+        return f"TypeVarType({left.name})"
 
     def visit_instance(self, left: Instance) -> str:  # noqa: D102
         rep = f"Instance({left.type!r}"
@@ -636,6 +808,23 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         # TODO(fk) handle protocols, e.g., hashable.
         return isinstance(self.right, NoneType)
 
+    def visit_type_var_type(self, left: TypeVarType) -> bool:
+        if isinstance(self.right, TypeVarType):
+            if left == self.right:
+                return True
+            if left.bound is not None:
+                return self.sub_type_check(left.bound, self.right)
+            if self.right.bound is not None:
+                return self.sub_type_check(left, self.right.bound)
+            return False
+        if left.bound is not None:
+            return self.sub_type_check(left.bound, self.right)
+        if left.constraints:
+            return all(self.sub_type_check(c, self.right) for c in left.constraints)
+        if isinstance(self.right, AnyType):
+            return True
+        return isinstance(self.right, Instance) and self.right.type.full_name == "builtins.object"
+
     def visit_instance(self, left: Instance) -> bool:
         if isinstance(self.right, Instance):
             if not self.graph.is_subclass(left.type, self.right.type):
@@ -645,6 +834,9 @@ class _SubtypeVisitor(TypeVisitor[bool]):
                 == self.right.type.num_hardcoded_generic_parameters
                 and left.type.num_hardcoded_generic_parameters is not None
             ):
+                # If either side is unparameterized, treat them as compatible.
+                if not left.args or not self.right.args:
+                    return True
                 # TODO(fk) handle generics properly :(
                 # We only check hard coded generics for now and treat them as invariant,
                 # i.e., set[T1] <: set[T2] <=> T1 <: T2 and T2 <: T1
@@ -740,6 +932,38 @@ class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
         if isinstance(self.subtype, AnyType):
             return self.any_distance
 
+        if isinstance(self.subtype, TypeVarType):
+            return self._type_var_distance(supertype, self.subtype)
+
+        return None
+
+    def _type_var_distance(self, supertype: Instance, subtype: TypeVarType) -> int | None:
+        if subtype.bound is not None:
+            return self.graph.subtype_distance(supertype, subtype.bound)
+        if subtype.constraints:
+            distances = [self.graph.subtype_distance(supertype, c) for c in subtype.constraints]
+            valid_distances = [dist for dist in distances if dist is not None]
+            if valid_distances:
+                return min(valid_distances)
+        return None
+
+    def visit_type_var_type(self, supertype: TypeVarType) -> int | None:
+        if isinstance(self.subtype, TypeVarType):
+            if supertype == self.subtype:
+                return 0
+            if supertype.bound is not None:
+                return self.graph.subtype_distance(supertype.bound, self.subtype)
+            return None
+        if supertype.bound is not None:
+            return self.graph.subtype_distance(supertype.bound, self.subtype)
+        if supertype.constraints:
+            distances = [
+                self.graph.subtype_distance(c, self.subtype) for c in supertype.constraints
+            ]
+            valid = [d for d in distances if d is not None]
+            return min(valid) if valid else None
+        if isinstance(self.subtype, AnyType):
+            return self.any_distance
         return None
 
     def visit_tuple_type(self, supertype: TupleType) -> int | None:
@@ -793,6 +1017,29 @@ class _MaybeSubtypeVisitor(_SubtypeVisitor):
     def visit_union_type(self, left: UnionType) -> bool:
         return any(self.sub_type_check(left_elem, self.right) for left_elem in left.items)
 
+    def visit_type_var_type(self, left: TypeVarType) -> bool:
+        if isinstance(self.right, TypeVarType):
+            if left == self.right:
+                return True
+            if left.bound is not None and self.sub_type_check(left.bound, self.right):
+                return True
+            if self.right.bound is not None and self.sub_type_check(left, self.right.bound):
+                return True
+            if left.constraints and any(
+                self.sub_type_check(c, self.right) for c in left.constraints
+            ):
+                return True
+            if self.right.constraints and any(
+                self.sub_type_check(left, c) for c in self.right.constraints
+            ):
+                return True
+            return True
+        if left.bound is not None:
+            return self.sub_type_check(left.bound, self.right)
+        if left.constraints:
+            return any(self.sub_type_check(c, self.right) for c in left.constraints)
+        return True
+
     def visit_unsupported_type(self, left: Unsupported) -> bool:
         raise NotImplementedError("This type shall not be used during runtime")
 
@@ -805,6 +1052,9 @@ class _CollectionTypeVisitor(TypeVisitor[bool]):
         return False
 
     def visit_none_type(self, left: NoneType) -> bool:
+        return False
+
+    def visit_type_var_type(self, left: TypeVarType) -> bool:
         return False
 
     def visit_instance(self, left: Instance) -> bool:
@@ -830,6 +1080,9 @@ class _PrimitiveTypeVisitor(TypeVisitor[bool]):
         return False
 
     def visit_none_type(self, left: NoneType) -> bool:
+        return False
+
+    def visit_type_var_type(self, left: TypeVarType) -> bool:
         return False
 
     def visit_instance(self, left: Instance) -> bool:
@@ -875,10 +1128,26 @@ class TypeInfo:
         self.instance_attributes: OrderedSet[str] = OrderedSet()
         self.attributes: OrderedSet[str] = OrderedSet()
 
-        # TODO(fk) properly implement generics!
-        # For now we just store the number of generic parameters for set, dict and list.
+        type_params = getattr(raw_type, "__parameters__", ())
+        self.type_parameters: tuple[TypeVar, ...] = (
+            tuple(type_params) if type_params and isinstance(type_params, tuple) else ()
+        )
         self.num_hardcoded_generic_parameters: int | None = (
-            2 if raw_type is dict else 1 if raw_type in {set, list} else None
+            len(self.type_parameters)
+            if self.type_parameters
+            else (2 if raw_type is dict else 1 if raw_type in {set, list} else None)
+        )
+
+    @property
+    def is_generic(self) -> bool:
+        """Whether this type has generic parameters.
+
+        Returns:
+            True if this type has generic type parameters.
+        """
+        return (
+            self.num_hardcoded_generic_parameters is not None
+            and self.num_hardcoded_generic_parameters > 0
         )
 
     @staticmethod
@@ -1546,6 +1815,61 @@ class InferredSignature:
             if (match := _is_partial_type_match(left, right)) is not None:
                 sig_info.partial_type_matches[f"({left!s}, {right!s})"] = str(match)
 
+    def substitute(
+        self,
+        substitutions: Mapping[TypeVarType | str | TypeVar, ProperType],
+    ) -> InferredSignature:
+        """Create a new InferredSignature with type variables substituted.
+
+        Args:
+            substitutions: Mapping from TypeVar/name to concrete ProperType.
+
+        Returns:
+            A new InferredSignature with substituted parameter and return types.
+        """
+        if not substitutions:
+            return self
+        new_params = {
+            name: self.type_system.substitute_type(param_type, substitutions)
+            for name, param_type in self.original_parameters.items()
+        }
+        new_return = self.type_system.substitute_type(self.original_return_type, substitutions)
+        new_params_stats = {
+            name: self.type_system.substitute_type(param_type, substitutions)
+            for name, param_type in self.parameters_for_statistics.items()
+        }
+        new_return_stats = self.type_system.substitute_type(
+            self.return_type_for_statistics, substitutions
+        )
+        return InferredSignature(
+            signature=self.signature,
+            original_parameters=new_params,
+            original_return_type=new_return,
+            type_system=self.type_system,
+            parameters_for_statistics=new_params_stats,
+            return_type_for_statistics=new_return_stats,
+        )
+
+    def contains_type_vars(self) -> bool:
+        """Does this signature contain any type variables?
+
+        Returns:
+            True if any parameter or the return type contains type variables.
+        """
+        return bool(self.get_type_vars())
+
+    def get_type_vars(self) -> set[TypeVarType]:
+        """Get all type variables contained in this signature.
+
+        Returns:
+            Set of TypeVarTypes.
+        """
+        tvs: set[TypeVarType] = set()
+        for param in self.original_parameters.values():
+            tvs.update(param.get_type_vars())
+        tvs.update(self.original_return_type.get_type_vars())
+        return tvs
+
 
 class TypeSystem:  # noqa: PLR0904
     """Implements Pynguin's internal type system.
@@ -1683,6 +2007,12 @@ class TypeSystem:  # noqa: PLR0904
         if isinstance(right, UnionType) and not isinstance(left, UnionType):
             # Case that would be duplicated for each type, so we put it here.
             return any(self.is_subtype(left, right_elem) for right_elem in right.items)
+        if isinstance(right, TypeVarType) and not isinstance(left, TypeVarType):
+            if right.bound is not None:
+                return self.is_subtype(left, right.bound)
+            if right.constraints:
+                return any(self.is_subtype(left, c) for c in right.constraints)
+            return False
         return left.accept(_SubtypeVisitor(self, right, self.is_subtype))
 
     @functools.lru_cache(maxsize=16384)
@@ -1711,7 +2041,84 @@ class TypeSystem:  # noqa: PLR0904
         if isinstance(right, UnionType) and not isinstance(left, UnionType):
             # Case that would be duplicated for each type, so we put it here.
             return any(self.is_maybe_subtype(left, right_elem) for right_elem in right.items)
+        if isinstance(right, TypeVarType) and not isinstance(left, TypeVarType):
+            if right.bound is not None:
+                return self.is_maybe_subtype(left, right.bound)
+            if right.constraints:
+                return any(self.is_maybe_subtype(left, c) for c in right.constraints)
+            return True
         return left.accept(_MaybeSubtypeVisitor(self, right, self.is_maybe_subtype))
+
+    def substitute_type(
+        self,
+        typ: ProperType,
+        substitutions: Mapping[TypeVarType | str | TypeVar, ProperType],
+    ) -> ProperType:
+        """Substitutes type variables in the given type with concrete types.
+
+        Args:
+            typ: The type containing possible TypeVars.
+            substitutions: A mapping from TypeVar (or its name/TypeVarType) to concrete ProperType.
+
+        Returns:
+            The type with substitutions applied.
+        """
+        if not substitutions:
+            return typ
+        return typ.accept(TypeSubstituteVisitor(self, substitutions))
+
+    def _candidates_from_bound(self, bound: ProperType) -> list[ProperType]:
+        candidates: list[ProperType] = []
+        if isinstance(bound, Instance):
+            candidates.extend(Instance(sub) for sub in self.get_subclasses(bound.type))
+        if bound not in candidates:
+            candidates.insert(0, bound)
+        return candidates
+
+    def _default_candidate_types(self, custom_classes: Sequence[TypeInfo]) -> list[ProperType]:
+        candidates = [
+            self.convert_type_hint(int),
+            self.convert_type_hint(str),
+            self.convert_type_hint(float),
+            self.convert_type_hint(bool),
+        ]
+        for cls_info in custom_classes:
+            if not cls_info.is_abstract and not cls_info.is_generic:
+                inst = Instance(cls_info)
+                if inst not in candidates:
+                    candidates.append(inst)
+        return candidates
+
+    def get_candidate_types_for_type_var(
+        self,
+        type_var: TypeVar | TypeVarType,
+        custom_classes: Sequence[TypeInfo] = (),
+    ) -> list[ProperType]:
+        """Derives concrete candidate types to instantiate a type variable.
+
+        Args:
+            type_var: The type variable (or TypeVarType).
+            custom_classes: Additional non-generic concrete classes from the test cluster.
+
+        Returns:
+            A list of candidate ProperTypes for instantiation.
+        """
+        if isinstance(type_var, TypeVarType):
+            if type_var.constraints:
+                return list(type_var.constraints)
+            if type_var.bound is not None:
+                return self._candidates_from_bound(type_var.bound)
+            raw_tv = type_var.raw_type_var
+        else:
+            raw_tv = type_var
+
+        if raw_tv is not None:
+            if raw_tv.__constraints__:
+                return [self.convert_type_hint(c) for c in raw_tv.__constraints__]
+            if raw_tv.__bound__ is not None:
+                return self._candidates_from_bound(self.convert_type_hint(raw_tv.__bound__))
+
+        return self._default_candidate_types(custom_classes)
 
     @property
     def dot(self) -> str:
@@ -2060,6 +2467,22 @@ class TypeSystem:  # noqa: PLR0904
             # TODO(fk) remove this one day.
             #  Hardcoded support generic dict, list and set.
             return self._fixup_known_generics(result)
+
+        if isinstance(hint, TypeVar):
+            bound = (
+                self.convert_type_hint(hint.__bound__, unsupported=unsupported)
+                if hint.__bound__ is not None
+                else None
+            )
+            constraints = tuple(
+                self.convert_type_hint(c, unsupported=unsupported) for c in hint.__constraints__
+            )
+            return TypeVarType(
+                name=hint.__name__,
+                bound=bound,
+                constraints=constraints,
+                raw_type_var=hint,
+            )
 
         if isinstance(hint, type):
             # `int` or `str` or `MyClass`

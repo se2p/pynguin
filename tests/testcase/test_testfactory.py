@@ -34,7 +34,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.analyses.typesystem import (
     AnyType,
     InferredSignature,
@@ -47,6 +47,7 @@ from pynguin.analyses.typesystem import (
 from pynguin.testcase.collection_tracker import CollectionTrace
 from pynguin.testcase.execution_result import ExecutionResult
 from tests.fixtures.accessibles.accessible import SomeType, simple_function
+from tests.fixtures.cluster.generic_classes import Box
 from tests.testcase._builders import assign, call_stmt, int_stmt, make_test_case, stmt
 
 # ---------------------------------------------------------------------------
@@ -1863,3 +1864,29 @@ def test_insert_random_statement_advances_generator(type_system, monkeypatch):
     assert pos == 1
     assert test_case.size() == 2
     assert "var_1 = next(var_0)" in test_case.to_code()
+
+
+def test_testfactory_emit_generic_constructor_and_method():
+    cluster = generate_test_cluster("tests.fixtures.cluster.generic_classes")
+    factory = tf.TestFactory(cluster)
+
+    # Find a Box constructor with int argument
+    type_info_box = cluster.type_system.to_type_info(Box)
+    box_gens = [
+        g
+        for gens in cluster.generators.values()
+        for g in gens
+        if isinstance(g, gao.GenericConstructor)
+        and g.owner == type_info_box
+        and g.inferred_signature.original_parameters.get("value")
+        == cluster.type_system.convert_type_hint(int)
+    ]
+    assert len(box_gens) > 0
+    constructor = box_gens[0]
+
+    test_case = tc.TestCase()
+    pos = factory._emit_accessible(test_case, constructor, 0, 0)
+    assert pos >= 0
+    code = test_case.to_code()
+    assert "Box(" in code
+    cst.parse_module(code)

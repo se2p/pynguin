@@ -7,7 +7,7 @@
 from types import ClassMethodDescriptorType
 from unittest.mock import MagicMock
 
-from pynguin.analyses.typesystem import InferredSignature, ProperType, TypeInfo
+from pynguin.analyses.typesystem import InferredSignature, Instance, ProperType, TypeInfo
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericConstructor,
@@ -289,3 +289,34 @@ def test_generic_method_is_generator(type_system):
         method_name="norm_m",
     )
     assert not nm.is_generator
+
+
+def test_generic_constructor_generated_type(type_system):
+    ti = type_system.to_type_info(list)
+    inst = Instance(ti, (type_system.convert_type_hint(int),))
+    sig = MagicMock(InferredSignature)
+    sig.return_type = inst
+    sig.original_parameters = {}
+    sig.parameters = {}
+    c1 = GenericConstructor(ti, sig, generated_type=inst)
+    c2 = GenericConstructor(ti, sig, generated_type=None)
+    assert c1.generated_type() == inst
+    assert c2.generated_type() == Instance(ti)
+    assert c1 != c2
+    assert hash(c1) != hash(c2)
+
+
+def test_generic_method_instantiated_owner(type_system):
+    ti = type_system.to_type_info(list)
+    owner_inst = Instance(ti, (type_system.convert_type_hint(int),))
+    sig = MagicMock(InferredSignature)
+    sig.return_type = type_system.convert_type_hint(None)
+    sig.original_parameters = {}
+    sig.parameters = {}
+    m1 = GenericMethod(ti, MagicMock(), sig, instantiated_owner=owner_inst)
+    m2 = GenericMethod(ti, MagicMock(), sig, instantiated_owner=None)
+    assert m1.instantiated_owner == owner_inst
+    assert m2.instantiated_owner is None
+    assert m1 != m2
+    assert hash(m1) != hash(m2)
+    assert owner_inst in m1.get_dependencies({})

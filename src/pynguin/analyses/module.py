@@ -59,6 +59,7 @@ from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
+from pynguin.analyses import generics
 from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvider
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import (
@@ -76,6 +77,7 @@ from pynguin.analyses.typesystem import (
     TupleType,
     TypeInfo,
     TypeSystem,
+    TypeVarType,
     TypeVisitor,
     UnionType,
     Unsupported,
@@ -1055,7 +1057,16 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         def visit_instance(self, left: Instance) -> OrderedSet[GenericAccessibleObject]:
             result: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for type_info in self.cluster.type_system.get_superclasses(left.type):
-                result.update(self.cluster.modifiers[type_info])
+                for modifier in self.cluster.modifiers[type_info]:
+                    if (
+                        isinstance(modifier, GenericMethod)
+                        and isinstance(modifier.instantiated_owner, Instance)
+                        and not self.cluster.type_system.is_maybe_subtype(
+                            left, modifier.instantiated_owner
+                        )
+                    ):
+                        continue
+                    result.add(modifier)
             return result
 
         def visit_tuple_type(self, left: TupleType) -> OrderedSet[GenericAccessibleObject]:
@@ -1066,6 +1077,9 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             for element in left.items:
                 result.update(element.accept(self))  # type: ignore[arg-type]
             return result
+
+        def visit_type_var_type(self, left: TypeVarType) -> OrderedSet[GenericAccessibleObject]:
+            return OrderedSet()
 
         def visit_unsupported_type(self, left: Unsupported) -> OrderedSet[GenericAccessibleObject]:
             raise NotImplementedError("This type shall not be used during runtime")
@@ -1487,19 +1501,11 @@ def overlaps_line_ranges(ast_node: ast.AST | None, parsed_line_ranges: set[int])
     return any(line in parsed_line_ranges for line in range(start_line, end_line + 1))
 
 
-def __analyse_function(
-    *,
-    func_name: str,
-    func: FunctionType,
-    type_inference_provider: InferenceProvider,
-    module_tree: Module | None,
-    test_cluster: ModuleTestCluster,
-    add_to_test: bool,
-    parsed_line_ranges: set[int] | None = None,
-) -> None:
+def _should_skip_function(func_name: str, func: FunctionType, *, add_to_test: bool) -> bool:
+    """Check if a function should be skipped from analysis."""
     if __should_skip_by_visibility(func_name.rpartition(".")[2], add_to_test=add_to_test):
         LOGGER.debug("Skipping function %s from analysis", func_name)
-        return
+        return True
     if inspect.isasyncgenfunction(func):
         # Pynguin cannot drive async generators (see issue #62), so we skip
         # them instead of aborting the whole module and still test its
@@ -1513,6 +1519,21 @@ def __analyse_function(
             )
         else:
             LOGGER.debug("Skipping async generator %s outside of SUT", func_name)
+        return True
+    return False
+
+
+def __analyse_function(
+    *,
+    func_name: str,
+    func: FunctionType,
+    type_inference_provider: InferenceProvider,
+    module_tree: Module | None,
+    test_cluster: ModuleTestCluster,
+    add_to_test: bool,
+    parsed_line_ranges: set[int] | None = None,
+) -> None:
+    if _should_skip_function(func_name, func, add_to_test=add_to_test):
         return
 
     LOGGER.debug("Analysing function %s", func_name)
@@ -1531,28 +1552,19 @@ def __analyse_function(
             func_name = lambda_assigned_name
             func.__name__ = lambda_assigned_name
         else:
-            # If the lambda itself has no name, we must not add it to the test cluster
-            # or else it will cause an exception during test export.
             return
 
     generic_function = GenericFunction(func, inferred_signature, expected_exceptions, func_name)
-
+    ml_data: MLCallableData | None = None
     if config.configuration.pynguinml.ml_testing_enabled and module_tree is not None:
-        parameters: dict[str, MLParameter | None] = {}
-        generation_order: list[str] = []
-
         try:
-            parameters, generation_order = tr.load_and_process_constraints(
+            params, gen_order = tr.load_and_process_constraints(
                 func.__module__, func_name, list(inferred_signature.original_parameters.keys())
             )
+            ml_data = MLCallableData(parameters=params, generation_order=gen_order)
+            test_cluster.add_ml_data(generic_function, ml_data)
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
-
-        ml_data = MLCallableData(
-            parameters=parameters,
-            generation_order=generation_order,
-        )
-        test_cluster.add_ml_data(generic_function, ml_data)
 
     function_data = CallableData(
         accessible=generic_function,
@@ -1560,15 +1572,48 @@ def __analyse_function(
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    test_cluster.add_generator(generic_function)
     if parsed_line_ranges is None:
         parsed_line_ranges = set(
             transformer.ModuleAstInfo.parse_line_ranges(
                 config.configuration.to_cover.only_cover_line_ranges
             )
         )
-    if add_to_test and overlaps_line_ranges(func_ast, parsed_line_ranges):
+    effective_add_to_test = add_to_test and overlaps_line_ranges(func_ast, parsed_line_ranges)
+
+    test_cluster.add_generator(generic_function)
+    if effective_add_to_test:
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
+
+
+def _create_constructor_or_enum(
+    type_info: TypeInfo,
+    type_inference_provider: InferenceProvider,
+    expected_exceptions: set[str],
+    test_cluster: ModuleTestCluster,
+) -> GenericEnum | GenericConstructor | None:
+    """Create a GenericEnum or GenericConstructor for the given class."""
+    if issubclass(type_info.raw_type, enum.Enum):  # type: ignore[arg-type]
+        generic: GenericEnum | GenericConstructor = GenericEnum(type_info)
+        if isinstance(generic, GenericEnum) and len(generic.names) == 0:
+            LOGGER.debug(
+                "Skipping enum %s from test cluster, it has no fields.",
+                type_info.full_name,
+            )
+            return None
+        return generic
+
+    generic = GenericConstructor(
+        type_info,
+        test_cluster.type_system.infer_type_info(
+            type_info.raw_type.__init__,  # type: ignore[misc]
+            type_inference_provider=type_inference_provider,
+        ),
+        expected_exceptions,
+    )
+    generic.inferred_signature.return_type = test_cluster.type_system.convert_type_hint(
+        type_info.raw_type
+    )
+    return generic
 
 
 def __analyse_class(
@@ -1591,49 +1636,28 @@ def __analyse_class(
     expected_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
-    if issubclass(type_info.raw_type, enum.Enum):  # type: ignore[arg-type]
-        generic: GenericEnum | GenericConstructor = GenericEnum(type_info)
-        if isinstance(generic, GenericEnum) and len(generic.names) == 0:
-            LOGGER.debug(
-                "Skipping enum %s from test cluster, it has no fields.",
-                type_info.full_name,
-            )
-            return
-    else:
-        generic = GenericConstructor(
-            type_info,
-            test_cluster.type_system.infer_type_info(
-                type_info.raw_type.__init__,  # type: ignore[misc]
-                type_inference_provider=type_inference_provider,
-            ),
-            expected_exceptions,
-        )
-        generic.inferred_signature.return_type = test_cluster.type_system.convert_type_hint(
-            type_info.raw_type
-        )
+    generic = _create_constructor_or_enum(
+        type_info, type_inference_provider, expected_exceptions, test_cluster
+    )
+    if generic is None:
+        return
 
+    ml_data: MLCallableData | None = None
     if (
         config.configuration.pynguinml.ml_testing_enabled
         and type_info.raw_type.__module__ != "builtins"
         and not isinstance(generic, GenericEnum)
     ):
-        parameters: dict[str, MLParameter | None] = {}
-        generation_order: list[str] = []
-
         try:
-            parameters, generation_order = tr.load_and_process_constraints(
+            params, gen_order = tr.load_and_process_constraints(
                 type_info.module,
                 type_info.name,
                 list(generic.inferred_signature.original_parameters.keys()),
             )
+            ml_data = MLCallableData(parameters=params, generation_order=gen_order)
+            test_cluster.add_ml_data(generic, ml_data)
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
-
-        ml_data = MLCallableData(
-            parameters=parameters,
-            generation_order=generation_order,
-        )
-        test_cluster.add_ml_data(generic, ml_data)
 
     method_data = CallableData(
         accessible=generic,
@@ -1752,6 +1776,45 @@ def __add_symbols(class_ast: ClassDef | None, type_info: TypeInfo) -> None:
     type_info.attributes.difference_update(IGNORED_SYMBOLS)
 
 
+def _should_skip_method(
+    type_info: TypeInfo,
+    method_name: str,
+    method: (
+        FunctionType
+        | BuiltinFunctionType
+        | WrapperDescriptorType
+        | MethodDescriptorType
+        | MethodType
+    ),
+    *,
+    add_to_test: bool,
+) -> bool:
+    """Check if a method should be skipped from analysis."""
+    if (
+        __is_annotate(method_name)
+        or __should_skip_by_visibility(method_name.rpartition(".")[2], add_to_test=add_to_test)
+        or __is_constructor(method_name)
+        or not __is_method_defined_in_class(type_info.raw_type, method)
+    ):
+        LOGGER.debug("Skipping method %s from analysis", method_name)
+        return True
+    if inspect.isasyncgenfunction(method):
+        # Pynguin cannot drive async generators (see issue #62), so we skip
+        # them instead of aborting the whole module and still test its
+        # other members. Plain coroutine methods are supported: calls to
+        # them are wrapped in asyncio.run(...) (see testfactory.py).
+        if add_to_test:
+            LOGGER.warning(
+                "Skipping async generator %s: Pynguin only tests the non-async-generator "
+                "parts of this module.",
+                method_name,
+            )
+        else:
+            LOGGER.debug("Skipping async generator %s outside of SUT", method_name)
+        return True
+    return False
+
+
 def __analyse_method(
     *,
     type_info: TypeInfo,
@@ -1769,27 +1832,7 @@ def __analyse_method(
     add_to_test: bool,
     parsed_line_ranges: set[int] | None = None,
 ) -> None:
-    if (
-        __is_annotate(method_name)
-        or __should_skip_by_visibility(method_name.rpartition(".")[2], add_to_test=add_to_test)
-        or __is_constructor(method_name)
-        or not __is_method_defined_in_class(type_info.raw_type, method)
-    ):
-        LOGGER.debug("Skipping method %s from analysis", method_name)
-        return
-    if inspect.isasyncgenfunction(method):
-        # Pynguin cannot drive async generators (see issue #62), so we skip
-        # them instead of aborting the whole module and still test its
-        # other members. Plain coroutine methods are supported: calls to
-        # them are wrapped in asyncio.run(...) (see testfactory.py).
-        if add_to_test:
-            LOGGER.warning(
-                "Skipping async generator %s: Pynguin only tests the non-async-generator "
-                "parts of this module.",
-                method_name,
-            )
-        else:
-            LOGGER.debug("Skipping async generator %s outside of SUT", method_name)
+    if _should_skip_method(type_info, method_name, method, add_to_test=add_to_test):
         return
 
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
@@ -1805,6 +1848,7 @@ def __analyse_method(
         type_info, method, inferred_signature, expected_exceptions, method_name
     )
 
+    ml_data: MLCallableData | None = None
     if config.configuration.pynguinml.ml_testing_enabled:
         parameters: dict[str, MLParameter | None] = {}
         generation_order: list[str] = []
@@ -1829,15 +1873,17 @@ def __analyse_method(
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    test_cluster.add_generator(generic_method)
-    test_cluster.add_modifier(type_info, generic_method)
     if parsed_line_ranges is None:
         parsed_line_ranges = set(
             transformer.ModuleAstInfo.parse_line_ranges(
                 config.configuration.to_cover.only_cover_line_ranges
             )
         )
-    if add_to_test and overlaps_line_ranges(method_ast, parsed_line_ranges):
+    effective_add_to_test = add_to_test and overlaps_line_ranges(method_ast, parsed_line_ranges)
+
+    test_cluster.add_generator(generic_method)
+    test_cluster.add_modifier(type_info, generic_method)
+    if effective_add_to_test:
         test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
 
@@ -2105,6 +2151,7 @@ def analyse_module(
         type_inference_provider=type_provider,
         test_cluster=test_cluster,
     )
+    generics.instantiate_generics_in_cluster(test_cluster)
     collect_provider_metrics(type_provider)
     return test_cluster
 
@@ -2171,6 +2218,7 @@ def analyse_dependency_module(
         seen_functions=seen_functions,
     )
     cluster.type_system.push_attributes_down()
+    generics.instantiate_generics_in_cluster(cluster)
 
 
 def is_file_loader_module(module: ModuleType) -> bool:
