@@ -877,3 +877,50 @@ def test_foo():
     result = _deserialize_function(code, test_cluster)
     assert result.test_case.size() == 0
     assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
+
+
+# ---------------------------------------------------------------------------
+# Docstring and string literal handling (issue #280)
+# ---------------------------------------------------------------------------
+
+
+def test_docstring_is_not_admitted_as_statement(test_cluster):
+    code = '''
+def test_foo():
+    """This is a docstring explaining the test."""
+    x = 1
+'''
+    result = _deserialize_function(code, test_cluster)
+    testcase = result.test_case
+    assert testcase.size() == 1
+    assert "docstring" not in testcase.to_code()
+    assert result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE] == 1
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_docstring_only_function_is_not_admitted(test_cluster):
+    code = '''
+def test_3():
+    """
+    Test the branch where key is not None and a matching element is found.
+    This exercises the else branch with key(el) returning True.
+    """
+'''
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 0
+    assert result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE] == 1
+
+
+def test_docstring_with_dropped_statements_does_not_admit_empty_testcase(test_cluster):
+    code = '''
+def test_3():
+    """Docstring explaining what we intended to test."""
+    result = undefined_func()
+    assert result == 1
+'''
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 0
+    assert result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE] == 1
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1

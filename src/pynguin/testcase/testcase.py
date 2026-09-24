@@ -200,6 +200,34 @@ class Statement:
             and isinstance(self.node.body[0], cst.Assert)
         )
 
+    @property
+    def is_executable(self) -> bool:
+        """Whether this statement is executable (not a no-op like pass or docstring).
+
+        Returns:
+            True if the statement performs an action, binds a variable, has assertions,
+            or is a compound statement.
+        """
+        if self.assertions or self.accessible is not None or self.bound_variable is not None:
+            return True
+        if isinstance(self.node, cst.BaseCompoundStatement):
+            return True
+        if isinstance(self.node, cst.SimpleStatementLine):
+            return any(
+                not (
+                    isinstance(small, cst.Pass)
+                    or (
+                        isinstance(small, cst.Expr)
+                        and isinstance(
+                            small.value,
+                            (cst.SimpleString, cst.FormattedString, cst.Ellipsis),
+                        )
+                    )
+                )
+                for small in self.node.body
+            )
+        return False
+
     def used_variables(self) -> frozenset[str]:
         """Return (and cache) the set of variable names read by this statement.
 
@@ -603,6 +631,14 @@ class TestCase:  # noqa: PLR0904
             The number of statements.
         """
         return len(self._statements)
+
+    def has_executable_statements(self) -> bool:
+        """Return True if this test case has at least one executable statement.
+
+        Returns:
+            True if any statement in this test case is executable.
+        """
+        return any(stmt.is_executable for stmt in self._statements)
 
     def size_with_assertions(self) -> int:
         """Return the number of statements plus the total number of assertions.

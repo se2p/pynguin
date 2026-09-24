@@ -261,3 +261,34 @@ def test_get_assertion_protected_variables_method():
     test_case = make_test_case(s0, s1, s2)
 
     assert test_case.get_assertion_protected_variables() == {"var_0", "var_1"}
+
+
+@pytest.mark.parametrize(
+    ("code", "bound_variable", "expected"),
+    [
+        ("pass", None, False),
+        ('"""docstring"""', None, False),
+        ("f'formatted string'", None, False),
+        ("...", None, False),
+        ("x = 1", "x", True),
+        ("foo()", None, True),
+        ("assert True", None, True),
+    ],
+    ids=["pass", "docstring", "fstring", "ellipsis", "assign", "call", "assert"],
+)
+def test_statement_is_executable(code, bound_variable, expected):
+    assert stmt(code, bound_variable=bound_variable).is_executable is expected
+
+
+def test_testcase_has_executable_statements():
+    empty_tc = tc.TestCase()
+    assert empty_tc.has_executable_statements() is False
+
+    docstring_tc = make_test_case(stmt('"""Docstring only."""'))
+    assert docstring_tc.has_executable_statements() is False
+
+    pass_tc = make_test_case(stmt("pass"))
+    assert pass_tc.has_executable_statements() is False
+
+    valid_tc = make_test_case(stmt('"""Docstring."""'), int_stmt("var_0", 1))
+    assert valid_tc.has_executable_statements() is True

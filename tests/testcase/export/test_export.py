@@ -212,6 +212,27 @@ def test_build_test_function_raw_code_fallback_invalid_syntax_suppressed(monkeyp
     assert _code_of(func) == "def test_0():\n    pass\n"
 
 
+def test_build_test_function_docstring_only_appends_pass():
+    """A test case containing only a docstring emits a function body with a pass."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt('"""A lonely docstring."""'))
+
+    func, _ = writer._build_test_function(0, test_case, [None])
+
+    assert _code_of(func) == 'def test_0():\n    """A lonely docstring."""\n    pass\n'
+
+
+def test_build_test_function_raw_code_docstring_only_appends_pass(monkeypatch):
+    """When statements() is empty and to_code() is only a docstring, pass is appended."""
+    writer = TestSuiteWriter()
+    test_case = tc.TestCase()
+    monkeypatch.setattr(test_case, "to_code", lambda: '"""Raw docstring."""\n')
+
+    func, _ = writer._build_test_function(0, test_case, [])
+
+    assert _code_of(func) == 'def test_0():\n    """Raw docstring."""\n    pass\n'
+
+
 # ---------------------------------------------------------------------------
 # to_code / to_test_function sanity (used throughout as the rendering oracle)
 # ---------------------------------------------------------------------------
@@ -854,3 +875,54 @@ def test_per_statement_exceptions_rebinds_tracer_thread_guard(subject_properties
     )
 
     assert result == [None]
+
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write: filtering out no-op test cases (issue #280)
+# ---------------------------------------------------------------------------
+
+
+def test_write_filters_out_docstring_only_and_noop_tests(tmp_path: Path):
+    """Test cases with no executable statements are filtered out during export."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    tc_valid_0 = make_test_case(int_stmt("int_0", 1))
+    tc_valid_0.get_statement(0).assertions.append(ass.ObjectAssertion("int_0", 1))
+    tc_docstring = make_test_case(stmt('"""Docstring only."""'))
+    tc_pass = tc.TestCase()
+    tc_valid_1 = make_test_case(int_stmt("int_1", 2))
+    tc_valid_1.get_statement(0).assertions.append(ass.ObjectAssertion("int_1", 2))
+
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_valid_0))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_docstring))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_pass))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_valid_1))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+    content = out_file.read_text(encoding="utf-8")
+
+    assert "def test_0():\n    int_0 = 1\n    assert int_0 == 1\n" in content
+    assert "def test_1():\n    int_1 = 2\n    assert int_1 == 2\n" in content
+    assert "def test_2():" not in content
+    assert "Docstring only" not in content
+
+
+def test_write_all_noop_tests_falls_back_to_test_empty(tmp_path: Path):
+    """If all test cases are no-ops, TestSuiteWriter falls back to test_empty."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    tc_docstring = make_test_case(stmt('"""Docstring only."""'))
+    tc_pass = tc.TestCase()
+
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_docstring))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_pass))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+    content = out_file.read_text(encoding="utf-8")
+
+    assert "def test_empty():" in content
+    assert "pass" in content
+    assert "Docstring only" not in content
+    assert "# Importing this module achieves coverage." in content

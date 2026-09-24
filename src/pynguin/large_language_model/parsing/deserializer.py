@@ -1017,6 +1017,8 @@ class CstStatementDeserializer:
                 return node, None, None, accessible, not resolved
             return None
         if isinstance(small, cst.Expr):
+            if isinstance(small.value, (cst.SimpleString, cst.FormattedString, cst.Ellipsis)):
+                return None
             _, accessible, resolved = self._infer_rhs(small.value, bound_types, imported_bindings)
             node = cst.SimpleStatementLine(body=[small])
             return node, None, None, accessible, not resolved

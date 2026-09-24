@@ -29,6 +29,8 @@ from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessi
 from pynguin.utils.naming import canonical_module_name, get_module_alias
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.testcase import Statement, TestCase
@@ -195,6 +197,45 @@ def _is_expected_exception(stmt: Statement, exc_type: type[BaseException]) -> bo
     )
 
 
+def _is_executable_cst_statement(
+    stmt: cst.CSTNode,
+) -> bool:
+    """Check whether a CST statement is executable.
+
+    Pass statements, string literal expressions (such as docstrings), and ellipsis
+    expressions are considered non-executable.
+
+    Args:
+        stmt: The CST statement to check.
+
+    Returns:
+        True if the statement is executable.
+    """
+    if isinstance(stmt, cst.BaseCompoundStatement):
+        return True
+    if isinstance(stmt, cst.Pass):
+        return False
+    if isinstance(stmt, cst.Expr):
+        return not isinstance(stmt.value, (cst.SimpleString, cst.FormattedString, cst.Ellipsis))
+    if isinstance(stmt, cst.SimpleStatementLine):
+        return any(_is_executable_cst_statement(small) for small in stmt.body)
+    return True
+
+
+def _has_executable_cst_statements(
+    body: Sequence[cst.CSTNode],
+) -> bool:
+    """Check whether a sequence of CST statements contains any executable statements.
+
+    Args:
+        body: The sequence of CST statements to check.
+
+    Returns:
+        True if at least one statement is executable.
+    """
+    return any(_is_executable_cst_statement(stmt) for stmt in body)
+
+
 class TestSuiteWriter:
     """Writes a suite of test cases as a single pytest-compatible Python file."""
 
@@ -344,6 +385,12 @@ class TestSuiteWriter:
                     body = list(cst.parse_module(raw_code).body)
         if not body:
             body = [cst.SimpleStatementLine(body=[cst.Pass()])]
+        elif not _has_executable_cst_statements(body) and not any(
+            isinstance(stmt, cst.SimpleStatementLine)
+            and any(isinstance(small, cst.Pass) for small in stmt.body)
+            for stmt in body
+        ):
+            body.append(cst.SimpleStatementLine(body=[cst.Pass()]))
 
         decorators = (_xfail_decorator(),) if is_failing else ()
 
@@ -483,9 +530,17 @@ class TestSuiteWriter:
         used_exc_types: set[type[BaseException]] = set()
 
         # Build one test function per test case chromosome in the suite
-        for idx, individual in enumerate(suite.test_case_chromosomes):
+        for individual in suite.test_case_chromosomes:
             tc = individual.test_case
             tc.remove_unused_variables()
+            exc_types = self._per_statement_exceptions(
+                tc, module_name, project_path, subject_properties
+            )
+            func, func_used_exc_types = self._build_test_function(
+                len(functions), tc, exc_types, module_aliases=isinstance_module_aliases
+            )
+            if not _has_executable_cst_statements(func.body.body):
+                continue
             if any(
                 isinstance(stmt.accessible, GenericCallableAccessibleObject)
                 and stmt.accessible.is_coroutine
@@ -494,16 +549,10 @@ class TestSuiteWriter:
                 needs_asyncio = True
             if any(stmt.mock_info is not None for stmt in tc.statements()):
                 needs_magicmock = True
-            exc_types = self._per_statement_exceptions(
-                tc, module_name, project_path, subject_properties
-            )
             if any(e is not None for e in exc_types) or any(
                 isinstance(a, FloatAssertion) for stmt in tc.statements() for a in stmt.assertions
             ):
                 needs_pytest = True
-            func, func_used_exc_types = self._build_test_function(
-                idx, tc, exc_types, module_aliases=isinstance_module_aliases
-            )
             used_exc_types.update(func_used_exc_types)
             functions.append(func)
             if not needs_pytest:
@@ -514,7 +563,7 @@ class TestSuiteWriter:
 
         # An empty suite still imports the SUT below, so coverage-by-import keeps
         # working; mark the file so the emitted import gets a coverage comment and
-        # a `# noqa: F401` (nothing in the file otherwise references the import).
+        # a noqa F401 marker (nothing in the file otherwise references the import).
         coverage_by_import_only = not functions
         if coverage_by_import_only:
             functions = [cst.parse_statement("def test_empty():\n    pass\n")]
