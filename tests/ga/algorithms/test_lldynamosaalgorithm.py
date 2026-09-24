@@ -330,3 +330,50 @@ def test_eligible_gaos_for_targeting_restricts_to_active_goals(lldynamosa_algori
         result = lldynamosa_algorithm._eligible_gaos_for_targeting()
 
     assert result == OrderedSet([active_gao])
+
+
+def test_lldynamosa_update_archive_with_initial_tests(lldynamosa_algorithm):
+    working = [MagicMock(spec=tcc.TestCaseChromosome)]
+    lldynamosa_algorithm._archive.solutions = OrderedSet(working)
+    lldynamosa_algorithm._update_archive_with_initial_tests(working)
+    lldynamosa_algorithm._goals_manager.update.assert_called_once_with(working)
+
+
+@patch("pynguin.ga.algorithms.lldynamosaalgorithm.config")
+def test_lldynamosa_generate_tests_seeds_archive_when_hybrid(mock_config, lldynamosa_algorithm):
+    mock_config.configuration.large_language_model.hybrid_initial_population = True
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+    mock_config.configuration.local_search.local_search = False
+    lldynamosa_algorithm.resources_left = MagicMock(return_value=False)
+
+    lldynamosa_algorithm._seed_archive_from_llm = MagicMock()
+    lldynamosa_algorithm._get_random_population = MagicMock(return_value=[])
+    lldynamosa_algorithm._target_initial_uncovered_goals = MagicMock()
+    lldynamosa_algorithm.before_search_start = MagicMock()
+    lldynamosa_algorithm.before_first_search_iteration = MagicMock()
+    lldynamosa_algorithm.create_test_suite = MagicMock()
+    lldynamosa_algorithm._finalize_generation = MagicMock()
+
+    lldynamosa_algorithm.generate_tests()
+
+    lldynamosa_algorithm._seed_archive_from_llm.assert_called_once()
+
+
+@patch("pynguin.ga.algorithms.lldynamosaalgorithm.config")
+def test_lldynamosa_generate_tests_no_seeding_when_not_hybrid(mock_config, lldynamosa_algorithm):
+    mock_config.configuration.large_language_model.hybrid_initial_population = False
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+    mock_config.configuration.local_search.local_search = False
+    lldynamosa_algorithm.resources_left = MagicMock(return_value=False)
+
+    lldynamosa_algorithm._seed_archive_from_llm = MagicMock()
+    lldynamosa_algorithm._get_random_population = MagicMock(return_value=[])
+    lldynamosa_algorithm._target_initial_uncovered_goals = MagicMock()
+    lldynamosa_algorithm.before_search_start = MagicMock()
+    lldynamosa_algorithm.before_first_search_iteration = MagicMock()
+    lldynamosa_algorithm.create_test_suite = MagicMock()
+    lldynamosa_algorithm._finalize_generation = MagicMock()
+
+    lldynamosa_algorithm.generate_tests()
+
+    lldynamosa_algorithm._seed_archive_from_llm.assert_not_called()
