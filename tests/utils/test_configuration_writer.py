@@ -107,6 +107,11 @@ cache_dir = "~/.cache/pynguin/llm"
 max_concurrency = 5
 llm_mode = "sync"
 
+[mock_generation]
+mock_generation_enabled = false
+proxy_cache_url = ""
+base_rules_cache_id = ""
+
 [string_statement]
 random_string_weight = 0.3
 faker_string_weight = 0.3
@@ -317,6 +322,8 @@ def expected_txt(tmp_path):
  'max_request_time=300.0, enable_thinking=False, '
  "cache_dir='~/.cache/pynguin/llm', max_concurrency=5, llm_mode=<LLMMode.SYNC: "
  "'sync'>), "
+ 'mock_generation=MockGenerationConfiguration(mock_generation_enabled=False, '
+ "proxy_cache_url='', base_rules_cache_id=''), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
  'faker_string_weight=0.3, fandango_string_weight=0.4, '
  'fandango_faker_string_weight=0.0, token_assembly_probability=0.2, '
@@ -534,6 +541,8 @@ False
 10
 --mio.initial_config.random_test_or_from_archive_probability
 0.5
+--mock_generation.mock_generation_enabled
+False
 --module_name
 dummy
 --project_path

@@ -18,6 +18,7 @@ from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
+    from pynguin.mock_generation.mock_generator import MockTemplate
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
@@ -114,6 +115,41 @@ class MLStatementInfo:
 
 
 @dataclasses.dataclass
+class MockStatementInfo:
+    """Metadata describing a mock statement.
+
+    There are no statement subclasses, so a mock is a plain :class:`Statement`
+    carrying this metadata (mirroring :class:`MLStatementInfo`). It records the
+    state the search needs to mutate the mock node without re-running the pipeline.
+
+    *setup_choices* selects one candidate per ``template.mutable_setups`` entry and
+    *parameter_values* holds each method-config parameter value. :meth:`TestCase.clone`
+    and :meth:`TestCase.append_test_case_from` propagate it, so a mock moves through
+    crossover as one unit whose setups are never recombined.
+    """
+
+    template: MockTemplate
+    setup_choices: list[int] = dataclasses.field(default_factory=list)
+    parameter_values: dict[str, object] = dataclasses.field(default_factory=dict)
+
+    def clone(self) -> MockStatementInfo:
+        """Return a copy with independent mutable state.
+
+        The template is shared (read-only after generation); the mutable
+        *setup_choices* and *parameter_values* are copied so mutating the clone
+        does not affect the original.
+
+        Returns:
+            A copy of this metadata.
+        """
+        return MockStatementInfo(
+            template=self.template,
+            setup_choices=list(self.setup_choices),
+            parameter_values=dict(self.parameter_values),
+        )
+
+
+@dataclasses.dataclass
 class Statement:
     """Wraps a single libcst statement node."""
 
@@ -123,6 +159,7 @@ class Statement:
     assertions: list[ass.Assertion] = dataclasses.field(default_factory=list)
     accessible: GenericAccessibleObject | None = None
     ml_info: MLStatementInfo | None = None
+    mock_info: MockStatementInfo | None = None
     local_search_applied: bool = dataclasses.field(default=False, compare=False, repr=False)
     """Whether local search already tried the same-datatype strategy on this exact
     value once, used to decide when to escape a local optimum by randomizing the
@@ -420,6 +457,7 @@ class TestCase:  # noqa: PLR0904
                     assertions=list(stmt.assertions),
                     accessible=stmt.accessible,
                     ml_info=stmt.ml_info,
+                    mock_info=stmt.mock_info.clone() if stmt.mock_info is not None else None,
                 )
             )
 
@@ -601,6 +639,7 @@ class TestCase:  # noqa: PLR0904
                 assertions=list(stmt.assertions),
                 accessible=stmt.accessible,
                 ml_info=stmt.ml_info,
+                mock_info=stmt.mock_info.clone() if stmt.mock_info is not None else None,
             )
             s._used_vars = stmt._used_vars  # noqa: SLF001 # propagate cached set; nodes are immutable
             cloned.append(s)
@@ -672,6 +711,12 @@ class TestCase:  # noqa: PLR0904
                 if bv in alive_vars:
                     # Variable is used later or in assertions. Not alive before this stmt.
                     alive_vars.remove(bv)
+                    alive_vars.update(_get_used_variables(stmt))
+                elif stmt.mock_info is not None:
+                    # An unused mock is left intact rather than transformed:
+                    # rewriting its multi-statement node into bare expressions would
+                    # corrupt it. Coverage-preserving minimization removes unused
+                    # mocks as whole statements instead.
                     alive_vars.update(_get_used_variables(stmt))
                 else:
                     # Variable is NOT used later. Transform Assign to Expr.

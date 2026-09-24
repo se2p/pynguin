@@ -1035,6 +1035,24 @@ class LLMConfiguration:
 
 
 @dataclasses.dataclass
+class MockGenerationConfiguration:
+    """Configuration for mock generation."""
+
+    mock_generation_enabled: bool = False
+    """Enable the mock generation pipeline. Requires proxy_cache_url or
+    PYNGUIN_PROXY_CACHE_URL to be set, otherwise falls back to default Pynguin."""
+
+    proxy_cache_url: str = ""
+    """Base URL of the proxy-cache service.
+    Leave empty to fall back to the PYNGUIN_PROXY_CACHE_URL environment variable."""
+
+    base_rules_cache_id: str = ""
+    """Optional proxy-cache identifier for pre-seeded rules from mock_rule_generator.
+    When provided, the dependency analyzer consults these rules before the LLM.
+    Omit to rely purely on the LLM classify endpoint."""
+
+
+@dataclasses.dataclass
 class LocalSearchConfiguration:
     """Configurations for local search."""
 
@@ -1207,6 +1225,11 @@ class Configuration:
 
     large_language_model: LLMConfiguration = dataclasses.field(default_factory=LLMConfiguration)
     """Large Language Model(LLM) configuration."""
+
+    mock_generation: MockGenerationConfiguration = dataclasses.field(
+        default_factory=MockGenerationConfiguration
+    )
+    """Mock generation configuration."""
 
     string_statement: StringStatementConfiguration = dataclasses.field(
         default_factory=StringStatementConfiguration

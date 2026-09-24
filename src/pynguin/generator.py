@@ -28,9 +28,10 @@ import logging
 import math
 import random
 import sys
+import time
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 try:
     import random
@@ -412,6 +413,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         )
     _track_sut_data(subject_properties, test_cluster)
     _setup_random_number_generator()
+    _setup_mock_generation(test_cluster)
 
     if config.configuration.pynguinml.ml_testing_enabled:
         _setup_ml_testing_environment(test_cluster)
@@ -419,6 +421,321 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     # Detect which LLM strategy is used
     stat.track_output_variable(RuntimeVariable.LLMStrategy, _detect_llm_strategy())
     return executor, test_cluster, wrapped_constant_provider
+
+
+def _cluster_candidate_classes(test_cluster: ModuleTestCluster) -> list[type]:
+    """External, non-exception classes an untyped parameter could resolve to.
+
+    These are the classes Pynguin can generate, filtered to third-party
+    (non-stdlib) classes, so the mock pipeline can classify the few that match an
+    untyped parameter's usage.
+
+    Args:
+        test_cluster: The test cluster whose generatable types are inspected.
+
+    Returns:
+        The list of external, non-exception classes.
+    """
+    from pynguin.analyses.typesystem import Instance  # noqa: PLC0415
+
+    classes: list[type] = []
+    for typ in test_cluster.get_all_generatable_types():
+        if not isinstance(typ, Instance):
+            continue
+        raw = typ.type.raw_type
+        if not isinstance(raw, type) or issubclass(raw, BaseException):
+            continue
+        top = (getattr(raw, "__module__", "") or "").split(".", 1)[0]
+        if top and top not in sys.stdlib_module_names and top != "builtins":
+            classes.append(raw)
+    return classes
+
+
+def _untyped_param_bindings(
+    module_path: Path, candidate_classes: list[type], mock_targets: set[str]
+) -> dict[tuple[str, str], str]:
+    """Map ``("<module>.<qualname>", param) -> boundary FQN`` for untyped params.
+
+    An untyped parameter whose attribute usage matches a class already classified
+    as a boundary (``mock_targets``) is bound directly, so the test factory can
+    inject a mock for it without type tracing.
+
+    Args:
+        module_path: Path to the module under test.
+        candidate_classes: classes an untyped parameter could match.
+        mock_targets: FQNs classified as boundaries to mock.
+
+    Returns:
+        A mapping from ``(callable key, parameter name)`` to boundary FQN.
+    """
+    from pynguin.mock_generation.untyped_param_analyzer import (  # noqa: PLC0415
+        match_param_boundaries,
+        untyped_param_bindings,
+    )
+
+    # Only match against classes that are actual boundaries, so every match is a
+    # class we intend to mock (and whose FQN form aligns with mock_targets).
+    boundary_classes = [
+        cls
+        for cls in candidate_classes
+        if f"{getattr(cls, '__module__', '')}.{getattr(cls, '__name__', '')}" in mock_targets
+    ]
+    if not boundary_classes:
+        return {}
+
+    bindings = untyped_param_bindings(module_path.read_text(encoding="utf-8"))
+    matched = match_param_boundaries(bindings, boundary_classes)
+    module_name = config.configuration.module_name
+    return {(f"{module_name}.{qualname}", param): fqn for (qualname, param), fqn in matched.items()}
+
+
+def _apply_static_setups(  # noqa: C901
+    module_path: Path,
+    mock_targets: set[str],
+    candidate_classes: list[type],
+    module_name: str,
+    untyped_bindings: dict[tuple[str, str], str],
+) -> None:
+    """Attach SUT-derived static setups to each parameter's own mock target.
+
+    For every mocked parameter, the branch-constant, iteration-default and
+    side-effect setups derived from that parameter's usage are attached to the
+    template of the target it binds to, so two dependencies in one module never
+    share setups. A bare template is created when none exists, and setups already
+    present from the proxy-cache are not duplicated.
+
+    Args:
+        module_path: SUT source file.
+        mock_targets: FQNs that will be mocked.
+        candidate_classes: classes an untyped parameter could match.
+        module_name: The module under test, used to build the callable key.
+        untyped_bindings: injector's ``(callable key, param) -> boundary FQN`` map.
+    """
+    import ast  # noqa: PLC0415
+
+    import pynguin.testcase.mock_templates_store as _mock_store  # noqa: PLC0415
+    from pynguin.mock_generation import (  # noqa: PLC0415
+        ast_helpers,
+        mock_hint_generator,
+        static_setups,
+    )
+    from pynguin.mock_generation.mock_generator import (  # noqa: PLC0415
+        MockTemplate,
+        MutableSetup,
+    )
+
+    try:
+        tree = ast.parse(module_path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return
+    alias_map = ast_helpers.import_alias_map(tree)
+    candidates = candidate_classes or []
+
+    # Index the injector's untyped bindings by callable key, as generate_templates does.
+    bindings_by_func: dict[str, dict[str, str]] = {}
+    for (callable_key, param), fqn in (untyped_bindings or {}).items():
+        bindings_by_func.setdefault(callable_key, {})[param] = fqn
+    injector_mode = untyped_bindings is not None
+
+    def template_for(fqn: str) -> MockTemplate:
+        template = _mock_store.MOCK_TEMPLATES_BY_TARGET.get(fqn)
+        if template is None:
+            dep = fqn.rsplit(".", maxsplit=1)[-1].lower()
+            template = MockTemplate(
+                dependency=dep, import_path=fqn.split(".", maxsplit=1)[0], mock_target=fqn
+            )
+            _mock_store.MOCK_TEMPLATES_BY_TARGET[fqn] = template
+        return template
+
+    for qualname, func in mock_hint_generator.iter_named_functions(tree):
+        func_key = f"{module_name}.{qualname}" if module_name else qualname
+        per_func = bindings_by_func.get(func_key, {}) if injector_mode else None
+        params_to_target = mock_hint_generator.mocked_params(
+            func, alias_map, mock_targets, candidates, per_func
+        )
+        if not params_to_target:
+            continue
+        per_param = static_setups.function_param_setups(func)
+        for param, target in params_to_target.items():
+            setups = per_param.get(param)
+            if setups is None:
+                continue
+            mutable, lines = setups
+            template = template_for(target)
+            existing = {s.target for s in template.mutable_setups}
+            for chain, cands in mutable:
+                if chain not in existing:
+                    template.mutable_setups.append(MutableSetup(target=chain, candidates=cands))
+                    existing.add(chain)
+            for line in lines:
+                if line not in template.setup_lines:
+                    template.setup_lines.append(line)
+
+
+def _setup_mock_generation(test_cluster: ModuleTestCluster) -> None:
+    """Run the mock pipeline and record its statistics.
+
+    Thin wrapper around :func:`_run_mock_generation` that always emits the
+    mock-generation runtime variables, so that baseline/disabled runs report
+    zeros and the columns stay comparable across configurations in the results.
+
+    Args:
+        test_cluster: The test cluster passed to the mock pipeline.
+    """
+    metrics = _run_mock_generation(test_cluster)
+    stat.track_output_variable(RuntimeVariable.MockTargetsTotal, metrics["targets_total"])
+    stat.track_output_variable(RuntimeVariable.MockTargetsFromRules, metrics["from_rules"])
+    stat.track_output_variable(RuntimeVariable.MockTargetsFromLLM, metrics["from_llm"])
+    stat.track_output_variable(RuntimeVariable.MockHintTargets, metrics["hint_targets"])
+    stat.track_output_variable(RuntimeVariable.MockUntypedParams, metrics["untyped_params"])
+    stat.track_output_variable(RuntimeVariable.MockGenerationTime, metrics["time"])
+
+
+def _run_mock_generation(test_cluster: ModuleTestCluster) -> dict[str, Any]:
+    """Run the mock pipeline and store templates for statement insertion.
+
+    Feeds the proxy-cache-generated mock templates to the test factory (via the shared
+    ``mock_templates_store``) so that, when Pynguin needs a value of a
+    mocked-library type, it inserts a mock statement configured from the
+    corresponding template (return values / side effects included).
+
+    Args:
+        test_cluster: supplies the classes an untyped parameter may statically
+            match, so those boundaries can be injected directly.
+
+    Returns:
+        A metrics mapping (``targets_total``, ``from_rules``, ``from_llm``,
+        ``hint_targets``, ``untyped_params``, ``time``); all-zero when mock
+        generation does not run.
+    """
+    metrics: dict[str, Any] = {
+        "targets_total": 0,
+        "from_rules": 0,
+        "from_llm": 0,
+        "hint_targets": 0,
+        "untyped_params": 0,
+        "time": 0.0,
+    }
+
+    if not config.configuration.mock_generation.mock_generation_enabled:
+        return metrics
+
+    from pynguin.mock_generation.proxy_cache_resolver import (  # noqa: PLC0415
+        get_proxy_cache_url,
+    )
+
+    if not get_proxy_cache_url():
+        _LOGGER.warning(
+            "Mock generation is enabled but no proxy-cache URL found. "
+            "Set PYNGUIN_PROXY_CACHE_URL or --proxy_cache_url. "
+            "Falling back to default Pynguin without mocks."
+        )
+        return metrics
+
+    module_name = config.configuration.module_name
+    module = sys.modules.get(module_name)
+    if module is None or not getattr(module, "__file__", None):
+        _LOGGER.warning("Mock generation: cannot locate file for %r - skipping", module_name)
+        return metrics
+
+    import pynguin.testcase.mock_templates_store as _mock_store  # noqa: PLC0415
+    from pynguin.mock_generation.mock_generator import (  # noqa: PLC0415
+        MockGenerator,
+    )
+
+    base_rules_cache_id = config.configuration.mock_generation.base_rules_cache_id or None
+
+    # Classes an untyped parameter could statically match. Computed unconditionally
+    # so untyped parameters are mocked directly (no type tracing required).
+    candidate_classes = _cluster_candidate_classes(test_cluster)
+
+    start = time.perf_counter()
+    try:
+        gen = MockGenerator(use_proxy=True)
+        gen.generate_for_module(
+            Path(str(module.__file__)),
+            base_rules_cache_id,
+            candidate_classes=candidate_classes,
+        )
+        _mock_store.MOCK_TARGETS = gen.mock_targets
+        _mock_store.MOCK_UNTYPED_PARAMS = _untyped_param_bindings(
+            Path(str(module.__file__)), candidate_classes, gen.mock_targets
+        )
+        metrics["targets_total"] = len(gen.mock_targets)
+        metrics["untyped_params"] = len(_mock_store.MOCK_UNTYPED_PARAMS)
+        metrics["from_rules"] = gen.source_counts.get("rule", 0)
+        metrics["from_llm"] = gen.source_counts.get("llm", 0)
+        sources = ", ".join(f"{k}={v}" for k, v in sorted(gen.source_counts.items())) or "none"
+        _LOGGER.info(
+            "Mock generation: %d target(s) for %s [by source: %s]: %s",
+            len(gen.mock_targets),
+            module_name,
+            sources,
+            sorted(gen.mock_targets),
+        )
+        if _mock_store.MOCK_UNTYPED_PARAMS:
+            _LOGGER.info(
+                "Mock generation: %d untyped parameter(s) bound directly: %s",
+                len(_mock_store.MOCK_UNTYPED_PARAMS),
+                sorted(_mock_store.MOCK_UNTYPED_PARAMS),
+            )
+
+        # Return-value hints so mocks reach value-dependent branches.
+        from pynguin.mock_generation import (  # noqa: PLC0415
+            mock_hint_generator,
+        )
+
+        templates = mock_hint_generator.generate_templates(
+            Path(str(module.__file__)),
+            gen.mock_targets,
+            candidate_classes,
+            module_name=module_name,
+            untyped_bindings=_mock_store.MOCK_UNTYPED_PARAMS,
+        )
+        _mock_store.MOCK_TEMPLATES_BY_TARGET = templates
+        metrics["hint_targets"] = len(templates)
+
+        # Static, deterministic return-value setups derived from the SUT itself
+        # (branch constants + iteration defaults), so bare mocks reach value-
+        # dependent branches even when the proxy-cache returned no hints.
+        _apply_static_setups(
+            Path(str(module.__file__)),
+            gen.mock_targets,
+            candidate_classes,
+            module_name,
+            _mock_store.MOCK_UNTYPED_PARAMS,
+        )
+
+        for fqn, template in templates.items():
+            for setup in template.mutable_setups:
+                _LOGGER.info(
+                    "Mock generation: mutable setup %s.%s candidates=%s",
+                    fqn,
+                    setup.target,
+                    setup.candidates,
+                )
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Mock generation setup failed: %s - proceeding without mocks", exc)
+    finally:
+        metrics["time"] = time.perf_counter() - start
+
+    return metrics
+
+
+def _count_mock_statements(generation_result: tsc.TestSuiteChromosome) -> int:
+    """Count the mock statements present in the final generated test suite.
+
+    Args:
+        generation_result: the generated test suite.
+
+    Returns:
+        The number of mock statements across all test cases.
+    """
+    return sum(
+        statement.mock_info is not None
+        for chromosome in generation_result.test_case_chromosomes
+        for statement in chromosome.test_case.statements()
+    )
 
 
 def _detect_llm_strategy() -> str:
@@ -633,6 +950,9 @@ def _track_final_metrics(
     # Collect other final stats on result
     stat.track_output_variable(RuntimeVariable.FinalLength, generation_result.length())
     stat.track_output_variable(RuntimeVariable.FinalSize, generation_result.size())
+    stat.track_output_variable(
+        RuntimeVariable.MockStatementsInserted, _count_mock_statements(generation_result)
+    )
 
     # reset whether to instrument tests and assertions as well as the SUT
     instrument_test = config.CoverageMetric.CHECKED in cov_metrics

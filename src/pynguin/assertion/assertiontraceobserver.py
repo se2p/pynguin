@@ -14,6 +14,7 @@ import logging
 import os
 import sys
 import threading
+import unittest.mock
 from collections.abc import Sized
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
@@ -124,6 +125,9 @@ def _is_blacklisted_value(value: Any) -> bool:
     """
     if value is None:
         return False
+    if isinstance(value, unittest.mock.MagicMock):
+        # Mock values do not need an assertion
+        return True
     if _is_unstable_runtime_value(value):
         return True
     typ = type(value)

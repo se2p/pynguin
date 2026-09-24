@@ -479,6 +479,7 @@ class TestSuiteWriter:
         functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         needs_pytest = False
         needs_asyncio = False
+        needs_magicmock = False
         used_exc_types: set[type[BaseException]] = set()
 
         # Build one test function per test case chromosome in the suite
@@ -491,6 +492,8 @@ class TestSuiteWriter:
                 for stmt in tc.statements()
             ):
                 needs_asyncio = True
+            if any(stmt.mock_info is not None for stmt in tc.statements()):
+                needs_magicmock = True
             exc_types = self._per_statement_exceptions(
                 tc, module_name, project_path, subject_properties
             )
@@ -565,6 +568,13 @@ class TestSuiteWriter:
         ])
         if star_stmt is not None:
             sut_import_stmts.append(star_stmt)
+        if needs_magicmock:
+            sut_import_stmts.append(
+                cast(
+                    "cst.SimpleStatementLine",
+                    cst.parse_statement("from unittest.mock import MagicMock\n"),
+                )
+            )
         if seed is not None:
             needs_pytest = True
             seed_preamble: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [

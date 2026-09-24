@@ -67,6 +67,7 @@ toml = "^0.10.2"
 psutil = "^7.1.1"
 rstr = "^3.2.2"
 openai = { version = "^1.72.0", optional = true }
+httpx = { version = "^0.28.1", optional = true }
 pyyaml = { version = "^6.0.2", optional = true }
 python-dotenv = { version = "^1.0.0", optional = true }
 numpy = { version = "^1.26.4", optional = true }
@@ -100,7 +101,7 @@ pytest-sugar = "^1.0.0"
 pytest-xdist = "^3.6.0"
 
 [tool.poetry.extras]
-openai = [ "openai", "python-dotenv", "pyyaml" ]
+openai = [ "openai", "httpx", "python-dotenv", "pyyaml" ]
 numpy = [ "numpy" ]
 typing = [ "mypy", "typing-extensions" ]
 fandango-faker = [ "faker", "fandango-fuzzer" ]
