@@ -207,8 +207,10 @@ class _RootNameCollector(cst.CSTVisitor):
     def visit_Attribute(self, node: cst.Attribute) -> bool:  # noqa: N802
         chain = _dotted_chain(node)
         if chain is not None:
-            if self._in_target == 0:
-                self.names.add(chain[0])
+            # The root of an attribute chain is always *read*, even in an
+            # assignment target: ``obj.attr = x`` requires ``obj`` to already
+            # exist. Only a bare ``Name`` target is a pure write.
+            self.names.add(chain[0])
             return False
         return True
 
@@ -995,13 +997,25 @@ class CstStatementDeserializer:
             if len(small.targets) != 1:
                 return None
             target = small.targets[0].target
-            if not isinstance(target, cst.Name):
-                return None
-            bound_type, accessible, resolved = self._infer_rhs(
-                small.value, bound_types, imported_bindings
-            )
-            node = cst.SimpleStatementLine(body=[small])
-            return node, target.value, bound_type, accessible, not resolved
+            if isinstance(target, cst.Name):
+                bound_type, accessible, resolved = self._infer_rhs(
+                    small.value, bound_types, imported_bindings
+                )
+                node = cst.SimpleStatementLine(body=[small])
+                return node, target.value, bound_type, accessible, not resolved
+            if isinstance(target, cst.Attribute):
+                # An attribute-target assignment (e.g. ``mock.return_value = x``)
+                # mutates an existing object rather than binding a new variable;
+                # keep it as a raw statement with no bound variable. Its receiver
+                # root is checked against the scope by the caller (attribute-chain
+                # roots are collected as reads), so a mutation of an undefined
+                # object is still dropped.
+                _, accessible, resolved = self._infer_rhs(
+                    small.value, bound_types, imported_bindings
+                )
+                node = cst.SimpleStatementLine(body=[small])
+                return node, None, None, accessible, not resolved
+            return None
         if isinstance(small, cst.Expr):
             _, accessible, resolved = self._infer_rhs(small.value, bound_types, imported_bindings)
             node = cst.SimpleStatementLine(body=[small])
@@ -1238,6 +1252,27 @@ def _format_counts(counts: collections.Counter[Disposition]) -> str:
     return ", ".join(f"{name}={n}" for name, n in non_zero) or "no statements"
 
 
+def _parse_module_level_imports(import_sources: Sequence[str]) -> list[cst.SimpleStatementLine]:
+    """Parse rewriter-extracted top-level import sources into libcst statement lines.
+
+    Args:
+        import_sources: the unparsed import statements surfaced by
+            :func:`rewrite_tests` (see :class:`RewrittenTests`).
+
+    Returns:
+        one ``SimpleStatementLine`` per parseable top-level import statement.
+    """
+    lines: list[cst.SimpleStatementLine] = []
+    for import_source in import_sources:
+        try:
+            parsed = cst.parse_statement(import_source)
+        except cst.ParserSyntaxError:  # pragma: no cover - ast already validated it
+            continue
+        if isinstance(parsed, cst.SimpleStatementLine):
+            lines.append(parsed)
+    return lines
+
+
 def deserialize_code_to_testcases(
     test_file_contents: str,
     test_cluster: TestCluster,
@@ -1266,11 +1301,18 @@ def deserialize_code_to_testcases(
 
     try:
         rewritten = rewrite_tests(test_file_contents)
-        joined = "\n\n".join(rewritten.values())
+        joined = "\n\n".join(rewritten.functions.values())
         module = cst.parse_module(joined)
     except BaseException as e:  # noqa: BLE001
         logger.error(e)
         return DeserializationResult([], ParseStatus.UNPARSEABLE, collections.Counter())
+
+    # ``rewrite_tests`` processes each test function in isolation and drops
+    # module-level imports (e.g. ``from unittest.mock import patch``). It surfaces
+    # them separately so they can be hoisted into the functions that reference them;
+    # without this, mock/context-manager statements are dropped as references to
+    # unknown names.
+    module_level_imports = _parse_module_level_imports(rewritten.module_imports)
 
     deserializer = CstStatementDeserializer(test_cluster, create_assertions=create_assertions)
     test_cases: list[tc.TestCase] = []
@@ -1281,7 +1323,9 @@ def deserialize_code_to_testcases(
             continue
         if not (stmt_.name.value.startswith(("test_", "seed_test_"))):
             continue
-        function_result = deserializer.deserialize_function(stmt_)
+        function_result = deserializer.deserialize_function(
+            stmt_, module_level_imports=module_level_imports
+        )
         counts.update(function_result.counts)
         testcase = function_result.test_case
         if testcase.size() > 0:
