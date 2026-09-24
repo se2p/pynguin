@@ -86,10 +86,7 @@ def _is_main(node: ast.If) -> bool:
 def _is_type_checking(node: ast.If) -> bool:
     """Check for 'if TYPE_CHECKING:' or 'if typing.TYPE_CHECKING:' blocks."""
     return (isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING") or (
-        isinstance(node.test, ast.Attribute)
-        and node.test.attr == "TYPE_CHECKING"
-        and isinstance(node.test.value, ast.Name)
-        and node.test.value.id in {"typing", "types"}
+        isinstance(node.test, ast.Attribute) and node.test.attr == "TYPE_CHECKING"
     )
 
 
@@ -136,7 +133,7 @@ class ModuleAstInfo:
             iter(
                 scope
                 for scope in nodes_of_class(self.module_ast, SCOPE_CLASSES)
-                if scope_line_range(scope)[0] == lineno
+                if scope_line_range(scope)[0] == lineno or getattr(scope, "lineno", None) == lineno
             ),
             None,
         )
@@ -183,7 +180,7 @@ class ModuleAstInfo:
         if isinstance(scope_node, ast.Module):
             full_scope_name = ""
         else:
-            lineno = getattr(scope_node, "lineno", 1)
+            lineno = scope_line_range(scope_node)[0]
             full_scope_name = (
                 f"{parent_scope}.{node_scope_name}" if parent_scope else node_scope_name
             )
@@ -268,13 +265,12 @@ class ModuleAstInfo:
             The iterable of lines in such blocks.
         """
         for node in nodes_of_class(ast_node, ast.If):
-            if _is_main(node):
-                start, end = scope_line_range(node)
-                yield from range(start, end + 1)
-                continue
-
-            if _is_type_checking(node):
-                start, end = scope_line_range(node)
+            if _is_main(node) or _is_type_checking(node):
+                start = scope_line_range(node)[0]
+                if node.orelse:
+                    end = scope_line_range(node.body[-1])[1]
+                else:
+                    end = scope_line_range(node)[1]
                 yield from range(start, end + 1)
 
     @classmethod
@@ -1473,7 +1469,11 @@ class InstrumentationTransformer:
             else None
         )
 
-        if ast_info is not None and not ast_info.should_be_covered():
+        if ast_info is not None:
+            if not ast_info.should_be_covered():
+                self._logger.debug("Skipping instrumentation of %s", code.co_name)
+                return code
+        elif module_ast_info is not None and code.co_firstlineno in module_ast_info.no_cover_lines:
             self._logger.debug("Skipping instrumentation of %s", code.co_name)
             return code
 

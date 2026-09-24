@@ -147,7 +147,13 @@ def scope_line_range(node: ast.AST) -> tuple[int, int]:
         start = node.pattern.lineno
         end = node.body[-1].end_lineno or start
         return start, end
-    start = getattr(node, "lineno", 1)
+    if (
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.decorator_list
+    ):
+        start = node.decorator_list[0].lineno
+    else:
+        start = getattr(node, "lineno", 1)
     end = getattr(node, "end_lineno", start) or start
     return start, end
 

@@ -35,6 +35,26 @@ def test_scope_line_range_function():
     assert scope_line_range(module.body[0]) == (1, 2)
 
 
+def test_scope_line_range_decorated_function():
+    module = ast.parse("@dec\ndef foo():\n    pass\n")
+    assert scope_line_range(module.body[0]) == (1, 3)
+
+
+def test_scope_line_range_decorated_async_function():
+    module = ast.parse("@dec\nasync def foo():\n    pass\n")
+    assert scope_line_range(module.body[0]) == (1, 3)
+
+
+def test_scope_line_range_decorated_class():
+    module = ast.parse("@dec\nclass Bar:\n    pass\n")
+    assert scope_line_range(module.body[0]) == (1, 3)
+
+
+def test_scope_line_range_multi_decorator():
+    module = ast.parse("@dec1\n@dec2\ndef foo():\n    pass\n")
+    assert scope_line_range(module.body[0]) == (1, 4)
+
+
 @pytest.mark.parametrize(
     "source",
     [
