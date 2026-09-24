@@ -26,6 +26,7 @@ from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
     parse_assertion,
 )
+from pynguin.large_language_model.parsing.rewriter import RewrittenTests
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericFunction,
@@ -246,7 +247,7 @@ def test_incomplete():
 def test_deserializer_handles_invalid_code_returns_unparseable(test_cluster):
     with patch(
         "pynguin.large_language_model.parsing.deserializer.rewrite_tests",
-        return_value={"test_x": "def test_x(:"},
+        return_value=RewrittenTests(functions={"test_x": "def test_x(:"}, module_imports=[]),
     ):
         result = deserialize_code_to_testcases("irrelevant source", test_cluster)
     assert result.status is ParseStatus.UNPARSEABLE

@@ -12,6 +12,7 @@ https://github.com/microsoft/codamosa
 """
 
 import ast
+import dataclasses
 import logging
 import re
 import sys
@@ -610,7 +611,35 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         return node
 
 
-def rewrite_tests(source: str) -> dict[str, str]:
+@dataclasses.dataclass
+class RewrittenTests:
+    """The result of rewriting an LLM response into Pynguin-parseable form.
+
+    ``rewrite_tests`` flattens each test into a standalone function, which discards
+    the module-level imports the tests rely on (e.g. ``from unittest.mock import
+    patch``). Those imports are surfaced separately here so the deserializer can
+    re-attach the ones each test actually references.
+    """
+
+    #: Rewritten test source keyed by function name.
+    functions: dict[str, str]
+    #: Unparsed source of each top-level import statement, in source order.
+    module_imports: list[str]
+
+
+def _extract_module_level_imports(module_node: ast.Module) -> list[str]:
+    """Return the unparsed source of each top-level import in *module_node*."""
+    imports: list[str] = []
+    for node in module_node.body:
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            try:
+                imports.append(ast.unparse(node))
+            except AttributeError as e:  # pragma: no cover - unparse is total for imports
+                logger.info("Got error: %s\nwhen trying to unparse a module-level import", e)
+    return imports
+
+
+def rewrite_tests(source: str) -> RewrittenTests:
     """Rewrite the tests in `source` so that they can be parsed.
 
     By AstToTestCaseTransformer.
@@ -619,7 +648,8 @@ def rewrite_tests(source: str) -> dict[str, str]:
         source: the source code containing tests.
 
     Returns:
-        a dictionary with function names as keys and rewritten tests as values.
+        the rewritten tests together with the top-level imports they were extracted
+        from (see :class:`RewrittenTests`).
     """
     # Sometimes LLM returns function definition with only a comment inside
     # which results in syntax error.
@@ -629,37 +659,10 @@ def rewrite_tests(source: str) -> dict[str, str]:
     source_without_empty_methods = re.sub(empty_function_pattern, "\n", source)
     source_fixed = fixup_result(source_without_empty_methods)
     module_node: ast.Module = ast.parse(source_fixed)
+    module_imports = _extract_module_level_imports(module_node)
     function_definitions = extract_function_defs(module_node)
-    return process_function_defs(function_definitions, module_node)
-
-
-def extract_module_level_imports(source: str) -> list[str]:
-    """Return the source of each top-level import statement in ``source``.
-
-    The LLM emits ``import``/``from ... import`` statements at module level
-    (e.g. ``from unittest.mock import patch``, ``import tempfile``). ``rewrite_tests``
-    processes each test function in isolation and therefore discards them; they are
-    collected here separately so the deserializer can re-attach the ones a given
-    test actually references.
-
-    Args:
-        source: the source code containing tests.
-
-    Returns:
-        the unparsed source of each top-level import statement, in source order.
-    """
-    try:
-        module_node = ast.parse(fixup_result(source))
-    except SyntaxError:
-        return []
-    imports: list[str] = []
-    for node in module_node.body:
-        if isinstance(node, ast.Import | ast.ImportFrom):
-            try:
-                imports.append(ast.unparse(node))
-            except AttributeError as e:  # pragma: no cover - unparse is total for imports
-                logger.info("Got error: %s\nwhen trying to unparse a module-level import", e)
-    return imports
+    functions = process_function_defs(function_definitions, module_node)
+    return RewrittenTests(functions=functions, module_imports=module_imports)
 
 
 def rewrite_test(fn_def_node: ast.FunctionDef):

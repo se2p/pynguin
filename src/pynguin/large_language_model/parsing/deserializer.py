@@ -28,10 +28,7 @@ import libcst as cst
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.testcase as tc
 from pynguin import configuration as config
-from pynguin.large_language_model.parsing.rewriter import (
-    extract_module_level_imports,
-    rewrite_tests,
-)
+from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericFunction,
@@ -1255,17 +1252,18 @@ def _format_counts(counts: collections.Counter[Disposition]) -> str:
     return ", ".join(f"{name}={n}" for name, n in non_zero) or "no statements"
 
 
-def _parse_module_level_imports(source: str) -> list[cst.SimpleStatementLine]:
-    """Parse the top-level imports of *source* into libcst statement lines.
+def _parse_module_level_imports(import_sources: Sequence[str]) -> list[cst.SimpleStatementLine]:
+    """Parse rewriter-extracted top-level import sources into libcst statement lines.
 
     Args:
-        source: the original (pre-rewrite) LLM source.
+        import_sources: the unparsed import statements surfaced by
+            :func:`rewrite_tests` (see :class:`RewrittenTests`).
 
     Returns:
         one ``SimpleStatementLine`` per parseable top-level import statement.
     """
     lines: list[cst.SimpleStatementLine] = []
-    for import_source in extract_module_level_imports(source):
+    for import_source in import_sources:
         try:
             parsed = cst.parse_statement(import_source)
         except cst.ParserSyntaxError:  # pragma: no cover - ast already validated it
@@ -1303,18 +1301,18 @@ def deserialize_code_to_testcases(
 
     try:
         rewritten = rewrite_tests(test_file_contents)
-        joined = "\n\n".join(rewritten.values())
+        joined = "\n\n".join(rewritten.functions.values())
         module = cst.parse_module(joined)
     except BaseException as e:  # noqa: BLE001
         logger.error(e)
         return DeserializationResult([], ParseStatus.UNPARSEABLE, collections.Counter())
 
     # ``rewrite_tests`` processes each test function in isolation and drops
-    # module-level imports (e.g. ``from unittest.mock import patch``). Recover them
-    # from the original source so they can be hoisted into the functions that
-    # reference them; without this, mock/context-manager statements are dropped as
-    # references to unknown names.
-    module_level_imports = _parse_module_level_imports(test_file_contents)
+    # module-level imports (e.g. ``from unittest.mock import patch``). It surfaces
+    # them separately so they can be hoisted into the functions that reference them;
+    # without this, mock/context-manager statements are dropped as references to
+    # unknown names.
+    module_level_imports = _parse_module_level_imports(rewritten.module_imports)
 
     deserializer = CstStatementDeserializer(test_cluster, create_assertions=create_assertions)
     test_cases: list[tc.TestCase] = []

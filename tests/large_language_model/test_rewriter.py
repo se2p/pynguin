@@ -94,11 +94,11 @@ class TestAttrAccess:
     ],
 )
 def test_rewrite_tests(llm_output, expected_snippet):
-    result_dict = rewriter.rewrite_tests(llm_output)
-    assert isinstance(result_dict, dict)
-    assert any("test_" in fn_name for fn_name in result_dict)
+    result = rewriter.rewrite_tests(llm_output)
+    assert isinstance(result.functions, dict)
+    assert any("test_" in fn_name for fn_name in result.functions)
 
-    final_code = "\n".join(result_dict.values())
+    final_code = "\n".join(result.functions.values())
     for line in expected_snippet:
         assert line in final_code
 
@@ -123,7 +123,7 @@ class TestCounter:
         r = c.bump()
         assert r == 1
 """
-    final_code = "\n".join(rewriter.rewrite_tests(llm_output).values())
+    final_code = "\n".join(rewriter.rewrite_tests(llm_output).functions.values())
     # The nested class must keep its instance-attribute access untouched.
     assert "self.n = 0" in final_code
     assert "self.n += 1" in final_code
@@ -145,7 +145,7 @@ class TestFoo:
         result = self.value + 1
         assert result == 6
 """
-    final_code = "\n".join(rewriter.rewrite_tests(llm_output).values())
+    final_code = "\n".join(rewriter.rewrite_tests(llm_output).functions.values())
     assert "result = value + 1" in final_code
     assert "self.value" not in final_code
 
@@ -159,7 +159,7 @@ class TestFoo:
             return self.name
         assert describe is not None
 """
-    final_code = "\n".join(rewriter.rewrite_tests(llm_output).values())
+    final_code = "\n".join(rewriter.rewrite_tests(llm_output).functions.values())
     assert "return self.name" in final_code
 
 
@@ -549,7 +549,7 @@ def test_visit_async_methods():  # noqa: PLR0914
     assert isinstance(result, ast.Match)
 
 
-def test_extract_module_level_imports_returns_top_level_imports():
+def test_rewrite_tests_surfaces_top_level_imports():
     source = (
         "from unittest.mock import patch\n"
         "import tempfile\n"
@@ -559,19 +559,19 @@ def test_extract_module_level_imports_returns_top_level_imports():
         "    import json\n"  # not top-level -> ignored
         "    x = 1\n"
     )
-    assert rewriter.extract_module_level_imports(source) == [
+    assert rewriter.rewrite_tests(source).module_imports == [
         "from unittest.mock import patch",
         "import tempfile",
         "import os",
     ]
 
 
-def test_extract_module_level_imports_ignores_non_imports():
+def test_rewrite_tests_surfaces_no_imports_when_there_are_none():
     source = "x = 1\n\ndef test_foo():\n    y = 2\n"
-    assert rewriter.extract_module_level_imports(source) == []
+    assert rewriter.rewrite_tests(source).module_imports == []
 
 
-def test_extract_module_level_imports_tolerates_trailing_syntax_error():
+def test_rewrite_tests_surfaces_imports_despite_trailing_syntax_error():
     source = (
         "import tempfile\n"
         "\n"
@@ -579,4 +579,4 @@ def test_extract_module_level_imports_tolerates_trailing_syntax_error():
         "    x = 1\n"
         "def test_broken(:\n"  # truncated / broken tail, as with early LLM abort
     )
-    assert "import tempfile" in rewriter.extract_module_level_imports(source)
+    assert "import tempfile" in rewriter.rewrite_tests(source).module_imports

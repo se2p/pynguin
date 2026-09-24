@@ -43,7 +43,10 @@ graph, deserialization is mostly "parse + validate + normalize" rather than
   create_assertions=None) -> DeserializationResult`**: the main entry
   point. Runs `rewrite_tests()` first, then `cst.parse_module`s the joined
   result and hands every top-level `test_*`/`seed_test_*` `FunctionDef` to a
-  `CstStatementDeserializer`. Returns a result with `status=UNPARSEABLE`
+  `CstStatementDeserializer`. The module-level imports that `rewrite_tests`
+  surfaces (`RewrittenTests.module_imports`) are passed as
+  `module_level_imports=` so each function's referenced imports are hoisted in
+  (mirrors the seeding path). Returns a result with `status=UNPARSEABLE`
   (empty `test_cases`/`counts`) only if the rewritten source cannot be parsed
   as libcst at all; a test function that admits zero statements is simply
   dropped. `create_assertions` defaults to whether
@@ -134,7 +137,8 @@ Type string parsing utilities for inference results.
 
 1. **LLM Output** → Extract Python code blocks
 2. **Rewriting** (`rewrite_tests`) → Normalize to Pynguin format (flatten
-   classes, extract sub-expressions/hoist literals)
+   classes, extract sub-expressions/hoist literals); returns a `RewrittenTests`
+   with the per-function source plus the discarded module-level imports
 3. **Deserialization** (`deserialize_code_to_testcases`) → Parse into
    `TestCase`/`Statement` objects, resolving calls, renaming variables to
    `var_N`, and lifting supported `assert`s into `Assertion`s
