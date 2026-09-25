@@ -104,7 +104,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
             llm_chromosomes = self.target_uncovered_callables()
-            self._population = llm_chromosomes + self._population
+            working_chromosomes = self._filter_working_test_cases(llm_chromosomes)
+            self._population = working_chromosomes + self._population
             self._archive.update(self._population)
 
             coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
@@ -137,6 +138,11 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             return
         working_chromosomes = self._filter_working_test_cases(llm_chromosomes)
         if not working_chromosomes:
+            self._logger.warning(
+                "All %d initial LLM test cases raised exceptions or timed out; "
+                "archive will not be seeded with LLM test cases.",
+                len(llm_chromosomes),
+            )
             return
         self._update_archive_with_initial_tests(working_chromosomes)
 
@@ -148,6 +154,10 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         """
         llm_query_results = self.model.generate_tests_for_module_under_test()
         if llm_query_results is None:
+            self._logger.warning(
+                "Initial LLM query for the module under test returned no results "
+                "(timeout or error); archive will not be seeded with LLM test cases."
+            )
             return []
         chromosomes = self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
             llm_query_results=llm_query_results,
