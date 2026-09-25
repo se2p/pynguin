@@ -1132,20 +1132,21 @@ def test_normalize_sut_references_handles_relative_imports():
     assert "res = unix_.get_localzone()" in code
 
 
-def test_integration_tzlocal_unix_deserialization(monkeypatch):
-    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
-    parsed = parse_module("tzlocal.unix")
+def test_integration_submodule_package_deserialization(monkeypatch):
+    module_name = "tests.fixtures.examples.submodule_package.target"
+    monkeypatch.setattr(config.configuration, "module_name", module_name)
+    parsed = parse_module(module_name)
     cluster = analyse_module(parsed)
 
     code = """
-from . import utils
-import tzlocal.unix as unix
+from . import helper
+import tests.fixtures.examples.submodule_package.target as target
 
-def test_localzone():
-    res = unix.get_localzone()
+def test_target():
+    res = target.target_function()
 
 def test_helper():
-    res = utils.get_tz_offset(None)
+    res = helper.helper_function(None)
 """
     result = deserialize_code_to_testcases(code, cluster)
     assert result.status is ParseStatus.OK
