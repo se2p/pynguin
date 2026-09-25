@@ -110,9 +110,9 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, llmosa_algori
     llmosa_algorithm.create_test_suite = MagicMock(
         side_effect=[test_suite_before, test_suite_after]
     )
-    llmosa_algorithm.target_uncovered_callables = MagicMock(
-        return_value=[MagicMock(spec=tcc.TestCaseChromosome)]
-    )
+    raw_chromosomes = [MagicMock(spec=tcc.TestCaseChromosome)]
+    llmosa_algorithm.target_uncovered_callables = MagicMock(return_value=raw_chromosomes)
+    llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=raw_chromosomes)
 
     # Execute
     with patch.object(stat, "track_output_variable") as mock_track:
@@ -120,10 +120,38 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, llmosa_algori
 
     # Assert
     llmosa_algorithm.target_uncovered_callables.assert_called_once()
+    llmosa_algorithm._filter_working_test_cases.assert_called_once_with(raw_chromosomes)
     assert len(llmosa_algorithm._population) == 1
     llmosa_algorithm._archive.update.assert_called_once_with(llmosa_algorithm._population)
     mock_track.assert_any_call(RuntimeVariable.CoverageBeforeLLMCall, 0.5)
     mock_track.assert_any_call(RuntimeVariable.CoverageAfterLLMCall, 0.7)
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_target_initial_uncovered_goals_filters_crashing_tests(mock_config, llmosa_algorithm):
+    """Tests that crashing/timing-out LLM test cases are dropped before population merge."""
+    # Setup
+    mock_config.configuration.large_language_model.call_llm_for_uncovered_targets = True
+    test_suite = MagicMock(spec=tsc.TestSuiteChromosome)
+    test_suite.get_coverage.return_value = 0.5
+    llmosa_algorithm.create_test_suite = MagicMock(return_value=test_suite)
+
+    raw_chromosomes = [
+        MagicMock(spec=tcc.TestCaseChromosome),
+        MagicMock(spec=tcc.TestCaseChromosome),
+    ]
+    llmosa_algorithm.target_uncovered_callables = MagicMock(return_value=raw_chromosomes)
+    # Only the second chromosome survives filtering (e.g. the first crashed).
+    llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=raw_chromosomes[1:])
+    llmosa_algorithm._population = []
+
+    # Execute
+    with patch.object(stat, "track_output_variable"):
+        llmosa_algorithm._target_initial_uncovered_goals()
+
+    # Assert: only the filtered, working chromosome made it into the population.
+    llmosa_algorithm._filter_working_test_cases.assert_called_once_with(raw_chromosomes)
+    assert llmosa_algorithm._population == raw_chromosomes[1:]
 
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
@@ -531,6 +559,8 @@ def test_generate_initial_llm_test_cases_none(llmosa_algorithm):
     llmosa_algorithm.model.generate_tests_for_module_under_test.return_value = None
     result = llmosa_algorithm._generate_initial_llm_test_cases()
     assert result == []
+    # The silent-timeout failure mode must be logged, not swallowed.
+    llmosa_algorithm._logger.warning.assert_called_once()
 
 
 def test_generate_initial_llm_test_cases_success(llmosa_algorithm):
@@ -619,6 +649,8 @@ def test_seed_archive_from_llm_all_crashing(llmosa_algorithm):
     llmosa_algorithm._seed_archive_from_llm()
 
     llmosa_algorithm._update_archive_with_initial_tests.assert_not_called()
+    # The silent-failure mode (all seeded tests crashed) must be logged.
+    llmosa_algorithm._logger.warning.assert_called_once()
 
 
 def test_get_random_chromosome(llmosa_algorithm):
@@ -666,3 +698,37 @@ def test_generate_tests_seeds_archive_when_hybrid(mock_config, llmosa_algorithm)
     llmosa_algorithm.generate_tests()
 
     llmosa_algorithm._seed_archive_from_llm.assert_called_once()
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_generate_tests_protects_llm_seeded_goals_from_random_population(
+    mock_config, llmosa_algorithm
+):
+    """Regression test: the initial random population must not evict LLM seeds.
+
+    The LLM already seeded solutions into the archive for this run; the random
+    population generated right afterwards must not be able to evict them.
+    """
+    mock_config.configuration.large_language_model.hybrid_initial_population = True
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+    llmosa_algorithm.resources_left = MagicMock(return_value=False)
+
+    goal_covered_by_llm = MagicMock()
+    llmosa_algorithm._archive = MagicMock()
+    llmosa_algorithm._archive.covered_goals = OrderedSet([goal_covered_by_llm])
+
+    random_population = [MagicMock(spec=tcc.TestCaseChromosome)]
+    llmosa_algorithm._seed_archive_from_llm = MagicMock()
+    llmosa_algorithm._get_random_population = MagicMock(return_value=random_population)
+    llmosa_algorithm._target_initial_uncovered_goals = MagicMock()
+    llmosa_algorithm._compute_dominance = MagicMock()
+    llmosa_algorithm.before_search_start = MagicMock()
+    llmosa_algorithm.before_first_search_iteration = MagicMock()
+    llmosa_algorithm.create_test_suite = MagicMock()
+    llmosa_algorithm._finalize_generation = MagicMock()
+
+    llmosa_algorithm.generate_tests()
+
+    llmosa_algorithm._archive.update.assert_called_once_with(
+        random_population, protected=OrderedSet([goal_covered_by_llm])
+    )
