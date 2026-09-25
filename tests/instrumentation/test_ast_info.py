@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from pynguin.configuration import ToCoverConfiguration
+from pynguin.instrumentation import transformer
 from pynguin.instrumentation.transformer import (
     ModuleAstInfo,
     _is_type_checking,  # noqa: PLC2701
@@ -492,6 +493,52 @@ def test_get_scope_line_one_definition_not_shadowed_by_module(tmp_path):
     assert scope is not None
     assert isinstance(scope.ast, ast.FunctionDef)
     assert scope.ast.name == "foo"
+
+
+def test_ast_info_walks_ast_once_per_scope(tmp_path, monkeypatch):
+    # The instrumentation queries every instruction's line, so the AST must not be
+    # walked again for each query (see issue about slow instrumentation of large modules).
+    module_file = tmp_path / "mod.py"
+    module_file.write_text(
+        "def foo(x):\n"
+        "    if x:\n"
+        "        return 1\n"
+        "    else:  # pragma: no cover\n"
+        "        return 2\n"
+        "\n"
+        "def bar(y):\n"
+        "    for i in y:\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+    module_ast_info = ModuleAstInfo.from_path(
+        str(module_file), to_cover_config=ToCoverConfiguration()
+    )
+    assert module_ast_info is not None
+
+    calls = []
+    original = transformer.nodes_of_class
+
+    def counting_nodes_of_class(tree, types):
+        calls.append(tree)
+        return original(tree, types)
+
+    monkeypatch.setattr(transformer, "nodes_of_class", counting_nodes_of_class)
+
+    scopes = [module_ast_info.get_scope(line) for line in (0, 1, 7, 1, 7)]
+    assert all(scope is not None for scope in scopes)
+    assert calls == [module_ast_info.module_ast]
+
+    foo = module_ast_info.get_scope(1)
+    assert foo is not None
+    calls.clear()
+    results = [foo.should_cover_line(line) for line in (2, 3, 5, 3, 5, 2)]
+    conditionals = [foo.should_cover_conditional_statement(line) for line in (2, 4, 2, 4)]
+
+    assert results == [True, True, False, True, False, True]
+    assert conditionals == [False, False, False, False]
+    assert len(calls) == 2
+    assert all(tree is foo.ast for tree in calls)
 
 
 def test_parse_line_ranges_single():

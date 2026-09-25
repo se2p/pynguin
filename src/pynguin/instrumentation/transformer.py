@@ -23,6 +23,7 @@ import logging
 import re
 from abc import abstractmethod
 from dataclasses import dataclass
+from functools import cached_property
 from types import CodeType
 from typing import TYPE_CHECKING, Protocol, TypeAlias, cast
 
@@ -129,19 +130,44 @@ class ModuleAstInfo:
         Returns:
             The AST info of the scope, or None if there are no scope at lineno
         """
-        ast_scope = next(
-            iter(
-                scope
-                for scope in nodes_of_class(self.module_ast, SCOPE_CLASSES)
-                if scope_line_range(scope)[0] == lineno or getattr(scope, "lineno", None) == lineno
-            ),
-            None,
-        )
+        ast_scope = self._scopes_by_line.get(lineno)
 
         if ast_scope is None:
             return None
 
-        return AstInfo(ast=cast("ScopeNode", ast_scope), module=self)
+        return AstInfo(ast=ast_scope, module=self)
+
+    @cached_property
+    def _scopes_by_line(self) -> dict[int, ScopeNode]:
+        """Map each line number to the first scope (in preorder) that starts at it.
+
+        A scope starts at a line if its first line (including decorators) or the line
+        of its definition keyword is that line. Computed once per module so that
+        looking up the scope of each code object does not walk the whole AST.
+
+        Returns:
+            A mapping from line numbers to scope nodes.
+        """
+        scopes: dict[int, ScopeNode] = {}
+        for scope in nodes_of_class(self.module_ast, SCOPE_CLASSES):
+            scopes.setdefault(scope_line_range(scope)[0], cast("ScopeNode", scope))
+            if (scope_lineno := getattr(scope, "lineno", None)) is not None:
+                scopes.setdefault(scope_lineno, cast("ScopeNode", scope))
+        return scopes
+
+    @cached_property
+    def definition_line_ranges(self) -> tuple[tuple[int, int], ...]:
+        """The line ranges of all functions and classes of the module.
+
+        Returns:
+            A tuple of (start, end) line ranges.
+        """
+        return tuple(
+            scope_line_range(definition_node)
+            for definition_node in nodes_of_class(
+                self.module_ast, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            )
+        )
 
     @classmethod
     def _find_lines_in_source_code(
@@ -435,14 +461,50 @@ class AstInfo:
             return True
 
         return self._in_cover(start_line) and all(
-            self._in_cover(scope_line_range(definition_node)[0])
-            for definition_node in nodes_of_class(
-                self.module.module_ast, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-            )
-            if scope_line_range(definition_node)[0]
-            <= start_line
-            <= scope_line_range(definition_node)[1]
+            self._in_cover(definition_start)
+            for definition_start, definition_end in self.module.definition_line_ranges
+            if definition_start <= start_line <= definition_end
         )
+
+    @cached_property
+    def _branch_nodes(
+        self,
+    ) -> tuple[tuple[int, int, _ast.AST], ...]:
+        """The branching nodes of the scope together with their line ranges.
+
+        Returns:
+            A tuple of (start, end, node) triples.
+        """
+        return tuple(
+            (*scope_line_range(branch_node), branch_node)
+            for branch_node in nodes_of_class(
+                self.ast, (ast.If, ast.For, ast.While, ast.Match, ast.Try, TryStar)
+            )
+        )
+
+    @cached_property
+    def _conditional_nodes(
+        self,
+    ) -> tuple[tuple[int, _ast.AST], ...]:
+        """The conditional nodes of the scope together with their start lines.
+
+        Returns:
+            A tuple of (start, node) pairs.
+        """
+        return tuple(
+            (scope_line_range(branch_node)[0], branch_node)
+            for branch_node in nodes_of_class(
+                self.ast, (ast.If, ast.For, ast.While, ast.match_case)
+            )
+        )
+
+    @cached_property
+    def _cover_line_cache(self) -> dict[int, bool]:
+        return {}
+
+    @cached_property
+    def _cover_conditional_statement_cache(self) -> dict[int, bool]:
+        return {}
 
     def should_cover_line(self, lineno: int) -> bool:
         """Check if a line number should be covered.
@@ -459,14 +521,23 @@ class AstInfo:
             True if it should be covered, False otherwise.
             Defaults to True if there is no instruction at lineno.
         """
+        # The instrumentation asks for every instruction, so the result is cached per line
+        # to keep the instrumentation time linear in the size of the module.
+        cache = self._cover_line_cache
+        if (result := cache.get(lineno)) is None:
+            result = cache[lineno] = self._compute_should_cover_line(lineno)
+        return result
+
+    def _compute_should_cover_line(self, lineno: int) -> bool:
         if not self._in_cover(lineno):
             return False
 
-        for branch_node in nodes_of_class(
-            self.ast, (ast.If, ast.For, ast.While, ast.Match, ast.Try, TryStar)
-        ):
+        # Only excluded lines can make a line in cover not covered.
+        if not self.module.no_cover_lines:
+            return True
+
+        for start, end, branch_node in self._branch_nodes:
             # Skip nodes that do not contains the lineno
-            start, end = scope_line_range(branch_node)
             if lineno < start or end < lineno:
                 continue
 
@@ -610,8 +681,13 @@ class AstInfo:
             True if it should be covered, False otherwise.
             Defaults to True if there is no conditional statement at lineno.
         """
-        for branch_node in nodes_of_class(self.ast, (ast.If, ast.For, ast.While, ast.match_case)):
-            start = scope_line_range(branch_node)[0]
+        cache = self._cover_conditional_statement_cache
+        if (result := cache.get(lineno)) is None:
+            result = cache[lineno] = self._compute_should_cover_conditional_statement(lineno)
+        return result
+
+    def _compute_should_cover_conditional_statement(self, lineno: int) -> bool:
+        for start, branch_node in self._conditional_nodes:
             if start == lineno or (
                 isinstance(branch_node, ast.If | ast.For | ast.While)
                 and lineno in self._else_lines(branch_node)
