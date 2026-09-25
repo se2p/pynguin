@@ -179,6 +179,54 @@ def _public_sut_names(module: object, module_alias: str) -> list[str]:
     return sorted(name for name in dir(module) if not name.startswith("_") and name != module_alias)
 
 
+def _build_sut_import_statements(
+    module_name: str,
+    project_path: str | None = None,
+) -> list[cst.SimpleStatementLine]:
+    """Build the CST import statements for the SUT.
+
+    These statements are emitted at the top of the generated test file and also
+    executed into the namespace of the dry-run statement execution so that both
+    execution environments are identical and cannot drift.
+
+    Args:
+        module_name: The name of the module under test.
+        project_path: Optional path prepended to ``sys.path``.
+
+    Returns:
+        A list of CST import statements for the SUT.
+    """
+    effective_path = project_path if project_path is not None else ""
+    if effective_path and effective_path not in sys.path:
+        sys.path.insert(0, effective_path)
+
+    canonical_name = canonical_module_name(module_name)
+    module_alias = get_module_alias(module_name)
+    try:
+        sut_mod = importlib.import_module(module_name)
+        public_names = _public_sut_names(sut_mod, module_alias)
+    except Exception:  # noqa: BLE001
+        public_names = []
+
+    stmts: list[cst.SimpleStatementLine] = [
+        cast("cst.SimpleStatementLine", cst.parse_statement("import sys\n")),
+        cast("cst.SimpleStatementLine", cst.parse_statement(f"import {canonical_name}\n")),
+        cast(
+            "cst.SimpleStatementLine",
+            cst.parse_statement(f"{module_alias} = sys.modules['{canonical_name}']\n"),
+        ),
+    ]
+    if public_names:
+        names_str = ", ".join(public_names)
+        stmts.append(
+            cast(
+                "cst.SimpleStatementLine",
+                cst.parse_statement(f"from {canonical_name} import {names_str}\n"),
+            )
+        )
+    return stmts
+
+
 def _is_expected_exception(stmt: Statement, exc_type: type[BaseException]) -> bool:
     """Check whether ``exc_type`` is declared as expected by the statement's callable.
 
@@ -257,6 +305,7 @@ class TestSuiteWriter:
         module_name: str,
         project_path: str | None,
         subject_properties: SubjectProperties | None = None,
+        module_aliases: dict[str, str] | None = None,
     ) -> list[type[BaseException] | None]:
         """Execute each statement individually; return per-statement exception types.
 
@@ -265,6 +314,8 @@ class TestSuiteWriter:
             module_name: The module under test.
             project_path: Optional path prepended to ``sys.path``.
             subject_properties: Optional subject properties used to disable tracing.
+            module_aliases: Optional mapping from module names to their assigned aliases
+                in the generated test suite.
 
         Returns:
             A list with one entry per statement: the exception type raised by that
@@ -274,28 +325,35 @@ class TestSuiteWriter:
         if effective_path and effective_path not in sys.path:
             sys.path.insert(0, effective_path)
 
-        module_alias = get_module_alias(module_name)
-
         try:
-            module = importlib.import_module(module_name)
+            importlib.import_module(module_name)
         except Exception:  # noqa: BLE001
             return [None] * tc.size()
 
         import pytest  # noqa: PLC0415
 
         namespace: dict = {
-            module_alias: module,
             "__builtins__": __builtins__,
             "pytest": pytest,
             "asyncio": asyncio,
         }
-        # Mirror the rendered test's ``from <module> import <public names>`` so statements
-        # that use bare imported names (as LLM-generated tests do) re-execute correctly
-        # instead of raising a spurious NameError. ``setdefault`` keeps the alias/pytest
-        # keys and any statement-local variables accumulated across statements.
-        for name in _public_sut_names(module, module_alias):
+        # Mirror the rendered test's SUT imports and definitions so dry-run re-execution
+        # and test execution after export use the exact same namespace bindings.
+        for stmt_node in _build_sut_import_statements(module_name, project_path):
             with contextlib.suppress(Exception):
-                namespace.setdefault(name, getattr(module, name))
+                exec(cst.Module(body=[stmt_node]).code, namespace)  # noqa: S102
+
+        if any(stmt.mock_info is not None for stmt in tc.statements()):
+            with contextlib.suppress(Exception):
+                from unittest.mock import MagicMock  # noqa: PLC0415
+
+                namespace["MagicMock"] = MagicMock
+
+        if module_aliases:
+            for mod, alias in module_aliases.items():
+                with contextlib.suppress(Exception):
+                    namespace[alias] = sys.modules.get(mod) or importlib.import_module(mod)
+
         results: list[type[BaseException] | None] = []
 
         tracer = subject_properties.instrumentation_tracer if subject_properties else None
@@ -534,7 +592,11 @@ class TestSuiteWriter:
             tc = individual.test_case
             tc.remove_unused_variables()
             exc_types = self._per_statement_exceptions(
-                tc, module_name, project_path, subject_properties
+                tc,
+                module_name,
+                project_path,
+                subject_properties,
+                module_aliases=isinstance_module_aliases,
             )
             func, func_used_exc_types = self._build_test_function(
                 len(functions), tc, exc_types, module_aliases=isinstance_module_aliases
@@ -590,33 +652,9 @@ class TestSuiteWriter:
             assertion_import_stmts.append(cst.parse_statement(f"import {mod} as {alias}\n"))
 
         # Build the full module: [sys.path preamble +] import(s) + test functions
-        # Use explicit import of all public names instead of `import *` so that
-        # names excluded from __all__ (e.g. AbstractConstraint, error submodule)
-        # are still available in the generated test namespace.
-        try:
-            sut_mod = importlib.import_module(module_name)
-            # Exclude any name that equals module_alias to avoid shadowing
-            # e.g. `from first import first` would overwrite `import first as first`.
-            # The same names are bound in the re-execution namespace (see
-            # ``_per_statement_exceptions``) so the two sites cannot drift.
-            public_names = _public_sut_names(sut_mod, module_alias)
-        except Exception:  # noqa: BLE001
-            public_names = []
-        if public_names:
-            names_str = ", ".join(public_names)
-            star_stmt = cst.parse_statement(f"from {canonical_name} import {names_str}\n")
-        else:
-            star_stmt = None
-        sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [
-            cst.parse_statement("import sys\n"),
-        ]
-        module_alias = get_module_alias(module_name)
-        sut_import_stmts.extend([
-            cst.parse_statement(f"import {canonical_name}\n"),
-            cst.parse_statement(f"{module_alias} = sys.modules['{canonical_name}']\n"),
-        ])
-        if star_stmt is not None:
-            sut_import_stmts.append(star_stmt)
+        sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = list(
+            _build_sut_import_statements(module_name, project_path)
+        )
         if needs_magicmock:
             sut_import_stmts.append(
                 cast(
