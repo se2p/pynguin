@@ -399,9 +399,6 @@ def get_package_anchor(module_name: str) -> str:
     return module_name
 
 
-_get_package_anchor = get_package_anchor
-
-
 class RelativeImportNormalizer(cst.CSTTransformer):
     """Normalizes relative ``ImportFrom`` statements to absolute imports."""
 
@@ -441,19 +438,10 @@ class RelativeImportNormalizer(cst.CSTTransformer):
         )
 
 
-_RelativeImportNormalizer = RelativeImportNormalizer
-
-
 def _resolve_from_import_module(node: cst.ImportFrom) -> str | None:
-    mod_chain = _dotted_chain(node.module) if node.module is not None else []
-    if node.relative:
-        anchor = get_package_anchor(config.configuration.module_name)
-        level_dots = "." * len(node.relative)
-        rel_name = level_dots + (".".join(mod_chain) if mod_chain else "")
-        try:
-            return importlib.util.resolve_name(rel_name, anchor)
-        except (ValueError, ImportError):
-            return None
+    if node.relative or node.module is None:
+        return None
+    mod_chain = _dotted_chain(node.module)
     if not mod_chain:
         return None
     return ".".join(mod_chain)
@@ -708,9 +696,9 @@ def normalize_sut_references(module: cst.Module, module_name: str, module_alias:
     Returns:
         The normalized module, with SUT imports removed and references rewritten.
     """
-    anchor = _get_package_anchor(module_name)
+    anchor = get_package_anchor(module_name)
     if anchor:
-        module_norm = module.visit(_RelativeImportNormalizer(anchor))
+        module_norm = module.visit(RelativeImportNormalizer(anchor))
         assert isinstance(module_norm, cst.Module)
         module = module_norm
     normalized = module.visit(_SutReferenceNormalizer(module_name, module_alias))
@@ -1036,9 +1024,7 @@ class CstStatementDeserializer:
         if target is None:
             return True
         if target.symbol is not None:
-            if target.symbol == name and target.module == module:
-                return True
-            return f"{target.module}.{target.symbol}" == module
+            return target.symbol == name and target.module == module
         return target.module == module
 
     def _match_external_constructor(
@@ -1328,12 +1314,12 @@ class CstStatementDeserializer:
 
     def _hoist_module_imports(
         self,
-        normalized: cst.IndentedBlock,
+        body: cst.IndentedBlock,
         module_level_imports: Sequence[cst.SimpleStatementLine] | None,
     ) -> list[cst.BaseStatement]:
         lines: list[cst.BaseStatement] = []
         if module_level_imports:
-            fn_reads = _RootNameCollector.collect(normalized)
+            fn_reads = _RootNameCollector.collect(body)
             for imp_stmt in module_level_imports:
                 for small in imp_stmt.body:
                     if isinstance(small, cst.Import | cst.ImportFrom):
@@ -1341,7 +1327,7 @@ class CstStatementDeserializer:
                         if local_names & fn_reads:
                             lines.append(imp_stmt)
                             break
-        lines.extend(normalized.body)
+        lines.extend(body.body)
         return lines
 
     def _process_small_statement(
@@ -1380,9 +1366,9 @@ class CstStatementDeserializer:
             The test case together with the per-statement disposition counts.
             The test case may be empty if nothing could be parsed.
         """
-        anchor = _get_package_anchor(self._module_name)
+        anchor = get_package_anchor(self._module_name)
         if anchor:
-            rel_normalizer = _RelativeImportNormalizer(anchor)
+            rel_normalizer = RelativeImportNormalizer(anchor)
             fn_node = fn.visit(rel_normalizer)
             assert isinstance(fn_node, cst.FunctionDef)
             fn = fn_node
@@ -1434,8 +1420,8 @@ def _parse_module_level_imports(
         one ``SimpleStatementLine`` per parseable top-level import statement.
     """
     lines: list[cst.SimpleStatementLine] = []
-    anchor = _get_package_anchor(module_name) if module_name else ""
-    rel_normalizer = _RelativeImportNormalizer(anchor) if anchor else None
+    anchor = get_package_anchor(module_name) if module_name else ""
+    rel_normalizer = RelativeImportNormalizer(anchor) if anchor else None
     for import_source in import_sources:
         try:
             parsed = cst.parse_statement(import_source)

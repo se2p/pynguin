@@ -985,27 +985,29 @@ def test_foo():
 
 
 def test_deserialize_function_relative_import_to_helper(monkeypatch):
-    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    monkeypatch.setattr(
+        config.configuration, "module_name", "tests.fixtures.examples.submodule_package.target"
+    )
     cluster = MagicMock()
     cluster.accessible_objects_under_test = []
 
     mock_func = MagicMock(spec=GenericFunction)
-    mock_func.function_name = "assert_tz_offset"
+    mock_func.function_name = "helper_function"
     mock_callable = MagicMock()
-    mock_callable.__module__ = "tzlocal.utils"
+    mock_callable.__module__ = "tests.fixtures.examples.submodule_package.helper"
     mock_func.callable = mock_callable
     cluster.all_accessible_objects = [mock_func]
 
     code = """
 def test_foo():
-    from . import utils
-    res = utils.assert_tz_offset(0)
+    from . import helper
+    res = helper.helper_function(0)
 """
     result = _deserialize_function(code, cluster)
     testcase = result.test_case
     assert testcase.size() == 2
-    assert "from tzlocal import utils" in testcase.to_code()
-    assert "res = utils.assert_tz_offset(0)" in testcase.to_code()
+    assert "from tests.fixtures.examples.submodule_package import helper" in testcase.to_code()
+    assert "res = helper.helper_function(0)" in testcase.to_code()
     assert result.counts[Disposition.ADMITTED_IMPORT] == 1
     assert result.counts[Disposition.ADMITTED] == 1
 
@@ -1051,32 +1053,34 @@ def test_foo():
 
 
 def test_deserialize_package_import_mixed_sut_and_helper(monkeypatch):
-    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    monkeypatch.setattr(
+        config.configuration, "module_name", "tests.fixtures.examples.submodule_package.target"
+    )
     cluster = MagicMock()
     mock_sut_func = MagicMock(spec=GenericFunction)
-    mock_sut_func.function_name = "get_localzone"
+    mock_sut_func.function_name = "target_function"
     cluster.accessible_objects_under_test = [mock_sut_func]
 
     mock_ext_func = MagicMock(spec=GenericFunction)
-    mock_ext_func.function_name = "assert_tz_offset"
+    mock_ext_func.function_name = "helper_function"
     mock_callable = MagicMock()
-    mock_callable.__module__ = "tzlocal.utils"
+    mock_callable.__module__ = "tests.fixtures.examples.submodule_package.helper"
     mock_ext_func.callable = mock_callable
     cluster.all_accessible_objects = [mock_sut_func, mock_ext_func]
 
     code = """
 def test_foo():
-    from tzlocal import unix, utils
-    u = utils.assert_tz_offset(0)
-    z = unix.get_localzone()
+    from tests.fixtures.examples.submodule_package import target, helper
+    u = helper.helper_function(0)
+    z = target.target_function()
 """
     result = _deserialize_function(code, cluster)
     testcase = result.test_case
     assert testcase.size() == 3
-    # SUT submodule 'unix' was removed; external helper 'utils' was kept
-    assert "from tzlocal import utils" in testcase.to_code()
-    assert "u = utils.assert_tz_offset(0)" in testcase.to_code()
-    assert "z = unix_.get_localzone()" in testcase.to_code()
+    # SUT submodule 'target' was removed; external helper 'helper' was kept
+    assert "from tests.fixtures.examples.submodule_package import helper" in testcase.to_code()
+    assert "u = helper.helper_function(0)" in testcase.to_code()
+    assert "z = target_.target_function()" in testcase.to_code()
     assert result.counts[Disposition.ADMITTED_IMPORT] == 1
     assert result.counts[Disposition.ADMITTED] == 2
 
