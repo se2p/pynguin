@@ -108,6 +108,21 @@ def test_foo():
     assert result.counts[Disposition.ADMITTED] == 1
 
 
+def test_deserialize_code_to_testcases_keeps_same_named_methods(test_cluster):
+    """Test methods sharing a name across classes all become test cases."""
+    code = """
+class TestA:
+    def test_eq(self):
+        a = [1]
+class TestB:
+    def test_eq(self):
+        b = [2]
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 2
+
+
 # ---------------------------------------------------------------------------
 # Variable renaming
 # ---------------------------------------------------------------------------
