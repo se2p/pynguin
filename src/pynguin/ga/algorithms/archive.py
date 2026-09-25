@@ -33,11 +33,7 @@ class Archive(ABC):
         self._on_target_covered_callbacks: list[Callable[[ff.TestCaseFitnessFunction], None]] = []
 
     @abstractmethod
-    def update(
-        self,
-        solutions: Iterable[tcc.TestCaseChromosome],
-        protected: OrderedSet[ff.TestCaseFitnessFunction] | None = None,
-    ) -> bool:
+    def update(self, solutions: Iterable[tcc.TestCaseChromosome]) -> bool:
         """Updates this archive with the given set of solutions.
 
         In detail, when a solution manages to satisfy a previously uncovered target,
@@ -48,8 +44,6 @@ class Archive(ABC):
 
         Args:
             solutions: The solutions to update the archive with
-            protected: Targets whose current incumbent must be kept as is, even if
-                one of ``solutions`` would otherwise be considered a better match.
 
         Returns:
             True, iff a solution was stored.
@@ -109,11 +103,7 @@ class CoverageArchive(Archive):
         self._uncovered = OrderedSet(objectives)
         self._objectives = OrderedSet(objectives)
 
-    def update(
-        self,
-        solutions: Iterable[tcc.TestCaseChromosome],
-        protected: OrderedSet[ff.TestCaseFitnessFunction] | None = None,
-    ) -> bool:
+    def update(self, solutions: Iterable[tcc.TestCaseChromosome]) -> bool:
         """Updates this archive with the given set of solutions.
 
         In detail, when a solution manages to satisfy a previously uncovered target,
@@ -125,14 +115,9 @@ class CoverageArchive(Archive):
 
         Args:
             solutions: The solutions to update the archive with
-            protected: Targets whose current incumbent must be kept as is, even if
-                one of ``solutions`` would otherwise be considered a better match.
         """
         updated = False
         for objective in self._objectives:
-            if protected is not None and objective in protected:
-                continue
-
             best_solution = self._covered.get(objective, None)
 
             for solution in solutions:
@@ -398,18 +383,12 @@ class MIOArchive(Archive):
             target: MIOPopulation(initial_size) for target in targets
         }
 
-    def update(
-        self,
-        solutions: Iterable[tcc.TestCaseChromosome],
-        protected: OrderedSet[ff.TestCaseFitnessFunction] | None = None,
-    ) -> bool:
+    def update(self, solutions: Iterable[tcc.TestCaseChromosome]) -> bool:
         """Update the archive with the given solutions."""
         updated = False
         for solution in solutions:
             solution_clone = solution.clone()
             for target in self._archive:
-                if protected is not None and target in protected:
-                    continue
                 fitness_value = solution_clone.get_fitness_for(target)
                 result = solution_clone.get_last_execution_result()
                 assert result is not None

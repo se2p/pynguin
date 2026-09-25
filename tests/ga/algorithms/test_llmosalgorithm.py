@@ -698,37 +698,3 @@ def test_generate_tests_seeds_archive_when_hybrid(mock_config, llmosa_algorithm)
     llmosa_algorithm.generate_tests()
 
     llmosa_algorithm._seed_archive_from_llm.assert_called_once()
-
-
-@patch("pynguin.ga.algorithms.llmosalgorithm.config")
-def test_generate_tests_protects_llm_seeded_goals_from_random_population(
-    mock_config, llmosa_algorithm
-):
-    """Regression test: the initial random population must not evict LLM seeds.
-
-    The LLM already seeded solutions into the archive for this run; the random
-    population generated right afterwards must not be able to evict them.
-    """
-    mock_config.configuration.large_language_model.hybrid_initial_population = True
-    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
-    llmosa_algorithm.resources_left = MagicMock(return_value=False)
-
-    goal_covered_by_llm = MagicMock()
-    llmosa_algorithm._archive = MagicMock()
-    llmosa_algorithm._archive.covered_goals = OrderedSet([goal_covered_by_llm])
-
-    random_population = [MagicMock(spec=tcc.TestCaseChromosome)]
-    llmosa_algorithm._seed_archive_from_llm = MagicMock()
-    llmosa_algorithm._get_random_population = MagicMock(return_value=random_population)
-    llmosa_algorithm._target_initial_uncovered_goals = MagicMock()
-    llmosa_algorithm._compute_dominance = MagicMock()
-    llmosa_algorithm.before_search_start = MagicMock()
-    llmosa_algorithm.before_first_search_iteration = MagicMock()
-    llmosa_algorithm.create_test_suite = MagicMock()
-    llmosa_algorithm._finalize_generation = MagicMock()
-
-    llmosa_algorithm.generate_tests()
-
-    llmosa_algorithm._archive.update.assert_called_once_with(
-        random_population, protected=OrderedSet([goal_covered_by_llm])
-    )

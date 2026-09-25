@@ -18,7 +18,6 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.utils import randomness
-from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -218,15 +217,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         if config.configuration.large_language_model.hybrid_initial_population:
             self._seed_archive_from_llm()
 
-        # Protect goals already covered by LLM-seeded solutions: without this, the
-        # initial random population below would immediately evict a richer,
-        # multi-statement LLM test case in favor of a trivial shorter one covering
-        # the same objective, since CoverageArchive prefers the shorter of two
-        # otherwise equal (error-free) solutions.
-        llm_seeded_goals = OrderedSet(self._archive.covered_goals)
-
         self._population = self._get_random_population()
-        self._archive.update(self._population, protected=llm_seeded_goals)
+        self._archive.update(self._population)
 
         self._target_initial_uncovered_goals()
 
