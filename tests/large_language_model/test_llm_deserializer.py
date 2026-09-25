@@ -6,6 +6,7 @@
 #
 """Tests for the LLM Deserializer."""
 
+import re
 from collections import Counter
 from unittest.mock import MagicMock, patch
 
@@ -13,7 +14,7 @@ import libcst as cst
 import pytest
 
 import pynguin.configuration as config
-from pynguin.analyses.module import analyse_module, parse_module
+from pynguin.analyses.module import analyse_module, generate_test_cluster, parse_module
 from pynguin.assertion.assertion import (
     CollectionLengthAssertion,
     FloatAssertion,
@@ -25,6 +26,7 @@ from pynguin.large_language_model.parsing.deserializer import (
     Disposition,
     ParseStatus,
     RelativeImportNormalizer,
+    _RootNameCollector,  # noqa: PLC2701
     deserialize_code_to_testcases,
     get_package_anchor,
     normalize_sut_references,
@@ -310,6 +312,94 @@ def test_foo():
     result = _deserialize_function(code, test_cluster)
     assert result.test_case.size() == 0
     assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("f(lambda x: x > 1, xs)", {"f", "xs"}),
+        ("f(lambda x, *a, k=d, **kw: x + y + a[0] + k + kw[z])", {"f", "d", "y", "z"}),
+        ("lambda x: lambda y: x + y + z", {"z"}),
+        ("[g(i) for i in range(n)]", {"g", "range", "n"}),
+        ("{k: v for k, v in pairs.items() if v > t}", {"pairs", "t"}),
+        ("{a for (a, *rest) in rows}", {"rows"}),
+        ("list(x * y for x in xs for y in range(x) if y)", {"list", "xs", "range"}),
+        ("[x for x in x]", {"x"}),
+        ("[i for i in xs] + [i]", {"xs", "i"}),
+        ("[j for i in xs for j in i]", {"xs"}),
+    ],
+)
+def test_root_name_collector_ignores_lambda_and_comprehension_bindings(expression, expected):
+    assert _RootNameCollector.collect(cst.parse_expression(expression)) == expected
+
+
+def test_statement_with_lambda_argument_is_admitted(test_cluster):
+    code = """
+def test_foo():
+    xs = [1, 2, 3]
+    res = sorted(xs, key=lambda x: -x)
+    assert res[0] == 3
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ASSERTION_DROPPED] == 0
+    assert "key=lambda x: -x" in result.test_case.to_code()
+
+
+def test_statement_with_comprehension_is_admitted(test_cluster):
+    code = """
+def test_foo():
+    xs = [1, 2, 3]
+    res = [i * 2 for i in xs if i > 1]
+    assert all(v > 0 for v in res)
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ASSERTION_KEPT_RAW] == 1
+    rendered = result.test_case.to_code()
+    assert "[i * 2 for i in xs if i > 1]" in rendered
+    assert "assert all(v > 0 for v in res)" in rendered
+
+
+def test_lambda_body_with_unknown_free_name_is_dropped(test_cluster):
+    code = """
+def test_foo():
+    xs = [1, 2, 3]
+    res = sorted(xs, key=lambda x: undefined_name[x])
+    assert [i for i in xs if undefined_name(i)]
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.test_case.size() == 1
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+    assert result.counts[Disposition.ASSERTION_DROPPED] == 1
+
+
+def test_deserialize_lambda_and_comprehension_tests_end_to_end(monkeypatch):
+    """Tests using lambdas/comprehensions against a real SUT survive and run (issue #291)."""
+    module_name = "tests.fixtures.examples.higher_order"
+    monkeypatch.setattr(config.configuration, "module_name", module_name)
+    code = """
+from tests.fixtures.examples.higher_order import first, keep
+def test_lambda():
+    res = keep(lambda x: x > 1, [1, 2, 3])
+    assert res == [2, 3]
+def test_comprehension():
+    res = [first([i]) for i in range(3)]
+    assert res == [0, 1, 2]
+"""
+    result = deserialize_code_to_testcases(
+        code, generate_test_cluster(module_name), create_assertions=True
+    )
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 2
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ASSERTION_DROPPED] == 0
+    for test_case in result.test_cases:
+        source = test_case.to_code()
+        alias = re.search(r"(\w+)\.(?:keep|first)\(", source)
+        assert alias is not None
+        module_alias = alias.group(1)
+        exec(f"import {module_name} as {module_alias}\n{source}", {})  # noqa: S102
 
 
 def test_compound_classdef_is_admitted_and_binds_name(test_cluster):
