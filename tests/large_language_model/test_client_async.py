@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 import pynguin.configuration as config
 from pynguin.large_language_model.client import OpenAIClient
 from pynguin.large_language_model.request import RenderedRequest
@@ -153,6 +155,43 @@ def test_send_batch_sync(monkeypatch):
     assert len(results) == 4
     for i, res in enumerate(results):
         assert res == f"sync resp req_{i}"
+
+
+def test_send_batch_async_failed_request_keeps_other_responses(monkeypatch):
+    client = _make_client(monkeypatch)
+    monkeypatch.setattr(config.configuration.large_language_model, "max_retries", 1)
+
+    async def fake_create(**kwargs):
+        await asyncio.sleep(0)
+        content = kwargs["messages"][0]["content"]
+        if content == "prompt_1":
+            raise TimeoutError("Request timed out.")
+        return _make_response(f"resp for {content}", prompt_tokens=7, completion_tokens=3)
+
+    client._async_client = MagicMock()
+    client._async_client.chat.completions.create = AsyncMock(side_effect=fake_create)
+
+    requests = [_request(f"prompt_{i}") for i in range(3)]
+    results = asyncio.run(client.send_batch_async(requests, max_concurrency=3))
+
+    assert results == ["resp for prompt_0", None, "resp for prompt_2"]
+    usage = client.get_usage()
+    assert usage["input_tokens"] == 14
+    assert usage["output_tokens"] == 6
+
+
+def test_send_batch_async_propagates_cancellation(monkeypatch):
+    client = _make_client(monkeypatch)
+
+    async def fake_create(**_kwargs):
+        await asyncio.sleep(0)
+        raise asyncio.CancelledError
+
+    client._async_client = MagicMock()
+    client._async_client.chat.completions.create = AsyncMock(side_effect=fake_create)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(client.send_batch_async([_request("a"), _request("b")]))
 
 
 def test_cancel_all_closes_clients_and_aborts_subsequent_requests(monkeypatch):
