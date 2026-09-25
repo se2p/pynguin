@@ -30,6 +30,11 @@ class ModuleResult:
     mutation_score: float | None = None
     mutation_killed: int | None = None
     mutation_total: int | None = None
+    # How many of mutation_total were actually executed vs. timed out. When
+    # mutation_checked - mutation_timed_out == 0 (every checked mutant timed out),
+    # mutation_score is unmeasurable and reported as None rather than a phantom 1.0.
+    mutation_checked: int | None = None
+    mutation_timed_out: int | None = None
     llm_calls: int | None = None
     llm_input_tokens: int | None = None
     llm_output_tokens: int | None = None
@@ -68,6 +73,8 @@ _STAT_SPECS: tuple[_StatSpec, ...] = (
     _StatSpec("mutation_score", ("MutationScore",), float),
     _StatSpec("mutation_killed", ("NumberOfKilledMutants",), int),
     _StatSpec("mutation_total", ("NumberOfCreatedMutants",), int),
+    _StatSpec("mutation_checked", ("NumberOfCheckedMutants",), int),
+    _StatSpec("mutation_timed_out", ("NumberOfTimedOutMutants",), int),
     _StatSpec("llm_calls", ("TotalLLMCalls",), int),
     _StatSpec("llm_input_tokens", ("TotalLLMInputTokens",), int),
     _StatSpec("llm_output_tokens", ("TotalLLMOutputTokens",), int),
@@ -87,7 +94,11 @@ def parse_statistics_csv(report_dir: str) -> dict[str, float | int | None]:
             for row in csv.DictReader(f):
                 for spec in _STAT_SPECS:
                     raw = next((row[c] for c in spec.columns if row.get(c)), None)
-                    if raw:
+                    # Pynguin serializes an unmeasurable metric (e.g. a mutation
+                    # score with no usable checked mutants) as the literal string
+                    # "None" in statistics.csv; treat it as absent rather than
+                    # failing the numeric conversion.
+                    if raw and raw != "None":
                         res[spec.field] = spec.convert(raw)
     except Exception as exc:  # noqa: BLE001
         _LOG.debug("Failed to parse statistics CSV in %s: %s", report_dir, exc)

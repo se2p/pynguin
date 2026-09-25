@@ -117,10 +117,26 @@ def test_create_filtering_executor_traces_independently_of_the_search(monkeypatc
     )
 
 
-@pytest.mark.parametrize("created,killed,timeout,score", [(5, 2, 1, 0.5), (1, 0, 1, 1.0)])
+@pytest.mark.parametrize(
+    "created,killed,timeout,score",
+    [
+        (5, 2, 1, 0.5),
+        (0, 0, 0, 1.0),  # No mutants created at all -> vacuously covered.
+    ],
+)
 def test_mutation_score(created, killed, timeout, score):
     metrics = ag._MutationMetrics(created, killed, timeout)
     assert metrics.get_score() == score
+
+
+def test_mutation_score_is_none_when_every_mutant_times_out():
+    # All created mutants timed out: the checked-minus-timed-out divisor is 0, but
+    # unlike the "no mutants at all" case there *were* mutants -- we just learned
+    # nothing from them, so the score must be unmeasurable, not a phantom 1.0.
+    metrics = ag._MutationMetrics(
+        num_created_mutants=1, num_killed_mutants=0, num_timeout_mutants=1
+    )
+    assert metrics.get_score() is None
 
 
 def test_abort_after_first_timeout_stops_consuming_and_pads():
