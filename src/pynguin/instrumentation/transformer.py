@@ -599,7 +599,9 @@ class AstInfo:
         """Check if the conditional statement at the line number should be covered.
 
         This means that the conditional statement must have all its branches in the cover lines,
-        as well as all conditional instructions in which it is contained.
+        as well as all conditional instructions in which it is contained. With line ranges,
+        the ``else:`` line of an if statement does not have to be a target itself, it only
+        must not be excluded.
 
         Args:
             lineno: The line number of the conditional statement.
@@ -619,14 +621,75 @@ class AstInfo:
                     or (isinstance(branch_node, ast.If) and _has_elif_block(branch_node))
                     or (
                         isinstance(branch_node, ast.If | ast.For | ast.While)
-                        and all(
-                            self.should_cover_line(else_lineno)
-                            for else_lineno in self._else_lines(branch_node)
-                        )
+                        and self._else_lines_in_cover(branch_node)
                     )
                 )
 
         return True
+
+    def _else_lines_in_cover(self, node: _ast.If | _ast.For | _ast.While) -> bool:
+        """Check if the else lines of the node are in cover.
+
+        With line ranges, the else lines of an if statement need not be targeted, only not excluded.
+
+        Args:
+            node: The if, for or while node.
+
+        Returns:
+            True if they are in cover, False otherwise.
+        """
+        if isinstance(node, ast.If) and self.module.only_cover_line_ranges:
+            return all(
+                else_lineno not in self.module.no_cover_lines
+                for else_lineno in self._else_lines(node)
+            )
+        return all(self.should_cover_line(else_lineno) for else_lineno in self._else_lines(node))
+
+    def targeted_else_branches(self, file_name: str) -> dict[int, tracer.ElseBranchMetaData]:
+        """Find the targeted ``else:`` header lines of if statements and for/while loops.
+
+        The else blocks of try statements are not considered.
+
+        Args:
+            file_name: The name of the file containing the AST.
+
+        Returns:
+            A mapping from each targeted else header line to its else branch.
+        """
+        else_branches: dict[int, tracer.ElseBranchMetaData] = {}
+        if not self.module.only_cover_line_ranges:
+            return else_branches
+
+        nodes: list[ast.If | ast.For | ast.While] = [
+            *nodes_of_class(self.ast, ast.If),
+            *nodes_of_class(self.ast, ast.For),
+            *nodes_of_class(self.ast, ast.While),
+        ]
+        for node in nodes:
+            if not node.orelse or (
+                isinstance(node, ast.If)
+                and _has_elif_block(node)
+                and node.orelse[0].col_offset == node.col_offset
+            ):
+                continue
+            targeted_lines = self.module.only_cover_line_ranges.intersection(self._else_lines(node))
+            if not targeted_lines:
+                continue
+            # From the keyword to the end of the condition or iterable: a parenthesized
+            # condition may start on the next line, and a for loop's predicate is on the
+            # line of its iterable.
+            header = node.iter if isinstance(node, ast.For) else node.test
+            header_end = header.end_lineno or header.lineno
+            else_branch = tracer.ElseBranchMetaData(
+                file_name=file_name,
+                body_line=node.orelse[0].lineno,
+                body_end_line=node.orelse[-1].end_lineno or node.orelse[-1].lineno,
+                condition_lines=frozenset(range(node.lineno, header_end + 1)),
+            )
+            for line in targeted_lines:
+                else_branches[line] = else_branch
+
+        return else_branches
 
 
 class InstrumentationAdapter(Protocol):
@@ -1443,6 +1506,14 @@ class InstrumentationTransformer:
             code.co_filename,
             to_cover_config=self._to_cover_config,
         )
+
+        if (
+            module_ast_info is not None
+            and (module_scope := module_ast_info.get_scope(0)) is not None
+        ):
+            self._subject_properties.targeted_else_branches.update(
+                module_scope.targeted_else_branches(code.co_filename)
+            )
 
         return self._instrument_code_recursive(code, module_ast_info)
 

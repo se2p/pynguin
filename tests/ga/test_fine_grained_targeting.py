@@ -9,13 +9,36 @@
 from __future__ import annotations
 
 import ast
+import dataclasses
+import importlib
+import sys
+import types
+from unittest.mock import MagicMock
 
+import pytest
 from bytecode import Bytecode
 
+import pynguin.configuration as config
+import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 from pynguin.analyses.module import overlaps_line_ranges
-from pynguin.ga.coveragegoals import BranchGoalPool
+from pynguin.ga.coveragegoals import (
+    BranchGoal,
+    BranchGoalPool,
+    create_branch_coverage_fitness_functions,
+)
 from pynguin.instrumentation.controlflow import CFG, ControlDependenceGraph
 from pynguin.instrumentation.tracer import CodeObjectMetaData, PredicateMetaData, SubjectProperties
+from pynguin.instrumentation.transformer import InstrumentationTransformer
+from pynguin.instrumentation.version import BranchCoverageInstrumentation
+from pynguin.testcase.execution import ExecutionResult
+
+IF_ELSE_TARGETS_MODULE = "tests.fixtures.instrumentation.if_else_targets"
+
+WHILE_CONDITION_PREDICATES = 1 if sys.version_info >= (3, 14) else 2
+
+ELSE_HEADER_NO_COVER_GOALS: list[tuple[int, bool]] = (
+    [(112, True)] if sys.version_info >= (3, 14) else []
+)
 
 
 def test_overlaps_line_ranges_none_or_empty():
@@ -68,3 +91,214 @@ def test_ensure_controlling_predicates_for_pure_statement():
     goals = goal_pool.branch_goals
     assert len(goals) == 1
     assert goals[0].value is True
+
+
+def _instrument_target(
+    subject_properties: SubjectProperties, function_name: str, line_range: str
+) -> types.FunctionType:
+    # Returns a new function so the fixture module itself stays uninstrumented.
+    config.configuration.to_cover.only_cover_line_ranges = [line_range]
+    transformer = InstrumentationTransformer(
+        subject_properties,
+        [BranchCoverageInstrumentation(subject_properties)],
+        to_cover_config=config.ToCoverConfiguration(only_cover_line_ranges=[line_range]),
+    )
+    function = getattr(importlib.import_module(IF_ELSE_TARGETS_MODULE), function_name)
+    return types.FunctionType(transformer.instrument_code(function.__code__), function.__globals__)
+
+
+def _goal_lines(
+    subject_properties: SubjectProperties, goals: list[BranchGoal]
+) -> list[tuple[int, bool]]:
+    return sorted(
+        (subject_properties.existing_predicates[goal.predicate_id].line_no, goal.value)
+        for goal in goals
+    )
+
+
+@pytest.mark.parametrize(
+    "function_name, line_range, expected_goals",
+    [
+        pytest.param("simple", "11", [(9, False)], id="simple"),
+        pytest.param("nested", "20", [(18, False)], id="nested"),
+        pytest.param("compound_and", "27", [(25, False), (25, False)], id="and"),
+        pytest.param("compound_or", "33", [(31, False)], id="or"),
+        pytest.param("negated", "39", [(37, True)], id="negated-condition"),
+        pytest.param("elif_chain", "56", [(54, False)], id="elif-chain"),
+        pytest.param("else_with_loop", "62", [(60, False)], id="else-body-starts-with-loop"),
+        pytest.param("else_with_single_if", "70", [(68, False)], id="else-body-is-single-if"),
+        pytest.param("else_after_comment", "80", [(77, False)], id="comment-before-else"),
+        pytest.param("else_with_pass", "86", [(84, False)], id="else-pass"),
+        pytest.param("else_body_no_cover", "108", [], id="else-body-no-cover"),
+        pytest.param("simple", "9-11", [(9, False), (9, True)], id="if-and-else-unchanged"),
+        pytest.param(
+            "else_with_single_if", "68", [(68, False), (68, True)], id="if-with-else-if-unchanged"
+        ),
+    ],
+)
+def test_targeted_else_goals(
+    subject_properties: SubjectProperties,
+    function_name: str,
+    line_range: str,
+    expected_goals: list[tuple[int, bool]],
+):
+    _instrument_target(subject_properties, function_name, line_range)
+
+    goals = BranchGoalPool(subject_properties).branch_goals
+
+    assert _goal_lines(subject_properties, goals) == expected_goals
+
+
+@pytest.mark.parametrize(
+    "function_name, line_range, expected_goals",
+    [
+        pytest.param("simple", "9", [(9, False), (9, True)], id="simple"),
+        pytest.param("nested", "18", [(18, False), (18, True)], id="nested"),
+        pytest.param(
+            "compound_and", "25", [(25, False), (25, False), (25, True), (25, True)], id="and"
+        ),
+        pytest.param(
+            "compound_or", "31", [(31, False), (31, False), (31, True), (31, True)], id="or"
+        ),
+        pytest.param("negated", "37", [(37, False), (37, True)], id="negated-condition"),
+        pytest.param("elif_chain", "54", [(54, False), (54, True)], id="elif-with-else"),
+        pytest.param("else_with_single_if", "71", [(71, False), (71, True)], id="if-inside-else"),
+        pytest.param("simple", "9-10", [(9, False), (9, True)], id="range-without-else-line"),
+        pytest.param(
+            "else_header_no_cover", "112", ELSE_HEADER_NO_COVER_GOALS, id="else-line-no-cover"
+        ),
+        pytest.param("elif_chain", "52", [(52, False), (52, True)], id="if-with-elif-unchanged"),
+    ],
+)
+def test_targeted_if_line_goals(
+    subject_properties: SubjectProperties,
+    function_name: str,
+    line_range: str,
+    expected_goals: list[tuple[int, bool]],
+):
+    _instrument_target(subject_properties, function_name, line_range)
+
+    goals = BranchGoalPool(subject_properties).branch_goals
+
+    assert _goal_lines(subject_properties, goals) == expected_goals
+
+
+@pytest.mark.parametrize(
+    "function_name, line_range, expected_goals",
+    [
+        pytest.param("loop_else", "93", [(90, False)], id="for-with-break"),
+        pytest.param(
+            "while_else_break",
+            "138",
+            [(134, False)] * WHILE_CONDITION_PREDICATES,
+            id="while-with-break",
+        ),
+        pytest.param("for_else_no_break", "121", [], id="for-without-break"),
+        pytest.param("while_else_no_break", "145", [], id="while-without-break"),
+        pytest.param("nested_for_else_no_break", "129", [(126, True)], id="nested-without-break"),
+        pytest.param(
+            "loop_else_starts_with_loop", "153", [(150, True)], id="else-body-starts-with-loop"
+        ),
+    ],
+)
+def test_targeted_loop_else_goals(
+    subject_properties: SubjectProperties,
+    function_name: str,
+    line_range: str,
+    expected_goals: list[tuple[int, bool]],
+):
+    _instrument_target(subject_properties, function_name, line_range)
+
+    goals = BranchGoalPool(subject_properties).branch_goals
+
+    assert _goal_lines(subject_properties, goals) == expected_goals
+
+
+@pytest.mark.parametrize(
+    "function_name, line_range, else_args, if_args",
+    [
+        pytest.param("simple", "11", (0,), (1,), id="simple"),
+        pytest.param("nested", "20", (1, 0), (1, 1), id="nested"),
+        pytest.param("compound_and", "27", (1, 0), (1, 1), id="and"),
+        pytest.param("negated", "39", (True,), (False,), id="negated-condition"),
+        pytest.param("else_with_loop", "62", (0, [1]), (1, [1]), id="else-body-starts-with-loop"),
+        pytest.param("loop_else", "93", ([-1],), ([1],), id="for-with-break"),
+        pytest.param("while_else_break", "138", (2,), (5,), id="while-with-break"),
+        pytest.param(
+            "nested_for_else_no_break", "129", (1, [1]), (0, [1]), id="nested-without-break"
+        ),
+    ],
+)
+def test_targeted_else_goal_is_covered_only_by_else_branch(
+    subject_properties: SubjectProperties,
+    function_name: str,
+    line_range: str,
+    else_args: tuple,
+    if_args: tuple,
+):
+    function = _instrument_target(subject_properties, function_name, line_range)
+    goals = BranchGoalPool(subject_properties).branch_goals
+    tracer = subject_properties.instrumentation_tracer
+
+    def any_goal_covered(args: tuple) -> bool:
+        tracer.init_trace()
+        with tracer:
+            function(*args)
+        result = ExecutionResult()
+        result.execution_trace = tracer.get_trace()
+        return any(goal.is_covered(result) for goal in goals)
+
+    assert any_goal_covered(else_args)
+    assert not any_goal_covered(if_args)
+
+
+def test_targeted_else_in_other_file_has_no_goals(subject_properties: SubjectProperties):
+    _instrument_target(subject_properties, "simple", "11")
+    else_branch = subject_properties.targeted_else_branches[11]
+    subject_properties.targeted_else_branches[11] = dataclasses.replace(
+        else_branch, file_name="other.py"
+    )
+
+    assert not BranchGoalPool(subject_properties).branch_goals
+
+
+@pytest.mark.parametrize(
+    "line_range, expected_goals",
+    [
+        pytest.param("20", [(18, False)], id="else-line"),
+        pytest.param("18", [(18, False), (18, True)], id="if-line"),
+    ],
+)
+def test_targeted_nested_goals_are_root_goals_for_dynamosa(
+    subject_properties: SubjectProperties,
+    line_range: str,
+    expected_goals: list[tuple[int, bool]],
+):
+    _instrument_target(subject_properties, "nested", line_range)
+    pool = BranchGoalPool(subject_properties)
+    fitness_functions = create_branch_coverage_fitness_functions(MagicMock(), pool)
+
+    graph = dyna._BranchFitnessGraph(fitness_functions, subject_properties)
+
+    assert _goal_lines(subject_properties, pool.branch_goals) == expected_goals
+    assert {fitness.goal for fitness in graph.root_branches} == set(pool.branch_goals)
+
+
+@pytest.mark.parametrize(
+    "function_name, line_range",
+    [
+        pytest.param("while_else_break", "138", id="while-with-break"),
+        pytest.param("nested_for_else_no_break", "129", id="nested-without-break"),
+    ],
+)
+def test_targeted_loop_else_goals_are_root_goals_for_dynamosa(
+    subject_properties: SubjectProperties, function_name: str, line_range: str
+):
+    _instrument_target(subject_properties, function_name, line_range)
+    pool = BranchGoalPool(subject_properties)
+    fitness_functions = create_branch_coverage_fitness_functions(MagicMock(), pool)
+
+    graph = dyna._BranchFitnessGraph(fitness_functions, subject_properties)
+
+    assert pool.branch_goals
+    assert {fitness.goal for fitness in graph.root_branches} == set(pool.branch_goals)

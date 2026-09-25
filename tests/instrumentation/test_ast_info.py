@@ -742,3 +742,76 @@ def test_get_scope_decorated_function_lookup(tmp_path):
     scope_def = module_ast_info.get_scope(4)
     assert scope_def is not None
     assert scope_def.should_be_covered() is True
+
+
+@pytest.mark.parametrize(
+    "line_range, expected_else_branches",
+    [
+        pytest.param("11", {11: (12, 12, {9})}, id="simple"),
+        pytest.param("8-13", {11: (12, 12, {9})}, id="range"),
+        pytest.param("20", {20: (21, 21, {18})}, id="nested"),
+        pytest.param("48", {48: (49, 49, {43, 44, 45})}, id="multi-line-condition"),
+        pytest.param("51-57", {56: (57, 57, {54})}, id="elif-chain"),
+        pytest.param("70", {70: (71, 74, {68})}, id="else-body-is-single-if"),
+        pytest.param("79-80", {79: (81, 81, {77}), 80: (81, 81, {77})}, id="comment-before-else"),
+        pytest.param("9", {}, id="if-line"),
+        pytest.param("93", {93: (94, 94, {90})}, id="for-else"),
+        pytest.param("138", {138: (139, 139, {134})}, id="while-else"),
+        pytest.param("153", {153: (154, 155, {151})}, id="for-else-body-starts-with-loop"),
+        pytest.param("164", {164: (165, 165, {159, 160})}, id="multi-line-for-else"),
+        pytest.param("102", {}, id="try-else"),
+    ],
+)
+def test_ast_info_targeted_else_branches(line_range, expected_else_branches):
+    module_path = get_module_path("tests.fixtures.instrumentation.if_else_targets")
+    module_ast_info = ModuleAstInfo.from_path(
+        module_path,
+        to_cover_config=ToCoverConfiguration(only_cover_line_ranges=[line_range]),
+    )
+    assert module_ast_info is not None
+    module_scope = module_ast_info.get_scope(0)
+    assert module_scope is not None
+
+    else_branches = module_scope.targeted_else_branches(module_path)
+
+    assert {
+        line: (else_branch.body_line, else_branch.body_end_line, set(else_branch.condition_lines))
+        for line, else_branch in else_branches.items()
+    } == expected_else_branches
+    assert all(else_branch.file_name == module_path for else_branch in else_branches.values())
+
+
+def test_ast_info_targeted_else_branches_without_line_ranges():
+    module_path = get_module_path("tests.fixtures.instrumentation.if_else_targets")
+    module_ast_info = ModuleAstInfo.from_path(module_path, to_cover_config=ToCoverConfiguration())
+    assert module_ast_info is not None
+    module_scope = module_ast_info.get_scope(0)
+    assert module_scope is not None
+
+    assert module_scope.targeted_else_branches(module_path) == {}
+
+
+@pytest.mark.parametrize(
+    "line_range, lineno, expected",
+    [
+        pytest.param("9", 9, True, id="if-line"),
+        pytest.param("18", 18, True, id="nested-if-line"),
+        pytest.param("54", 54, True, id="elif-line"),
+        pytest.param("9-10", 9, True, id="range-without-else-line"),
+        pytest.param("11", 9, False, id="else-line-only"),
+        pytest.param("112", 112, False, id="else-line-no-cover"),
+        pytest.param("90", 90, False, id="loop-with-else-unchanged"),
+    ],
+)
+def test_ast_info_only_cover_line_ranges_should_cover_conditional_statement(
+    line_range, lineno, expected
+):
+    module_ast_info = ModuleAstInfo.from_path(
+        get_module_path("tests.fixtures.instrumentation.if_else_targets"),
+        to_cover_config=ToCoverConfiguration(only_cover_line_ranges=[line_range]),
+    )
+    assert module_ast_info is not None
+    module_scope = module_ast_info.get_scope(0)
+    assert module_scope is not None
+
+    assert module_scope.should_cover_conditional_statement(lineno) is expected
