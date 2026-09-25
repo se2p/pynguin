@@ -244,17 +244,23 @@ class _MutationMetrics:
     num_killed_mutants: int
     num_timeout_mutants: int
 
-    def get_score(self) -> float:
+    def get_score(self) -> float | None:
         """Computes the mutation score.
 
         Returns:
-            The mutation score
+            The mutation score, or ``None`` if no checked mutant contributed
+            usable information (every created mutant timed out), in which case
+            the score is unmeasurable rather than vacuously perfect.
         """
         divisor = self.num_created_mutants - self.num_timeout_mutants
         assert divisor >= 0
         if divisor == 0:
-            # No mutants -> all mutants covered.
-            return 1.0
+            if self.num_created_mutants == 0:
+                # No mutants were created -> vacuously covered.
+                return 1.0
+            # Every created mutant timed out; we learned nothing about the
+            # assertions, so the score cannot be measured.
+            return None
         return self.num_killed_mutants / divisor
 
 

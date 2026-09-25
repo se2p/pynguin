@@ -84,8 +84,14 @@ def print_results_table(results: list[ModuleResult]) -> None:
         if show_mutation:
             row.append(fmt_pct(r.mutation_score))
             killed = r.mutation_killed if r.mutation_killed is not None else "?"
-            total = r.mutation_total if r.mutation_total is not None else "?"
-            row.append(f"{killed}/{total}")
+            checked = r.mutation_checked if r.mutation_checked is not None else r.mutation_total
+            checked_display = checked if checked is not None else "?"
+            cell = f"{killed}/{checked_display}"
+            if r.mutation_timed_out:
+                # Surface the degenerate case (score is N/A) where timeouts ate the
+                # whole checked set instead of just reporting a misleadingly bare ratio.
+                cell += f" ({r.mutation_timed_out} timeout)"
+            row.append(cell)
         if show_llm:
             in_tok = r.llm_input_tokens if r.llm_input_tokens is not None else 0
             out_tok = r.llm_output_tokens if r.llm_output_tokens is not None else 0
@@ -212,6 +218,8 @@ def results_to_json(results: list[ModuleResult], git_ref: str, budget: int, seed
                 "mutation_score": r.mutation_score,
                 "mutation_killed": r.mutation_killed,
                 "mutation_total": r.mutation_total,
+                "mutation_checked": r.mutation_checked,
+                "mutation_timed_out": r.mutation_timed_out,
                 "llm_calls": r.llm_calls,
                 "llm_input_tokens": r.llm_input_tokens,
                 "llm_output_tokens": r.llm_output_tokens,

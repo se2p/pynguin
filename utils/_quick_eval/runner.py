@@ -36,7 +36,13 @@ def _build_output_vars(*, include_mutation: bool, include_llm: bool) -> str:
     """Assemble the ``--output-variables`` list for the requested metrics."""
     parts = ["TargetModule", "BranchCoverage"]
     if include_mutation:
-        parts += ["MutationScore", "NumberOfKilledMutants", "NumberOfCreatedMutants"]
+        parts += [
+            "MutationScore",
+            "NumberOfKilledMutants",
+            "NumberOfCreatedMutants",
+            "NumberOfCheckedMutants",
+            "NumberOfTimedOutMutants",
+        ]
     if include_llm:
         parts += [
             "TotalLLMCalls",
@@ -315,6 +321,8 @@ def _result_from_stats(
         mutation_score=_as_float(stats["mutation_score"]),
         mutation_killed=_as_int(stats["mutation_killed"]),
         mutation_total=_as_int(stats["mutation_total"]),
+        mutation_checked=_as_int(stats["mutation_checked"]),
+        mutation_timed_out=_as_int(stats["mutation_timed_out"]),
         llm_calls=_as_int(stats["llm_calls"]),
         llm_input_tokens=_as_int(stats["llm_input_tokens"]),
         llm_output_tokens=_as_int(stats["llm_output_tokens"]),
