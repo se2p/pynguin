@@ -20,6 +20,7 @@ import collections
 import dataclasses
 import enum
 import importlib
+import importlib.util
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -373,36 +374,134 @@ class ImportedBinding:
     symbol: str | None = None
 
 
+def get_package_anchor(module_name: str) -> str:
+    """Return the package anchor for resolving relative imports within module_name.
+
+    Args:
+        module_name: The fully qualified module name under test.
+
+    Returns:
+        The package anchor string to use for resolving relative imports.
+    """
+    if not module_name:
+        return ""
+    try:
+        spec = importlib.util.find_spec(module_name)
+    except (ImportError, ValueError, AttributeError):
+        spec = None
+    if spec is not None:
+        if spec.submodule_search_locations is not None:
+            return module_name
+        if spec.parent:
+            return spec.parent
+    if "." in module_name:
+        return module_name.rpartition(".")[0]
+    return module_name
+
+
+_get_package_anchor = get_package_anchor
+
+
+class RelativeImportNormalizer(cst.CSTTransformer):
+    """Normalizes relative ``ImportFrom`` statements to absolute imports."""
+
+    def __init__(self, package_anchor: str) -> None:  # noqa: D107
+        self._package_anchor = package_anchor
+
+    def leave_ImportFrom(  # noqa: N802
+        self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
+    ) -> cst.ImportFrom:
+        """Rewrite relative ImportFrom nodes to absolute ImportFrom nodes."""
+        if not updated_node.relative or not self._package_anchor:
+            return updated_node
+
+        level_dots = "." * len(updated_node.relative)
+        if updated_node.module is not None:
+            dotted = _dotted_chain(updated_node.module)
+            if dotted is None:
+                return updated_node
+            rel_name = level_dots + ".".join(dotted)
+        else:
+            rel_name = level_dots
+
+        try:
+            abs_name = importlib.util.resolve_name(rel_name, self._package_anchor)
+        except (ValueError, ImportError):
+            logger.debug(
+                "Could not resolve relative import %s with anchor %s",
+                rel_name,
+                self._package_anchor,
+            )
+            return updated_node
+
+        abs_chain = abs_name.split(".")
+        return updated_node.with_changes(
+            relative=(),
+            module=_build_chain(abs_chain),
+        )
+
+
+_RelativeImportNormalizer = RelativeImportNormalizer
+
+
+def _resolve_from_import_module(node: cst.ImportFrom) -> str | None:
+    mod_chain = _dotted_chain(node.module) if node.module is not None else []
+    if node.relative:
+        anchor = get_package_anchor(config.configuration.module_name)
+        level_dots = "." * len(node.relative)
+        rel_name = level_dots + (".".join(mod_chain) if mod_chain else "")
+        try:
+            return importlib.util.resolve_name(rel_name, anchor)
+        except (ValueError, ImportError):
+            return None
+    if not mod_chain:
+        return None
+    return ".".join(mod_chain)
+
+
+def _extract_from_import_bindings(node: cst.ImportFrom) -> dict[str, ImportedBinding]:
+    if isinstance(node.names, cst.ImportStar):
+        return {}
+    full_mod = _resolve_from_import_module(node)
+    if full_mod is None:
+        return {}
+    bindings: dict[str, ImportedBinding] = {}
+    for alias in node.names:
+        if not isinstance(alias.name, cst.Name):
+            continue
+        symbol_name = alias.name.value
+        local_name = (
+            alias.asname.name.value
+            if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
+            else symbol_name
+        )
+        submodule_candidate = f"{full_mod}.{symbol_name}"
+        is_submod = False
+        try:
+            is_submod = importlib.util.find_spec(submodule_candidate) is not None
+        except (ImportError, ValueError, AttributeError):
+            is_submod = False
+        if is_submod:
+            bindings[local_name] = ImportedBinding(module=submodule_candidate, symbol=None)
+        else:
+            bindings[local_name] = ImportedBinding(module=full_mod, symbol=symbol_name)
+    return bindings
+
+
 def _extract_imported_bindings(node: cst.Import | cst.ImportFrom) -> dict[str, ImportedBinding]:
     """Extract local name to ImportedBinding mapping from an import statement."""
+    if isinstance(node, cst.ImportFrom):
+        return _extract_from_import_bindings(node)
     bindings: dict[str, ImportedBinding] = {}
-    if isinstance(node, cst.Import):
-        for alias in node.names:
-            chain = _dotted_chain(alias.name)
-            if not chain:
-                continue
-            full_mod = ".".join(chain)
-            if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
-                bindings[alias.asname.name.value] = ImportedBinding(module=full_mod, symbol=None)
-            else:
-                bindings[chain[0]] = ImportedBinding(module=full_mod, symbol=None)
-    elif isinstance(node, cst.ImportFrom):
-        if node.relative or node.module is None or isinstance(node.names, cst.ImportStar):
-            return bindings
-        mod_chain = _dotted_chain(node.module)
-        if not mod_chain:
-            return bindings
-        full_mod = ".".join(mod_chain)
-        for alias in node.names:
-            if not isinstance(alias.name, cst.Name):
-                continue
-            symbol_name = alias.name.value
-            local_name = (
-                alias.asname.name.value
-                if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
-                else symbol_name
-            )
-            bindings[local_name] = ImportedBinding(module=full_mod, symbol=symbol_name)
+    for alias in node.names:
+        chain = _dotted_chain(alias.name)
+        if not chain:
+            continue
+        full_mod = ".".join(chain)
+        if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
+            bindings[alias.asname.name.value] = ImportedBinding(module=full_mod, symbol=None)
+        else:
+            bindings[chain[0]] = ImportedBinding(module=full_mod, symbol=None)
     return bindings
 
 
@@ -463,36 +562,80 @@ class _SutReferenceNormalizer(cst.CSTTransformer):
         kept = []
         for alias in node.names:
             dotted = _dotted_chain(alias.name)
-            if dotted is not None and ".".join(dotted) == self._module_name:
+            if dotted is None:
+                kept.append(alias)
+                continue
+            imp_name = ".".join(dotted)
+            if imp_name == self._module_name:
                 if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
                     self._bindings[alias.asname.name.value] = _SutBinding((), ())
                 else:
                     self._bindings[dotted[0]] = _SutBinding(tuple(dotted[1:]), ())
+                continue
+            if self._module_name.startswith(imp_name + "."):
+                sut_parts = self._module_name.split(".")
+                rel_sut = sut_parts[len(dotted) :]
+                if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
+                    self._bindings[alias.asname.name.value] = _SutBinding(tuple(rel_sut), ())
+                else:
+                    self._bindings[dotted[0]] = _SutBinding(tuple(dotted[1:] + rel_sut), ())
+                kept.append(alias)
                 continue
             kept.append(alias)
         if not kept:
             return None
         return node.with_changes(names=kept)
 
-    def _handle_import_from(self, node: cst.ImportFrom) -> cst.ImportFrom | None:
-        if node.relative or node.module is None:
-            return node
-        dotted = _dotted_chain(node.module)
-        if dotted is None or ".".join(dotted) != self._module_name:
-            return node
-        if isinstance(node.names, cst.ImportStar):
-            return node
+    def _handle_parent_package_import_from(
+        self, node: cst.ImportFrom, dotted: list[str]
+    ) -> cst.ImportFrom | None:
+        sut_parts = self._module_name.split(".")
+        rel_sut = sut_parts[len(dotted) :]
+        target_submod = rel_sut[0]
+        kept_names = []
         for alias in node.names:
             if not isinstance(alias.name, cst.Name):
+                kept_names.append(alias)
                 continue
             member = alias.name.value
-            local = (
-                alias.asname.name.value
-                if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
-                else member
-            )
-            self._bindings[local] = _SutBinding((), (member,))
-        return None
+            if member == target_submod:
+                local = (
+                    alias.asname.name.value
+                    if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
+                    else member
+                )
+                self._bindings[local] = _SutBinding(tuple(rel_sut[1:]), ())
+                if len(rel_sut) == 1:
+                    continue
+            kept_names.append(alias)
+        if not kept_names:
+            return None
+        return node.with_changes(names=kept_names)
+
+    def _handle_import_from(self, node: cst.ImportFrom) -> cst.ImportFrom | None:
+        if node.relative or node.module is None or isinstance(node.names, cst.ImportStar):
+            return node
+        dotted = _dotted_chain(node.module)
+        if dotted is None:
+            return node
+        mod_str = ".".join(dotted)
+        if mod_str == self._module_name:
+            for alias in node.names:
+                if not isinstance(alias.name, cst.Name):
+                    continue
+                member = alias.name.value
+                local = (
+                    alias.asname.name.value
+                    if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
+                    else member
+                )
+                self._bindings[local] = _SutBinding((), (member,))
+            return None
+
+        if self._module_name.startswith(mod_str + "."):
+            return self._handle_parent_package_import_from(node, dotted)
+
+        return node
 
     def leave_SimpleStatementLine(  # noqa: N802
         self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
@@ -565,6 +708,11 @@ def normalize_sut_references(module: cst.Module, module_name: str, module_alias:
     Returns:
         The normalized module, with SUT imports removed and references rewritten.
     """
+    anchor = _get_package_anchor(module_name)
+    if anchor:
+        module_norm = module.visit(_RelativeImportNormalizer(anchor))
+        assert isinstance(module_norm, cst.Module)
+        module = module_norm
     normalized = module.visit(_SutReferenceNormalizer(module_name, module_alias))
     assert isinstance(normalized, cst.Module)
     return normalized
@@ -888,7 +1036,9 @@ class CstStatementDeserializer:
         if target is None:
             return True
         if target.symbol is not None:
-            return target.symbol == name and target.module == module
+            if target.symbol == name and target.module == module:
+                return True
+            return f"{target.module}.{target.symbol}" == module
         return target.module == module
 
     def _match_external_constructor(
@@ -1230,15 +1380,30 @@ class CstStatementDeserializer:
             The test case together with the per-statement disposition counts.
             The test case may be empty if nothing could be parsed.
         """
+        anchor = _get_package_anchor(self._module_name)
+        if anchor:
+            rel_normalizer = _RelativeImportNormalizer(anchor)
+            fn_node = fn.visit(rel_normalizer)
+            assert isinstance(fn_node, cst.FunctionDef)
+            fn = fn_node
+            if module_level_imports:
+                norm_imports = []
+                for imp in module_level_imports:
+                    norm_imp = imp.visit(rel_normalizer)
+                    assert isinstance(norm_imp, cst.SimpleStatementLine)
+                    norm_imports.append(norm_imp)
+                module_level_imports = norm_imports
+
+        lines_to_process = self._hoist_module_imports(fn.body, module_level_imports)
+        combined_block = fn.body.with_changes(body=lines_to_process)
         normalizer = _SutReferenceNormalizer(self._module_name, self._module_alias)
-        normalized = fn.body.visit(normalizer)
+        normalized = combined_block.visit(normalizer)
         assert isinstance(normalized, cst.IndentedBlock)
 
-        lines_to_process = self._hoist_module_imports(normalized, module_level_imports)
         state = _FunctionDeserializationState(known=set(self._ambient_names))
         counts: collections.Counter[Disposition] = collections.Counter()
 
-        for line in lines_to_process:
+        for line in normalized.body:
             if isinstance(line, cst.BaseCompoundStatement):
                 counts[self._handle_compound_statement(line, state)] += 1
             elif isinstance(line, cst.SimpleStatementLine):
@@ -1254,23 +1419,33 @@ def _format_counts(counts: collections.Counter[Disposition]) -> str:
     return ", ".join(f"{name}={n}" for name, n in non_zero) or "no statements"
 
 
-def _parse_module_level_imports(import_sources: Sequence[str]) -> list[cst.SimpleStatementLine]:
+def _parse_module_level_imports(
+    import_sources: Sequence[str],
+    module_name: str | None = None,
+) -> list[cst.SimpleStatementLine]:
     """Parse rewriter-extracted top-level import sources into libcst statement lines.
 
     Args:
         import_sources: the unparsed import statements surfaced by
             :func:`rewrite_tests` (see :class:`RewrittenTests`).
+        module_name: optional module under test to resolve relative imports against.
 
     Returns:
         one ``SimpleStatementLine`` per parseable top-level import statement.
     """
     lines: list[cst.SimpleStatementLine] = []
+    anchor = _get_package_anchor(module_name) if module_name else ""
+    rel_normalizer = _RelativeImportNormalizer(anchor) if anchor else None
     for import_source in import_sources:
         try:
             parsed = cst.parse_statement(import_source)
         except cst.ParserSyntaxError:  # pragma: no cover - ast already validated it
             continue
         if isinstance(parsed, cst.SimpleStatementLine):
+            if rel_normalizer is not None:
+                norm_parsed = parsed.visit(rel_normalizer)
+                assert isinstance(norm_parsed, cst.SimpleStatementLine)
+                parsed = norm_parsed
             lines.append(parsed)
     return lines
 
@@ -1314,7 +1489,9 @@ def deserialize_code_to_testcases(
     # them separately so they can be hoisted into the functions that reference them;
     # without this, mock/context-manager statements are dropped as references to
     # unknown names.
-    module_level_imports = _parse_module_level_imports(rewritten.module_imports)
+    module_level_imports = _parse_module_level_imports(
+        rewritten.module_imports, module_name=config.configuration.module_name
+    )
 
     deserializer = CstStatementDeserializer(test_cluster, create_assertions=create_assertions)
     test_cases: list[tc.TestCase] = []

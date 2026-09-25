@@ -13,6 +13,7 @@ import libcst as cst
 import pytest
 
 import pynguin.configuration as config
+from pynguin.analyses.module import analyse_module, parse_module
 from pynguin.assertion.assertion import (
     CollectionLengthAssertion,
     FloatAssertion,
@@ -23,7 +24,10 @@ from pynguin.large_language_model.parsing.deserializer import (
     CstStatementDeserializer,
     Disposition,
     ParseStatus,
+    RelativeImportNormalizer,
     deserialize_code_to_testcases,
+    get_package_anchor,
+    normalize_sut_references,
     parse_assertion,
 )
 from pynguin.large_language_model.parsing.rewriter import RewrittenTests
@@ -924,3 +928,228 @@ def test_3():
     assert len(result.test_cases) == 0
     assert result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE] == 1
     assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+
+
+# ---------------------------------------------------------------------------
+# Relative and submodule imports handling (issue #283)
+# ---------------------------------------------------------------------------
+
+
+def test_get_package_anchor():
+    # Package itself
+    assert get_package_anchor("tzlocal") == "tzlocal"
+    # Submodule of package
+    assert get_package_anchor("tzlocal.unix") == "tzlocal"
+    # Unimportable dotted module
+    assert get_package_anchor("foo.bar.baz") == "foo.bar"
+    # Unimportable single module name
+    assert get_package_anchor("standalone") == "standalone"
+    # Empty module name
+    assert not get_package_anchor("")
+
+
+def test_relative_import_normalizer():
+    normalizer = RelativeImportNormalizer("tzlocal")
+    stmt = cst.parse_statement("from . import utils\n")
+    normalized = stmt.visit(normalizer)
+    assert cst.Module(body=[normalized]).code.strip() == "from tzlocal import utils"
+
+    stmt2 = cst.parse_statement("from .unix import get_localzone\n")
+    normalized2 = stmt2.visit(normalizer)
+    assert cst.Module(body=[normalized2]).code.strip() == "from tzlocal.unix import get_localzone"
+
+    # Relative import beyond root should be kept as-is without raising
+    stmt3 = cst.parse_statement("from ...something import invalid\n")
+    normalized3 = stmt3.visit(normalizer)
+    assert cst.Module(body=[normalized3]).code.strip() == "from ...something import invalid"
+
+
+def test_deserialize_function_relative_import_to_sut(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    mock_func = MagicMock(spec=GenericFunction)
+    mock_func.function_name = "get_localzone"
+    cluster.accessible_objects_under_test = [mock_func]
+
+    code = """
+def test_foo():
+    from . import unix
+    res = unix.get_localzone()
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 1
+    assert "from . import unix" not in testcase.to_code()
+    assert "unix_.get_localzone()" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_deserialize_function_relative_import_to_helper(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    cluster.accessible_objects_under_test = []
+
+    mock_func = MagicMock(spec=GenericFunction)
+    mock_func.function_name = "assert_tz_offset"
+    mock_callable = MagicMock()
+    mock_callable.__module__ = "tzlocal.utils"
+    mock_func.callable = mock_callable
+    cluster.all_accessible_objects = [mock_func]
+
+    code = """
+def test_foo():
+    from . import utils
+    res = utils.assert_tz_offset(0)
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 2
+    assert "from tzlocal import utils" in testcase.to_code()
+    assert "res = utils.assert_tz_offset(0)" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_deserialize_package_import_of_sut_submodule(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    mock_func = MagicMock(spec=GenericFunction)
+    mock_func.function_name = "get_localzone"
+    cluster.accessible_objects_under_test = [mock_func]
+
+    code = """
+def test_foo():
+    from tzlocal import unix
+    res = unix.get_localzone()
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 1
+    assert "from tzlocal import unix" not in testcase.to_code()
+    assert "unix_.get_localzone()" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_deserialize_package_import_of_sut_submodule_with_alias(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    mock_func = MagicMock(spec=GenericFunction)
+    mock_func.function_name = "get_localzone"
+    cluster.accessible_objects_under_test = [mock_func]
+
+    code = """
+def test_foo():
+    from tzlocal import unix as u
+    res = u.get_localzone()
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 1
+    assert "from tzlocal import unix" not in testcase.to_code()
+    assert "unix_.get_localzone()" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_deserialize_package_import_mixed_sut_and_helper(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    mock_sut_func = MagicMock(spec=GenericFunction)
+    mock_sut_func.function_name = "get_localzone"
+    cluster.accessible_objects_under_test = [mock_sut_func]
+
+    mock_ext_func = MagicMock(spec=GenericFunction)
+    mock_ext_func.function_name = "assert_tz_offset"
+    mock_callable = MagicMock()
+    mock_callable.__module__ = "tzlocal.utils"
+    mock_ext_func.callable = mock_callable
+    cluster.all_accessible_objects = [mock_sut_func, mock_ext_func]
+
+    code = """
+def test_foo():
+    from tzlocal import unix, utils
+    u = utils.assert_tz_offset(0)
+    z = unix.get_localzone()
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 3
+    # SUT submodule 'unix' was removed; external helper 'utils' was kept
+    assert "from tzlocal import utils" in testcase.to_code()
+    assert "u = utils.assert_tz_offset(0)" in testcase.to_code()
+    assert "z = unix_.get_localzone()" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED] == 2
+
+
+def test_deserialize_parent_package_import(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    mock_func = MagicMock(spec=GenericFunction)
+    mock_func.function_name = "get_localzone"
+    cluster.accessible_objects_under_test = [mock_func]
+
+    code = """
+def test_foo():
+    import tzlocal
+    res = tzlocal.unix.get_localzone()
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 2
+    assert "import tzlocal" in testcase.to_code()
+    assert "res = unix_.get_localzone()" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_deserialize_parent_package_import_with_alias(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    cluster = MagicMock()
+    mock_func = MagicMock(spec=GenericFunction)
+    mock_func.function_name = "get_localzone"
+    cluster.accessible_objects_under_test = [mock_func]
+
+    code = """
+def test_foo():
+    import tzlocal as tz
+    res = tz.unix.get_localzone()
+"""
+    result = _deserialize_function(code, cluster)
+    testcase = result.test_case
+    assert testcase.size() == 2
+    assert "import tzlocal as tz" in testcase.to_code()
+    assert "res = unix_.get_localzone()" in testcase.to_code()
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_normalize_sut_references_handles_relative_imports():
+    module = cst.parse_module("from . import unix\nres = unix.get_localzone()\n")
+    normalized = normalize_sut_references(module, "tzlocal.unix", "unix_")
+    code = normalized.code.strip()
+    assert "from . import unix" not in code
+    assert "from tzlocal import unix" not in code
+    assert "res = unix_.get_localzone()" in code
+
+
+def test_integration_tzlocal_unix_deserialization(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tzlocal.unix")
+    parsed = parse_module("tzlocal.unix")
+    cluster = analyse_module(parsed)
+
+    code = """
+from . import utils
+import tzlocal.unix as unix
+
+def test_localzone():
+    res = unix.get_localzone()
+
+def test_helper():
+    res = utils.get_tz_offset(None)
+"""
+    result = deserialize_code_to_testcases(code, cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 2
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 0
+    assert result.counts[Disposition.ADMITTED] == 2
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
