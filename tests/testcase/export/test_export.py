@@ -958,6 +958,18 @@ def test_per_statement_exceptions_binds_magic_mock():
     assert result == [None]
 
 
+def test_per_statement_exceptions_uses_precomputed_sut_import_stmts():
+    """Verify that _per_statement_exceptions uses precomputed sut_import_stmts when provided."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    stmts = export._build_sut_import_statements(module_name)
+    test_case = make_test_case(stmt(f"{module_name}.simple_function(1.0)"))
+
+    result = writer._per_statement_exceptions(test_case, module_name, None, sut_import_stmts=stmts)
+
+    assert result == [None]
+
+
 def test_write_canonical_module_reference_no_false_xfail(tmp_path: Path):
     """Statements referencing the canonical module name are not falsely marked with xfail."""
     module_name = "tests.fixtures.accessibles.accessible"

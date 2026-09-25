@@ -305,7 +305,11 @@ class TestSuiteWriter:
         module_name: str,
         project_path: str | None,
         subject_properties: SubjectProperties | None = None,
+        *,
         module_aliases: dict[str, str] | None = None,
+        sut_import_stmts: (
+            Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement] | None
+        ) = None,
     ) -> list[type[BaseException] | None]:
         """Execute each statement individually; return per-statement exception types.
 
@@ -316,6 +320,7 @@ class TestSuiteWriter:
             subject_properties: Optional subject properties used to disable tracing.
             module_aliases: Optional mapping from module names to their assigned aliases
                 in the generated test suite.
+            sut_import_stmts: Optional pre-built CST import statements for the SUT.
 
         Returns:
             A list with one entry per statement: the exception type raised by that
@@ -339,7 +344,12 @@ class TestSuiteWriter:
         }
         # Mirror the rendered test's SUT imports and definitions so dry-run re-execution
         # and test execution after export use the exact same namespace bindings.
-        for stmt_node in _build_sut_import_statements(module_name, project_path):
+        import_stmts = (
+            sut_import_stmts
+            if sut_import_stmts is not None
+            else _build_sut_import_statements(module_name, project_path)
+        )
+        for stmt_node in import_stmts:
             with contextlib.suppress(Exception):
                 exec(cst.Module(body=[stmt_node]).code, namespace)  # noqa: S102
 
@@ -351,8 +361,9 @@ class TestSuiteWriter:
 
         if module_aliases:
             for mod, alias in module_aliases.items():
-                with contextlib.suppress(Exception):
-                    namespace[alias] = sys.modules.get(mod) or importlib.import_module(mod)
+                if alias not in namespace:
+                    with contextlib.suppress(Exception):
+                        namespace[alias] = sys.modules.get(mod) or importlib.import_module(mod)
 
         results: list[type[BaseException] | None] = []
 
@@ -581,6 +592,10 @@ class TestSuiteWriter:
             used_aliases.add(candidate)
             isinstance_module_aliases[mod] = candidate
 
+        sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = list(
+            _build_sut_import_statements(module_name, project_path)
+        )
+
         functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         needs_pytest = False
         needs_asyncio = False
@@ -597,6 +612,7 @@ class TestSuiteWriter:
                 project_path,
                 subject_properties,
                 module_aliases=isinstance_module_aliases,
+                sut_import_stmts=sut_import_stmts,
             )
             func, func_used_exc_types = self._build_test_function(
                 len(functions), tc, exc_types, module_aliases=isinstance_module_aliases
@@ -652,9 +668,6 @@ class TestSuiteWriter:
             assertion_import_stmts.append(cst.parse_statement(f"import {mod} as {alias}\n"))
 
         # Build the full module: [sys.path preamble +] import(s) + test functions
-        sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = list(
-            _build_sut_import_statements(module_name, project_path)
-        )
         if needs_magicmock:
             sut_import_stmts.append(
                 cast(
