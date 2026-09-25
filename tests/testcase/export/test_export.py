@@ -877,6 +877,118 @@ def test_per_statement_exceptions_rebinds_tracer_thread_guard(subject_properties
     assert result == [None]
 
 
+def test_build_sut_import_statements_structure():
+    """Verify that _build_sut_import_statements generates the expected CST imports."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    stmts = export._build_sut_import_statements(module_name)
+
+    code = cst.Module(body=stmts).code
+    assert "import sys" in code
+    assert f"import {module_name}" in code
+    assert f"accessible_ = sys.modules['{module_name}']" in code
+    assert f"from {module_name} import" in code
+    assert "simple_function" in code
+
+
+def test_build_sut_import_statements_unimportable_module():
+    """Verify that unimportable modules emit basic imports without public names."""
+    bogus = "nonexistent_module_foo_bar"
+    stmts = export._build_sut_import_statements(bogus)
+
+    code = cst.Module(body=stmts).code
+    assert "import sys" in code
+    assert f"import {bogus}" in code
+    assert f"{bogus}_ = sys.modules['{bogus}']" in code
+    assert f"from {bogus} import" not in code
+
+
+def test_per_statement_exceptions_binds_canonical_module_name_dotted():
+    """A statement calling a function via the full dotted canonical name re-executes cleanly."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt(f"{module_name}.simple_function(float_0)"),
+    )
+
+    result = writer._per_statement_exceptions(test_case, module_name, None)
+
+    assert result == [None, None]
+
+
+def test_per_statement_exceptions_binds_canonical_module_name_top_level():
+    """A statement calling a function via a top-level canonical name re-executes cleanly."""
+    module_name = "untangle"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        stmt("res = untangle.is_url('http://example.com')"),
+    )
+
+    result = writer._per_statement_exceptions(test_case, module_name, None)
+
+    assert result == [None]
+
+
+def test_per_statement_exceptions_binds_module_aliases():
+    """A statement using an aliased module from module_aliases executes cleanly."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        stmt("val = math_alias.sqrt(16.0)"),
+    )
+
+    result = writer._per_statement_exceptions(
+        test_case, module_name, None, module_aliases={"math": "math_alias"}
+    )
+
+    assert result == [None]
+
+
+def test_per_statement_exceptions_binds_magic_mock():
+    """A statement in a test case with mock_info has MagicMock available."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        stmt("m = MagicMock()"),
+    )
+    test_case.get_statement(0).mock_info = mock.Mock()
+
+    result = writer._per_statement_exceptions(test_case, module_name, None)
+
+    assert result == [None]
+
+
+def test_per_statement_exceptions_uses_precomputed_sut_import_stmts():
+    """Verify that _per_statement_exceptions uses precomputed sut_import_stmts when provided."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    stmts = export._build_sut_import_statements(module_name)
+    test_case = make_test_case(stmt(f"{module_name}.simple_function(1.0)"))
+
+    result = writer._per_statement_exceptions(test_case, module_name, None, sut_import_stmts=stmts)
+
+    assert result == [None]
+
+
+def test_write_canonical_module_reference_no_false_xfail(tmp_path: Path):
+    """Statements referencing the canonical module name are not falsely marked with xfail."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt(f"{module_name}.simple_function(float_0)"),
+    )
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+    content = out_file.read_text(encoding="utf-8")
+
+    assert "@pytest.mark.xfail" not in content
+    assert "def test_0():" in content
+    assert f"{module_name}.simple_function(float_0)" in content
+
+
 # ---------------------------------------------------------------------------
 # TestSuiteWriter.write: filtering out no-op test cases (issue #280)
 # ---------------------------------------------------------------------------
