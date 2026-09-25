@@ -17,6 +17,9 @@ user_message_template: |
   - Write test functions named `test_<function>_<scenario>`.
   - Cover edge cases: empty inputs, `None`, boundary values, and invalid types.
   - Exercise error paths with `with pytest.raises(...)`.
+  {% if visibility_instructions -%}
+  - {{ visibility_instructions }}
+  {% endif %}
 
   ### Module under test
   - Module path: `{{ module_path }}`

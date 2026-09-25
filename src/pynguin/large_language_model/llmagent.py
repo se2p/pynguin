@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import ast
 import contextlib
 import datetime
 import inspect
@@ -22,10 +21,7 @@ with contextlib.suppress(ImportError):
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-from pynguin.analyses.module import (
-    import_module,
-    is_name_visible_under_configured_element_visibility,
-)
+from pynguin.analyses.module import import_module
 from pynguin.large_language_model.client import (
     OpenAIClient,
     _run_coroutine_sync,
@@ -124,76 +120,47 @@ def _truncate_to_context_budget(source: str) -> str:
     return source
 
 
-def _hide_non_visible_members(tree: ast.Module) -> None:
-    """Drops module-level functions and class methods the SUT's public API does not expose.
+def get_visibility_instructions() -> str:
+    """Describes, in prose, which members of the module under test the LLM may call.
 
-    Mutates ``tree`` in place, mirroring the rule the test cluster applies to
-    decide which functions and methods are accessible (see
-    ``pynguin.analyses.module``): only a callable's own name is checked, never
-    its owning class's name, so classes are never dropped -- only their
-    non-visible methods (other than ``__init__``) are, individually.
-
-    Args:
-        tree: The parsed module, modified in place.
-    """
-    visible_body = []
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            if not is_name_visible_under_configured_element_visibility(node.name):
-                continue
-        elif isinstance(node, ast.ClassDef):
-            node.body = [
-                member
-                for member in node.body
-                if not isinstance(member, ast.FunctionDef | ast.AsyncFunctionDef)
-                or member.name == "__init__"
-                or is_name_visible_under_configured_element_visibility(member.name)
-            ] or [ast.Pass()]
-        visible_body.append(node)
-    tree.body = visible_body
-
-
-def _filter_source_by_visibility(source: str) -> str:
-    """Hides source elements the LLM must not call from the SUT's source.
-
-    The LLM is prompted with the module's source so it can generate calls
-    against it. Showing it non-public functions, classes and methods lets it
-    generate calls the rest of the pipeline can never accept: the search-based
-    test cluster excludes those elements per ``element_visibility`` (default
-    ``PUBLIC``), so such calls are only ever caught at export, wasting the
-    search/LLM budget on statements that can never be part of a valid test.
-    Filtering the source to what the configured visibility actually allows
-    keeps the LLM's view of the module consistent with what it may call.
-
-    Falls back to the unfiltered source if it cannot be parsed or re-rendered.
-
-    Args:
-        source: The full module source code.
+    The LLM is always prompted with the module's full, unfiltered source (see
+    ``get_module_source_code``) -- it needs the whole picture to write correct
+    tests. But the search-based side of Pynguin only ever targets elements
+    ``element_visibility`` (default ``PUBLIC``) allows, so a call the LLM
+    invents to an excluded element can never be resolved against the test
+    cluster and is wasted budget. This instruction, included in the relevant
+    prompts, tells the LLM which elements are actually in scope so it targets
+    them instead; :func:`pynguin.large_language_model.parsing.deserializer.
+    CstStatementDeserializer._compute_ambient_names` still drops any call to
+    an excluded element the LLM generates regardless.
 
     Returns:
-        The source with non-visible top-level functions/classes and
-        non-visible methods of visible classes removed.
+        A prose instruction for the prompt, or an empty string when every
+        element is in scope (``element_visibility`` is ``ALL``) and no
+        instruction is needed.
     """
-    if config.configuration.element_visibility == config.ElementVisibility.ALL:
-        return source
-    try:
-        tree = ast.parse(source)
-        _hide_non_visible_members(tree)
-        ast.fix_missing_locations(tree)
-        return ast.unparse(tree)
-    except (SyntaxError, TypeError, ValueError):
-        _logger.debug("Could not filter module source by visibility; using it unfiltered.")
-        return source
+    match config.configuration.element_visibility:
+        case config.ElementVisibility.PUBLIC:
+            return (
+                "Only call public functions, classes and methods of the module under "
+                "test (names that do not start with an underscore); do not call "
+                "protected (`_name`) or private (`__name`) members."
+            )
+        case config.ElementVisibility.PROTECTED:
+            return (
+                "Only call public and protected functions, classes and methods of the "
+                "module under test (names with at most one leading underscore); do "
+                "not call private (`__name`) members."
+            )
+        case _:
+            return ""
 
 
 def get_module_source_code() -> str:
     """Reads and returns the source code of the module.
 
-    Non-public functions, classes and methods are removed according to the
-    configured ``element_visibility`` before the source is truncated to the
-    LLM context-character budget (``large_language_model.max_context_chars``),
-    so the LLM is never shown -- and cannot generate calls to -- elements the
-    search-based test cluster would never target.
+    The source is truncated to the configured LLM context-character budget
+    (``large_language_model.max_context_chars``).
 
     Returns:
         The source code of the module.
@@ -211,10 +178,9 @@ def get_module_source_code() -> str:
     with contextlib.suppress(Exception):
         source_file = inspect.getsourcefile(module) or getattr(module, "__file__", None)
         if source_file and Path(source_file).exists():
-            source = Path(source_file).read_text(encoding="utf-8")
-            return _truncate_to_context_budget(_filter_source_by_visibility(source))
+            return _truncate_to_context_budget(Path(source_file).read_text(encoding="utf-8"))
 
-    return _truncate_to_context_budget(_filter_source_by_visibility(inspect.getsource(module)))
+    return _truncate_to_context_budget(inspect.getsource(module))
 
 
 def get_part_of_source_code(name: str) -> str:
@@ -573,6 +539,7 @@ class LLMAgent:  # noqa: PLR0904
             str(module_path),
             dependencies=dependencies,
             usage_examples=usage_examples,
+            visibility_instructions=get_visibility_instructions(),
         )
         return self.query(prompt)
 
@@ -598,6 +565,7 @@ class LLMAgent:  # noqa: PLR0904
             module_code,
             str(module_path),
             diagnostics=diagnostics,
+            visibility_instructions=get_visibility_instructions(),
         )
         return self.query(prompt)
 
@@ -732,5 +700,6 @@ class LLMAgent:  # noqa: PLR0904
             position=position,
             module_code=module_source_code,
             branch_coverage=branch_coverage,
+            visibility_instructions=get_visibility_instructions(),
         )
         return self.query(prompt)

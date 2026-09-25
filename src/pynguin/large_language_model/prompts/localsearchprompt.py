@@ -26,6 +26,7 @@ class LocalSearchPrompt(Prompt):
         position: int,
         module_code: str,
         branch_coverage: list[LineAnnotation],
+        visibility_instructions: str = "",
     ):
         """Initializes the prompt.
 
@@ -37,15 +38,25 @@ class LocalSearchPrompt(Prompt):
             position: The position of the statement to be mutated.
             module_code: The source code of the module under test.
             branch_coverage: The branch coverage information.
+            visibility_instructions: Optional prose describing which members of
+                the module the mutated statement may call (see
+                ``llmagent.get_visibility_instructions``).
         """
         self.test_case_code = add_line_numbers(test_case_code)
         self.position = position
         self.module_code = module_code
         self.branch_coverage = branch_coverage
+        self.visibility_instructions = visibility_instructions
         super().__init__()
 
     def _template_vars(self) -> list[str]:
-        return ["position", "branch_coverage", "test_case_code", "module_code"]
+        return [
+            "position",
+            "branch_coverage",
+            "test_case_code",
+            "module_code",
+            "visibility_instructions",
+        ]
 
     def render_request(self) -> RenderedRequest:
         """Builds the rendered request.
@@ -60,6 +71,7 @@ class LocalSearchPrompt(Prompt):
             branch_coverage=uncovered_branches_list,
             test_case_code=self.test_case_code,
             module_code=self.module_code,
+            visibility_instructions=self.visibility_instructions,
         )
 
     def build_uncovered_branch_section(self) -> list[str]:

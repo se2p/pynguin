@@ -18,6 +18,9 @@ user_message_template: |
   - Return the ENTIRE test, not just the mutated statement.
   - Wrap the test in a class so it can be parsed reliably.
   - Use pytest only; do not use the `unittest` module.
+  {% if visibility_instructions -%}
+  - {{ visibility_instructions }}
+  {% endif %}
 
   ### Partially covered lines (line: covered/existing branches)
   {% for line in branch_coverage -%}
