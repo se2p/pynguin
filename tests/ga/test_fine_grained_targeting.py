@@ -11,6 +11,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import importlib
+import sys
 import types
 from unittest.mock import MagicMock
 
@@ -32,6 +33,12 @@ from pynguin.instrumentation.version import BranchCoverageInstrumentation
 from pynguin.testcase.execution import ExecutionResult
 
 IF_ELSE_TARGETS_MODULE = "tests.fixtures.instrumentation.if_else_targets"
+
+WHILE_CONDITION_PREDICATES = 1 if sys.version_info >= (3, 14) else 2
+
+ELSE_HEADER_NO_COVER_GOALS: list[tuple[int, bool]] = (
+    [(112, True)] if sys.version_info >= (3, 14) else []
+)
 
 
 def test_overlaps_line_ranges_none_or_empty():
@@ -157,7 +164,9 @@ def test_targeted_else_goals(
         pytest.param("elif_chain", "54", [(54, False), (54, True)], id="elif-with-else"),
         pytest.param("else_with_single_if", "71", [(71, False), (71, True)], id="if-inside-else"),
         pytest.param("simple", "9-10", [(9, False), (9, True)], id="range-without-else-line"),
-        pytest.param("else_header_no_cover", "112", [], id="else-line-no-cover"),
+        pytest.param(
+            "else_header_no_cover", "112", ELSE_HEADER_NO_COVER_GOALS, id="else-line-no-cover"
+        ),
         pytest.param("elif_chain", "52", [(52, False), (52, True)], id="if-with-elif-unchanged"),
     ],
 )
@@ -179,7 +188,10 @@ def test_targeted_if_line_goals(
     [
         pytest.param("loop_else", "93", [(90, False)], id="for-with-break"),
         pytest.param(
-            "while_else_break", "138", [(134, False), (134, False)], id="while-with-break"
+            "while_else_break",
+            "138",
+            [(134, False)] * WHILE_CONDITION_PREDICATES,
+            id="while-with-break",
         ),
         pytest.param("for_else_no_break", "121", [], id="for-without-break"),
         pytest.param("while_else_no_break", "145", [], id="while-without-break"),
