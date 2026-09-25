@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import datetime
 import inspect
@@ -21,7 +22,10 @@ with contextlib.suppress(ImportError):
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-from pynguin.analyses.module import import_module
+from pynguin.analyses.module import (
+    import_module,
+    is_name_visible_under_configured_element_visibility,
+)
 from pynguin.large_language_model.client import (
     OpenAIClient,
     _run_coroutine_sync,
@@ -120,11 +124,76 @@ def _truncate_to_context_budget(source: str) -> str:
     return source
 
 
+def _hide_non_visible_members(tree: ast.Module) -> None:
+    """Drops module-level functions and class methods the SUT's public API does not expose.
+
+    Mutates ``tree`` in place, mirroring the rule the test cluster applies to
+    decide which functions and methods are accessible (see
+    ``pynguin.analyses.module``): only a callable's own name is checked, never
+    its owning class's name, so classes are never dropped -- only their
+    non-visible methods (other than ``__init__``) are, individually.
+
+    Args:
+        tree: The parsed module, modified in place.
+    """
+    visible_body = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if not is_name_visible_under_configured_element_visibility(node.name):
+                continue
+        elif isinstance(node, ast.ClassDef):
+            node.body = [
+                member
+                for member in node.body
+                if not isinstance(member, ast.FunctionDef | ast.AsyncFunctionDef)
+                or member.name == "__init__"
+                or is_name_visible_under_configured_element_visibility(member.name)
+            ] or [ast.Pass()]
+        visible_body.append(node)
+    tree.body = visible_body
+
+
+def _filter_source_by_visibility(source: str) -> str:
+    """Hides source elements the LLM must not call from the SUT's source.
+
+    The LLM is prompted with the module's source so it can generate calls
+    against it. Showing it non-public functions, classes and methods lets it
+    generate calls the rest of the pipeline can never accept: the search-based
+    test cluster excludes those elements per ``element_visibility`` (default
+    ``PUBLIC``), so such calls are only ever caught at export, wasting the
+    search/LLM budget on statements that can never be part of a valid test.
+    Filtering the source to what the configured visibility actually allows
+    keeps the LLM's view of the module consistent with what it may call.
+
+    Falls back to the unfiltered source if it cannot be parsed or re-rendered.
+
+    Args:
+        source: The full module source code.
+
+    Returns:
+        The source with non-visible top-level functions/classes and
+        non-visible methods of visible classes removed.
+    """
+    if config.configuration.element_visibility == config.ElementVisibility.ALL:
+        return source
+    try:
+        tree = ast.parse(source)
+        _hide_non_visible_members(tree)
+        ast.fix_missing_locations(tree)
+        return ast.unparse(tree)
+    except (SyntaxError, TypeError, ValueError):
+        _logger.debug("Could not filter module source by visibility; using it unfiltered.")
+        return source
+
+
 def get_module_source_code() -> str:
     """Reads and returns the source code of the module.
 
-    The source is truncated to the configured LLM context-character budget
-    (``large_language_model.max_context_chars``).
+    Non-public functions, classes and methods are removed according to the
+    configured ``element_visibility`` before the source is truncated to the
+    LLM context-character budget (``large_language_model.max_context_chars``),
+    so the LLM is never shown -- and cannot generate calls to -- elements the
+    search-based test cluster would never target.
 
     Returns:
         The source code of the module.
@@ -142,9 +211,10 @@ def get_module_source_code() -> str:
     with contextlib.suppress(Exception):
         source_file = inspect.getsourcefile(module) or getattr(module, "__file__", None)
         if source_file and Path(source_file).exists():
-            return _truncate_to_context_budget(Path(source_file).read_text(encoding="utf-8"))
+            source = Path(source_file).read_text(encoding="utf-8")
+            return _truncate_to_context_budget(_filter_source_by_visibility(source))
 
-    return _truncate_to_context_budget(inspect.getsource(module))
+    return _truncate_to_context_budget(_filter_source_by_visibility(inspect.getsource(module)))
 
 
 def get_part_of_source_code(name: str) -> str:

@@ -191,3 +191,55 @@ def test_get_module_source_code_with_module_level_getattr(monkeypatch, tmp_path)
     source = get_module_source_code()
     assert "def __getattr__(name):" in source
     assert "return 42" in source
+
+
+def test_get_module_source_code_hides_non_visible_members_by_default(monkeypatch):
+    """Regression test for Issue #285.
+
+    The LLM must not be shown, and thus cannot be prompted to call, elements
+    ``element_visibility`` (default ``PUBLIC``) excludes from the test
+    cluster's public API. Uses ``tests.fixtures.cluster.visibility``, the same
+    fixture ``tests/analyses/test_module.py`` uses to pin down what the test
+    cluster itself considers accessible, so this stays consistent with it.
+    """
+    monkeypatch.setattr(config.configuration, "module_name", "tests.fixtures.cluster.visibility")
+
+    source = get_module_source_code()
+
+    assert "def public_function" in source
+    assert "class PublicClass" in source
+    assert "def public_method" in source
+    # A class is never hidden by its own name -- only non-public members are.
+    assert "class _ProtectedClass" in source
+    assert "_protected_function" not in source
+    assert "__private_function" not in source
+    assert "_protected_method" not in source
+    assert "__private_method" not in source
+
+
+def test_get_module_source_code_keeps_protected_members(monkeypatch):
+    monkeypatch.setattr(
+        config.configuration, "element_visibility", config.ElementVisibility.PROTECTED
+    )
+    monkeypatch.setattr(config.configuration, "module_name", "tests.fixtures.cluster.visibility")
+
+    source = get_module_source_code()
+
+    assert "def public_function" in source
+    assert "def _protected_function" in source
+    assert "def _protected_method" in source
+    assert "__private_function" not in source
+    assert "__private_method" not in source
+
+
+def test_get_module_source_code_keeps_all_members_when_visibility_all(monkeypatch):
+    monkeypatch.setattr(config.configuration, "element_visibility", config.ElementVisibility.ALL)
+    monkeypatch.setattr(config.configuration, "module_name", "tests.fixtures.cluster.visibility")
+
+    source = get_module_source_code()
+
+    assert "def public_function" in source
+    assert "def _protected_function" in source
+    assert "def __private_function" in source
+    assert "def _protected_method" in source
+    assert "def __private_method" in source
