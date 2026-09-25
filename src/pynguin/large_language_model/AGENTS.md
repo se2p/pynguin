@@ -173,7 +173,8 @@ Requires `TestCluster` for deserialization:
 
 ### Statistics
 
-Tracks to `RuntimeVariable`:
+Tracks to `RuntimeVariable` (the call, time and token totals are summed over all
+`LLMAgent` instances of a run, each agent adding its usage since its last report):
 - `TotalLLMCalls`
 - `LLMQueryTime`
 - `TotalLLMInputTokens`
