@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, mock_open, patch
 import pytest
 
 import pynguin.configuration as config
+import pynguin.utils.statistics.stats as stat
 from pynguin.large_language_model.llmagent import (
     LLMAgent,
     _truncate_to_context_budget,  # noqa: PLC2701
@@ -360,53 +361,101 @@ def test_extract_python_code_none_input(monkeypatch):
     assert not result
 
 
-def test_log_and_track_llm_stats(monkeypatch):
-    """Test _log_and_track_llm_stats method."""
-    # Mock require_api_key and OpenAI client to avoid actual API calls
+def _llm_stats() -> dict[RuntimeVariable, int | float]:
+    output_variables = stat.statistics_tracker.output_variables
+    return {
+        variable: output_variables[variable.name].value
+        for variable in (
+            RuntimeVariable.TotalLLMCalls,
+            RuntimeVariable.LLMQueryTime,
+            RuntimeVariable.TotalLLMOutputTokens,
+            RuntimeVariable.TotalLLMInputTokens,
+            RuntimeVariable.TotalCodelessLLMResponses,
+        )
+    }
+
+
+def _set_agent_stats(agent: LLMAgent, calls: int, codeless: int, timer: int, tokens: int):
+    agent._llm_calls_counter = calls
+    agent._llm_calls_with_no_python_code = codeless
+    agent._llm_calls_timer = timer
+    agent._llm_input_tokens = tokens
+    agent._llm_output_tokens = 2 * tokens
+
+
+@pytest.fixture
+def stats_agent_factory(monkeypatch):
     monkeypatch.setattr(
         "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
     )
     monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
+    monkeypatch.setattr("pynguin.large_language_model.llmagent._logger", MagicMock())
+    return LLMAgent
 
-    # Mock the stat.track_output_variable function
-    mock_track = MagicMock()
-    monkeypatch.setattr("pynguin.utils.statistics.stats.track_output_variable", mock_track)
 
-    # Mock logging to avoid actual logging
-    mock_logger = MagicMock()
-    monkeypatch.setattr("pynguin.large_language_model.llmagent._logger", mock_logger)
+def test_log_and_track_llm_stats(stats_agent_factory):
+    """Test _log_and_track_llm_stats method."""
+    agent = stats_agent_factory()
+    _set_agent_stats(agent, calls=10, codeless=3, timer=5_000_000_000, tokens=100)
 
-    # Create an instance of LLMAgent
-    agent = LLMAgent()
-
-    # Set some stats
-    agent._llm_calls_counter = 10
-    agent._llm_calls_with_no_python_code = 3
-    agent._llm_calls_timer = 5000000000  # 5 seconds in nanoseconds
-    agent._llm_input_tokens = 100
-    agent._llm_output_tokens = 200
-
-    # Call the method
     agent._log_and_track_llm_stats()
 
-    # Check that track_output_variable was called with the correct arguments
-    assert mock_track.call_count == 5
+    assert _llm_stats() == {
+        RuntimeVariable.TotalLLMCalls: 10,
+        RuntimeVariable.LLMQueryTime: 5_000_000_000,
+        RuntimeVariable.TotalLLMOutputTokens: 200,
+        RuntimeVariable.TotalLLMInputTokens: 100,
+        RuntimeVariable.TotalCodelessLLMResponses: 3,
+    }
 
-    # Check that the correct runtime variables were tracked
-    tracked_variables = [call[0][0] for call in mock_track.call_args_list]
-    assert RuntimeVariable.TotalLLMCalls in tracked_variables
-    assert RuntimeVariable.LLMQueryTime in tracked_variables
-    assert RuntimeVariable.TotalLLMOutputTokens in tracked_variables
-    assert RuntimeVariable.TotalLLMInputTokens in tracked_variables
-    assert RuntimeVariable.TotalCodelessLLMResponses in tracked_variables
 
-    # Check that the correct values were tracked
-    tracked_values = {call[0][0]: call[0][1] for call in mock_track.call_args_list}
-    assert tracked_values[RuntimeVariable.TotalLLMCalls] == 10
-    assert tracked_values[RuntimeVariable.LLMQueryTime] == 5000000000
-    assert tracked_values[RuntimeVariable.TotalLLMOutputTokens] == 200
-    assert tracked_values[RuntimeVariable.TotalLLMInputTokens] == 100
-    assert tracked_values[RuntimeVariable.TotalCodelessLLMResponses] == 3
+def test_log_and_track_llm_stats_repeated_reports_do_not_double_count(stats_agent_factory):
+    agent = stats_agent_factory()
+    _set_agent_stats(agent, calls=1, codeless=0, timer=10, tokens=5)
+    agent._log_and_track_llm_stats()
+    _set_agent_stats(agent, calls=3, codeless=1, timer=30, tokens=15)
+    agent._log_and_track_llm_stats()
+
+    assert _llm_stats() == {
+        RuntimeVariable.TotalLLMCalls: 3,
+        RuntimeVariable.LLMQueryTime: 30,
+        RuntimeVariable.TotalLLMOutputTokens: 30,
+        RuntimeVariable.TotalLLMInputTokens: 15,
+        RuntimeVariable.TotalCodelessLLMResponses: 1,
+    }
+
+
+def test_log_and_track_llm_stats_sums_over_agents(stats_agent_factory):
+    """Each agent's report adds to the totals instead of overwriting them."""
+    search_agent = stats_agent_factory()
+    assertion_agent = stats_agent_factory()
+
+    _set_agent_stats(search_agent, calls=4, codeless=1, timer=400, tokens=40)
+    search_agent._log_and_track_llm_stats()
+    _set_agent_stats(assertion_agent, calls=2, codeless=0, timer=200, tokens=20)
+    assertion_agent._log_and_track_llm_stats()
+    _set_agent_stats(search_agent, calls=5, codeless=1, timer=500, tokens=50)
+    search_agent._log_and_track_llm_stats()
+
+    assert _llm_stats() == {
+        RuntimeVariable.TotalLLMCalls: 7,
+        RuntimeVariable.LLMQueryTime: 700,
+        RuntimeVariable.TotalLLMOutputTokens: 140,
+        RuntimeVariable.TotalLLMInputTokens: 70,
+        RuntimeVariable.TotalCodelessLLMResponses: 1,
+    }
+
+
+def test_log_and_track_llm_stats_after_client_usage_reset(stats_agent_factory):
+    agent = stats_agent_factory()
+    _set_agent_stats(agent, calls=4, codeless=0, timer=40, tokens=40)
+    agent._log_and_track_llm_stats()
+    # The client's token counters restart from zero, the agent's own counters do not.
+    _set_agent_stats(agent, calls=5, codeless=0, timer=50, tokens=10)
+    agent._log_and_track_llm_stats()
+
+    assert _llm_stats()[RuntimeVariable.TotalLLMInputTokens] == 50
+    assert _llm_stats()[RuntimeVariable.TotalLLMCalls] == 5
 
 
 def test_generate_assertions_for_test_case(monkeypatch):

@@ -12,6 +12,7 @@ import contextlib
 import datetime
 import inspect
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -54,6 +55,10 @@ if TYPE_CHECKING:
     from pynguin.utils.report import LineAnnotation
 
 _logger = logging.getLogger(__name__)
+
+# Several LLMAgent instances exist in one run (search, seeding, assertion generation, ...)
+# and may report concurrently, so their contributions to the shared totals are serialised.
+_STATS_LOCK = threading.Lock()
 
 
 def save_prompt_info_to_file(prompt_message: str, full_response: str):
@@ -267,6 +272,8 @@ class LLMAgent:  # noqa: PLR0904
         self._llm_calls_with_no_python_code = 0
         self._llm_input_tokens = 0
         self._llm_output_tokens = 0
+        # The values this agent has already added to the run-wide statistics.
+        self._reported_stats: dict[RuntimeVariable, float] = {}
         self._llm_test_case_handler = LLMTestCaseHandler(self)
 
         self._client = OpenAIClient()
@@ -583,9 +590,11 @@ class LLMAgent:  # noqa: PLR0904
     def _log_and_track_llm_stats(self) -> None:
         """Logs LLM statistics and updates tracking variables.
 
-        Updates the following runtime variables:
+        Adds this agent's usage since its last report to the following runtime
+        variables, so they are totals across all agents of the run:
         - TotalLLMCalls: Total number of LLM calls made.
         - LLMQueryTime: Total time spent in LLM calls.
+        - TotalLLMInputTokens / TotalLLMOutputTokens: Total tokens used.
         - TotalCodelessLLMResponses: Number of LLM calls that returned no Python code.
 
         Logs the following:
@@ -603,14 +612,21 @@ class LLMAgent:  # noqa: PLR0904
         )
         _logger.info("Total LLM call time is %s seconds", self.llm_calls_timer / 1e9)
 
-        stat.track_output_variable(RuntimeVariable.TotalLLMCalls, self.llm_calls_counter)
-        stat.track_output_variable(RuntimeVariable.LLMQueryTime, self.llm_calls_timer)
-        stat.track_output_variable(RuntimeVariable.TotalLLMOutputTokens, self.llm_output_tokens)
-        stat.track_output_variable(RuntimeVariable.TotalLLMInputTokens, self.llm_input_tokens)
-        stat.track_output_variable(
-            RuntimeVariable.TotalCodelessLLMResponses,
-            self.llm_calls_with_no_python_code,
-        )
+        current = {
+            RuntimeVariable.TotalLLMCalls: self.llm_calls_counter,
+            RuntimeVariable.LLMQueryTime: self.llm_calls_timer,
+            RuntimeVariable.TotalLLMOutputTokens: self.llm_output_tokens,
+            RuntimeVariable.TotalLLMInputTokens: self.llm_input_tokens,
+            RuntimeVariable.TotalCodelessLLMResponses: self.llm_calls_with_no_python_code,
+        }
+        with _STATS_LOCK:
+            for variable, value in current.items():
+                reported = self._reported_stats.get(variable, 0)
+                # A counter below what was reported means the client usage was reset,
+                # in which case everything counted since then is new.
+                delta = value - reported if value >= reported else value
+                stat.add_to_runtime_variable(variable, delta)
+                self._reported_stats[variable] = value
 
     def generate_assertions_for_test_case(self, test_case_source_code: str) -> str | None:
         """Generates assertions for a given test case source code.
