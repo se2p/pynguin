@@ -23,6 +23,9 @@ user_message_template: |
     outcome). Address the hint directly — construct valid inputs to reach it, or vary
     one input/state axis to flip an unobserved branch.
   - Write test functions named `test_<callable>_<scenario>`.
+  {% if visibility_instructions -%}
+  - {{ visibility_instructions }}
+  {% endif %}
 
   ### Module under test
   - Module path: `{{ module_path }}`

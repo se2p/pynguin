@@ -28,6 +28,7 @@ import libcst as cst
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.testcase as tc
 from pynguin import configuration as config
+from pynguin.analyses.module import is_name_visible_under_configured_element_visibility
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
@@ -797,7 +798,11 @@ class CstStatementDeserializer:
         except BaseException:  # noqa: BLE001
             logger.debug("Could not import %s to compute ambient names", self._module_name)
         if module is not None:
-            names.update(vars(module).keys())
+            names.update(
+                name
+                for name in vars(module)
+                if is_name_visible_under_configured_element_visibility(name)
+            )
         for obj in self._all_accessibles:
             func_name = getattr(obj, "function_name", None)
             if func_name:

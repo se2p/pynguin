@@ -649,6 +649,57 @@ def test_foo():
 
 
 # ---------------------------------------------------------------------------
+# Ambient names respect element_visibility (Issue #285)
+# ---------------------------------------------------------------------------
+
+
+def _write_module_with_protected_helper(monkeypatch, tmp_path, name):
+    mod_file = tmp_path / f"{name}.py"
+    mod_file.write_text("def _protected_helper():\n    return 1\n", encoding="utf-8")
+    monkeypatch.setattr(config.configuration, "project_path", str(tmp_path))
+    monkeypatch.setattr(config.configuration, "module_name", name)
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+
+def test_call_to_non_visible_module_function_dropped_by_default(
+    test_cluster, monkeypatch, tmp_path
+):
+    """Regression test for Issue #285.
+
+    A call to a module-level helper that ``element_visibility`` (default
+    ``PUBLIC``) excludes from the test cluster's public API must be dropped
+    as an unknown name at admission, not kept as an ``ADMITTED_UNRESOLVED_CALL``
+    that only fails later, at export.
+    """
+    _write_module_with_protected_helper(monkeypatch, tmp_path, "mod_285_public")
+    code = """
+def test_foo():
+    x = _protected_helper()
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.test_case.size() == 0
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
+
+
+def test_call_to_non_visible_module_function_admitted_with_visibility_all(
+    test_cluster, monkeypatch, tmp_path
+):
+    """The same call is admitted once ``element_visibility`` includes it.
+
+    It becomes part of the ambient names and is then only unresolved, not
+    an unknown name.
+    """
+    monkeypatch.setattr(config.configuration, "element_visibility", config.ElementVisibility.ALL)
+    _write_module_with_protected_helper(monkeypatch, tmp_path, "mod_285_all")
+    code = """
+def test_foo():
+    x = _protected_helper()
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts == Counter({Disposition.ADMITTED_UNRESOLVED_CALL: 1})
+
+
+# ---------------------------------------------------------------------------
 # parse_assertion, tested directly
 # ---------------------------------------------------------------------------
 

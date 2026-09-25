@@ -120,6 +120,42 @@ def _truncate_to_context_budget(source: str) -> str:
     return source
 
 
+def get_visibility_instructions() -> str:
+    """Describes, in prose, which members of the module under test the LLM may call.
+
+    The LLM is always prompted with the module's full, unfiltered source (see
+    ``get_module_source_code``) -- it needs the whole picture to write correct
+    tests. But the search-based side of Pynguin only ever targets elements
+    ``element_visibility`` (default ``PUBLIC``) allows, so a call the LLM
+    invents to an excluded element can never be resolved against the test
+    cluster and is wasted budget. This instruction, included in the relevant
+    prompts, tells the LLM which elements are actually in scope so it targets
+    them instead; :func:`pynguin.large_language_model.parsing.deserializer.
+    CstStatementDeserializer._compute_ambient_names` still drops any call to
+    an excluded element the LLM generates regardless.
+
+    Returns:
+        A prose instruction for the prompt, or an empty string when every
+        element is in scope (``element_visibility`` is ``ALL``) and no
+        instruction is needed.
+    """
+    match config.configuration.element_visibility:
+        case config.ElementVisibility.PUBLIC:
+            return (
+                "Only call public functions, classes and methods of the module under "
+                "test (names that do not start with an underscore); do not call "
+                "protected (`_name`) or private (`__name`) members."
+            )
+        case config.ElementVisibility.PROTECTED:
+            return (
+                "Only call public and protected functions, classes and methods of the "
+                "module under test (names with at most one leading underscore); do "
+                "not call private (`__name`) members."
+            )
+        case _:
+            return ""
+
+
 def get_module_source_code() -> str:
     """Reads and returns the source code of the module.
 
@@ -503,6 +539,7 @@ class LLMAgent:  # noqa: PLR0904
             str(module_path),
             dependencies=dependencies,
             usage_examples=usage_examples,
+            visibility_instructions=get_visibility_instructions(),
         )
         return self.query(prompt)
 
@@ -528,6 +565,7 @@ class LLMAgent:  # noqa: PLR0904
             module_code,
             str(module_path),
             diagnostics=diagnostics,
+            visibility_instructions=get_visibility_instructions(),
         )
         return self.query(prompt)
 
@@ -662,5 +700,6 @@ class LLMAgent:  # noqa: PLR0904
             position=position,
             module_code=module_source_code,
             branch_coverage=branch_coverage,
+            visibility_instructions=get_visibility_instructions(),
         )
         return self.query(prompt)

@@ -22,6 +22,7 @@ def test_testcasegenerationprompt_init():
         "module_path",
         "dependencies",
         "usage_examples",
+        "visibility_instructions",
     ]
 
 
@@ -41,6 +42,7 @@ def test_testcasegenerationprompt_render():
         module_path="example/path.py",
         dependencies="",
         usage_examples="",
+        visibility_instructions="",
     )
 
     assert isinstance(rendered, RenderedRequest)
@@ -65,6 +67,7 @@ def test_prompt_parameter_overrides(monkeypatch):
         module_path="example/path.py",
         dependencies="",
         usage_examples="",
+        visibility_instructions="",
     )
     assert rendered.model == "gpt-4o-mini"
     assert rendered.temperature == 0.0

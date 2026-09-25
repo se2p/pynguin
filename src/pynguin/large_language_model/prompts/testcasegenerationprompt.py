@@ -21,6 +21,7 @@ class TestCaseGenerationPrompt(Prompt):
         module_path: str,
         dependencies: str = "",
         usage_examples: str = "",
+        visibility_instructions: str = "",
     ):
         """Creates a new prompt.
 
@@ -29,15 +30,25 @@ class TestCaseGenerationPrompt(Prompt):
             module_path: The module file path.
             dependencies: Optional SUT dependency signatures.
             usage_examples: Optional call-site usage examples.
+            visibility_instructions: Optional prose describing which members of
+                the module the generated tests may call (see
+                ``llmagent.get_visibility_instructions``).
         """
         self.module_code = module_code
         self.module_path = module_path
         self.dependencies = dependencies
         self.usage_examples = usage_examples
+        self.visibility_instructions = visibility_instructions
         super().__init__()
 
     def _template_vars(self) -> list[str]:
-        return ["module_code", "module_path", "dependencies", "usage_examples"]
+        return [
+            "module_code",
+            "module_path",
+            "dependencies",
+            "usage_examples",
+            "visibility_instructions",
+        ]
 
     def render_request(self) -> RenderedRequest:
         """Builds the rendered request.
@@ -50,4 +61,5 @@ class TestCaseGenerationPrompt(Prompt):
             module_path=self.module_path,
             dependencies=self.dependencies,
             usage_examples=self.usage_examples,
+            visibility_instructions=self.visibility_instructions,
         )

@@ -1422,6 +1422,25 @@ def __should_skip_by_visibility(name: str, *, add_to_test: bool) -> bool:
             return __is_private(name) or __is_protected(name)
 
 
+def is_name_visible_under_configured_element_visibility(name: str) -> bool:
+    """Checks whether a name of the module under test is part of its public API.
+
+    Applies the same visibility rule the test cluster uses to decide which
+    functions, classes and methods of the module under test are accessible
+    (:func:`__should_skip_by_visibility`), so other components that need to
+    match that same notion of "accessible" -- e.g. the LLM integration, which
+    must not expose or admit calls to elements the search-based generator
+    would never target -- can reuse it instead of re-implementing it.
+
+    Args:
+        name: The (unqualified) name of the element.
+
+    Returns:
+        True, if the name is visible under ``element_visibility``.
+    """
+    return not __should_skip_by_visibility(name, add_to_test=True)
+
+
 def __is_method_defined_in_class(class_: type | types.UnionType, method: object) -> bool:
     return class_ == get_class_that_defined_method(method)
 

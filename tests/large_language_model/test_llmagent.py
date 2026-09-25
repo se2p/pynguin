@@ -16,6 +16,7 @@ from pynguin.large_language_model.llmagent import (
     LLMAgent,
     get_module_path,
     get_module_source_code,
+    get_visibility_instructions,
 )
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
@@ -191,3 +192,61 @@ def test_get_module_source_code_with_module_level_getattr(monkeypatch, tmp_path)
     source = get_module_source_code()
     assert "def __getattr__(name):" in source
     assert "return 42" in source
+
+
+def test_get_module_source_code_never_hides_members(monkeypatch):
+    """The LLM is always shown the module's full, unfiltered source.
+
+    Per review on Issue #285: the LLM should get the whole code so it has the
+    full picture; ``get_visibility_instructions`` (not source filtering) is
+    how it is told which members it may actually target.
+    """
+    monkeypatch.setattr(config.configuration, "module_name", "tests.fixtures.cluster.visibility")
+
+    source = get_module_source_code()
+
+    assert "def public_function" in source
+    assert "def _protected_function" in source
+    assert "def __private_function" in source
+    assert "def _protected_method" in source
+    assert "def __private_method" in source
+    assert "class _ProtectedClass" in source
+
+
+@pytest.mark.parametrize(
+    ("visibility", "expected_substring"),
+    [
+        (config.ElementVisibility.PUBLIC, "Only call public"),
+        (config.ElementVisibility.PROTECTED, "Only call public and protected"),
+    ],
+)
+def test_get_visibility_instructions_describes_restriction(
+    monkeypatch, visibility, expected_substring
+):
+    monkeypatch.setattr(config.configuration, "element_visibility", visibility)
+    assert expected_substring in get_visibility_instructions()
+
+
+def test_get_visibility_instructions_empty_when_all(monkeypatch):
+    monkeypatch.setattr(config.configuration, "element_visibility", config.ElementVisibility.ALL)
+    assert not get_visibility_instructions()
+
+
+def test_test_case_generation_prompt_includes_visibility_instructions(monkeypatch):
+    monkeypatch.setattr(config.configuration, "element_visibility", config.ElementVisibility.PUBLIC)
+    prompt = TestCaseGenerationPrompt(
+        "def foo():\n    pass",
+        "example/path.py",
+        visibility_instructions=get_visibility_instructions(),
+    )
+    assert "Only call public" in prompt.build_prompt()
+
+
+def test_test_case_generation_prompt_omits_visibility_section_when_all(monkeypatch):
+    monkeypatch.setattr(config.configuration, "element_visibility", config.ElementVisibility.ALL)
+    prompt = TestCaseGenerationPrompt(
+        "def foo():\n    pass",
+        "example/path.py",
+        visibility_instructions=get_visibility_instructions(),
+    )
+    assert "Only call" not in prompt.build_prompt()

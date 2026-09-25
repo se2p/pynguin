@@ -27,6 +27,7 @@ class UncoveredTargetsPrompt(Prompt):
         module_code: str,
         module_path: str,
         diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
+        visibility_instructions: str = "",
     ):
         """Initializes the prompt.
 
@@ -38,15 +39,19 @@ class UncoveredTargetsPrompt(Prompt):
             diagnostics (dict): Optional per-callable diagnostic hints describing why
                 a target is uncovered (e.g. never reached, one-sided branch). Used to
                 give the LLM a targeted "problem card" per callable.
+            visibility_instructions: Optional prose describing which members of
+                the module the generated tests may call (see
+                ``llmagent.get_visibility_instructions``).
         """
         self.callables: list[GenericCallableAccessibleObject] = callables
         self.module_path = module_path
         self.module_code = module_code
         self.diagnostics: dict[GenericCallableAccessibleObject, str] = diagnostics or {}
+        self.visibility_instructions = visibility_instructions
         super().__init__()
 
     def _template_vars(self) -> list[str]:
-        return ["uncovered_targets", "module_code", "module_path"]
+        return ["uncovered_targets", "module_code", "module_path", "visibility_instructions"]
 
     def build_callables_prompt_section(self) -> list[str]:
         """Generates a list of function headers and their signatures.
@@ -93,4 +98,5 @@ class UncoveredTargetsPrompt(Prompt):
             uncovered_targets=callables_list,
             module_code=self.module_code,
             module_path=self.module_path,
+            visibility_instructions=self.visibility_instructions,
         )
