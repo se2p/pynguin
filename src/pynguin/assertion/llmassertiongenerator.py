@@ -311,4 +311,9 @@ class MutationAnalysisLLMAssertionGenerator(MutationAnalysisAssertionGenerator):
     """Uses mutation analysis to filter out less relevant assertions."""
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
-        super()._handle_add_assertions(test_cases)
+        # The assertions stem from the LLM, not from a trace of the non-mutated
+        # module, so assertions that are wrong on it must be removed first. Otherwise,
+        # they are violated on every mutant, counted as kills, and exported as
+        # failing tests.
+        self._remove_non_holding_assertions(test_cases)
+        self._handle_add_assertions(test_cases)
