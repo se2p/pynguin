@@ -22,6 +22,7 @@ from __future__ import annotations
 import datetime
 import enum
 import importlib
+import importlib.machinery
 import inspect
 import json
 import logging
@@ -195,7 +196,62 @@ def _setup_path() -> bool:
         return False
     _LOGGER.debug("Setting up path for %s", config.configuration.project_path)
     sys.path.insert(0, config.configuration.project_path)
+    _evict_shadowing_modules(config.configuration.module_name, config.configuration.project_path)
     return True
+
+
+def _is_within(file: str | None, directory: Path) -> bool:
+    if file is None:
+        return False
+    try:
+        Path(file).resolve().relative_to(directory)
+    except ValueError:
+        return False
+    return True
+
+
+def _evict_shadowing_modules(module_name: str, project_path: str) -> list[str]:
+    """Remove an already-imported copy of the SUT's package that lives elsewhere.
+
+    Pynguin's own dependencies can import a module with the same top-level name as
+    the SUT from outside the project path (e.g., setuptools' vendored
+    ``more_itertools``). Without eviction, the SUT import would reuse that copy
+    instead of the one in the project path.
+
+    Args:
+        module_name: The name of the module under test.
+        project_path: The project path containing the module under test.
+
+    Returns:
+        The names of the evicted modules.
+    """
+    top_level = module_name.partition(".")[0]
+    loaded = sys.modules.get(top_level)
+    if loaded is None:
+        return []
+    project_dir = Path(project_path).resolve()
+    project_spec = importlib.machinery.PathFinder.find_spec(top_level, [str(project_dir)])
+    if project_spec is None:
+        # The project path does not provide this package, so nothing is shadowed.
+        return []
+    loaded_locations = [getattr(loaded, "__file__", None), *getattr(loaded, "__path__", [])]
+    if any(_is_within(location, project_dir) for location in loaded_locations):
+        return []
+    evicted = [
+        name for name in list(sys.modules) if name == top_level or name.startswith(f"{top_level}.")
+    ]
+    for name in evicted:
+        del sys.modules[name]
+    importlib.invalidate_caches()
+    _LOGGER.warning(
+        "Module %s was already imported from %s instead of the project path %s; "
+        "evicted %d module(s) so the project's copy is tested",
+        top_level,
+        getattr(loaded, "__file__", None),
+        project_dir,
+        len(evicted),
+    )
+    return evicted
 
 
 def _setup_import_hook(
