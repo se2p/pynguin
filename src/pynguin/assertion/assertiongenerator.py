@@ -272,6 +272,23 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
+def _compute_reported_score(metrics: _MutationMetrics, num_created: int) -> float | None:
+    """Computes the mutation score to report, given the pre-truncation mutant count.
+
+    Args:
+        metrics: The metrics over the checked mutants.
+        num_created: The number of mutants the module yielded, checked or not.
+
+    Returns:
+        The mutation score, or ``None`` if mutants were created but none of them
+        could be checked (e.g., every mutant was an invalid module), in which case
+        the score is unmeasurable rather than vacuously perfect.
+    """
+    if num_created > 0 and metrics.num_created_mutants == 0:
+        return None
+    return metrics.get_score()
+
+
 def _select_minimal_assertions(
     kill_map: dict[tuple[int, int], set[int]],
 ) -> set[tuple[int, int]]:
@@ -657,7 +674,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 num_created,
                 metrics.num_created_mutants,
             )
-        stat.track_output_variable(RuntimeVariable.MutationScore, metrics.get_score())
+        stat.track_output_variable(
+            RuntimeVariable.MutationScore, _compute_reported_score(metrics, num_created)
+        )
 
         for info in mutation_summary.mutant_information:
             if info.killed_by:

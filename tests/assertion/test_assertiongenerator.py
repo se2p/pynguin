@@ -139,6 +139,19 @@ def test_mutation_score_is_none_when_every_mutant_times_out():
     assert metrics.get_score() is None
 
 
+@pytest.mark.parametrize(
+    "checked,killed,timeout,num_created,score",
+    [
+        (0, 0, 0, 512, None),  # Mutants created, but none checked (e.g., all invalid).
+        (0, 0, 0, 0, 1.0),  # No mutants at all -> vacuously covered.
+        (4, 2, 0, 10, 0.5),  # Truncated: the score is over the checked mutants.
+    ],
+)
+def test_compute_reported_score(checked, killed, timeout, num_created, score):
+    metrics = ag._MutationMetrics(checked, killed, timeout)
+    assert ag._compute_reported_score(metrics, num_created) == score
+
+
 def test_abort_after_first_timeout_stops_consuming_and_pads():
     consumed = []
 
