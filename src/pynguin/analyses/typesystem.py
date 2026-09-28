@@ -2091,7 +2091,7 @@ class TypeSystem:  # noqa: PLR0904
 
     def get_candidate_types_for_type_var(
         self,
-        type_var: TypeVar | TypeVarType,
+        type_var: TypeVar | TypeVarType | Any,
         custom_classes: Sequence[TypeInfo] = (),
     ) -> list[ProperType]:
         """Derives concrete candidate types to instantiate a type variable.
@@ -2113,9 +2113,9 @@ class TypeSystem:  # noqa: PLR0904
             raw_tv = type_var
 
         if raw_tv is not None:
-            if raw_tv.__constraints__:
+            if getattr(raw_tv, "__constraints__", ()):
                 return [self.convert_type_hint(c) for c in raw_tv.__constraints__]
-            if raw_tv.__bound__ is not None:
+            if getattr(raw_tv, "__bound__", None) is not None:
                 return self._candidates_from_bound(self.convert_type_hint(raw_tv.__bound__))
 
         return self._default_candidate_types(custom_classes)

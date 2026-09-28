@@ -9,7 +9,7 @@
 import inspect
 import operator
 import re
-from typing import Any, TypeVar, Union
+from typing import Any, ParamSpec, TypeVar, Union
 from unittest import mock
 
 import pytest
@@ -1145,3 +1145,11 @@ def test_get_candidate_types_for_type_var():
     assert len(candidates_constrained) == 2
     assert type_system.convert_type_hint(int) in candidates_constrained
     assert type_system.convert_type_hint(str) in candidates_constrained
+
+
+def test_get_candidate_types_for_param_spec():
+    P = ParamSpec("P")  # noqa: N806
+    type_system = TypeSystem()
+    candidates = type_system.get_candidate_types_for_type_var(P)
+    assert any(isinstance(c, Instance) and c.type.raw_type is int for c in candidates)
+    assert any(isinstance(c, Instance) and c.type.raw_type is str for c in candidates)
