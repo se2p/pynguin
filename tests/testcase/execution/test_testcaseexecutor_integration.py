@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import threading
 import types
 from typing import TYPE_CHECKING
 
@@ -278,3 +279,32 @@ def test_execute_generator_method_call_advances(
     with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
         result = executor.execute(test_case)
     assert not result.has_test_exceptions()
+
+
+# --------------------------------------------------------------------------- #
+# Timeouts in uninstrumented code (e.g., mutants)
+# --------------------------------------------------------------------------- #
+MODULE_LOOP = "tests.fixtures.examples.loop"
+
+
+def test_timed_out_uninstrumented_thread_is_stopped(
+    subject_properties: SubjectProperties,
+) -> None:
+    """A timed-out endless loop in uninstrumented code does not leak its thread.
+
+    Regression for #296: mutants are executed uninstrumented, so stopping the
+    tracer never killed their timed-out execution threads, which kept spinning.
+    """
+    config.configuration.module_name = MODULE_LOOP
+    importlib.reload(importlib.import_module(MODULE_LOOP))
+    executor = TestCaseExecutor(
+        subject_properties,
+        maximum_test_execution_timeout=1,
+        test_execution_time_per_statement=1,
+    )
+    threads_before = set(threading.enumerate())
+
+    result = executor.execute(make_test_case(stmt("loop_with_condition()")))
+
+    assert result.timeout
+    assert set(threading.enumerate()) <= threads_before

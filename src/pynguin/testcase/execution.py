@@ -11,6 +11,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import contextlib
+import ctypes
 import importlib
 import inspect
 import logging
@@ -278,6 +279,71 @@ class AbstractTestCaseExecutor(abc.ABC):
             yield self.execute(test_case)
 
 
+# Seconds a timed-out thread gets to notice the stopped tracer before it is aborted
+# forcefully.
+_TRACER_STOP_GRACE_PERIOD = 0.5
+
+# Seconds to wait between two attempts to abort a timed-out thread.
+_FORCE_STOP_RETRY_INTERVAL = 0.1
+
+
+def _raise_in_thread(thread: threading.Thread, exception_type: type[BaseException]) -> bool:
+    """Asynchronously raise an exception in another thread.
+
+    The exception is raised the next time the thread executes Python bytecode,
+    thus a thread blocked inside a C function is only interrupted once the call
+    returns.
+
+    Args:
+        thread: The thread to raise the exception in.
+        exception_type: The type of the exception to raise.
+
+    Returns:
+        Whether the exception was scheduled in exactly one thread.
+    """
+    if thread.ident is None:
+        return False
+    thread_id = ctypes.c_ulong(thread.ident)
+    modified = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        thread_id, ctypes.py_object(exception_type)
+    )
+    if modified > 1:
+        # Must never happen, revert to not affect unrelated threads.
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, None)
+        return False
+    return modified == 1
+
+
+def _force_stop_thread(thread: threading.Thread, timeout: float) -> bool:
+    """Abort a timed-out test-execution thread that ignores the stopped tracer.
+
+    Stopping the instrumentation tracer only kills a thread when it executes
+    instrumented code.  Uninstrumented code, most notably mutants, never checks
+    the tracer, so an endless loop there would otherwise keep the thread spinning
+    until Pynguin exits.  Instead, raise a :class:`TracingAbortedException` in the
+    thread, which the execution thread handles like a stopped tracer.  The
+    exception is raised again until the thread finished, because code under test
+    might catch it.
+
+    Args:
+        thread: The thread to stop.
+        timeout: The maximum number of seconds to wait for the thread to finish.
+
+    Returns:
+        Whether the thread finished.
+    """
+    deadline = time.monotonic() + timeout
+    while thread.is_alive():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _LOGGER.warning("Could not stop timed-out test-execution thread %s", thread.name)
+            return False
+        _LOGGER.debug("Forcefully stopping timed-out test-execution thread %s", thread.name)
+        _raise_in_thread(thread, TracingAbortedException)
+        thread.join(timeout=min(_FORCE_STOP_RETRY_INTERVAL, remaining))
+    return True
+
+
 class TestCaseExecutor(AbstractTestCaseExecutor):
     """An executor that executes the generated test cases."""
 
@@ -418,11 +484,16 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                 )
             )
             if thread.is_alive():
-                # Kills the thread
+                # Kills the thread at its next tracer check (instrumented code only)
                 self._subject_properties.instrumentation_tracer.stop()
                 # Wait for the thread so that stdout/stderr is not redirected anymore
                 _LOGGER.debug("Waiting for thread to finish")
-                thread.join(timeout=self._maximum_test_execution_timeout)
+                thread.join(
+                    timeout=min(_TRACER_STOP_GRACE_PERIOD, self._maximum_test_execution_timeout)
+                )
+                if thread.is_alive():
+                    # Uninstrumented code, e.g., a mutant, never checks the tracer.
+                    _force_stop_thread(thread, self._maximum_test_execution_timeout)
                 # Restore stdout and stderr if it was not already done by the thread
                 _LOGGER.debug("Restoring stdout and stderr")
                 output_suppression_context.restore()

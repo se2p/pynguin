@@ -993,3 +993,36 @@ def test_negative_zero_mutation_analysis_assertion_generation(
         summary = gen._testing_mutation_summary
         assert len(summary.get_timeout()) == 0
         _assert_no_execution_threads_leaked()
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_stops_endlessly_looping_mutant(subject_properties: SubjectProperties):
+    """A mutant looping endlessly in pure Python times out without leaking its thread.
+
+    Regression for #296: mutants are uninstrumented, so stopping the tracer never
+    killed a timed-out mutant execution, whose thread kept spinning.
+    """
+    module = "tests.fixtures.mutation.busy_loop"
+    config.configuration.module_name = module
+    alias = get_module_alias(module)
+    with install_import_hook(module, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module)
+            importlib.reload(module_type)
+
+        test_case = make_test_case(
+            int_stmt("int_0", 1),
+            call_stmt("int_1", f"{alias}.count(int_0)", bound_type=int),
+        )
+        mutant_generator = _standard_mutant_generator()
+        module_ast = _module_ast(module_type)
+        controller = _mutation_controller(mutant_generator, module_type, module_ast)
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(subject_properties), controller, testing=True
+        )
+        _suite(test_case).accept(gen)
+
+    # ``i -= 1`` never reaches ``n``, so at least that mutant times out.
+    assert gen._testing_mutation_summary.get_timeout()
+    # The timed-out threads are already stopped, without waiting for them.
+    assert not any("_execute_test_case" in thread.name for thread in threading.enumerate())

@@ -443,7 +443,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self,
         test_cases: list[tc.TestCase],
         mutant_count: int,
-    ) -> Generator[Iterable[ex.ExecutionResult | None] | None, None, None]:
+    ) -> Generator[list[ex.ExecutionResult | None] | None, None, None]:
         maximum_time = (
             self._maximum_time
             if self._maximum_time is not None
@@ -451,10 +451,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         )
         start_time = self._start_time if self._start_time is not None else time.monotonic()
 
+        def budget_exceeded() -> bool:
+            return maximum_time >= 0 and time.monotonic() - start_time >= maximum_time
+
         for idx, (mutated_module, _) in enumerate(
             self._mutation_controller.create_mutants(), start=1
         ):
-            if maximum_time >= 0 and time.monotonic() - start_time >= maximum_time:
+            if budget_exceeded():
                 self._logger.info(
                     "Mutation time budget of %ss exceeded; checked %i of %i mutant(s).",
                     maximum_time,
@@ -462,12 +465,34 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     mutant_count,
                 )
                 break
-            yield self._execute_test_case_on_mutant(
+            results = self._execute_test_case_on_mutant(
                 test_cases,
                 mutated_module,
                 idx,
                 mutant_count,
             )
+            if results is None:
+                yield None
+                continue
+            # Also check the budget between the tests of a mutant, such that a mutant
+            # with many slow tests cannot overrun it by much.  A partially checked
+            # mutant is discarded, like the ones never checked.
+            mutant_results: list[ex.ExecutionResult | None] = []
+            for result in results:
+                mutant_results.append(result)
+                if len(mutant_results) < len(test_cases) and budget_exceeded():
+                    break
+            if len(mutant_results) < len(test_cases):
+                self._logger.info(
+                    "Mutation time budget of %ss exceeded while running mutant %i; "
+                    "checked %i of %i mutant(s).",
+                    maximum_time,
+                    idx,
+                    idx - 1,
+                    mutant_count,
+                )
+                break
+            yield mutant_results
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
