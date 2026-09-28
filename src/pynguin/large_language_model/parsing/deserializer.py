@@ -221,6 +221,53 @@ class _RootNameCollector(cst.CSTVisitor):
             self.names.add(node.value)
         return True
 
+    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
+        # Parameter defaults are evaluated in the enclosing scope; the body reads
+        # the lambda's own parameters, which are not free names of the statement.
+        for param in _all_params(node.params):
+            if param.default is not None:
+                param.default.visit(self)
+        body_reads = _RootNameCollector.collect(node.body)
+        self.names.update(body_reads - set(_params_names(node.params)))
+        return False
+
+    def visit_ListComp(self, node: cst.ListComp) -> bool:  # noqa: N802
+        self._visit_comprehension((node.elt,), node.for_in)
+        return False
+
+    def visit_SetComp(self, node: cst.SetComp) -> bool:  # noqa: N802
+        self._visit_comprehension((node.elt,), node.for_in)
+        return False
+
+    def visit_GeneratorExp(self, node: cst.GeneratorExp) -> bool:  # noqa: N802
+        self._visit_comprehension((node.elt,), node.for_in)
+        return False
+
+    def visit_DictComp(self, node: cst.DictComp) -> bool:  # noqa: N802
+        self._visit_comprehension((node.key, node.value), node.for_in)
+        return False
+
+    def _visit_comprehension(
+        self, elements: tuple[cst.BaseExpression, ...], for_in: cst.CompFor
+    ) -> None:
+        # The outermost iterable is evaluated in the enclosing scope; everything
+        # else runs in the comprehension's own scope, where the ``for`` targets
+        # are bound and therefore are not free names of the statement.
+        for_in.iter.visit(self)
+        inner = _RootNameCollector()
+        bound: set[str] = set()
+        comp: cst.CompFor | None = for_in
+        while comp is not None:
+            bound.update(_target_names(comp.target))
+            if comp is not for_in:
+                comp.iter.visit(inner)
+            for comp_if in comp.ifs:
+                comp_if.visit(inner)
+            comp = comp.inner_for_in
+        for element in elements:
+            element.visit(inner)
+        self.names.update(inner.names - bound)
+
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         for decorator in node.decorators:
             decorator.visit(self)
@@ -233,6 +280,27 @@ class _RootNameCollector(cst.CSTVisitor):
             type_params.visit(self)
         node.body.visit(self)
         return False
+
+
+def _all_params(params: cst.Parameters) -> list[cst.Param]:
+    """Return every ``Param`` of a ``Parameters`` node, including ``*args``/``**kwargs``."""
+    groups = (params.params, params.kwonly_params, getattr(params, "posonly_params", ()))
+    result = [param for group in groups for param in group]
+    result.extend(
+        star for star in (params.star_arg, params.star_kwarg) if isinstance(star, cst.Param)
+    )
+    return result
+
+
+def _target_names(node: cst.BaseExpression) -> set[str]:
+    """Return the bare names bound by an assignment or ``for`` target."""
+    if isinstance(node, cst.Name):
+        return {node.value}
+    if isinstance(node, cst.Tuple | cst.List):
+        return {name for element in node.elements for name in _target_names(element.value)}
+    if isinstance(node, cst.StarredElement):
+        return _target_names(node.value)
+    return set()
 
 
 def _params_names(params: cst.Parameters) -> list[str]:
@@ -272,13 +340,7 @@ class _BlockBindingCollector(cst.CSTVisitor):
         return collector.bound
 
     def _add_targets(self, node: cst.BaseExpression) -> None:
-        if isinstance(node, cst.Name):
-            self.bound.add(node.value)
-        elif isinstance(node, cst.Tuple | cst.List):
-            for element in node.elements:
-                self._add_targets(element.value)
-        elif isinstance(node, cst.StarredElement):
-            self._add_targets(node.value)
+        self.bound.update(_target_names(node))
 
     def visit_AssignTarget(self, node: cst.AssignTarget) -> bool:  # noqa: N802
         self._add_targets(node.target)
