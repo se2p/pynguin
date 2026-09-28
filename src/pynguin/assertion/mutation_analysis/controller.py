@@ -56,7 +56,7 @@ class MutationController:
         Returns:
             The created mutant module.
         """
-        return create_module(mutant_ast, self._module.__name__)
+        return create_module(mutant_ast, self._module.__name__, self._module)
 
     def create_mutants(
         self,

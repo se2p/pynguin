@@ -53,3 +53,19 @@ def test_parent_node_transformer_node_with_parent():
     tree2 = transformer.visit(tree)
     assign_node = tree2.body[0]
     assert assign_node.parent == tree2
+
+
+def test_create_module_keeps_package_context_for_relative_imports():
+    import tests.fixtures.mutation.relative_package as package  # noqa: PLC0415
+
+    tree = ast.parse("from . import helper\n\nresult = helper.double(21)\n")
+    mod = create_module(tree, package.__name__, package)
+    assert mod.result == 42
+    assert mod.__package__ == package.__package__
+    assert mod.__path__ == package.__path__
+
+
+def test_create_module_without_package_context_fails_relative_import():
+    tree = ast.parse("from . import helper\n")
+    with pytest.raises(ImportError):
+        create_module(tree, "relative_package_without_context")

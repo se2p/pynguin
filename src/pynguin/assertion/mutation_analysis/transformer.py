@@ -18,19 +18,34 @@ from typing import TypeVar
 import pynguin.configuration as config
 from pynguin.utils.timeout import time_limit
 
+# Import-system attributes that tie a module to its package. Without them, a
+# package ``__init__`` cannot resolve relative imports such as ``from . import x``.
+_PACKAGE_CONTEXT_ATTRIBUTES = ("__package__", "__path__", "__spec__", "__loader__", "__file__")
 
-def create_module(ast_node: ast.Module, module_name: str) -> types.ModuleType:
+
+def create_module(
+    ast_node: ast.Module,
+    module_name: str,
+    original_module: types.ModuleType | None = None,
+) -> types.ModuleType:
     """Creates a module from an AST node.
 
     Args:
         ast_node: The AST node.
         module_name: The name of the module.
+        original_module: The module the AST was derived from, if any. Its package
+            context (``__package__``, ``__path__``, ``__spec__``, ...) is copied to the
+            created module so that relative imports resolve as in the original.
 
     Returns:
         The created module.
     """
     code = compile(ast_node, module_name, "exec")
     module = types.ModuleType(module_name)
+    if original_module is not None:
+        for attribute in _PACKAGE_CONTEXT_ATTRIBUTES:
+            if hasattr(original_module, attribute):
+                setattr(module, attribute, getattr(original_module, attribute))
     with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
         exec(code, module.__dict__)  # noqa: S102
     return module

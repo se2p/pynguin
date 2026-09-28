@@ -1077,3 +1077,40 @@ def test_mutation_analysis_stops_endlessly_looping_mutant(subject_properties: Su
     assert gen._testing_mutation_summary.get_timeout()
     # The timed-out threads are already stopped, without waiting for them.
     assert not any("_execute_test_case" in thread.name for thread in threading.enumerate())
+
+
+def _tc_relative_package(alias: str) -> tc.TestCase:
+    return make_test_case(
+        int_stmt("int_0", 3),
+        call_stmt("int_1", f"{alias}.foo(int_0)", bound_type=int),
+    )
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_integration_package_with_relative_import(
+    subject_properties: SubjectProperties,
+):
+    # A package ``__init__`` with a relative import: mutants must keep the package
+    # context, otherwise every mutant is an invalid module and nothing is checked.
+    module = "tests.fixtures.mutation.relative_package"
+    config.configuration.module_name = module
+    alias = get_module_alias(module)
+    with install_import_hook(module, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module)
+            importlib.reload(module_type)
+
+        suite = _suite(_tc_relative_package(alias))
+        mutant_generator = _standard_mutant_generator()
+        module_ast = _module_ast(module_type)
+        controller = _mutation_controller(mutant_generator, module_type, module_ast)
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(subject_properties), controller, testing=True
+        )
+        suite.accept(gen)
+
+        num_created = controller.mutant_count()
+        metrics = gen._testing_mutation_summary.get_metrics()
+        assert num_created > 0
+        assert metrics.num_created_mutants == num_created
+        assert metrics.num_killed_mutants > 0
