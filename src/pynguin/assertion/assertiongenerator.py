@@ -60,6 +60,27 @@ def create_filtering_executor(
     return ex.SubprocessTestCaseExecutor(plain_executor.subject_properties.sharing_registries())
 
 
+ExceptionSignature = tuple[tuple[int, str], ...]
+
+
+def exception_signature(result: ex.ExecutionResult) -> ExceptionSignature:
+    """Describe which statements of a test raised which exception type.
+
+    Args:
+        result: The execution result of a test case.
+
+    Returns:
+        The sorted ``(statement index, qualified exception type name)`` pairs; empty
+        if the test raised no exception.
+    """
+    return tuple(
+        sorted(
+            (idx, f"{type(exc).__module__}.{type(exc).__qualname__}")
+            for idx, exc in result.exceptions.items()
+        )
+    )
+
+
 class AssertionGenerator(cv.ChromosomeVisitor):
     """A simple assertion generator.
 
@@ -117,12 +138,19 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
         self._remove_non_holding_assertions(test_cases)
 
-    def _remove_non_holding_assertions(self, test_cases: list[tc.TestCase]) -> None:
+    def _remove_non_holding_assertions(
+        self, test_cases: list[tc.TestCase]
+    ) -> list[set[ExceptionSignature]]:
         """Remove assertions that do not hold on the non-mutated module.
 
         Args:
             test_cases: The test cases whose assertions are verified.
+
+        Returns:
+            Per test case (in the order of ``test_cases``), the exception signatures
+            observed in the filtering executions on the non-mutated module.
         """
+        signatures: dict[int, set[ExceptionSignature]] = {id(test): set() for test in test_cases}
         # Perform filtering executions to remove trivially flaky assertions. These run
         # on the (possibly subprocess) filtering executor so that per-process
         # nondeterminism is exercised, not just per-execution nondeterminism.
@@ -139,6 +167,8 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                     strict=True,
                 ):
                     self.__remove_non_holding_assertions(test, result)
+                    signatures[id(test)].add(exception_signature(result))
+        return [signatures[id(test)] for test in test_cases]
 
     @staticmethod
     def __remove_non_holding_assertions(test: tc.TestCase, result: ex.ExecutionResult):
@@ -390,6 +420,16 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._start_time = start_time
         self._maximum_time = maximum_time
 
+        # Exception signatures of the tests on the non-mutated module, recorded by the
+        # filtering pass; a mutant is only killed by an exception if it differs.
+        self._original_exception_signatures: list[set[ExceptionSignature]] = []
+
+    def _remove_non_holding_assertions(
+        self, test_cases: list[tc.TestCase]
+    ) -> list[set[ExceptionSignature]]:
+        self._original_exception_signatures = super()._remove_non_holding_assertions(test_cases)
+        return self._original_exception_signatures
+
     def _execute_test_case_on_mutant(
         self,
         test_cases: list[tc.TestCase],
@@ -531,7 +571,15 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for i, test_mutant_results in enumerate(tests_mutant_results):
                 tests_mutants_results[i].append(test_mutant_results)
 
-        summary = self.__compute_mutation_summary(num_checked, tests_mutants_results)
+        original_signatures = self._original_exception_signatures
+        if len(original_signatures) != len(test_cases):
+            # No filtering pass on the non-mutated module; assume it raised nothing.
+            original_signatures = [set() for _ in test_cases]
+        original_signatures = [sigs or {()} for sigs in original_signatures]
+
+        summary = self.__compute_mutation_summary(
+            num_checked, tests_mutants_results, original_signatures
+        )
         self.__report_mutation_summary(summary, num_created)
         self.__remove_non_relevant_assertions(test_cases, tests_mutants_results, summary)
 
@@ -632,9 +680,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     def __compute_mutation_summary(
         number_of_mutants: int,
         tests_mutants_results: list[list[ex.ExecutionResult | None]],
+        original_signatures: list[set[ExceptionSignature]],
     ) -> _MutationSummary:
         mutation_info = [_MutantInfo(i) for i in range(number_of_mutants)]
-        for test_num, test_mutants_results in enumerate(tests_mutants_results):
+        for test_num, (test_mutants_results, original) in enumerate(
+            zip(tests_mutants_results, original_signatures, strict=True)
+        ):
             # For each mutation, check if we had a violated assertion
             for info, result in zip(mutation_info, test_mutants_results, strict=True):
                 if result is None or info.timed_out_by:
@@ -645,9 +696,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 elif (
                     len(result.assertion_verification_trace.error) > 0
                     or len(result.assertion_verification_trace.failed) > 0
-                    or result.has_test_exceptions()
-                    # Execution with assertions should not raise exceptions.
-                    # If it does, it is probably an incompetent mutant
+                    # The test raised differently than on the non-mutated module:
+                    # a new exception, another type, at another statement, or none
+                    # where the original raised. An exception the original raises
+                    # in the same way (e.g., an xfail test) kills nothing.
+                    or exception_signature(result) not in original
                 ):
                     info.killed_by.append(test_num)
         return _MutationSummary(mutation_info)
