@@ -292,3 +292,60 @@ def test_testcase_has_executable_statements():
 
     valid_tc = make_test_case(stmt('"""Docstring."""'), int_stmt("var_0", 1))
     assert valid_tc.has_executable_statements() is True
+
+
+def test_used_variables_field_and_subscript_targets():
+    s1 = stmt("handler.data = ['first']")
+    assert s1.used_variables() == {"handler"}
+
+    s2 = stmt("arr[i] = 1")
+    assert s2.used_variables() == {"arr", "i"}
+
+    s3 = stmt("x = 1")
+    assert s3.used_variables() == set()
+
+    s4 = stmt("handler.data: list = ['first']")
+    assert s4.used_variables() == {"handler", "list"}
+
+
+def test_statement_modifies_any_variable():
+    s_field = stmt("handler.data = ['first']")
+    assert s_field.modifies_any_variable({"handler"})
+    assert not s_field.modifies_any_variable({"other"})
+
+    s_method = stmt("handler.characters('second')")
+    assert s_method.modifies_any_variable({"handler"})
+    assert not s_method.modifies_any_variable({"other"})
+
+    s_subscript = stmt("handler['key'] = 'val'")
+    assert s_subscript.modifies_any_variable({"handler"})
+    assert not s_subscript.modifies_any_variable({"other"})
+
+    s_aug = stmt("handler.data += ['second']")
+    assert s_aug.modifies_any_variable({"handler"})
+    assert not s_aug.modifies_any_variable({"other"})
+
+    s_del = stmt("del handler.data")
+    assert s_del.modifies_any_variable({"handler"})
+    assert not s_del.modifies_any_variable({"other"})
+
+    s_assigned_method = stmt("res = handler.characters('second')")
+    assert s_assigned_method.modifies_any_variable({"handler"})
+    assert not s_assigned_method.modifies_any_variable({"other"})
+
+    s_read = stmt("res = handler.data")
+    assert not s_read.modifies_any_variable({"handler"})
+
+
+def test_get_assertion_protected_variables_propagates_through_mutations():
+    s_unrelated = stmt("unrelated_0 = 'ignore'", bound_variable="unrelated_0")
+    s0 = stmt("val_0 = 'first'", bound_variable="val_0")
+    s1 = stmt("handler = SAX()", bound_variable="handler")
+    s2 = stmt("handler.data = [val_0]")
+    s3 = stmt("handler.characters('second')")
+    s4 = stmt("assert handler.data == ['first', 'second']")
+    test_case = make_test_case(s_unrelated, s0, s1, s2, s3, s4)
+
+    protected = test_case.get_assertion_protected_variables()
+    assert {"handler", "val_0"} <= protected
+    assert "unrelated_0" not in protected

@@ -338,3 +338,129 @@ def test_test_case_statement_checked_coverage_with_lines(executor_mock: MagicMoc
     cov_func = ff.TestCaseStatementCheckedCoverageFunction(executor_mock)
     test_case = tcc.TestCaseChromosome(MagicMock())
     assert cov_func.compute_coverage(test_case) == 0.5
+
+
+def test_test_suite_branch_coverage_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_code_objects = {10: MagicMock()}
+    props.existing_predicates = {0: MagicMock(is_auxiliary=False, code_object_id=99)}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.executed_code_objects = {10}
+    trace.true_distances = {0: 0.0}
+    trace.false_distances = {0: 5.0}
+    result.execution_trace = trace
+    executor_mock.execute_multiple.return_value = [result]
+
+    cov_func = ff.TestSuiteBranchCoverageFunction(executor_mock)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(MagicMock()))
+    assert cov_func.compute_covered_goals(suite) == {10, (0, True)}
+
+
+def test_test_case_branch_coverage_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_predicates = {0: MagicMock(is_auxiliary=False, code_object_id=0)}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.true_distances = {0: 1.0}
+    trace.false_distances = {0: 0.0}
+    result.execution_trace = trace
+    executor_mock.execute.return_value = result
+
+    cov_func = ff.TestCaseBranchCoverageFunction(executor_mock)
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    assert cov_func.compute_covered_goals(test_case) == {(0, False)}
+
+
+def test_test_suite_line_coverage_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {1: MagicMock(), 2: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.covered_line_ids = {1}
+    result.execution_trace = trace
+    executor_mock.execute_multiple.return_value = [result]
+
+    cov_func = ff.TestSuiteLineCoverageFunction(executor_mock)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(MagicMock()))
+    assert cov_func.compute_covered_goals(suite) == {1}
+
+
+def test_test_case_line_coverage_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {1: MagicMock(), 2: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.covered_line_ids = {2}
+    result.execution_trace = trace
+    executor_mock.execute.return_value = result
+
+    cov_func = ff.TestCaseLineCoverageFunction(executor_mock)
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    assert cov_func.compute_covered_goals(test_case) == {2}
+
+
+def test_test_suite_statement_checked_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {1: MagicMock(), 2: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.checked_lines = {1}
+    result.execution_trace = trace
+    executor_mock.execute_multiple.return_value = [result]
+
+    cov_func = ff.TestSuiteStatementCheckedCoverageFunction(executor_mock)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(MagicMock()))
+    assert cov_func.compute_covered_goals(suite) == {1}
+
+
+def test_test_case_statement_checked_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {1: MagicMock(), 2: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    trace = ExecutionTrace()
+    trace.checked_lines = {2}
+    result.execution_trace = trace
+    executor_mock.execute.return_value = result
+
+    cov_func = ff.TestCaseStatementCheckedCoverageFunction(executor_mock)
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    assert cov_func.compute_covered_goals(test_case) == {2}
+
+
+def test_test_suite_assertion_checked_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {1: MagicMock(), 2: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    result.execution_trace = ExecutionTrace()
+    executor_mock.execute_multiple.return_value = [result]
+
+    cov_func = ff.TestSuiteAssertionCheckedCoverageFunction(executor_mock)
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(MagicMock()))
+    with patch("pynguin.ga.computations.compute_assertion_checked_lines", return_value={1}):
+        assert cov_func.compute_covered_goals(suite) == {1}
+
+
+def test_test_case_assertion_checked_compute_covered_goals(executor_mock: MagicMock):
+    props = SubjectProperties()
+    props.existing_lines = {1: MagicMock(), 2: MagicMock()}
+    executor_mock.subject_properties = props
+    result = ExecutionResult()
+    result.execution_trace = ExecutionTrace()
+    executor_mock.execute.return_value = result
+
+    cov_func = ff.TestCaseAssertionCheckedCoverageFunction(executor_mock)
+    test_case = tcc.TestCaseChromosome(MagicMock())
+    with patch("pynguin.ga.computations.compute_assertion_checked_lines", return_value={2}):
+        assert cov_func.compute_covered_goals(test_case) == {2}

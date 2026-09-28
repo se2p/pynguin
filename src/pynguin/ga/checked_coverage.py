@@ -94,6 +94,29 @@ def compute_statement_checked_lines(
     return checked_lines_ids
 
 
+def compute_assertion_checked_lines(
+    trace: ExecutionTrace, subject_properties: SubjectProperties
+) -> set[int]:
+    """Computes the set of lines checked by assertions.
+
+    Args:
+        trace: The execution trace
+        subject_properties: All known data
+
+    Returns:
+        The set of line IDs checked by assertions.
+    """
+    assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
+    checked_instructions = []
+    for executed_assertion in trace.executed_assertions:
+        assertion_checked_instructions = assertion_slicer.slice_assertion(executed_assertion, trace)
+        executed_assertion.assertion.checked_instructions.extend(assertion_checked_instructions)
+        # checked at any point by the assertion of a statement
+        checked_instructions.extend(assertion_checked_instructions)
+
+    return DynamicSlicer.map_instructions_to_lines(checked_instructions, subject_properties)
+
+
 def compute_assertion_checked_coverage(
     trace: ExecutionTrace, subject_properties: SubjectProperties
 ) -> float:
@@ -124,19 +147,7 @@ def compute_assertion_checked_coverage(
     if existing == 0:
         raise RuntimeError("No subject properties found to compute coverage.")
 
-    assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
-    checked_instructions = []
-    for executed_assertion in trace.executed_assertions:
-        assertion_checked_instructions = assertion_slicer.slice_assertion(executed_assertion, trace)
-        executed_assertion.assertion.checked_instructions.extend(assertion_checked_instructions)
-        # checked at any point by the assertion of a statement
-        checked_instructions.extend(assertion_checked_instructions)
-
-    # reduce coverage to lines instead of instructions
-    checked_lines = DynamicSlicer.map_instructions_to_lines(
-        checked_instructions, subject_properties
-    )
-
+    checked_lines = compute_assertion_checked_lines(trace, subject_properties)
     covered = len(checked_lines)
     coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"

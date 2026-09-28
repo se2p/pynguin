@@ -47,6 +47,37 @@ class _NameCollector(cst.CSTTransformer):
             self._is_in_target -= 1
         return updated_node
 
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
+        if self._filter_targets:
+            self._is_in_target += 1
+            node.target.visit(self)
+            self._is_in_target -= 1
+            node.annotation.visit(self)
+            if node.value is not None:
+                node.value.visit(self)
+            return False
+        return True
+
+    def visit_Attribute(self, node: cst.Attribute) -> bool:  # noqa: N802
+        if self._filter_targets and self._is_in_target > 0:
+            old_in_target = self._is_in_target
+            self._is_in_target = 0
+            node.value.visit(self)
+            self._is_in_target = old_in_target
+            return False
+        return True
+
+    def visit_Subscript(self, node: cst.Subscript) -> bool:  # noqa: N802
+        if self._filter_targets and self._is_in_target > 0:
+            old_in_target = self._is_in_target
+            self._is_in_target = 0
+            node.value.visit(self)
+            for el in node.slice:
+                el.visit(self)
+            self._is_in_target = old_in_target
+            return False
+        return True
+
     def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
         """Collect the name if it is not a target.
 
@@ -88,6 +119,66 @@ class _VariableRenamer(cst.CSTTransformer):
         if new is not None:
             return updated_node.with_changes(value=new)
         return updated_node
+
+
+def _root_receiver(node: cst.CSTNode) -> str | None:
+    cur: cst.CSTNode = node
+    while isinstance(cur, (cst.Attribute, cst.Subscript)):
+        cur = cur.value
+    if isinstance(cur, cst.Name):
+        return cur.value
+    return None
+
+
+class _ModificationVisitor(cst.CSTVisitor):
+    """Detects whether a CST node modifies any specified variable."""
+
+    def __init__(self, variables: set[str]) -> None:
+        self._variables = variables
+        self.modifies: bool = False
+
+    def visit_AssignTarget(self, node: cst.AssignTarget) -> bool:  # noqa: N802
+        if self._check_target(node.target):
+            self.modifies = True
+            return False
+        return True
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
+        if self._check_target(node.target):
+            self.modifies = True
+            return False
+        return True
+
+    def visit_AugAssign(self, node: cst.AugAssign) -> bool:  # noqa: N802
+        if self._check_target(node.target) or (
+            isinstance(node.target, cst.Name) and node.target.value in self._variables
+        ):
+            self.modifies = True
+            return False
+        return True
+
+    def visit_Del(self, node: cst.Del) -> bool:  # noqa: N802
+        if self._check_target(node.target):
+            self.modifies = True
+            return False
+        return True
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        if isinstance(node.func, cst.Attribute):
+            root = _root_receiver(node.func.value)
+            if root is not None and root in self._variables:
+                self.modifies = True
+                return False
+        return True
+
+    def _check_target(self, target: cst.BaseExpression) -> bool:
+        if isinstance(target, (cst.Tuple, cst.List)):
+            return any(self._check_target(element.value) for element in target.elements)
+        if isinstance(target, (cst.Attribute, cst.Subscript)):
+            root = _root_receiver(target)
+            if root is not None and root in self._variables:
+                return True
+        return False
 
 
 @dataclasses.dataclass
@@ -242,6 +333,25 @@ class Statement:
             self.node.visit(collector)
             self._used_vars = frozenset(collector.names)
         return self._used_vars
+
+    def modifies_any_variable(self, variables: set[str]) -> bool:
+        """Whether this statement modifies any variable in *variables*.
+
+        Detects field/attribute assignments (``obj.attr = ...``), subscript
+        assignments (``obj[key] = ...``), augmented assignments (``obj.attr += ...``),
+        deletions (``del obj.attr``), and method calls on the object (``obj.method(...)``).
+
+        Args:
+            variables: Set of variable names to check.
+
+        Returns:
+            True if this statement modifies any variable in *variables*.
+        """
+        if not variables:
+            return False
+        visitor = _ModificationVisitor(variables)
+        self.node.visit(visitor)
+        return visitor.modifies
 
 
 def _get_used_variables(stmt: Statement) -> frozenset[str]:
@@ -720,8 +830,9 @@ class TestCase:  # noqa: PLR0904
         while changed:
             changed = False
             for statement in self._statements:
-                bv = statement.bound_variable
-                if bv is not None and bv in protected:
+                if (
+                    statement.bound_variable is not None and statement.bound_variable in protected
+                ) or statement.modifies_any_variable(protected):
                     for used in statement.used_variables():
                         if used not in protected:
                             protected.add(used)
