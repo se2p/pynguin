@@ -22,6 +22,7 @@ import ast
 import builtins
 import importlib
 import inspect
+import sys
 import threading
 import time
 from unittest import mock
@@ -674,6 +675,56 @@ def test_mutation_analysis_llm_removes_assertions_not_holding_on_original(
         )
         summary = gen._testing_mutation_summary
         assert {k.mut_num for k in summary.get_killed()} == {0, 1, 3, 4}
+
+        _assert_no_execution_threads_leaked()
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_runs_mutant_when_test_binds_sut_via_sys_modules(
+    subject_properties: SubjectProperties,
+):
+    """A test that re-binds the SUT via ``sys.modules`` still exercises the mutant.
+
+    LLM-generated tests import the SUT themselves (``import pkg.mod``,
+    ``mod_ = sys.modules["pkg.mod"]``, ``from pkg.mod import f``). Those bindings
+    must resolve to the mutated module; otherwise the original, search-instrumented
+    module runs and every mutant is misreported as a timeout.
+    """
+    module = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
+    alias = get_module_alias(module)
+    with install_import_hook(module, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module)
+            importlib.reload(module_type)
+
+        test_case = make_test_case(
+            stmt("import sys"),
+            stmt(f"import {module}"),
+            stmt(f"{alias} = sys.modules['{module}']"),
+            stmt(f"from {module} import foo"),
+            int_stmt("int_3", 1),
+            call_stmt("float_0", "foo(int_3)", bound_type=float),
+            call_stmt("float_1", f"{alias}.foo(int_3)", bound_type=float),
+            call_stmt("float_2", f"{module}.foo(int_3)", bound_type=float),
+        )
+        suite = _suite(test_case)
+
+        controller = _mutation_controller(
+            _standard_mutant_generator(), module_type, _module_ast(module_type)
+        )
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(subject_properties), controller, testing=True
+        )
+        suite.accept(gen)
+
+        summary = gen._testing_mutation_summary
+        assert {k.mut_num for k in summary.get_timeout()} == set()
+        assert {k.mut_num for k in summary.get_killed()} == {0, 1, 3, 4}
+
+        # The original module is restored once mutation analysis is done.
+        assert sys.modules[module] is module_type
+        assert importlib.import_module("tests.fixtures.mutation").mutation is module_type
 
         _assert_no_execution_threads_leaked()
 

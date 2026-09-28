@@ -184,6 +184,56 @@ class ModuleProvider:
         """Clear the existing aliases."""
         self._mutated_module_aliases.clear()
 
+    @contextlib.contextmanager
+    def mutated_modules_installed(self) -> Generator[None, None, None]:
+        """Temporarily install the mutated modules into ``sys.modules``.
+
+        Test code may reach the SUT without going through the executor-provided
+        namespace, e.g., LLM-generated tests do ``import pkg.mod``,
+        ``sys.modules["pkg.mod"]``, or ``from pkg.mod import X``.  Those resolve
+        through ``sys.modules`` and the parent package's attribute, which still hold
+        the original module, so the test would silently exercise the original code
+        instead of the mutant.  Swap both for the duration of the context and restore
+        the originals afterwards.
+
+        Yields:
+            Nothing; the mutated modules are installed while the context is active.
+        """
+        if not self._mutated_module_aliases:
+            yield
+            return
+
+        missing = object()
+        saved_modules: dict[str, object] = {}
+        saved_attributes: list[tuple[ModuleType, str, object]] = []
+        for module_name, mutated_module in self._mutated_module_aliases.items():
+            saved_modules[module_name] = sys.modules.get(module_name, missing)
+            sys.modules[module_name] = mutated_module
+            if "." in module_name:
+                package_name, attribute_name = module_name.rsplit(".", 1)
+                package = sys.modules.get(package_name)
+                if package is not None:
+                    saved_attributes.append((
+                        package,
+                        attribute_name,
+                        vars(package).get(attribute_name, missing),
+                    ))
+                    setattr(package, attribute_name, mutated_module)
+        try:
+            yield
+        finally:
+            for package, attribute_name, attribute in reversed(saved_attributes):
+                if attribute is missing:
+                    with contextlib.suppress(AttributeError):
+                        delattr(package, attribute_name)
+                else:
+                    setattr(package, attribute_name, attribute)
+            for module_name, module in saved_modules.items():
+                if module is missing:
+                    sys.modules.pop(module_name, None)
+                else:
+                    sys.modules[module_name] = module  # type: ignore[assignment]
+
 
 class AbstractTestCaseExecutor(abc.ABC):
     """Interface for a test case executor."""
@@ -402,7 +452,10 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         stat.track_output_variable(RuntimeVariable.Executed, self._executed_test_cases)
         self._before_remote_test_case_execution(test_case)
 
-        with ter.ExecutionRecorder(test_case):
+        with (
+            ter.ExecutionRecorder(test_case),
+            self._module_provider.mutated_modules_installed(),
+        ):
             output_suppression_context = OutputSuppressionContext()
             return_queue: Queue[ExecutionResult] = Queue()
             thread = threading.Thread(
