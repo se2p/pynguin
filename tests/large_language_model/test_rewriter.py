@@ -259,7 +259,9 @@ def test_fixup_result():
             body=[ast.Pass()],
             decorator_list=[],
         )
-        result = rewriter.process_function_defs([fn_def], ast.Module(body=[], type_ignores=[]))
+        result = rewriter.process_function_defs(
+            [("test_func", fn_def)], ast.Module(body=[], type_ignores=[])
+        )
 
         # Should return an empty dict when an error occurs
         assert result == {}
@@ -580,3 +582,29 @@ def test_rewrite_tests_surfaces_imports_despite_trailing_syntax_error():
         "def test_broken(:\n"  # truncated / broken tail, as with early LLM abort
     )
     assert "import tempfile" in rewriter.rewrite_tests(source).module_imports
+
+
+def test_rewrite_tests_keeps_same_named_methods_in_different_classes():
+    code = """
+class TestA:
+    def test_eq(self):
+        assert 1 == 1
+class TestB:
+    def test_eq(self):
+        assert 2 == 2
+"""
+    result = rewriter.rewrite_tests(code)
+    assert list(result.functions) == ["TestA.test_eq", "TestB.test_eq"]
+    assert "1 == 1" in result.functions["TestA.test_eq"]
+    assert "2 == 2" in result.functions["TestB.test_eq"]
+
+
+def test_rewrite_tests_keeps_duplicate_top_level_functions():
+    code = """
+def test_eq():
+    assert 1 == 1
+def test_eq():
+    assert 2 == 2
+"""
+    result = rewriter.rewrite_tests(code)
+    assert list(result.functions) == ["test_eq", "test_eq_2"]

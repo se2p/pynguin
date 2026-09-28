@@ -621,7 +621,7 @@ class RewrittenTests:
     re-attach the ones each test actually references.
     """
 
-    #: Rewritten test source keyed by function name.
+    #: Rewritten test source keyed by qualified function name (``TestA.test_eq``).
     functions: dict[str, str]
     #: Unparsed source of each top-level import statement, in source order.
     module_imports: list[str]
@@ -790,26 +790,34 @@ class TestClassRewriter(ast.NodeTransformer):
         return node
 
 
-def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
+def extract_function_defs(module_node: ast.Module) -> list[tuple[str, ast.FunctionDef]]:
     """Extract test function definitions with updated `setUp` variables.
 
     without `self` prefix.
+
+    Args:
+        module_node: the module node to extract the test functions from.
+
+    Returns:
+        pairs of qualified name and function definition, in source order. Test
+        methods are qualified with their class name (``TestA.test_eq``), because LLMs
+        often reuse method names across test classes.
     """
     assert isinstance(module_node, ast.Module)
 
     rewriter = TestClassRewriter()
     rewriter.visit(module_node)
 
-    test_functions = []
+    test_functions: list[tuple[str, ast.FunctionDef]] = []
     for node in module_node.body:
         # Top-level test functions
         if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
-            test_functions.append(node)
+            test_functions.append((node.name, node))
 
         # Test methods inside classes
         elif isinstance(node, ast.ClassDef):
             test_functions.extend(
-                child_node
+                (f"{node.name}.{child_node.name}", child_node)
                 for child_node in node.body
                 if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_")
             )
@@ -818,28 +826,36 @@ def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
 
 
 def process_function_defs(
-    function_defs: list[ast.FunctionDef], module_node: ast.Module
+    function_defs: list[tuple[str, ast.FunctionDef]], module_node: ast.Module
 ) -> dict[str, str]:
     """Process the extracted FunctionDef nodes and return rewritten tests.
 
     Args:
-        function_defs: a list of function definition nodes.
+        function_defs: pairs of qualified name and function definition node.
         module_node: the module node containing the function definitions.
 
     Returns:
-        a dictionary with function names as keys and rewritten tests as values.
+        a dictionary with qualified function names as keys and rewritten tests as
+        values. Duplicate names get a numeric suffix, so no test is lost.
     """
     return_tests: dict[str, str] = {}
-    for function_def in function_defs:
+    for name, function_def in function_defs:
         test_module = ast.Module(
             body=[rewrite_test(function_def)],
             type_ignores=module_node.type_ignores,
         )
         test_module = ast.fix_missing_locations(test_module)
         try:
-            return_tests[function_def.name] = ast.unparse(test_module) + "\n"
+            source = ast.unparse(test_module) + "\n"
         except AttributeError as e:
             logger.info("Got error: %s\nwhen trying to unparse the transformation", e)
+            continue
+        key = name
+        suffix = 1
+        while key in return_tests:
+            suffix += 1
+            key = f"{name}_{suffix}"
+        return_tests[key] = source
     return return_tests
 
 
