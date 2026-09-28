@@ -20,6 +20,7 @@ through the module alias returned by :func:`get_module_alias` (e.g. ``mutation_`
 
 import ast
 import builtins
+import contextlib
 import importlib
 import inspect
 import sys
@@ -725,6 +726,61 @@ def test_mutation_analysis_runs_mutant_when_test_binds_sut_via_sys_modules(
         # The original module is restored once mutation analysis is done.
         assert sys.modules[module] is module_type
         assert importlib.import_module("tests.fixtures.mutation").mutation is module_type
+
+        _assert_no_execution_threads_leaked()
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+@pytest.mark.parametrize(
+    "generator_type",
+    [ag.MutationAnalysisAssertionGenerator, MutationAnalysisLLMAssertionGenerator],
+)
+def test_mutation_analysis_exception_raised_on_original_is_no_kill(
+    generator_type, subject_properties: SubjectProperties
+):
+    """A test that raises on the original only kills mutants that raise differently."""
+    module = "tests.fixtures.mutation.raising"
+    config.configuration.module_name = module
+    alias = get_module_alias(module)
+    with install_import_hook(module, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module)
+            importlib.reload(module_type)
+
+        # baz(1) raises ValueError on the original module (an xfail test on export).
+        test_case = make_test_case(
+            int_stmt("int_0", 1),
+            call_stmt("int_1", f"{alias}.baz(int_0)", bound_type=int),
+        )
+        suite = _suite(test_case)
+
+        mutant_generator = _standard_mutant_generator()
+        module_ast = _module_ast(module_type)
+        controller = _mutation_controller(mutant_generator, module_type, module_ast)
+        gen = generator_type(TestCaseExecutor(subject_properties), controller, testing=True)
+        suite.accept(gen)
+
+        mutants = [
+            ast.unparse(mutant_ast)
+            for _, mutant_ast in mutant_generator.mutate(module_ast, module_type)
+        ]
+        # Only mutants on which baz(1) no longer raises ValueError are killed.
+        still_raising = set()
+        for idx, source in enumerate(mutants):
+            namespace: dict = {}
+            exec(source, namespace)  # noqa: S102
+            with contextlib.suppress(ValueError):
+                namespace["baz"](1)
+                continue
+            still_raising.add(idx)
+        assert still_raising
+        assert len(still_raising) < len(mutants)
+
+        summary = gen._testing_mutation_summary
+        assert {k.mut_num for k in summary.get_killed()} == set(range(len(mutants))) - (
+            still_raising
+        )
+        assert {k.mut_num for k in summary.get_survived()} == still_raising
 
         _assert_no_execution_threads_leaked()
 

@@ -181,6 +181,52 @@ def test_score_excludes_unchecked_mutants():
     assert summary.get_metrics().get_score() == 0.5
 
 
+def _raising_result(exceptions: dict[int, BaseException]) -> ex.ExecutionResult:
+    result = ex.ExecutionResult()
+    for idx, exc in exceptions.items():
+        result.report_new_thrown_exception(idx, exc)
+    return result
+
+
+def test_exception_signature():
+    assert ag.exception_signature(_raising_result({})) == ()
+    assert ag.exception_signature(_raising_result({2: ValueError()})) == (
+        (2, "builtins.ValueError"),
+    )
+
+
+_compute_mutation_summary = (
+    ag.MutationAnalysisAssertionGenerator._MutationAnalysisAssertionGenerator__compute_mutation_summary  # type: ignore[attr-defined]
+)
+
+
+@pytest.mark.parametrize(
+    "mutant_exceptions, killed",
+    [
+        # Same exception at the same statement as on the original: no kill.
+        ({1: ValueError()}, False),
+        # Another exception type at the same statement: kill.
+        ({1: TypeError()}, True),
+        # Same type, but raised at another statement: kill.
+        ({0: ValueError()}, True),
+        # The original raises, the mutant does not: kill.
+        ({}, True),
+    ],
+)
+def test_compute_mutation_summary_compares_exceptions_with_original(mutant_exceptions, killed):
+    original = {ag.exception_signature(_raising_result({1: ValueError()}))}
+    summary = _compute_mutation_summary(1, [[_raising_result(mutant_exceptions)]], [original])
+    assert bool(summary.get_killed()) is killed
+
+
+def test_compute_mutation_summary_new_exception_kills():
+    summary = _compute_mutation_summary(
+        2, [[_raising_result({0: ValueError()}), _raising_result({})]], [{()}]
+    )
+    assert [info.mut_num for info in summary.get_killed()] == [0]
+    assert [info.mut_num for info in summary.get_survived()] == [1]
+
+
 @pytest.mark.parametrize(
     "inp, result",
     [
