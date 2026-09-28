@@ -94,3 +94,44 @@ def test_get_valid_module_with_alias(module_provider):
 def test_get_invalid_module_with_alias(module_provider):
     with pytest.raises(ex.ModuleNotImportedError):
         module_provider.get_module("tests.fixtures.examples.simple.add")
+
+
+def test_mutated_modules_installed_without_mutants_is_noop(module_provider):
+    before = dict(sys.modules)
+    with module_provider.mutated_modules_installed():
+        assert sys.modules == before
+    assert sys.modules == before
+
+
+def test_mutated_modules_installed_swaps_and_restores(module_provider):
+    import tests.fixtures.examples as package  # noqa: PLC0415
+
+    name = "tests.fixtures.examples.simple"
+    mutant = MagicMock()
+    module_provider.add_mutated_version(name, mutant)
+    with module_provider.mutated_modules_installed():
+        assert sys.modules[name] is mutant
+        assert package.simple is mutant
+    assert sys.modules[name] is simple
+    assert package.simple is simple
+
+
+def test_mutated_modules_installed_restores_absent_entries(module_provider):
+    import tests.fixtures.examples as package  # noqa: PLC0415
+
+    name = "tests.fixtures.examples.not_a_real_module"
+    mutant = MagicMock()
+    module_provider.add_mutated_version(name, mutant)
+    with module_provider.mutated_modules_installed():
+        assert sys.modules[name] is mutant
+        assert package.not_a_real_module is mutant
+    assert name not in sys.modules
+    assert not hasattr(package, "not_a_real_module")
+
+
+def test_mutated_modules_installed_restores_on_error(module_provider):
+    mutant = MagicMock()
+    module_provider.add_mutated_version("sys", mutant)
+    with pytest.raises(RuntimeError), module_provider.mutated_modules_installed():
+        raise RuntimeError
+    assert sys.modules["sys"] is sys
