@@ -6,6 +6,7 @@
 #
 """Extended tests for the LLMAgent module."""
 
+import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, mock_open, patch
 
@@ -588,3 +589,41 @@ def test_llmagent_client_property_and_cancel_all(monkeypatch):
     with patch.object(agent._client, "cancel_all") as mock_cancel:
         agent.cancel_all()
         mock_cancel.assert_called_once()
+
+
+def test_query_batch_keeps_successful_responses_and_tokens(monkeypatch):
+    """A failed request in a batch only loses its own response (issue #293)."""
+    monkeypatch.setattr(config.configuration.large_language_model, "enable_response_caching", False)
+    monkeypatch.setattr(
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
+    )
+    monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.save_prompt_info_to_file", lambda *_: None
+    )
+    agent = LLMAgent()
+
+    async def fake_send_async(request, timeout=None):  # noqa: ARG001
+        await asyncio.sleep(0)
+        if request.messages[-1]["content"] == "p1":
+            raise TimeoutError("Request timed out.")
+        agent._client._input_tokens += 10
+        agent._client._output_tokens += 4
+        return f"answer {request.messages[-1]['content']}"
+
+    monkeypatch.setattr(agent._client, "send_async", fake_send_async)
+
+    prompts = []
+    for content in ("p0", "p1", "p2"):
+        prompt = MagicMock(spec=Prompt)
+        prompt.render_request.return_value = RenderedRequest(
+            messages=[{"role": "user", "content": content}], model="test-model", temperature=0.5
+        )
+        prompts.append(prompt)
+
+    responses = agent.query_batch(prompts)
+
+    assert responses == ["answer p0", None, "answer p2"]
+    assert agent.llm_calls_counter == 3
+    assert agent.llm_input_tokens == 20
+    assert agent.llm_output_tokens == 8

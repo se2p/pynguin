@@ -343,6 +343,13 @@ class LLMAgent:  # noqa: PLR0904
         if hasattr(self, "_client") and hasattr(self._client, "cancel_all"):
             self._client.cancel_all()
 
+    def _sync_usage(self) -> None:
+        """Copies the client's cumulative token usage into the agent's counters."""
+        usage = self._client.get_usage()
+        self._llm_input_tokens = usage["input_tokens"]
+        self._llm_output_tokens = usage["output_tokens"]
+        self._llm_calls_with_no_python_code = usage["calls_with_no_python_code"]
+
     def query(self, prompt: Prompt) -> str | None:
         """Sends a query to the OpenAI API and returns the response.
 
@@ -366,12 +373,6 @@ class LLMAgent:  # noqa: PLR0904
         try:
             response_text = self._client.send(request)
 
-            # Sync usage details
-            usage = self._client.get_usage()
-            self._llm_input_tokens = usage["input_tokens"]
-            self._llm_output_tokens = usage["output_tokens"]
-            self._llm_calls_with_no_python_code = usage["calls_with_no_python_code"]
-
             if response_text:
                 save_prompt_info_to_file(prompt_text, response_text)
             return response_text
@@ -385,6 +386,7 @@ class LLMAgent:  # noqa: PLR0904
             )
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
+            self._sync_usage()
             self._log_and_track_llm_stats()
 
         return None
@@ -412,12 +414,6 @@ class LLMAgent:  # noqa: PLR0904
         try:
             response_text = await self._client.send_async(request)
 
-            # Sync usage details
-            usage = self._client.get_usage()
-            self._llm_input_tokens = usage["input_tokens"]
-            self._llm_output_tokens = usage["output_tokens"]
-            self._llm_calls_with_no_python_code = usage["calls_with_no_python_code"]
-
             if response_text:
                 save_prompt_info_to_file(prompt_text, response_text)
             return response_text
@@ -431,6 +427,7 @@ class LLMAgent:  # noqa: PLR0904
             )
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
+            self._sync_usage()
             self._log_and_track_llm_stats()
 
         return None
@@ -477,15 +474,17 @@ class LLMAgent:  # noqa: PLR0904
             results = await self._client.send_batch_async(
                 uncached_requests, max_concurrency=max_concurrency
             )
-            usage = self._client.get_usage()
-            self._llm_input_tokens = usage["input_tokens"]
-            self._llm_output_tokens = usage["output_tokens"]
-            self._llm_calls_with_no_python_code = usage["calls_with_no_python_code"]
-
             for idx, res, req in zip(uncached_indices, results, uncached_requests, strict=False):
                 responses[idx] = res
                 if res:
                     save_prompt_info_to_file(req.messages[-1]["content"], res)
+            failed = sum(1 for res in results if res is None)
+            if failed:
+                _logger.warning(
+                    "%d out of %d batched LLM requests returned no response.",
+                    failed,
+                    len(uncached_requests),
+                )
         except Exception as e:  # noqa: BLE001
             _logger.error(
                 "An error occurred during batch querying the OpenAI API. Error: %s",
@@ -493,6 +492,7 @@ class LLMAgent:  # noqa: PLR0904
             )
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
+            self._sync_usage()
             self._log_and_track_llm_stats()
 
         return responses

@@ -194,7 +194,8 @@ class LLMClient(abc.ABC):
                 the configured ``max_concurrency``.
 
         Returns:
-            List of LLM response strings in the same order as the requests.
+            List of LLM response strings in the same order as the requests. A request
+            that fails only loses its own response, which is *None*.
         """
         if not requests:
             return []
@@ -211,7 +212,22 @@ class LLMClient(abc.ABC):
             async with semaphore:
                 return await self.send_async(req, timeout=timeout)
 
-        return list(await asyncio.gather(*[_send_one(req) for req in requests]))
+        results = await asyncio.gather(
+            *[_send_one(req) for req in requests], return_exceptions=True
+        )
+        responses: list[str | None] = []
+        for index, result in enumerate(results):
+            if isinstance(result, Exception):
+                _logger.error(
+                    "LLM request %d of %d in batch failed: %s", index + 1, len(requests), result
+                )
+                responses.append(None)
+            elif isinstance(result, BaseException):
+                # Cancellation and interpreter shutdown must still abort the batch.
+                raise result
+            else:
+                responses.append(result)
+        return responses
 
     def send_batch(
         self,
