@@ -649,11 +649,16 @@ def _make_package(root: Path, name: str, body: str) -> Path:
 
 
 @pytest.fixture
-def shadowed_package(tmp_path, monkeypatch):
+def project_body():
+    return "ORIGIN = 'project'\n"
+
+
+@pytest.fixture
+def shadowed_package(tmp_path, monkeypatch, project_body):
     name = "pynguin_shadowed_pkg"
     project = tmp_path / "project"
     vendored = tmp_path / "vendored"
-    _make_package(project, name, "ORIGIN = 'project'\n")
+    _make_package(project, name, project_body)
     _make_package(vendored, name, "ORIGIN = 'vendored'\n")
     monkeypatch.syspath_prepend(str(vendored))
     importlib.import_module(f"{name}.mod")
@@ -677,7 +682,7 @@ def test_evict_shadowing_modules_keeps_project_copy(shadowed_package):
     sys.path.insert(0, str(project))
     try:
         importlib.import_module(f"{name}.mod")
-        assert gen._evict_shadowing_modules(f"{name}.mod", str(project)) == []
+        assert gen._evict_shadowing_modules(f"{name}.mod", str(project)) == {}
         assert sys.modules[f"{name}.mod"].ORIGIN == "project"
     finally:
         sys.path.remove(str(project))
@@ -687,9 +692,49 @@ def test_evict_shadowing_modules_ignores_module_absent_from_project(shadowed_pac
     name, _ = shadowed_package
     empty_project = tmp_path / "empty"
     empty_project.mkdir()
-    assert gen._evict_shadowing_modules(f"{name}.mod", str(empty_project)) == []
+    assert gen._evict_shadowing_modules(f"{name}.mod", str(empty_project)) == {}
     assert name in sys.modules
 
 
 def test_evict_shadowing_modules_not_loaded(tmp_path):
-    assert gen._evict_shadowing_modules("pynguin_not_loaded_pkg.mod", str(tmp_path)) == []
+    assert gen._evict_shadowing_modules("pynguin_not_loaded_pkg.mod", str(tmp_path)) == {}
+
+
+def _configure_load(name: str, project: Path) -> None:
+    gen.set_configuration(
+        configuration=MagicMock(
+            log_file=None,
+            project_path=str(project),
+            module_name=f"{name}.mod",
+            stopping=MagicMock(maximum_module_execution_timeout=5),
+        )
+    )
+
+
+def test_load_sut_imports_project_copy_of_shadowed_package(shadowed_package, monkeypatch):
+    name, project = shadowed_package
+    monkeypatch.syspath_prepend(str(project))
+    _configure_load(name, project)
+    assert gen._load_sut(MagicMock())
+    assert sys.modules[f"{name}.mod"].ORIGIN == "project"
+
+
+@pytest.mark.parametrize("project_body", ["raise ImportError('broken project copy')\n"])
+def test_load_sut_falls_back_to_preloaded_copy(shadowed_package, monkeypatch):
+    name, project = shadowed_package
+    vendored_module = sys.modules[f"{name}.mod"]
+    monkeypatch.syspath_prepend(str(project))
+    _configure_load(name, project)
+    assert gen._load_sut(MagicMock())
+    assert sys.modules[f"{name}.mod"] is vendored_module
+    assert sys.modules[f"{name}.mod"].ORIGIN == "vendored"
+
+
+@pytest.mark.parametrize("project_body", ["raise ImportError('broken project copy')\n"])
+def test_load_sut_fails_when_fallback_fails(shadowed_package, monkeypatch):
+    name, project = shadowed_package
+    monkeypatch.syspath_prepend(str(project))
+    _configure_load(name, project)
+    with mock.patch.object(gen, "_import_sut", side_effect=ImportError("broken")) as import_mock:
+        assert not gen._load_sut(MagicMock())
+    assert import_mock.call_count == 2

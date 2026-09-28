@@ -196,7 +196,6 @@ def _setup_path() -> bool:
         return False
     _LOGGER.debug("Setting up path for %s", config.configuration.project_path)
     sys.path.insert(0, config.configuration.project_path)
-    _evict_shadowing_modules(config.configuration.module_name, config.configuration.project_path)
     return True
 
 
@@ -210,7 +209,7 @@ def _is_within(file: str | None, directory: Path) -> bool:
     return True
 
 
-def _evict_shadowing_modules(module_name: str, project_path: str) -> list[str]:
+def _evict_shadowing_modules(module_name: str, project_path: str) -> dict[str, types.ModuleType]:
     """Remove an already-imported copy of the SUT's package that lives elsewhere.
 
     Pynguin's own dependencies can import a module with the same top-level name as
@@ -223,25 +222,22 @@ def _evict_shadowing_modules(module_name: str, project_path: str) -> list[str]:
         project_path: The project path containing the module under test.
 
     Returns:
-        The names of the evicted modules.
+        The evicted modules by name, so they can be restored if the project's copy
+        cannot be imported.
     """
     top_level = module_name.partition(".")[0]
     loaded = sys.modules.get(top_level)
     if loaded is None:
-        return []
+        return {}
     project_dir = Path(project_path).resolve()
     project_spec = importlib.machinery.PathFinder.find_spec(top_level, [str(project_dir)])
     if project_spec is None:
         # The project path does not provide this package, so nothing is shadowed.
-        return []
+        return {}
     loaded_locations = [getattr(loaded, "__file__", None), *getattr(loaded, "__path__", [])]
     if any(_is_within(location, project_dir) for location in loaded_locations):
-        return []
-    evicted = [
-        name for name in list(sys.modules) if name == top_level or name.startswith(f"{top_level}.")
-    ]
-    for name in evicted:
-        del sys.modules[name]
+        return {}
+    evicted = {name: sys.modules.pop(name) for name in _package_module_names(top_level)}
     importlib.invalidate_caches()
     _LOGGER.warning(
         "Module %s was already imported from %s instead of the project path %s; "
@@ -268,25 +264,53 @@ def _setup_import_hook(
     return subject_properties
 
 
+def _package_module_names(top_level: str) -> list[str]:
+    return [name for name in sys.modules if name == top_level or name.startswith(f"{top_level}.")]
+
+
+def _restore_modules(top_level: str, modules: dict[str, types.ModuleType]) -> None:
+    for name in _package_module_names(top_level):
+        del sys.modules[name]
+    sys.modules.update(modules)
+    importlib.invalidate_caches()
+
+
+def _import_sut(module_name: str, subject_properties: SubjectProperties) -> None:
+    # We need to activate the tracer so the import trace is recorded.
+    with (
+        time_limit(config.configuration.stopping.maximum_module_execution_timeout),
+        subject_properties.instrumentation_tracer,
+    ):
+        # If the module is already imported, we need to reload it for the
+        # ExecutionTracer to successfully register the subject_properties
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+        else:
+            importlib.import_module(module_name)
+
+
 def _load_sut(subject_properties: SubjectProperties) -> bool:
     module_name = config.configuration.module_name
+    evicted = _evict_shadowing_modules(module_name, config.configuration.project_path)
     try:
-        # We need to activate the tracer so the import trace is recorded.
-        with (
-            time_limit(config.configuration.stopping.maximum_module_execution_timeout),
-            subject_properties.instrumentation_tracer,
-        ):
-            # If the module is already imported, we need to reload it for the
-            # ExecutionTracer to successfully register the subject_properties
-            if module_name in sys.modules:
-                importlib.reload(sys.modules[module_name])
-            else:
-                importlib.import_module(module_name)
+        _import_sut(module_name, subject_properties)
     except (Exception, TestExecutionTimeoutError) as ex:
-        # A module could not be imported because some dependencies
-        # are missing or it is malformed or any error is raised during the import
-        _LOGGER.exception("Failed to load SUT: %s", ex)
-        return False
+        if not evicted:
+            # A module could not be imported because some dependencies
+            # are missing or it is malformed or any error is raised during the import
+            _LOGGER.exception("Failed to load SUT: %s", ex)
+            return False
+        _LOGGER.warning(
+            "Failed to load SUT from the project path (%s); "
+            "falling back to the previously imported copy",
+            ex,
+        )
+        _restore_modules(module_name.partition(".")[0], evicted)
+        try:
+            _import_sut(module_name, subject_properties)
+        except (Exception, TestExecutionTimeoutError) as fallback_ex:
+            _LOGGER.exception("Failed to load SUT: %s", fallback_ex)
+            return False
     return True
 
 
