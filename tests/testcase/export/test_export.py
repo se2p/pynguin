@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 import subprocess  # noqa: S404
 import sys
+import types
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -607,11 +608,35 @@ def test_write_with_seed_emits_patch_preamble_and_fixture(tmp_path: Path):
     out_file = writer.write(suite, module_name, tmp_path, format_with_black=False, seed=42)
 
     content = out_file.read_text(encoding="utf-8")
-    assert "import random" in content
+    assert "import random as _pynguin_random" in content
     assert "__pynguin_patched__" in content
     assert "_pynguin_seed_random" in content
-    assert "random.seed(42)" in content
+    assert "_pynguin_random.seed(42)" in content
     assert "import pytest" in content
+
+
+def test_write_with_seed_when_sut_exports_random_does_not_shadow_prelude(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    fake_mod = types.ModuleType("sut_with_random")
+    fake_mod.random = lambda: 0.123
+    monkeypatch.setitem(sys.modules, "sut_with_random", fake_mod)
+
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, "sut_with_random", tmp_path, format_with_black=False, seed=42)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "from sut_with_random import random" in content
+    assert "_pynguin_random.seed(42)" in content
+    exec_ns: dict[str, object] = {}
+    exec(compile(content, str(out_file), "exec"), exec_ns)  # noqa: S102
+    fixture_func = exec_ns["_pynguin_seed_random"]
+    gen = getattr(fixture_func, "__wrapped__", fixture_func)()
+    next(gen)
 
 
 # ---------------------------------------------------------------------------
