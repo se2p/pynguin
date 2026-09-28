@@ -87,9 +87,12 @@ def test_full_mode_drops_llm_assertion_generation_in_coverage_only():
     default = _pairs(_llm_cli_args(LLM_MODE_FULL))
     coverage_only = _pairs(_llm_cli_args(LLM_MODE_FULL, no_assertions=True))
 
-    # Full mode's in-search LLM assertion generation is dropped in coverage-only mode.
+    # Full mode's non-coverage LLM requests (in-search LLM assertion generation and
+    # post-search refinement) are dropped in coverage-only mode.
     assert default["--assertion-generation"] == "LLM"
     assert "--assertion-generation" not in coverage_only
+    assert default["--llm-refinement.enabled"] == "True"
+    assert "--llm-refinement.enabled" not in coverage_only
 
     # The coverage-driving LLM calls stay on.
     for flag in (
