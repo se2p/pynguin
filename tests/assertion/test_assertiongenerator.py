@@ -271,3 +271,33 @@ def test_select_minimal_assertions_invariants(kill_map):
             if other != key:
                 others |= kill_map[other]
         assert not kill_map[key] <= others
+
+
+def test_budget_exceeded_while_running_a_mutant_discards_it(monkeypatch):
+    gen = ag.MutationAnalysisAssertionGenerator.__new__(ag.MutationAnalysisAssertionGenerator)
+    gen._start_time = 0.0
+    gen._maximum_time = 5.0
+    gen._mutation_controller = MagicMock()
+    gen._mutation_controller.create_mutants.return_value = iter([
+        (MagicMock(), []),
+        (MagicMock(), []),
+    ])
+    executed = []
+
+    def execute_on_mutant(test_cases, _module, idx, _count):
+        for test_idx in range(len(test_cases)):
+            executed.append((idx, test_idx))
+            yield _FakeResult()
+
+    monkeypatch.setattr(gen, "_execute_test_case_on_mutant", execute_on_mutant)
+    # Mutant 1: start check at 1s, after its first two tests at 1.5s and 2s -> checked.
+    # Mutant 2: start check at 3s, after its first test at 6s -> budget exceeded.
+    clock = iter([1.0, 1.5, 2.0, 3.0, 6.0])
+    monkeypatch.setattr(ag.time, "monotonic", lambda: next(clock))
+
+    results = list(gen._execute_test_case_on_mutants([MagicMock(), MagicMock(), MagicMock()], 2))
+
+    assert len(results) == 1
+    assert len(results[0]) == 3
+    # The remaining tests of the second mutant are not executed.
+    assert executed == [(1, 0), (1, 1), (1, 2), (2, 0)]
