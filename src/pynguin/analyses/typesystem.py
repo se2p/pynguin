@@ -2113,10 +2113,14 @@ class TypeSystem:  # noqa: PLR0904
             raw_tv = type_var
 
         if raw_tv is not None:
+            if type(raw_tv).__name__ in {"ParamSpec", "TypeVarTuple"}:
+                return self._default_candidate_types(custom_classes)
             if getattr(raw_tv, "__constraints__", ()):
                 return [self.convert_type_hint(c) for c in raw_tv.__constraints__]
-            if getattr(raw_tv, "__bound__", None) is not None:
-                return self._candidates_from_bound(self.convert_type_hint(raw_tv.__bound__))
+
+            bound = getattr(raw_tv, "__bound__", None)
+            if bound is not None and bound is not type(None):
+                return self._candidates_from_bound(self.convert_type_hint(bound))
 
         return self._default_candidate_types(custom_classes)
 
