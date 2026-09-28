@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -636,6 +637,49 @@ class CFG(ProgramGraph):
                     break
 
     @staticmethod
+    def _get_infinite_loop_entries(
+        cfg: CFG,
+        exit_nodes: set[ProgramNode],
+        distances_to_entry_point: dict[ProgramNode, int],
+    ) -> set[ProgramNode]:
+        """Provides one entry node for each loop from which no exit node is reachable.
+
+        Works on the strongly connected components of the graph instead of enumerating
+        its simple cycles, whose number grows exponentially with the branches inside a
+        loop. The components are visited in reverse topological order, so a loop from
+        which an already marked infinite loop is reachable is not marked itself.
+
+        Args:
+            cfg: The control-flow graph
+            exit_nodes: The exit nodes of the graph
+            distances_to_entry_point: The distance of each node from the entry node
+
+        Returns:
+            The entry nodes of the infinite loops, i.e., for each such loop the node
+            closest to the entry node
+        """
+
+        def entry_order(node: ProgramNode) -> tuple[float, int]:
+            index = node.index if isinstance(node, BasicBlockNode) else -1
+            return distances_to_entry_point.get(node, math.inf), index
+
+        condensation = nx.condensation(cfg.graph)
+        reaches_exit: dict[int, bool] = {}
+        loop_entries: set[ProgramNode] = set()
+        for component in reversed(list(nx.topological_sort(condensation))):
+            members: set[ProgramNode] = condensation.nodes[component]["members"]
+            reaches_exit[component] = not members.isdisjoint(exit_nodes) or any(
+                reaches_exit[successor] for successor in condensation.successors(component)
+            )
+            if reaches_exit[component]:
+                continue
+            is_loop = len(members) > 1 or any(cfg.graph.has_edge(node, node) for node in members)
+            if is_loop:
+                loop_entries.add(min(members, key=entry_order))
+                reaches_exit[component] = True
+        return loop_entries
+
+    @staticmethod
     def _insert_dummy_nodes(cfg: CFG) -> None:
         entry_node = cfg.first_basic_block_node
 
@@ -655,13 +699,7 @@ class CFG(ProgramGraph):
         exit_nodes.update(CFG._get_yield_nodes(cfg))
 
         # Add infinite loop nodes
-        exit_nodes.update(
-            loop_entry
-            for cycle in nx.simple_cycles(cfg.graph)
-            if cfg.get_descendants(
-                loop_entry := min(cycle, key=lambda node: distances_to_entry_point[node])
-            ).isdisjoint(exit_nodes)
-        )
+        exit_nodes.update(CFG._get_infinite_loop_entries(cfg, exit_nodes, distances_to_entry_point))
 
         assert exit_nodes is not None, (
             f"Control flow must have at least one exit or yield node. Offending CFG: {cfg.dot}"

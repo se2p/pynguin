@@ -8,12 +8,18 @@ import sys
 from opcode import opmap
 from unittest.mock import MagicMock
 
+import networkx as nx
 from bytecode import Bytecode
 from bytecode.cfg import BasicBlock
 from bytecode.instr import Instr
 
 from pynguin.instrumentation.controlflow import CFG, ArtificialNode, BasicBlockNode
 from pynguin.instrumentation.version import add_for_loop_no_yield_nodes
+from tests.fixtures.programgraph.infinite_loops import (
+    branchy_infinite_loop,
+    loop_reaching_infinite_loop,
+    nested_infinite_loop,
+)
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
 
@@ -1047,6 +1053,34 @@ def test_integration_no_exit():
 
     assert len(cfg.get_successors(ArtificialNode.ENTRY)) == 1
     assert len(cfg.get_predecessors(ArtificialNode.EXIT)) == 1
+
+
+def test_integration_branchy_infinite_loop():
+    # The loop body has 2**30 simple cycles, which must not be enumerated.
+    cfg = CFG.from_bytecode(Bytecode.from_code(branchy_infinite_loop.__code__))
+    assert len(cfg.get_predecessors(ArtificialNode.EXIT)) == 1
+
+
+def test_integration_nested_infinite_loop():
+    cfg = CFG.from_bytecode(Bytecode.from_code(nested_infinite_loop.__code__))
+    (loop_entry,) = cfg.get_predecessors(ArtificialNode.EXIT)
+    entry_node = cfg.first_basic_block_node
+    assert entry_node is not None
+    distances = nx.single_source_shortest_path_length(cfg.graph, entry_node)
+    (loop_nodes,) = (
+        component
+        for component in nx.strongly_connected_components(cfg.graph)
+        if loop_entry in component
+    )
+    # The outer loop's header is chosen, not the header of the nested loop
+    assert distances[loop_entry] == min(distances[node] for node in loop_nodes)
+
+
+def test_integration_loop_reaching_infinite_loop():
+    cfg = CFG.from_bytecode(Bytecode.from_code(loop_reaching_infinite_loop.__code__))
+    (loop_entry,) = cfg.get_predecessors(ArtificialNode.EXIT)
+    first_loop_entry = next(iter(cfg.get_successors(ArtificialNode.ENTRY)))
+    assert not nx.has_path(cfg.graph, loop_entry, first_loop_entry)
 
 
 def test_cfg_from_yield():
