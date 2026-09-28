@@ -115,6 +115,14 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             ):
                 self._add_assertions_for(test, result)
 
+        self._remove_non_holding_assertions(test_cases)
+
+    def _remove_non_holding_assertions(self, test_cases: list[tc.TestCase]) -> None:
+        """Remove assertions that do not hold on the non-mutated module.
+
+        Args:
+            test_cases: The test cases whose assertions are verified.
+        """
         # Perform filtering executions to remove trivially flaky assertions. These run
         # on the (possibly subprocess) filtering executor so that per-process
         # nondeterminism is exercised, not just per-execution nondeterminism.

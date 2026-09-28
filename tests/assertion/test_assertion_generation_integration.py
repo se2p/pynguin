@@ -638,6 +638,46 @@ def test_mutation_analysis_llm_with_shared_start_time_budget_exhausted(
         config.configuration.test_case_output.maximum_mutation_time = original_budget
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_llm_removes_assertions_not_holding_on_original(
+    subject_properties: SubjectProperties,
+):
+    """An LLM assertion that is wrong on the original module is not kept as a kill."""
+    module = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
+    alias = get_module_alias(module)
+    with install_import_hook(module, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module)
+            importlib.reload(module_type)
+
+        test_case = _tc_mutation_killing(alias)
+        call = test_case.statements()[-1]
+        # foo(1) returns 2.0, so the second assertion is wrong on the original module.
+        call.assertions.append(ass.FloatAssertion("float_0", 2.0))
+        call.assertions.append(ass.FloatAssertion("float_0", 3.0))
+        suite = _suite(test_case)
+
+        controller = _mutation_controller(
+            _standard_mutant_generator(), module_type, _module_ast(module_type)
+        )
+        gen = MutationAnalysisLLMAssertionGenerator(
+            TestCaseExecutor(subject_properties), controller, testing=True
+        )
+        suite.accept(gen)
+
+        assert _render(test_case) == (
+            "def test_0():\n"
+            "    int_3 = 1\n"
+            "    float_0 = mutation_.foo(int_3)\n"
+            "    assert float_0 == pytest.approx(2.0, abs=0.01, rel=0.01)\n"
+        )
+        summary = gen._testing_mutation_summary
+        assert {k.mut_num for k in summary.get_killed()} == {0, 1, 3, 4}
+
+        _assert_no_execution_threads_leaked()
+
+
 @pytest.mark.parametrize(
     "module,tc_factory,expected_source,killed,timeout",
     [

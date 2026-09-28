@@ -6,7 +6,7 @@
 #
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -264,9 +264,15 @@ def test_mutation_analysis_llm_assertion_generator():
     plain_executor = MagicMock(spec=TestCaseExecutor)
     mutation_controller = MagicMock(spec=MutationController)
 
-    with patch.object(
-        MutationAnalysisAssertionGenerator, "_handle_add_assertions"
-    ) as mock_handle_add_assertions:
+    calls = MagicMock()
+    with (
+        patch.object(
+            MutationAnalysisAssertionGenerator,
+            "_remove_non_holding_assertions",
+            calls.remove_non_holding,
+        ),
+        patch.object(MutationAnalysisAssertionGenerator, "_handle_add_assertions", calls.handle),
+    ):
         generator = MutationAnalysisLLMAssertionGenerator(
             plain_executor=plain_executor,
             mutation_controller=mutation_controller,
@@ -280,7 +286,12 @@ def test_mutation_analysis_llm_assertion_generator():
         test_case = MagicMock(spec=tc.TestCase)
         generator._add_assertions([test_case])
 
-        mock_handle_add_assertions.assert_called_once_with([test_case])
+        # Assertions that do not hold on the original module are removed before
+        # mutation analysis, so that they cannot be counted as kills.
+        assert calls.mock_calls == [
+            call.remove_non_holding([test_case]),
+            call.handle([test_case]),
+        ]
 
 
 def test_visit_test_suite_chromosome_batch_query(test_cluster, llm_agent_mock):

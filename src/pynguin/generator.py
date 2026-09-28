@@ -1409,6 +1409,7 @@ def _setup_mutation_analysis_assertion_generator(
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
             executor,
             mutation_controller,
+            filtering_executor=ag.create_filtering_executor(executor),
             start_time=start_time,
             maximum_time=maximum_time,
         )
