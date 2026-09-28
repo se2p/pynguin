@@ -638,3 +638,103 @@ def test_export_chromosome_returns_path_written_by_exporter(tmp_path):
     assert exported.name == "test_accessible.py"
     assert exported.exists()
     assert not (tmp_path / "test_tests_fixtures_accessibles_accessible.py").exists()
+
+
+def _make_package(root: Path, name: str, body: str) -> Path:
+    package = root / name
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "mod.py").write_text(body)
+    return package
+
+
+@pytest.fixture
+def project_body():
+    return "ORIGIN = 'project'\n"
+
+
+@pytest.fixture
+def shadowed_package(tmp_path, monkeypatch, project_body):
+    name = "pynguin_shadowed_pkg"
+    project = tmp_path / "project"
+    vendored = tmp_path / "vendored"
+    _make_package(project, name, project_body)
+    _make_package(vendored, name, "ORIGIN = 'vendored'\n")
+    monkeypatch.syspath_prepend(str(vendored))
+    importlib.import_module(f"{name}.mod")
+    yield name, project
+    for module in [m for m in sys.modules if m.partition(".")[0] == name]:
+        del sys.modules[module]
+
+
+def test_evict_shadowing_modules_removes_foreign_copy(shadowed_package):
+    name, project = shadowed_package
+    evicted = gen._evict_shadowing_modules(f"{name}.mod", str(project))
+    assert sorted(evicted) == [name, f"{name}.mod"]
+    assert name not in sys.modules
+    assert f"{name}.mod" not in sys.modules
+
+
+def test_evict_shadowing_modules_keeps_project_copy(shadowed_package):
+    name, project = shadowed_package
+    for module in [m for m in sys.modules if m.partition(".")[0] == name]:
+        del sys.modules[module]
+    sys.path.insert(0, str(project))
+    try:
+        importlib.import_module(f"{name}.mod")
+        assert gen._evict_shadowing_modules(f"{name}.mod", str(project)) == {}
+        assert sys.modules[f"{name}.mod"].ORIGIN == "project"
+    finally:
+        sys.path.remove(str(project))
+
+
+def test_evict_shadowing_modules_ignores_module_absent_from_project(shadowed_package, tmp_path):
+    name, _ = shadowed_package
+    empty_project = tmp_path / "empty"
+    empty_project.mkdir()
+    assert gen._evict_shadowing_modules(f"{name}.mod", str(empty_project)) == {}
+    assert name in sys.modules
+
+
+def test_evict_shadowing_modules_not_loaded(tmp_path):
+    assert gen._evict_shadowing_modules("pynguin_not_loaded_pkg.mod", str(tmp_path)) == {}
+
+
+def _configure_load(name: str, project: Path) -> None:
+    gen.set_configuration(
+        configuration=MagicMock(
+            log_file=None,
+            project_path=str(project),
+            module_name=f"{name}.mod",
+            stopping=MagicMock(maximum_module_execution_timeout=5),
+        )
+    )
+
+
+def test_load_sut_imports_project_copy_of_shadowed_package(shadowed_package, monkeypatch):
+    name, project = shadowed_package
+    monkeypatch.syspath_prepend(str(project))
+    _configure_load(name, project)
+    assert gen._load_sut(MagicMock())
+    assert sys.modules[f"{name}.mod"].ORIGIN == "project"
+
+
+@pytest.mark.parametrize("project_body", ["raise ImportError('broken project copy')\n"])
+def test_load_sut_falls_back_to_preloaded_copy(shadowed_package, monkeypatch):
+    name, project = shadowed_package
+    vendored_module = sys.modules[f"{name}.mod"]
+    monkeypatch.syspath_prepend(str(project))
+    _configure_load(name, project)
+    assert gen._load_sut(MagicMock())
+    assert sys.modules[f"{name}.mod"] is vendored_module
+    assert sys.modules[f"{name}.mod"].ORIGIN == "vendored"
+
+
+@pytest.mark.parametrize("project_body", ["raise ImportError('broken project copy')\n"])
+def test_load_sut_fails_when_fallback_fails(shadowed_package, monkeypatch):
+    name, project = shadowed_package
+    monkeypatch.syspath_prepend(str(project))
+    _configure_load(name, project)
+    with mock.patch.object(gen, "_import_sut", side_effect=ImportError("broken")) as import_mock:
+        assert not gen._load_sut(MagicMock())
+    assert import_mock.call_count == 2
