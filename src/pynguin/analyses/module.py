@@ -21,6 +21,7 @@ import json
 import logging
 import queue
 import re
+import sys
 import types
 import typing
 from ast import Assign, AsyncFunctionDef, ClassDef, FunctionDef, Lambda, Module
@@ -1997,6 +1998,230 @@ def __resolve_dependencies(
     test_cluster.type_system.push_attributes_down()
 
 
+def _is_same_file(path1: str | None, path2: str | None) -> bool:
+    """Check if two file paths point to the same file.
+
+    Args:
+        path1: The first path
+        path2: The second path
+
+    Returns:
+        True if both paths point to the same file, False otherwise
+    """
+    if not path1 or not path2:
+        return False
+    try:
+        p1 = Path(path1).resolve()
+        p2 = Path(path2).resolve()
+        if p1.suffix in {".pyc", ".pyo"}:
+            p1 = p1.with_suffix(".py")
+        if p2.suffix in {".pyc", ".pyo"}:
+            p2 = p2.with_suffix(".py")
+        return p1 == p2
+    except (OSError, ValueError):
+        return False
+
+
+def _get_class_defining_file(cls: type) -> str | None:
+    """Find the source file where the class was defined using its methods.
+
+    Args:
+        cls: The class to inspect
+
+    Returns:
+        The source filename if found, None otherwise
+    """
+    for v in vars(cls).values():
+        code = getattr(v, "__code__", None) or getattr(
+            getattr(v, "__func__", None), "__code__", None
+        )
+        if not code and isinstance(v, property):
+            code = getattr(v.fget, "__code__", None) or getattr(v.fset, "__code__", None)
+        if code and hasattr(code, "co_filename"):
+            return code.co_filename
+    return None
+
+
+def _find_module_name_for_file(file_path: str | None) -> str | None:
+    """Find the module name in sys.modules matching the given file path.
+
+    Args:
+        file_path: Path to the source file
+
+    Returns:
+        The module name if found, None otherwise
+    """
+    if not file_path:
+        return None
+    try:
+        target = Path(file_path).resolve()
+        if target.suffix in {".pyc", ".pyo"}:
+            target = target.with_suffix(".py")
+    except (OSError, ValueError):
+        return None
+
+    for name, mod in list(sys.modules.items()):
+        if not inspect.ismodule(mod):
+            continue
+        mod_file = getattr(mod, "__file__", None)
+        if mod_file:
+            try:
+                p = Path(mod_file).resolve()
+                if p.suffix in {".pyc", ".pyo"}:
+                    p = p.with_suffix(".py")
+                if p == target:
+                    return name
+            except (OSError, ValueError):
+                continue
+    return None
+
+
+def _is_defined_in_current_module(
+    current: Any,
+    module: ModuleType,
+    syntax_tree: ast.Module | None,
+) -> bool:
+    """Check if current function or class is defined directly in module.
+
+    Args:
+        current: The function or class to inspect
+        module: The module currently being analysed
+        syntax_tree: The AST of the module currently being analysed
+
+    Returns:
+        True if defined in module, False otherwise
+    """
+    module_file = getattr(module, "__file__", None)
+    if inspect.isfunction(current):
+        code_file = getattr(getattr(current, "__code__", None), "co_filename", None)
+        if _is_same_file(code_file, module_file):
+            return True
+        return (
+            syntax_tree is not None
+            and get_function_node_from_ast(syntax_tree, getattr(current, "__name__", ""))
+            is not None
+            and getattr(module, getattr(current, "__name__", ""), None) is current
+        )
+    if inspect.isclass(current):
+        class_file = _get_class_defining_file(current)
+        if class_file and _is_same_file(class_file, module_file):
+            return True
+        return (
+            syntax_tree is not None
+            and get_class_node_from_ast(syntax_tree, current.__name__) is not None
+            and getattr(module, current.__name__, None) is current
+        )
+    return False
+
+
+def _resolve_defining_module(
+    *,
+    current: Any,
+    module: ModuleType,
+    syntax_tree: ast.Module | None,
+    parse_results: dict[str, _ModuleParseResult],
+) -> tuple[str, ast.Module | None]:
+    """Resolve the defining module name and syntax tree for a function or class.
+
+    Handles classes and functions whose ``__module__`` attribute has been
+    rewritten to a package root or alias by checking code object filenames and
+    syntax tree AST nodes.
+
+    Args:
+        current: The function or class to inspect
+        module: The module currently being analysed
+        syntax_tree: The AST of the module currently being analysed
+        parse_results: Parsed results dictionary
+
+    Returns:
+        A tuple of the defining module name and its syntax tree
+    """
+    # 0. If current.__module__ matches module.__name__, it belongs to this module
+    if getattr(current, "__module__", None) == module.__name__:
+        return module.__name__, syntax_tree
+
+    # 1. Check if defined directly in the current module being analysed
+    if _is_defined_in_current_module(current, module, syntax_tree):
+        return module.__name__, syntax_tree
+
+    # 2. Check if defining file maps to another module
+    def_file = (
+        getattr(getattr(current, "__code__", None), "co_filename", None)
+        if inspect.isfunction(current)
+        else _get_class_defining_file(current)
+        if inspect.isclass(current)
+        else None
+    )
+
+    if def_file:
+        def_mod = _find_module_name_for_file(def_file)
+        if def_mod:
+            try:
+                res = parse_results[def_mod]
+                return def_mod, res.syntax_tree
+            except (KeyError, ModuleNotFoundError, ValueError):
+                pass
+
+    # 3. Fallback to current.__module__
+    mod_name = getattr(current, "__module__", None)
+    if isinstance(mod_name, str) and mod_name:
+        try:
+            res = parse_results[mod_name]
+            return mod_name, res.syntax_tree
+        except (KeyError, ModuleNotFoundError, ValueError):
+            return mod_name, None
+
+    return "", None
+
+
+def _class_has_python_code(cls: type) -> bool:
+    """Check if any method on the class defines a Python CodeType.
+
+    Args:
+        cls: The class to inspect
+
+    Returns:
+        True if any method has Python bytecode, False otherwise
+    """
+    for v in vars(cls).values():
+        m_code = getattr(v, "__code__", None) or getattr(
+            getattr(v, "__func__", None), "__code__", None
+        )
+        if not m_code and isinstance(v, property):
+            m_code = getattr(v.fget, "__code__", None) or getattr(v.fset, "__code__", None)
+        if isinstance(m_code, types.CodeType):
+            return True
+    return False
+
+
+def _is_pure_python_element(element: Any, module: ModuleType, error: Exception) -> bool:
+    """Check if an element is pure Python despite inspect.getsource failing.
+
+    Args:
+        element: The member to inspect
+        module: The enclosing module
+        error: The exception raised by inspect.getsource
+
+    Returns:
+        True if the element is known to be pure Python, False otherwise
+    """
+    if isinstance(getattr(element, "__code__", None), types.CodeType):
+        return True
+    if not inspect.isclass(element):
+        return False
+    if _class_has_python_code(element):
+        return True
+    if bool(getattr(element, "__flags__", 0) & (1 << 9)):
+        if getattr(module, getattr(element, "__name__", ""), None) is element:
+            module_file = getattr(module, "__file__", "")
+            if module_file and Path(module_file).suffix not in {".so", ".pyd", ".dylib"}:
+                return True
+        if isinstance(error, OSError) and "could not find class definition" in str(error):
+            return True
+    class_file = _get_class_defining_file(element)
+    return bool(class_file and _is_same_file(class_file, getattr(module, "__file__", None)))
+
+
 def __analyse_included_classes(
     *,
     module: ModuleType,
@@ -2012,6 +2237,9 @@ def __analyse_included_classes(
             lambda x: inspect.isclass(x) and not _is_blacklisted(x),
             values,
         )
+    )
+    module_syntax_tree = (
+        parse_results[module.__name__].syntax_tree if module.__name__ in parse_results else None
     )
 
     # TODO(fk) inner classes?
@@ -2035,7 +2263,12 @@ def __analyse_included_classes(
 
         # Skip some C-extension modules that are not publicly accessible.
         try:
-            results = parse_results[current.__module__]
+            defining_module_name, syntax_tree = _resolve_defining_module(
+                current=current,
+                module=module,
+                syntax_tree=module_syntax_tree,
+                parse_results=parse_results,
+            )
         except (ModuleNotFoundError, ValueError) as error:
             current_file = getattr(current, "__file__", None)
             if current_file is None or Path(str(current_file)).suffix in {
@@ -2050,9 +2283,9 @@ def __analyse_included_classes(
         __analyse_class(
             type_info=type_info,
             type_inference_provider=type_inference_provider,
-            module_tree=results.syntax_tree,
+            module_tree=syntax_tree,
             test_cluster=test_cluster,
-            add_to_test=current.__module__ == root_module_name,
+            add_to_test=defining_module_name == root_module_name,
         )
 
         if hasattr(current, "__bases__"):
@@ -2079,6 +2312,9 @@ def __analyse_included_functions(
     parse_results: dict[str, _ModuleParseResult],
     seen_functions: set,
 ) -> None:
+    module_syntax_tree = (
+        parse_results[module.__name__].syntax_tree if module.__name__ in parse_results else None
+    )
     for current in filter(
         lambda x: _is_function(x) and not _is_blacklisted(x),
         vars(module).values(),
@@ -2090,17 +2326,23 @@ def __analyse_included_functions(
             LOGGER.info("Skipping function with invalid __module__: %s", current)
             continue
         try:
-            syntax_tree = parse_results[current.__module__].syntax_tree
+            defining_module_name, syntax_tree = _resolve_defining_module(
+                current=current,
+                module=module,
+                syntax_tree=module_syntax_tree,
+                parse_results=parse_results,
+            )
         except (ModuleNotFoundError, ValueError):
             LOGGER.info("C-extension module not found for function: %s", current.__module__)
             syntax_tree = None
+            defining_module_name = current.__module__
         __analyse_function(
             func_name=current.__qualname__,
             func=current,
             type_inference_provider=type_inference_provider,
             module_tree=syntax_tree,
             test_cluster=test_cluster,
-            add_to_test=current.__module__ == root_module_name,
+            add_to_test=defining_module_name == root_module_name,
         )
 
 
@@ -2135,7 +2377,9 @@ def __check_c_modules(
             try:
                 inspect.getsource(element)
                 # Source is available => likely pure Python.
-            except Exception:  # noqa: BLE001
+            except Exception as error:  # noqa: BLE001
+                if _is_pure_python_element(element, module, error):
+                    continue
                 # No source => likely compiled or builtin.
                 elem_module = getattr(element, "__module__", None)
                 if elem_module and _c_is_whitelisted(elem_module):
