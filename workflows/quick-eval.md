@@ -88,7 +88,8 @@ poetry run python utils/quick_eval.py compare baseline.json current.json
   - *(no flag)* — **non-LLM**: pure SBST (DynaMOSA), the default.
   - `--llm` — **full**: every combinable LLM feature — LLMOSA + pre-search
     initial-population seeding + pre-search uncovered-targets call + stagnation-triggered
-    querying + in-search LLM assertion generation (`--assertion-generation LLM`).
+    querying + in-search LLM assertion generation (`--assertion-generation LLM`) +
+    post-search refinement (`llm_refinement.enabled`: readability + semantic assertions + repair).
   - `--min-llm` — **minimal / paper-faithful**: the paper's cost-optimal *deployed*
     configuration (`docs/evosuite-llm-paper-vs-pynguin.md`) — LLMOSA with
     stagnation-triggered querying **only**, plus the post-processing refinement pipeline

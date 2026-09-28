@@ -89,7 +89,7 @@ def _llm_cli_args(mode: str, *, no_assertions: bool = False) -> list[str]:
 
     ``full`` enables every combinable LLM feature: the LLMOSA algorithm, pre-search
     initial-population seeding, the pre-search uncovered-targets call, stagnation-
-    triggered querying, and in-search LLM assertion generation.
+    triggered querying, in-search LLM assertion generation, and post-search LLM refinement.
 
     ``min`` mirrors the paper's cost-optimal *deployed* configuration
     (docs/evosuite-llm-paper-vs-pynguin.md): stagnation-triggered querying **only**,
@@ -98,10 +98,10 @@ def _llm_cli_args(mode: str, *, no_assertions: bool = False) -> list[str]:
     the paper finds the cost-coverage optimum is stagnation-triggered injection alone.
 
     When ``no_assertions`` is set (coverage-only mode) the LLM requests that do not
-    contribute to coverage are dropped: ``min``'s refinement pipeline (readability +
-    semantic assertions + repair) and ``full``'s in-search LLM assertion generation.
-    The coverage-driving calls (LLMOSA, stagnation-triggered querying, and full's
-    uncovered-targets + initial-population seeding) are kept.
+    contribute to coverage are dropped: ``min``'s and ``full``'s refinement pipeline
+    (readability + semantic assertions + repair) and ``full``'s in-search LLM assertion
+    generation. The coverage-driving calls (LLMOSA, stagnation-triggered querying, and
+    full's uncovered-targets + initial-population seeding) are kept.
 
     Both modes keep Pynguin's already paper-calibrated timing/repair/context defaults
     (30 s stagnation window, 45 s late-budget guard, 2 repair iterations, 1 intervention,
@@ -132,7 +132,12 @@ def _llm_cli_args(mode: str, *, no_assertions: bool = False) -> list[str]:
             "True",
         ]
         if not no_assertions:
-            args += ["--assertion-generation", "LLM"]
+            args += [
+                "--assertion-generation",
+                "LLM",
+                "--llm-refinement.enabled",
+                "True",
+            ]
     return args + _llm_credential_args()
 
 
