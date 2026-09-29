@@ -50,7 +50,13 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             self._logger.info("Coverage before LLM call: %5f", coverage_before)
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
-            llm_chromosomes = self.target_uncovered_callables()
+            llm_chromosomes = self._query_initial_targets()
+            if llm_chromosomes is None:
+                self._logger.info(
+                    "Initial LLM query runs in the background; its result is integrated "
+                    "when it completes."
+                )
+                return
             self._population += llm_chromosomes
             # DynaMOSA's UpdateTargets, not archive.update(): also unlocks any goals
             # whose parent these chromosomes just covered.
@@ -133,6 +139,9 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             if hasattr(self.model, "cancel_all"):
                 self.model.cancel_all()
             self._llm_query_strategy.shutdown()
+            stat.track_output_variable(
+                RuntimeVariable.LLMBlockingTimeSeconds, self._llm_query_strategy.blocked_seconds
+            )
 
         self.after_search_finish()
         return self.create_test_suite(

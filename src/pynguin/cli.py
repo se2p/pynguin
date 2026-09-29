@@ -26,6 +26,7 @@ from rich.traceback import install
 import pynguin.configuration as config
 from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin, set_configuration
+from pynguin.islands.orchestrator import run_pynguin_with_islands
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
 from pynguin.utils.logging_utils import (
@@ -225,24 +226,28 @@ to see why this happens and what you must do to prevent it."""
     set_configuration(parsed.config)
     write_configuration()
 
+    num_islands = parsed.config.island.num_islands
     use_master_worker = parsed.config.use_master_worker
-    message = (
-        "Running Pynguin with master-worker architecture..."
-        if use_master_worker
-        else "Running Pynguin..."
-    )
-    if use_master_worker:
+    if num_islands > 1:
+        message = f"Running Pynguin with {num_islands} islands..."
+        _LOGGER.debug("Using island-model parallel search (%d islands)", num_islands)
+    elif use_master_worker:
+        message = "Running Pynguin with master-worker architecture..."
         _LOGGER.debug("Using master-worker architecture")
+    else:
+        message = "Running Pynguin..."
+
+    def _dispatch() -> int:
+        if num_islands > 1:
+            return run_pynguin_with_islands(parsed.config).value
+        if use_master_worker:
+            return run_pynguin_with_master_worker(parsed.config).value
+        return run_pynguin().value
 
     if console is not None:
         with console.status(message):
-            if use_master_worker:
-                return run_pynguin_with_master_worker(parsed.config).value
-            return run_pynguin().value
-    elif use_master_worker:
-        return run_pynguin_with_master_worker(parsed.config).value
-    else:
-        return run_pynguin().value
+            return _dispatch()
+    return _dispatch()
 
 
 if __name__ == "__main__":

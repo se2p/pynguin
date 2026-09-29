@@ -530,6 +530,45 @@ class MaxSearchTimeStoppingCondition(StoppingCondition):
         return f"Used search time: {self.current_value()}/{self.limit()}"
 
 
+class WallClockDeadlineStoppingCondition(StoppingCondition):
+    """Stop the search at a fixed wall-clock deadline.
+
+    The deadline is provided by the caller and is not reset when the search starts.
+    This allows multiple search processes to share the same time limit and stop at
+    the same point, even if their setup time differs.
+    """
+
+    def __init__(self, deadline_epoch_ns: int):
+        """Create a new WallClockDeadlineStoppingCondition.
+
+        Args:
+            deadline_epoch_ns: the absolute time (as returned by time.time_ns())
+                at which the search should stop.
+        """
+        super().__init__()
+        assert deadline_epoch_ns > 0
+        self._deadline_epoch_ns = deadline_epoch_ns
+        self._created_at_ns = time.time_ns()
+
+    def current_value(self) -> int:  # noqa: D102
+        return max(0, (time.time_ns() - self._created_at_ns) // 1_000_000_000)
+
+    def limit(self) -> int:  # noqa: D102
+        return max(0, (self._deadline_epoch_ns - self._created_at_ns) // 1_000_000_000)
+
+    def is_fulfilled(self) -> bool:  # noqa: D102
+        return time.time_ns() >= self._deadline_epoch_ns
+
+    def reset(self) -> None:
+        """Do nothing because the deadline is fixed and shared across runs."""
+
+    def set_limit(self, limit: int) -> None:  # noqa: D102
+        self._deadline_epoch_ns = time.time_ns() + limit * 1_000_000_000
+
+    def __str__(self):
+        return f"Used search time: {self.current_value()}/{self.limit()} (shared deadline)"
+
+
 class MaxMemoryStoppingCondition(StoppingCondition):
     """Stop the search once the memory limit is exceeded.
 

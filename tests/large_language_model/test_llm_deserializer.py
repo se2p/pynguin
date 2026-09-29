@@ -1314,3 +1314,68 @@ def test_helper():
     assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 0
     assert result.counts[Disposition.ADMITTED] == 2
     assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+
+
+def test_call_inside_assert_is_kept_when_assertions_are_off(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = "def test_foo():\n    assert myfunc(1) is True\n"
+
+    result = _deserialize_function(code, test_cluster, create_assertions=False)
+
+    assert result.test_case.to_code() == "myfunc(1)\n"
+    assert result.test_case.get_statement(0).accessible is func
+    assert result.counts == Counter({Disposition.ADMITTED: 1})
+
+
+def test_calls_of_a_dropped_assert_are_kept(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = "def test_foo():\n    assert myfunc(1) == unknown_expected\n"
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "myfunc(1)\n"
+    assert result.counts[Disposition.ASSERTION_DROPPED] == 1
+    assert result.counts[Disposition.ADMITTED] == 1
+
+
+def test_calls_inside_comprehensions_of_an_assert_are_not_kept(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = "def test_foo():\n    assert [myfunc(x) for x in range(2)]\n"
+
+    result = _deserialize_function(code, test_cluster, create_assertions=False)
+
+    assert result.test_case.size() == 0
+
+
+def test_with_block_with_unknown_context_manager_is_unwrapped(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = "def test_foo():\n    with unknown_manager():\n        myfunc(1)\n        myfunc(2)\n"
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "myfunc(1)\nmyfunc(2)\n"
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+    assert result.counts[Disposition.ADMITTED] == 2
+
+
+def test_single_line_with_block_with_unknown_context_manager_is_unwrapped(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = "def test_foo():\n    with unknown_manager(): myfunc(1)\n"
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "myfunc(1)\n"
+
+
+def test_docstring_is_not_admitted_as_a_statement(test_cluster):
+    code = 'def test_foo():\n    """Checks something."""\n    x = 1\n'
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "x = 1\n"
+    assert result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE] == 1

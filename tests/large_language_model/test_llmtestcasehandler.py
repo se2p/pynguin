@@ -55,6 +55,22 @@ def test_extract_test_cases_from_llm_output(handler, mock_model, tmp_path):
     assert (tmp_path / "extracted_llm_test_cases.py").exists()
 
 
+def test_get_test_cases_from_llm_results_none_returns_empty(handler):
+    result = handler.get_test_cases_from_llm_results(None, MagicMock())
+    assert result == []
+
+
+def test_get_test_cases_from_llm_results_returns_bare_test_cases(handler, mock_model, test_cluster):
+    mock_model.extract_python_code_from_llm_output.return_value = """def test_something():
+    x = 1
+    y = 2
+"""
+    result = handler.get_test_cases_from_llm_results("raw llm output", test_cluster)
+
+    assert len(result) == 1
+    assert result[0].size() == 2
+
+
 def test_get_test_case_chromosomes_from_llm_results_none_returns_empty(handler):
     result = handler.get_test_case_chromosomes_from_llm_results(
         None, MagicMock(), MagicMock(), [], []

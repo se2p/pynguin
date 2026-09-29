@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.module import TestCluster
 from pynguin.ga.computations import CoverageFunction, FitnessFunction
@@ -62,6 +63,53 @@ class LLMTestCaseHandler:
         save_llm_tests_to_file(python_code, "extracted_llm_test_cases.py")
         return python_code
 
+    def get_test_cases_from_llm_results(
+        self,
+        llm_query_results: str | None,
+        test_cluster: TestCluster,
+    ) -> list[tc.TestCase]:
+        """Parse LLM query results into test cases.
+
+        This handles only the parsing and deserialization step and does not attach the
+        test cases to a test factory or fitness functions.
+
+        Args:
+        llm_query_results: Raw results returned by the LLM. If None, an empty
+        list is returned.
+        test_cluster: Test cluster used during deserialization.
+
+        Returns:
+        The parsed test cases, or an empty list if no test cases could be created.
+        """
+        if llm_query_results is None:
+            return []
+
+        save_llm_tests_to_file(llm_query_results, "llm_query_results.txt")
+        llm_test_cases_str = self.extract_test_cases_from_llm_output(llm_query_results)
+
+        deserialization_result = deserialize_code_to_testcases(
+            llm_test_cases_str, test_cluster=test_cluster
+        )
+
+        if deserialization_result.status is ParseStatus.UNPARSEABLE:
+            _logger.error(
+                "Failed to deserialize test cases %s",
+                llm_test_cases_str,
+            )
+            return []
+
+        test_cases = deserialization_result.test_cases
+
+        tests_source_code = "\n\n".join(
+            test_case.to_test_function(i).code for i, test_case in enumerate(test_cases)
+        )
+        save_llm_tests_to_file(tests_source_code, "deserializer_llm_test_cases.py")
+
+        for disposition, runtime_variable in _DISPOSITION_STATISTICS.items():
+            stat.track_output_variable(runtime_variable, deserialization_result.counts[disposition])
+
+        return test_cases
+
     def get_test_case_chromosomes_from_llm_results(
         self,
         llm_query_results: str | None,
@@ -90,41 +138,13 @@ class LLMTestCaseHandler:
              LLM test cases. Each chromosome is augmented with the provided
              fitness and coverage functions.
         """
-        llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
-        if llm_query_results is None:
-            return llm_test_case_chromosomes
-
-        save_llm_tests_to_file(llm_query_results, "llm_query_results.txt")
-        llm_test_cases_str = self.extract_test_cases_from_llm_output(llm_query_results)
-
-        deserialization_result = deserialize_code_to_testcases(
-            llm_test_cases_str, test_cluster=test_cluster
-        )
-
-        if deserialization_result.status is ParseStatus.UNPARSEABLE:
-            _logger.error(
-                "Failed to deserialize test cases %s",
-                llm_test_cases_str,
-            )
-            return []
-
-        test_cases = deserialization_result.test_cases
-
-        tests_source_code = "\n\n".join(
-            test_case.to_test_function(i).code for i, test_case in enumerate(test_cases)
-        )
-        save_llm_tests_to_file(tests_source_code, "deserializer_llm_test_cases.py")
-
-        for disposition, runtime_variable in _DISPOSITION_STATISTICS.items():
-            stat.track_output_variable(runtime_variable, deserialization_result.counts[disposition])
-
-        for test_case in test_cases:
-            test_case_chromosome = _create_test_case_chromosome(
+        test_cases = self.get_test_cases_from_llm_results(llm_query_results, test_cluster)
+        return [
+            _create_test_case_chromosome(
                 test_case, test_factory, fitness_functions, coverage_functions
             )
-            llm_test_case_chromosomes.append(test_case_chromosome)
-
-        return llm_test_case_chromosomes
+            for test_case in test_cases
+        ]
 
 
 def _create_test_case_chromosome(

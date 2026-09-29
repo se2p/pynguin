@@ -11,6 +11,7 @@ from __future__ import annotations
 import abc
 import concurrent.futures
 import logging
+import time
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
@@ -57,9 +58,25 @@ class LLMQueryStrategy(abc.ABC):
     def shutdown(self) -> None:
         """Clean up any background resources or workers."""
 
+    @property
+    def blocked_seconds(self) -> float:
+        """Wall-clock seconds the caller has spent blocked inside execute().
+
+        Only synchronous execution can block the caller at all, so this is 0.0
+        by default; SyncLLMQueryStrategy is the only strategy that overrides it.
+
+        Returns:
+            Accumulated blocked seconds, 0.0 if this strategy never blocks.
+        """
+        return 0.0
+
 
 class SyncLLMQueryStrategy(LLMQueryStrategy):
     """Synchronous strategy that executes queries immediately and blocks."""
+
+    def __init__(self) -> None:
+        """Initializes the synchronous query strategy."""
+        self._blocked_seconds = 0.0
 
     def execute(self, query_fn: Callable[[], _T]) -> _T | None:
         """Execute the query function synchronously and return its result.
@@ -70,7 +87,20 @@ class SyncLLMQueryStrategy(LLMQueryStrategy):
         Returns:
             The result of query_fn().
         """
-        return query_fn()
+        start = time.perf_counter()
+        try:
+            return query_fn()
+        finally:
+            self._blocked_seconds += time.perf_counter() - start
+
+    @property
+    def blocked_seconds(self) -> float:
+        """Wall-clock seconds spent blocked inside execute() so far.
+
+        Returns:
+            Accumulated blocked seconds.
+        """
+        return self._blocked_seconds
 
     def poll(self) -> Any | None:
         """Poll returns None since synchronous queries complete immediately.

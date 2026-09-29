@@ -261,6 +261,18 @@ class RuntimeVariable(str, enum.Enum):
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
+    # Number of logical LLM queries issued (cache hits and endpoint requests alike)
+    TotalLLMLogicalQueries = "TotalLLMLogicalQueries"
+
+    # Number of actual LLM endpoint requests made (retries count separately per attempt)
+    TotalLLMEndpointRequests = "TotalLLMEndpointRequests"
+
+    # Number of logical LLM queries served from the response cache
+    TotalLLMCacheHits = "TotalLLMCacheHits"
+
+    # Seconds the synchronous search loop spent blocked waiting for LLM responses
+    LLMBlockingTimeSeconds = "LLMBlockingTimeSeconds"
+
     # Number of input tokens sent LLM to model
     TotalLLMInputTokens = "TotalLLMInputTokens"
 
@@ -387,6 +399,23 @@ class RuntimeVariable(str, enum.Enum):
 
     # Number of MockStatements present in the final generated test suite
     MockStatementsInserted = "MockStatementsInserted"
+
+    # ========= Centralized asynchronous LLM query worker =========
+
+    # Number of LLM queries issued by the async worker
+    TotalLLMWorkerQueries = "TotalLLMWorkerQueries"
+
+    # Total wall-clock seconds spent on async worker LLM queries
+    TotalLLMWorkerQueryTimeSeconds = "TotalLLMWorkerQueryTimeSeconds"
+
+    # Number of input tokens sent by the async worker
+    TotalLLMWorkerInputTokens = "TotalLLMWorkerInputTokens"
+
+    # Number of output tokens received by the async worker
+    TotalLLMWorkerOutputTokens = "TotalLLMWorkerOutputTokens"
+
+    # Estimated USD cost of the async worker's queries
+    EstimatedLLMWorkerCostUSD = "EstimatedLLMWorkerCostUSD"
 
     def __repr__(self):
         return f"{self.name}"

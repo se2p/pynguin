@@ -153,6 +153,19 @@ class CoverageArchive(Archive):
         """
         return OrderedSet(self._covered.keys())
 
+    def get_covering_solution(
+        self, objective: ff.TestCaseFitnessFunction
+    ) -> tcc.TestCaseChromosome | None:
+        """Provides the solution that covers the given objective, if any.
+
+        Args:
+            objective: The objective to look up.
+
+        Returns:
+            The covering chromosome, or None if the objective isn't covered.
+        """
+        return self._covered.get(objective)
+
     @property
     def objectives(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Provides the set of all objectives.

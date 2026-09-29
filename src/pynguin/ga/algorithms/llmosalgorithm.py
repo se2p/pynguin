@@ -103,7 +103,13 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             self._logger.info("Coverage before LLM call: %5f", coverage_before)
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
-            llm_chromosomes = self.target_uncovered_callables()
+            llm_chromosomes = self._query_initial_targets()
+            if llm_chromosomes is None:
+                self._logger.info(
+                    "Initial LLM query runs in the background; its result is integrated "
+                    "when it completes."
+                )
+                return
             working_chromosomes = self._filter_working_test_cases(llm_chromosomes)
             self._population = working_chromosomes + self._population
             self._archive.update(self._population)
@@ -111,6 +117,24 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
             self._logger.info("Coverage after LLM call: %5f", coverage_after)
             stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
+
+    def _query_initial_targets(self) -> list[tcc.TestCaseChromosome] | None:
+        """Runs the initial LLM query through the configured query strategy.
+
+        Target selection reads the archive and the test cluster, so it runs on the
+        search thread. Only the request and the response parsing go through the
+        strategy: in SYNC mode the call blocks and counts towards the blocking time,
+        in ASYNC mode it returns immediately and a later poll() delivers the result.
+
+        Returns:
+            The generated chromosomes, or None if the query runs in the background.
+        """
+        targets_map, diagnostics = self._select_uncovered_targets()
+        if not targets_map:
+            return []
+        return self._llm_query_strategy.execute(
+            functools.partial(self._query_llm_for_targets, targets_map, diagnostics)
+        )
 
     def _poll_and_handle_stall(self, stall_tracker: _StallTracker) -> None:
         """Polls for background LLM results and checks stall detection.
@@ -238,6 +262,9 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             if hasattr(self.model, "cancel_all"):
                 self.model.cancel_all()
             self._llm_query_strategy.shutdown()
+            stat.track_output_variable(
+                RuntimeVariable.LLMBlockingTimeSeconds, self._llm_query_strategy.blocked_seconds
+            )
 
         return self._finalize_generation()
 

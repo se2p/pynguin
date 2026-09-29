@@ -563,7 +563,222 @@ def test_verify_config(tmp_path, algorithm):
         test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
         project_path=str(tmp_path),
         search_algorithm=config.SearchAlgorithmConfiguration(
-            coverage_metrics=[CoverageMetric.LINE, CoverageMetric.BRANCH]
+            coverage_metrics=[CoverageMetric.BRANCH]
+        ),
+    )
+    gen.set_configuration(configuration)
+    gen._verify_config()
+
+
+def test_verify_config_migration_requires_dynamosa_or_lldynamosa(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.MOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(
+            num_islands=3, migration_strategy=config.MigrationStrategy.GOAL_TRIGGERED
+        ),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"Island migration requires algorithm to be DYNAMOSA or LLDYNAMOSA",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_migration_allows_lldynamosa(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.LLDYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(
+            num_islands=3, migration_strategy=config.MigrationStrategy.GOAL_TRIGGERED
+        ),
+        llm_worker=config.LLMWorkerConfiguration(enabled=True),
+    )
+    gen.set_configuration(configuration)
+    gen._verify_config()
+
+
+@pytest.mark.parametrize(
+    "migration_strategy",
+    [config.MigrationStrategy.GOAL_TRIGGERED, config.MigrationStrategy.DISABLED],
+)
+def test_verify_config_lldynamosa_islands_without_worker_is_rejected(tmp_path, migration_strategy):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.LLDYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(num_islands=3, migration_strategy=migration_strategy),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"LLDYNAMOSA with parallel islands requires the centralized LLM worker",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_dynamosa_islands_with_migration_without_worker_is_accepted(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(
+            num_islands=3, migration_strategy=config.MigrationStrategy.COMBINED
+        ),
+    )
+    gen.set_configuration(configuration)
+    gen._verify_config()
+
+
+def test_verify_config_sequential_lldynamosa_is_accepted(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.LLDYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+    )
+    gen.set_configuration(configuration)
+    gen._verify_config()
+
+
+def test_verify_config_llm_worker_requires_lldynamosa(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(num_islands=3),
+        llm_worker=config.LLMWorkerConfiguration(enabled=True),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"The LLM worker requires algorithm=LLDYNAMOSA",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_llm_worker_requires_multiple_islands(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.LLDYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(num_islands=1),
+        llm_worker=config.LLMWorkerConfiguration(enabled=True),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"The LLM worker requires island.num_islands > 1",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_llm_worker_broadcast_requires_migration(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.LLDYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(num_islands=3),
+        llm_worker=config.LLMWorkerConfiguration(
+            enabled=True, immigration_routing=config.ImmigrationRouting.BROADCAST
+        ),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"immigration_routing=BROADCAST requires island.migration_strategy",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_islands_require_positive_search_time(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        island=config.IslandConfiguration(num_islands=3),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"Island mode requires a positive --maximum_search_time",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_periodic_migration_k_exceeds_population_is_rejected(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        search_algorithm=config.SearchAlgorithmConfiguration(population=10),
+        island=config.IslandConfiguration(
+            num_islands=4,
+            migration_strategy=config.MigrationStrategy.PERIODIC,
+            population_allocation=config.PopulationAllocation.FIXED_TOTAL_DISTRIBUTED,
+            periodic_migration_size=3,
+        ),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"periodic_migration_size \(K=3\) exceeds the smallest per-island population \(2\)",
+    ):
+        gen._verify_config()
+
+
+def test_verify_config_periodic_migration_k_within_population_is_accepted(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        search_algorithm=config.SearchAlgorithmConfiguration(population=10),
+        island=config.IslandConfiguration(
+            num_islands=4,
+            migration_strategy=config.MigrationStrategy.PERIODIC,
+            population_allocation=config.PopulationAllocation.FIXED_TOTAL_DISTRIBUTED,
+            periodic_migration_size=2,
+        ),
+    )
+    gen.set_configuration(configuration)
+    gen._verify_config()
+
+
+def test_verify_config_periodic_migration_full_per_island_uses_base_population(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        search_algorithm=config.SearchAlgorithmConfiguration(population=10),
+        island=config.IslandConfiguration(
+            num_islands=4,
+            migration_strategy=config.MigrationStrategy.PERIODIC,
+            population_allocation=config.PopulationAllocation.FULL_PER_ISLAND,
+            periodic_migration_size=10,
         ),
     )
     gen.set_configuration(configuration)

@@ -303,6 +303,52 @@ def _target_names(node: cst.BaseExpression) -> set[str]:
     return set()
 
 
+class _OutermostCallCollector(cst.CSTVisitor):
+    """Collects the outermost calls of an expression, in evaluation order.
+
+    Calls nested in another call's arguments stay part of that call. Calls inside
+    lambdas and comprehensions are skipped, since they depend on names bound
+    there.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[cst.Call] = []
+
+    @staticmethod
+    def collect(node: cst.CSTNode) -> list[cst.Call]:
+        """Returns the outermost calls in node.
+
+        Args:
+            node: The node to search.
+
+        Returns:
+            The outermost calls, left to right.
+        """
+        collector = _OutermostCallCollector()
+        node.visit(collector)
+        return collector.calls
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        self.calls.append(node)
+        return False
+
+    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
+        return False
+
+    def visit_ListComp(self, node: cst.ListComp) -> bool:  # noqa: N802
+        return False
+
+    def visit_SetComp(self, node: cst.SetComp) -> bool:  # noqa: N802
+        return False
+
+    def visit_DictComp(self, node: cst.DictComp) -> bool:  # noqa: N802
+        return False
+
+    def visit_GeneratorExp(self, node: cst.GeneratorExp) -> bool:  # noqa: N802
+        return False
+
+
 def _params_names(params: cst.Parameters) -> list[str]:
     """Return the parameter names introduced by a ``Parameters`` node."""
     groups = (params.params, params.kwonly_params, getattr(params, "posonly_params", ()))
@@ -1220,7 +1266,10 @@ class CstStatementDeserializer:
                 return node, None, None, accessible, not resolved
             return None
         if isinstance(small, cst.Expr):
-            if isinstance(small.value, (cst.SimpleString, cst.FormattedString, cst.Ellipsis)):
+            if isinstance(
+                small.value,
+                (cst.SimpleString, cst.ConcatenatedString, cst.FormattedString, cst.Ellipsis),
+            ):
                 return None
             _, accessible, resolved = self._infer_rhs(small.value, bound_types, imported_bindings)
             node = cst.SimpleStatementLine(body=[small])
@@ -1405,7 +1454,11 @@ class CstStatementDeserializer:
     ) -> None:
         if isinstance(small, cst.Assert):
             if self._create_assertions:
-                counts[self._handle_assert(small, state)] += 1
+                disposition = self._handle_assert(small, state)
+                counts[disposition] += 1
+                if disposition is not Disposition.ASSERTION_DROPPED:
+                    return
+            self._keep_calls_of_assert(small, state, counts)
             return
 
         if isinstance(small, cst.Import | cst.ImportFrom):
@@ -1416,6 +1469,59 @@ class CstStatementDeserializer:
             return
 
         counts[self._handle_ordinary_statement(small, state)] += 1
+
+    def _keep_calls_of_assert(
+        self,
+        small: cst.Assert,
+        state: _FunctionDeserializationState,
+        counts: collections.Counter[Disposition],
+    ) -> None:
+        """Keeps the calls of an assert that is not kept itself, as plain statements.
+
+        LLM-written tests often call the code under test only inside an assert,
+        e.g. ``assert parse(text) is True``. Dropping the whole assert would drop
+        the call and the coverage it achieves; The Assert itself is not needed
+        for that.
+
+        Args:
+            small: The Assert whose outermost calls should be kept.
+            state: The mutable per-function deserialization state.
+            counts: The disposition counts to update.
+        """
+        for call in _OutermostCallCollector.collect(small.test):
+            counts[self._handle_ordinary_statement(cst.Expr(value=call), state)] += 1
+
+    def _process_line(
+        self,
+        line: cst.BaseStatement,
+        state: _FunctionDeserializationState,
+        counts: collections.Counter[Disposition],
+    ) -> None:
+        """Deserializes one statement line of a test function body.
+
+        A ``with`` block that cannot be admitted because its context manager
+        uses unknown names (e.g. ``redirect_stdout``, ``patch``) is unwrapped: the
+        context manager is dropped and its body is processed statement by
+        statement, so calls to the code under test inside it are kept.
+
+        Args:
+            line: The statement to deserialize.
+            state: The mutable per-function deserialization state.
+            counts: The disposition counts to update.
+        """
+        if isinstance(line, cst.BaseCompoundStatement):
+            disposition = self._handle_compound_statement(line, state)
+            counts[disposition] += 1
+            if disposition is Disposition.DROPPED_UNKNOWN_NAMES and isinstance(line, cst.With):
+                if isinstance(line.body, cst.IndentedBlock):
+                    for inner in line.body.body:
+                        self._process_line(inner, state, counts)
+                else:
+                    for small in line.body.body:
+                        self._process_small_statement(small, state, counts)
+        elif isinstance(line, cst.SimpleStatementLine):
+            for small in line.body:
+                self._process_small_statement(small, state, counts)
 
     def deserialize_function(
         self,
@@ -1457,11 +1563,7 @@ class CstStatementDeserializer:
         counts: collections.Counter[Disposition] = collections.Counter()
 
         for line in normalized.body:
-            if isinstance(line, cst.BaseCompoundStatement):
-                counts[self._handle_compound_statement(line, state)] += 1
-            elif isinstance(line, cst.SimpleStatementLine):
-                for small in line.body:
-                    self._process_small_statement(small, state, counts)
+            self._process_line(line, state, counts)
 
         return FunctionDeserialization(state.testcase, counts)
 

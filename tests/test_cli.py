@@ -34,6 +34,7 @@ def test_main_empty_argv():
                     with mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}):
                         generator_mock.return_value = ReturnCode.OK
                         parser = MagicMock()
+                        parser.parse_args.return_value.config.island.num_islands = 1
                         parser_mock.return_value = parser
                         main()
                         assert len(parser.parse_args.call_args[0][0]) > 0
@@ -47,6 +48,7 @@ def test_main_with_argv():
                     with mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}):
                         generator_mock.return_value = ReturnCode.OK
                         parser = MagicMock()
+                        parser.parse_args.return_value.config.island.num_islands = 1
                         parser_mock.return_value = parser
                         args = ["foo", "--help"]
                         main(args)
@@ -91,6 +93,7 @@ def test_main_modes(patch_dependencies, use_master_worker, has_console, run_fn_n
     parsed = parser.parse_args.return_value
 
     # Configure parsed arguments
+    parsed.config.island.num_islands = 1
     parsed.config.use_master_worker = use_master_worker
     parsed.verbosity = 1 if has_console else 0
     parsed.no_rich = not has_console

@@ -111,7 +111,8 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, llmosa_algori
         side_effect=[test_suite_before, test_suite_after]
     )
     raw_chromosomes = [MagicMock(spec=tcc.TestCaseChromosome)]
-    llmosa_algorithm.target_uncovered_callables = MagicMock(return_value=raw_chromosomes)
+    llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.5}, {}))
+    llmosa_algorithm._query_llm_for_targets = MagicMock(return_value=raw_chromosomes)
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=raw_chromosomes)
 
     # Execute
@@ -119,7 +120,8 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, llmosa_algori
         llmosa_algorithm._target_initial_uncovered_goals()
 
     # Assert
-    llmosa_algorithm.target_uncovered_callables.assert_called_once()
+    llmosa_algorithm._select_uncovered_targets.assert_called_once()
+    llmosa_algorithm._query_llm_for_targets.assert_called_once()
     llmosa_algorithm._filter_working_test_cases.assert_called_once_with(raw_chromosomes)
     assert len(llmosa_algorithm._population) == 1
     llmosa_algorithm._archive.update.assert_called_once_with(llmosa_algorithm._population)
@@ -140,7 +142,8 @@ def test_target_initial_uncovered_goals_filters_crashing_tests(mock_config, llmo
         MagicMock(spec=tcc.TestCaseChromosome),
         MagicMock(spec=tcc.TestCaseChromosome),
     ]
-    llmosa_algorithm.target_uncovered_callables = MagicMock(return_value=raw_chromosomes)
+    llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.5}, {}))
+    llmosa_algorithm._query_llm_for_targets = MagicMock(return_value=raw_chromosomes)
     # Only the second chromosome survives filtering (e.g. the first crashed).
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=raw_chromosomes[1:])
     llmosa_algorithm._population = []

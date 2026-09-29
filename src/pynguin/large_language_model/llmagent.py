@@ -274,6 +274,9 @@ class LLMAgent:  # noqa: PLR0904
         self._llm_output_tokens = 0
         # The values this agent has already added to the run-wide statistics.
         self._reported_stats: dict[RuntimeVariable, float] = {}
+        self._llm_logical_queries = 0
+        self._llm_endpoint_requests = 0
+        self._llm_cache_hits = 0
         self._llm_test_case_handler = LLMTestCaseHandler(self)
 
         self._client = OpenAIClient()
@@ -330,6 +333,35 @@ class LLMAgent:  # noqa: PLR0904
         return self._llm_calls_with_no_python_code
 
     @property
+    def llm_logical_queries(self) -> int:
+        """Returns the number of logical LLM queries issued (cache hits included).
+
+        Returns:
+            The number of logical LLM queries issued.
+        """
+        return self._llm_logical_queries
+
+    @property
+    def llm_endpoint_requests(self) -> int:
+        """Returns the number of actual LLM endpoint requests made.
+
+        Larger than llm_logical_queries when retries occurred.
+
+        Returns:
+            The number of actual LLM endpoint requests made.
+        """
+        return self._llm_endpoint_requests
+
+    @property
+    def llm_cache_hits(self) -> int:
+        """Returns the number of logical LLM queries served from the response cache.
+
+        Returns:
+            The number of logical LLM queries served from the response cache.
+        """
+        return self._llm_cache_hits
+
+    @property
     def client(self) -> OpenAIClient:
         """Returns the underlying LLM client.
 
@@ -344,11 +376,12 @@ class LLMAgent:  # noqa: PLR0904
             self._client.cancel_all()
 
     def _sync_usage(self) -> None:
-        """Copies the client's cumulative token usage into the agent's counters."""
+        """Copies the client's cumulative usage into the agent's counters."""
         usage = self._client.get_usage()
         self._llm_input_tokens = usage["input_tokens"]
         self._llm_output_tokens = usage["output_tokens"]
         self._llm_calls_with_no_python_code = usage["calls_with_no_python_code"]
+        self._llm_endpoint_requests = usage["endpoint_requests"]
 
     def query(self, prompt: Prompt) -> str | None:
         """Sends a query to the OpenAI API and returns the response.
@@ -361,10 +394,13 @@ class LLMAgent:  # noqa: PLR0904
         """
         request = prompt.render_request()
         prompt_text = request.messages[-1]["content"]
+        self._llm_logical_queries += 1
 
         if config.configuration.large_language_model.enable_response_caching:
             cached_response = self.cache.get(request)
             if cached_response is not None:
+                self._llm_cache_hits += 1
+                self._log_and_track_llm_stats()
                 return cached_response
 
         start_time = time.time_ns()
@@ -402,10 +438,13 @@ class LLMAgent:  # noqa: PLR0904
         """
         request = prompt.render_request()
         prompt_text = request.messages[-1]["content"]
+        self._llm_logical_queries += 1
 
         if config.configuration.large_language_model.enable_response_caching:
             cached_response = self.cache.get(request)
             if cached_response is not None:
+                self._llm_cache_hits += 1
+                self._log_and_track_llm_stats()
                 return cached_response
 
         start_time = time.time_ns()
@@ -463,8 +502,11 @@ class LLMAgent:  # noqa: PLR0904
                     continue
             uncached_indices.append(i)
             uncached_requests.append(req)
+        self._llm_logical_queries += len(requests)
+        self._llm_cache_hits += len(requests) - len(uncached_requests)
 
         if not uncached_requests:
+            self._log_and_track_llm_stats()
             return responses
 
         start_time = time.time_ns()
@@ -576,6 +618,31 @@ class LLMAgent:  # noqa: PLR0904
         )
         return self.query(prompt)
 
+    async def call_llm_for_uncovered_targets_async(
+        self,
+        gao_coverage_map: dict[GenericCallableAccessibleObject, float],
+        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
+    ):
+        """Asynchronously queries the language model for uncovered targets.
+
+        Args:
+            gao_coverage_map (dict): Maps callable objects to coverage percentages.
+            diagnostics (dict): Optional per-callable diagnostic hints describing why
+                a target is uncovered (e.g. never reached, one-sided branch).
+
+        Returns:
+            Any: Result of the query based on the constructed prompt.
+        """
+        module_code = get_module_source_code()
+        module_path = get_module_path()
+        prompt = UncoveredTargetsPrompt(
+            list(gao_coverage_map.keys()),
+            module_code,
+            str(module_path),
+            diagnostics=diagnostics,
+        )
+        return await self.query_async(prompt)
+
     def extract_python_code_from_llm_output(self, llm_output: str | None) -> str:
         """Extracts Python code blocks from the LLM output.
 
@@ -595,7 +662,12 @@ class LLMAgent:  # noqa: PLR0904
         - TotalLLMCalls: Total number of LLM calls made.
         - LLMQueryTime: Total time spent in LLM calls.
         - TotalLLMInputTokens / TotalLLMOutputTokens: Total tokens used.
+        - TotalLLMLogicalQueries / TotalLLMEndpointRequests / TotalLLMCacheHits:
+          logical queries, actual endpoint requests, and queries served from the cache.
         - TotalCodelessLLMResponses: Number of LLM calls that returned no Python code.
+        - TotalLLMLogicalQueries: Logical queries issued, including cache hits.
+        - TotalLLMEndpointRequests: Actual endpoint requests made (retries included).
+        - TotalLLMCacheHits: Logical queries served from the response cache.
 
         Logs the following:
         - Number of responses with Python code.
@@ -617,6 +689,9 @@ class LLMAgent:  # noqa: PLR0904
             RuntimeVariable.LLMQueryTime: self.llm_calls_timer,
             RuntimeVariable.TotalLLMOutputTokens: self.llm_output_tokens,
             RuntimeVariable.TotalLLMInputTokens: self.llm_input_tokens,
+            RuntimeVariable.TotalLLMLogicalQueries: self.llm_logical_queries,
+            RuntimeVariable.TotalLLMEndpointRequests: self.llm_endpoint_requests,
+            RuntimeVariable.TotalLLMCacheHits: self.llm_cache_hits,
             RuntimeVariable.TotalCodelessLLMResponses: self.llm_calls_with_no_python_code,
         }
         with _STATS_LOCK:

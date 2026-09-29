@@ -68,6 +68,31 @@ class SequenceStartTimeObserver(so.SearchObserver):
         )
 
 
+class CoverageOverTimeObserver(so.SearchObserver):
+    """Records (elapsed_seconds, coverage) once per generation."""
+
+    def __init__(self) -> None:  # noqa: D107
+        self.coverage_samples: list[tuple[float, float]] = []
+        self._search_start_time_ns = 0
+
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
+        self._search_start_time_ns = start_time_ns
+
+    def before_first_search_iteration(  # noqa: D102
+        self, initial: tsc.TestSuiteChromosome
+    ) -> None:
+        pass
+
+    def after_search_iteration(  # noqa: D102
+        self, best: tsc.TestSuiteChromosome
+    ) -> None:
+        elapsed_seconds = (time.time_ns() - self._search_start_time_ns) / 1_000_000_000
+        self.coverage_samples.append((elapsed_seconds, best.get_coverage()))
+
+    def after_search_finish(self) -> None:  # noqa: D102
+        pass
+
+
 class BestIndividualObserver(so.SearchObserver):
     """Observes the best individual."""
 
