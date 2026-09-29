@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import abc
 import logging
-import math
 from abc import ABC
 from typing import TYPE_CHECKING, Any
 
@@ -277,50 +276,20 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         return self._removed_statements
 
 
-def _coverages(
-    fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction],
-    test_case: tc.TestCase,
-) -> list[float]:
-    suite = tsc.TestSuiteChromosome()
-    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case))
-    return [ff_.compute_coverage(suite) for ff_ in fitness_functions]
-
-
 def _suite_goals(
     fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction],
     suite: tsc.TestSuiteChromosome,
-) -> list[set[Any] | float]:
-    goals: list[set[Any] | float] = []
-    for ff_ in fitness_functions:
-        if hasattr(ff_, "compute_covered_goals"):
-            goals.append(ff_.compute_covered_goals(suite))
-        else:
-            goals.append(ff_.compute_coverage(suite))
-    return goals
+) -> list[set[Any]]:
+    return [ff_.compute_covered_goals(suite) for ff_ in fitness_functions]
 
 
 def _covered_goals(
     fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction],
     test_case: tc.TestCase,
-) -> list[set[Any] | float]:
+) -> list[set[Any]]:
     suite = tsc.TestSuiteChromosome()
     suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case))
     return _suite_goals(fitness_functions, suite)
-
-
-def _goals_equal(
-    orig: list[set[Any] | float],
-    mini: list[set[Any] | float],
-) -> bool:
-    if len(orig) != len(mini):
-        return False
-    for o, m in zip(orig, mini, strict=False):
-        if isinstance(o, (float, int)) and isinstance(m, (float, int)):
-            if not math.isclose(o, m):
-                return False
-        elif o != m:
-            return False
-    return True
 
 
 class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
@@ -343,7 +312,7 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 test_clone = test_case.clone()
                 test_clone.remove_statement_with_forward_dependencies(i)
                 minimized_goals = _covered_goals(self._fitness_functions, test_clone)
-                if _goals_equal(original_goals, minimized_goals):
+                if original_goals == minimized_goals:
                     removed = test_case.remove_statement_with_forward_dependencies(i)
                     self._removed_statements += len(removed)
                     statements_changed = True
@@ -376,7 +345,7 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 test_clone = test_case.clone()
                 test_clone.remove_statement_with_forward_dependencies(i)
                 minimized_goals = _covered_goals(self._fitness_functions, test_clone)
-                if _goals_equal(original_goals, minimized_goals):
+                if original_goals == minimized_goals:
                     removed = test_case.remove_statement_with_forward_dependencies(i)
                     self._removed_statements += len(removed)
                     statements_changed = True
@@ -438,7 +407,7 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
 
             minimized_goals = _suite_goals(self._fitness_functions, test_suite_clone)
 
-            if _goals_equal(original_goals, minimized_goals):
+            if original_goals == minimized_goals:
                 chromosome.delete_test_case_chromosome(test_cases[i])
                 test_cases.pop(i)
                 self._removed_test_cases += 1
@@ -530,7 +499,7 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
         pass
 
     def _minimize_statements_across_test_suite(
-        self, chromosome: tsc.TestSuiteChromosome, original_goals: list[set[Any] | float]
+        self, chromosome: tsc.TestSuiteChromosome, original_goals: list[set[Any]]
     ) -> None:
         statements_changed = True
         while statements_changed:
@@ -556,7 +525,7 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
 
                     minimized_goals = _suite_goals(self._fitness_functions, test_suite_clone)
 
-                    if _goals_equal(original_goals, minimized_goals):
+                    if original_goals == minimized_goals:
                         removed = test_case.remove_statement_with_forward_dependencies(i)
                         self._removed_statements += len(removed)
                         chromosome.set_test_case_chromosome(
