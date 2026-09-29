@@ -19,6 +19,65 @@ from pynguin.assertion.mutation_analysis.operators.base import (
 )
 
 
+def _names_in(node: ast.AST) -> set[str]:
+    """Collect the identifiers of all ``Name`` nodes in a subtree.
+
+    Args:
+        node: The subtree to search.
+
+    Returns:
+        The set of ``Name.id`` values found in the subtree.
+    """
+    return {child.id for child in ast.walk(node) if isinstance(child, ast.Name)}
+
+
+def _is_self_referential_multiplication_in_loop(node: ast.Mult) -> bool:
+    """Check for a self-feeding multiplication accumulator inside a loop.
+
+    Turning ``Mult`` into ``Pow`` is catastrophic when a multiplication whose
+    result is assigned back to one of its own operands runs inside a loop, e.g.
+    ``decimal = decimal * base + ...``. As a power this grows the accumulator's
+    magnitude super-linearly every iteration, so a single exponentiation soon
+    runs for hours in C while holding the GIL, which the in-process execution
+    timeout cannot interrupt (see issue #306, residual of #296).
+
+    Detect that pattern statically: the operands of the enclosing multiplication
+    ``BinOp`` intersect the target names of the nearest enclosing assignment, and
+    that assignment is nested in a ``for``/``while`` loop.
+
+    Args:
+        node: The ``Mult`` operator node being considered for mutation.
+
+    Returns:
+        ``True`` if the multiplication is a self-referential accumulator inside a
+        loop, so the ``Mult -> Pow`` mutation should be skipped.
+    """
+    binop = getattr(node, "parent", None)
+    if not isinstance(binop, ast.BinOp):
+        return False
+
+    operand_names = _names_in(binop.left) | _names_in(binop.right)
+    if not operand_names:
+        return False
+
+    found_self_reference = False
+    in_loop = False
+    current = getattr(binop, "parent", None)
+    while current is not None:
+        if not found_self_reference and isinstance(
+            current, ast.Assign | ast.AnnAssign | ast.AugAssign
+        ):
+            targets = current.targets if isinstance(current, ast.Assign) else [current.target]
+            target_names = {name for target in targets for name in _names_in(target)}
+            if target_names & operand_names:
+                found_self_reference = True
+        if isinstance(current, ast.For | ast.AsyncFor | ast.While):
+            in_loop = True
+        current = getattr(current, "parent", None)
+
+    return found_self_reference and in_loop
+
+
 class ArithmeticOperatorDeletion(AbstractUnaryOperatorDeletion):
     """A class that mutate arithmetic operators by deleting them."""
 
@@ -101,6 +160,12 @@ class AbstractArithmeticOperatorReplacement(abc.ABC, MutationOperator):
     def mutate_Mult_to_Pow(self, node: ast.Mult) -> ast.Pow | None:  # noqa: N802
         """Mutate a Mult operator to a Pow operator.
 
+        The mutation is skipped for a self-referential multiplication accumulator
+        inside a loop (e.g. ``x = x * y`` in a ``for`` loop), because as a power it
+        grows the accumulator super-linearly each iteration and a single
+        exponentiation soon blocks for hours in C while holding the GIL, which the
+        in-process execution timeout cannot interrupt (issue #306).
+
         Args:
             node: The Mult operator to mutate.
 
@@ -108,6 +173,9 @@ class AbstractArithmeticOperatorReplacement(abc.ABC, MutationOperator):
             The mutated operator, or None if the operator should not be mutated.
         """
         if not self.should_mutate(node):
+            return None
+
+        if _is_self_referential_multiplication_in_loop(node):
             return None
 
         return ast.Pow()
