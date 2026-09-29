@@ -206,6 +206,40 @@ def compute_checked_coverage_statement_fitness_is_covered(
     return len(trace.checked_lines) == len(subject_properties.existing_lines)
 
 
+def compute_branch_covered_goals(
+    trace: ExecutionTrace, subject_properties: SubjectProperties
+) -> set[tuple[int, bool] | int]:
+    """Computes the set of covered goals for branch coverage.
+
+    Args:
+        trace: The execution trace
+        subject_properties: All known data
+
+    Returns:
+        The set of covered branch goals.
+    """
+    covered_goals: set[tuple[int, bool] | int] = set(
+        trace.executed_code_objects.intersection(subject_properties.branch_less_code_objects)
+    )
+
+    all_targets = subject_properties.coverage_predicates or {
+        pid: {True, False} for pid in subject_properties.existing_predicates
+    }
+    targets = {
+        pid: vals
+        for pid, vals in all_targets.items()
+        if getattr(subject_properties.existing_predicates[pid], "is_auxiliary", False) is not True
+    }
+
+    for predicate, values in targets.items():
+        if True in values and trace.true_distances.get(predicate) == 0.0:
+            covered_goals.add((predicate, True))
+        if False in values and trace.false_distances.get(predicate) == 0.0:
+            covered_goals.add((predicate, False))
+
+    return covered_goals
+
+
 def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectProperties) -> float:
     """Computes branch coverage on bytecode instructions.
 
@@ -221,9 +255,6 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
     Raises:
         RuntimeError: If there are no subject properties to compute coverage for.
     """
-    covered = len(
-        trace.executed_code_objects.intersection(subject_properties.branch_less_code_objects)
-    )
     existing = sum(1 for _ in subject_properties.branch_less_code_objects)
 
     all_targets = subject_properties.coverage_predicates or {
@@ -236,18 +267,28 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
     }
     existing += sum(len(values) for values in targets.values())
 
-    for predicate, values in targets.items():
-        if True in values and trace.true_distances.get(predicate) == 0.0:
-            covered += 1
-        if False in values and trace.false_distances.get(predicate) == 0.0:
-            covered += 1
-
     if existing == 0:
         raise RuntimeError("No subject properties found to compute coverage.")
 
+    covered = len(compute_branch_covered_goals(trace, subject_properties))
     coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage
+
+
+def compute_line_covered_goals(
+    trace: ExecutionTrace, subject_properties: SubjectProperties
+) -> set[int]:
+    """Computes the set of covered line goals.
+
+    Args:
+        trace: The execution trace
+        subject_properties: All known data
+
+    Returns:
+        The set of covered line IDs.
+    """
+    return set(trace.covered_line_ids.intersection(subject_properties.existing_lines))
 
 
 def compute_line_coverage(trace: ExecutionTrace, subject_properties: SubjectProperties) -> float:
@@ -268,7 +309,7 @@ def compute_line_coverage(trace: ExecutionTrace, subject_properties: SubjectProp
     if existing == 0:
         raise RuntimeError("No subject properties found to compute coverage.")
 
-    covered = len(trace.covered_line_ids)
+    covered = len(compute_line_covered_goals(trace, subject_properties))
     coverage = covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage

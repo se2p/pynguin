@@ -109,6 +109,31 @@ def test_is_protected_statement_recognises_raw_assertions():
     assert pp._is_protected_statement(int_stmt("int_0", 1), {"int_0"})
 
 
+def test_is_protected_statement_protects_field_and_subscript_assignments_and_methods():
+    field_assign = stmt("handler.data = ['first']")
+    assert pp._is_protected_statement(field_assign, {"handler"})
+    assert not pp._is_protected_statement(field_assign, {"other"})
+
+    method_call = stmt("handler.characters('second')")
+    assert pp._is_protected_statement(method_call, {"handler"})
+    assert not pp._is_protected_statement(method_call, {"other"})
+
+    subscript_assign = stmt("handler['key'] = 'val'")
+    assert pp._is_protected_statement(subscript_assign, {"handler"})
+    assert not pp._is_protected_statement(subscript_assign, {"other"})
+
+    aug_assign = stmt("handler.data += ['second']")
+    assert pp._is_protected_statement(aug_assign, {"handler"})
+    assert not pp._is_protected_statement(aug_assign, {"other"})
+
+    assigned_method = stmt("res = handler.characters('second')")
+    assert pp._is_protected_statement(assigned_method, {"handler"})
+    assert not pp._is_protected_statement(assigned_method, {"other"})
+
+    pure_read = stmt("res = handler.data")
+    assert not pp._is_protected_statement(pure_read, {"handler"})
+
+
 # -- AssertionMinimization -------------------------------------------------------------
 
 
@@ -203,7 +228,9 @@ def test_unused_statements_visitor_preserves_asserted_variable():
 
 @pytest.fixture
 def branch_fitness_function():
-    return MagicMock(spec=TestSuiteBranchCoverageFunction)
+    mock = MagicMock(spec=TestSuiteBranchCoverageFunction)
+    mock.compute_covered_goals.return_value = set()
+    return mock
 
 
 @pytest.mark.parametrize(
@@ -212,7 +239,7 @@ def branch_fitness_function():
     ids=["forward", "backward"],
 )
 def test_iterative_minimization_visitor_empty_test_case(visitor_class, branch_fitness_function):
-    branch_fitness_function.compute_coverage.return_value = 0.0
+    branch_fitness_function.compute_covered_goals.return_value = set()
     test_case = tc.TestCase()
     visitor = visitor_class(OrderedSet([branch_fitness_function]))
 
@@ -231,9 +258,9 @@ def test_iterative_minimization_visitor_empty_test_case(visitor_class, branch_fi
 @pytest.mark.parametrize(
     "coverage_side_effect,expected_removed,expected_size",
     [
-        (lambda _suite: 1.0, 2, 0),
+        (lambda _suite: {1, 2}, 2, 0),
         (
-            lambda suite: (1.0 if suite.test_case_chromosomes[0].test_case.size() == 2 else 0.5),
+            lambda suite: ({1, 2} if suite.test_case_chromosomes[0].test_case.size() == 2 else {1}),
             0,
             2,
         ),
@@ -247,7 +274,7 @@ def test_iterative_minimization_visitor_statement_removal(
     expected_size,
     branch_fitness_function,
 ):
-    branch_fitness_function.compute_coverage.side_effect = coverage_side_effect
+    branch_fitness_function.compute_covered_goals.side_effect = coverage_side_effect
     test_case = make_test_case(int_stmt("int_0", 1), float_stmt("float_0", 1.5))
     visitor = visitor_class(OrderedSet([branch_fitness_function]))
 
@@ -271,7 +298,7 @@ def test_iterative_minimization_visitor_skips_protected_statements(
     protected.assertions.append(ObjectAssertion("int_0", 1))
     removable = int_stmt("int_1", 2)
     test_case = make_test_case(protected, removable)
-    branch_fitness_function.compute_coverage.return_value = 1.0
+    branch_fitness_function.compute_covered_goals.return_value = {1}
     visitor = visitor_class(OrderedSet([branch_fitness_function]))
 
     visitor.visit_default_test_case(test_case)
@@ -279,6 +306,34 @@ def test_iterative_minimization_visitor_skips_protected_statements(
     assert visitor.removed_statements == 1
     assert test_case.size() == 1
     assert test_case.get_statement(0).bound_variable == "int_0"
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [pp.ForwardIterativeMinimizationVisitor, pp.BackwardIterativeMinimizationVisitor],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_skips_mutating_statements_of_protected_variables(
+    visitor_class, branch_fitness_function
+):
+    # Regression test for issue #301:
+    # Mutations to assertion-protected variables (and their setup dependencies)
+    # must not be stripped during minimization.
+    handler = assign("handler_0", "object()", bound_type=object)
+    int_0 = int_stmt("int_0", 1)
+    mutation = stmt("handler_0.data = [int_0]")
+    handler.assertions.append(ObjectAssertion("handler_0", object()))
+    removable = int_stmt("int_1", 2)
+    test_case = make_test_case(handler, int_0, mutation, removable)
+
+    branch_fitness_function.compute_covered_goals.return_value = {1}
+    visitor = visitor_class(OrderedSet([branch_fitness_function]))
+    visitor.visit_default_test_case(test_case)
+
+    assert visitor.removed_statements == 1
+    assert test_case.size() == 3
+    remaining = [s.bound_variable for s in test_case.statements()]
+    assert remaining == ["handler_0", "int_0", None]
 
 
 @pytest.mark.parametrize(
@@ -297,9 +352,9 @@ def test_iterative_minimization_visitor_preserves_forward_dependencies(
 
     def coverage(suite):
         names = {s.bound_variable for s in suite.test_case_chromosomes[0].test_case.statements()}
-        return 1.0 if {"int_0", "list_0"} <= names else 0.5
+        return {1} if {"int_0", "list_0"} <= names else set()
 
-    branch_fitness_function.compute_coverage.side_effect = coverage
+    branch_fitness_function.compute_covered_goals.side_effect = coverage
     visitor = visitor_class(OrderedSet([branch_fitness_function]))
 
     visitor.visit_default_test_case(test_case)
@@ -323,7 +378,7 @@ def test_iterative_minimization_visitor_preserves_raw_assertion(
     setup = int_stmt("int_0", 1)
     raw_assert = stmt("assert int_0 == 1")
     test_case = make_test_case(setup, raw_assert)
-    branch_fitness_function.compute_coverage.return_value = 1.0
+    branch_fitness_function.compute_covered_goals.return_value = {1}
     visitor = visitor_class(OrderedSet([branch_fitness_function]))
 
     visitor.visit_default_test_case(test_case)
@@ -333,12 +388,41 @@ def test_iterative_minimization_visitor_preserves_raw_assertion(
     assert test_case.get_statement(1).is_raw_assertion
 
 
+@pytest.mark.parametrize(
+    "visitor_class",
+    [pp.ForwardIterativeMinimizationVisitor, pp.BackwardIterativeMinimizationVisitor],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_preserves_statements_when_coverage_ratio_equal_but_goals_differ(
+    visitor_class, branch_fitness_function
+):
+    # Regression test for issue #301:
+    # A statement whose removal swaps one branch goal for another keeps the coverage
+    # ratio equal, but the covered goals differ. It must NOT be removed.
+    test_case = make_test_case(int_stmt("int_0", 1), int_stmt("int_1", 2))
+
+    def goals_fn(suite):
+        tc_inner = suite.test_case_chromosomes[0].test_case
+        if tc_inner.size() == 2:
+            return {("pred_0", True)}
+        return {("pred_0", False)}
+
+    branch_fitness_function.compute_covered_goals.side_effect = goals_fn
+    visitor = visitor_class(OrderedSet([branch_fitness_function]))
+    visitor.visit_default_test_case(test_case)
+
+    assert visitor.removed_statements == 0
+    assert test_case.size() == 2
+
+
 # -- TestSuiteMinimizationVisitor -------------------------------------------------------
 
 
 @pytest.fixture
 def line_fitness_function():
-    return MagicMock(spec=TestSuiteLineCoverageFunction)
+    mock = MagicMock(spec=TestSuiteLineCoverageFunction)
+    mock.compute_covered_goals.return_value = set()
+    return mock
 
 
 def test_test_suite_minimization_visitor_init(line_fitness_function):
@@ -355,7 +439,7 @@ def test_test_suite_minimization_visitor_test_case_chromosome_is_noop():
 
 
 def test_test_suite_minimization_visitor_single_test_case(line_fitness_function):
-    line_fitness_function.compute_coverage.return_value = 1.0
+    line_fitness_function.compute_covered_goals.return_value = {1}
     suite = tsc.TestSuiteChromosome()
     suite.add_test_case_chromosome(
         tcc.TestCaseChromosome(test_case=make_test_case(int_stmt("int_0", 1)))
@@ -371,15 +455,15 @@ def test_test_suite_minimization_visitor_single_test_case(line_fitness_function)
 @pytest.mark.parametrize(
     "coverage_side_effect,expected_removed,expected_size",
     [
-        (lambda _suite: 1.0, 1, 1),
-        (lambda suite: 1.0 if suite.size() == 2 else 0.5, 0, 2),
+        (lambda _suite: {1}, 1, 1),
+        (lambda suite: {1, 2} if suite.size() == 2 else {1}, 0, 2),
     ],
     ids=["fitness_preserved", "fitness_reduced"],
 )
 def test_test_suite_minimization_visitor_removal(
     coverage_side_effect, expected_removed, expected_size, line_fitness_function
 ):
-    line_fitness_function.compute_coverage.side_effect = coverage_side_effect
+    line_fitness_function.compute_covered_goals.side_effect = coverage_side_effect
     suite = tsc.TestSuiteChromosome()
     suite.add_test_case_chromosome(
         tcc.TestCaseChromosome(test_case=make_test_case(int_stmt("int_0", 1)))
@@ -474,7 +558,7 @@ def _two_test_case_suite() -> tsc.TestSuiteChromosome:
 @pytest.mark.parametrize(
     "coverage_side_effect,expected_removed",
     [
-        (lambda _suite: 1.0, 4),
+        (lambda _suite: {1, 2}, 4),
         ("use_counter", 0),
     ],
     ids=["fitness_preserved", "fitness_changed"],
@@ -487,11 +571,11 @@ def test_combined_minimization_visitor_minimization(
 
         def side_effect(_suite):
             call_count[0] += 1
-            return 1.0 if call_count[0] == 1 else 0.0
+            return {1, 2} if call_count[0] == 1 else {1}
 
-        line_fitness_function.compute_coverage.side_effect = side_effect
+        line_fitness_function.compute_covered_goals.side_effect = side_effect
     else:
-        line_fitness_function.compute_coverage.side_effect = coverage_side_effect
+        line_fitness_function.compute_covered_goals.side_effect = coverage_side_effect
 
     suite = _two_test_case_suite()
     visitor = pp.CombinedMinimizationVisitor(OrderedSet([line_fitness_function]))
@@ -506,9 +590,9 @@ def test_combined_minimization_visitor_single_test_case(line_fitness_function):
 
     def side_effect(_suite):
         call_count[0] += 1
-        return 1.0 if call_count[0] == 1 else 0.5
+        return {1, 2} if call_count[0] == 1 else {1}
 
-    line_fitness_function.compute_coverage.side_effect = side_effect
+    line_fitness_function.compute_covered_goals.side_effect = side_effect
     suite = tsc.TestSuiteChromosome()
     suite.add_test_case_chromosome(
         tcc.TestCaseChromosome(
@@ -529,7 +613,7 @@ def test_combined_minimization_visitor_skips_protected_statements(line_fitness_f
     suite.add_test_case_chromosome(
         tcc.TestCaseChromosome(test_case=make_test_case(protected, removable))
     )
-    line_fitness_function.compute_coverage.return_value = 1.0
+    line_fitness_function.compute_covered_goals.return_value = {1}
     visitor = pp.CombinedMinimizationVisitor(OrderedSet([line_fitness_function]))
 
     visitor.visit_test_suite_chromosome(suite)
@@ -549,7 +633,7 @@ def test_combined_minimization_visitor_preserves_raw_assertion(line_fitness_func
     suite.add_test_case_chromosome(
         tcc.TestCaseChromosome(test_case=make_test_case(setup, raw_assert))
     )
-    line_fitness_function.compute_coverage.return_value = 1.0
+    line_fitness_function.compute_covered_goals.return_value = {1}
     visitor = pp.CombinedMinimizationVisitor(OrderedSet([line_fitness_function]))
 
     visitor.visit_test_suite_chromosome(suite)

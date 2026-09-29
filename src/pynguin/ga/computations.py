@@ -11,17 +11,22 @@ from __future__ import annotations
 import abc
 import dataclasses
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from pynguin.ga.checked_coverage import compute_assertion_checked_coverage
+from pynguin.ga.checked_coverage import (
+    compute_assertion_checked_coverage,
+    compute_assertion_checked_lines,
+)
 from pynguin.ga.fitness_metrics import (
     analyze_results,
     compute_branch_coverage,
+    compute_branch_covered_goals,
     compute_branch_distance_fitness,
     compute_branch_distance_fitness_is_covered,
     compute_checked_coverage_statement_fitness_is_covered,
     compute_line_coverage,
     compute_line_coverage_fitness_is_covered,
+    compute_line_covered_goals,
 )
 
 if TYPE_CHECKING:
@@ -315,6 +320,17 @@ class CoverageFunction:
             RuntimeError: If there are no subject properties to compute coverage for.
         """
 
+    @abstractmethod
+    def compute_covered_goals(self, individual) -> set[Any]:
+        """Compute the set of covered goals of the given individual.
+
+        Args:
+            individual: the chromosome to compute covered goals for.
+
+        Returns:
+            The set of covered goals.
+        """
+
 
 class TestSuiteCoverageFunction(TestSuiteChromosomeComputation, CoverageFunction, abc.ABC):
     """Base class for all coverage functions that act on test suite level."""
@@ -333,6 +349,12 @@ class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
 
         return compute_branch_coverage(merged_trace, self._executor.subject_properties)
 
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+
+        return compute_branch_covered_goals(merged_trace, self._executor.subject_properties)
+
 
 class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
     """Computes branch coverage on test cases."""
@@ -342,6 +364,12 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
 
         return compute_branch_coverage(merged_trace, self._executor.subject_properties)
+
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+
+        return compute_branch_covered_goals(merged_trace, self._executor.subject_properties)
 
 
 class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
@@ -353,6 +381,12 @@ class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
 
         return compute_line_coverage(merged_trace, self._executor.subject_properties)
 
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+
+        return compute_line_covered_goals(merged_trace, self._executor.subject_properties)
+
 
 class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
     """Computes line coverage on test cases."""
@@ -362,6 +396,12 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
 
         return compute_line_coverage(merged_trace, self._executor.subject_properties)
+
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+
+        return compute_line_covered_goals(merged_trace, self._executor.subject_properties)
 
 
 class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
@@ -381,6 +421,12 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
 
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+
+        return set(merged_trace.checked_lines)
+
 
 class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on the statements of test cases."""
@@ -399,6 +445,12 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
         assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
         return coverage
 
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+
+        return set(merged_trace.checked_lines)
+
 
 class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes checked coverage on test suites with assertions."""
@@ -409,6 +461,12 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
 
         return compute_assertion_checked_coverage(merged_trace, self._executor.subject_properties)
 
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        results = self._run_test_suite_chromosome(individual)
+        merged_trace = analyze_results(results)
+
+        return compute_assertion_checked_lines(merged_trace, self._executor.subject_properties)
+
 
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on test cases with assertions."""
@@ -418,3 +476,9 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
         merged_trace = analyze_results([result])
 
         return compute_assertion_checked_coverage(merged_trace, self._executor.subject_properties)
+
+    def compute_covered_goals(self, individual) -> set[Any]:  # noqa: D102
+        result = self._run_test_case_chromosome(individual)
+        merged_trace = analyze_results([result])
+
+        return compute_assertion_checked_lines(merged_trace, self._executor.subject_properties)
