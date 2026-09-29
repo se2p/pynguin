@@ -1227,3 +1227,52 @@ def test_find_module_name_for_file():
     assert module._find_module_name_for_file(e.__file__) == "tests.fixtures.cluster.enums"
     assert module._find_module_name_for_file(None) is None
     assert module._find_module_name_for_file("/non/existent/path.py") is None
+
+
+def test_resolve_defining_module_propagates_not_found():
+    import types  # noqa: PLC0415
+
+    class DummyUnimportable:
+        pass
+
+    DummyUnimportable.__module__ = "non_existent_module_12345"
+
+    dummy_module = types.ModuleType("some_other_module")
+    parse_results = module._ParseResults()
+
+    with pytest.raises(ModuleNotFoundError):
+        module._resolve_defining_module(
+            current=DummyUnimportable,
+            module=dummy_module,
+            syntax_tree=None,
+            parse_results=parse_results,
+        )
+
+
+def test_analyse_included_classes_skips_unimportable_c_extension():
+    import types  # noqa: PLC0415
+
+    class FakeCExtClass:
+        pass
+
+    FakeCExtClass.__module__ = "fake_c_ext_module_xyz"
+    assert not hasattr(FakeCExtClass, "__file__")
+
+    dummy_module = types.ModuleType("dummy_pkg")
+    dummy_module.FakeCExtClass = FakeCExtClass
+    dummy_module.__file__ = "/path/dummy.py"
+
+    parse_results = module._ParseResults()
+    test_cluster = ModuleTestCluster(0)
+    seen_classes: set[type] = set()
+
+    module.__analyse_included_classes(
+        module=dummy_module,
+        root_module_name="dummy_pkg",
+        type_inference_provider=HintInference(),
+        test_cluster=test_cluster,
+        parse_results=parse_results,
+        seen_classes=seen_classes,
+    )
+    assert FakeCExtClass in seen_classes
+    assert test_cluster.num_accessible_objects_under_test() == 0

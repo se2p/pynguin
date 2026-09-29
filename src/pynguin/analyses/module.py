@@ -2165,11 +2165,8 @@ def _resolve_defining_module(
     # 3. Fallback to current.__module__
     mod_name = getattr(current, "__module__", None)
     if isinstance(mod_name, str) and mod_name:
-        try:
-            res = parse_results[mod_name]
-            return mod_name, res.syntax_tree
-        except (KeyError, ModuleNotFoundError, ValueError):
-            return mod_name, None
+        res = parse_results[mod_name]
+        return mod_name, res.syntax_tree
 
     return "", None
 
@@ -2222,6 +2219,25 @@ def _is_pure_python_element(element: Any, module: ModuleType, error: Exception) 
     return bool(class_file and _is_same_file(class_file, getattr(module, "__file__", None)))
 
 
+def _get_module_syntax_tree(
+    module: ModuleType,
+    parse_results: dict[str, _ModuleParseResult],
+) -> ast.Module | None:
+    """Safely get the syntax tree of a module from parse_results.
+
+    Args:
+        module: The module to get the syntax tree for
+        parse_results: Parsed results dictionary
+
+    Returns:
+        The syntax tree if available, None otherwise
+    """
+    try:
+        return parse_results[module.__name__].syntax_tree
+    except (ModuleNotFoundError, ValueError):
+        return None
+
+
 def __analyse_included_classes(
     *,
     module: ModuleType,
@@ -2238,9 +2254,7 @@ def __analyse_included_classes(
             values,
         )
     )
-    module_syntax_tree = (
-        parse_results[module.__name__].syntax_tree if module.__name__ in parse_results else None
-    )
+    module_syntax_tree = _get_module_syntax_tree(module, parse_results)
 
     # TODO(fk) inner classes?
     while len(work_list) > 0:
@@ -2312,9 +2326,7 @@ def __analyse_included_functions(
     parse_results: dict[str, _ModuleParseResult],
     seen_functions: set,
 ) -> None:
-    module_syntax_tree = (
-        parse_results[module.__name__].syntax_tree if module.__name__ in parse_results else None
-    )
+    module_syntax_tree = _get_module_syntax_tree(module, parse_results)
     for current in filter(
         lambda x: _is_function(x) and not _is_blacklisted(x),
         vars(module).values(),
