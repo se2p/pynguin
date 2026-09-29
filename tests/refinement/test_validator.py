@@ -53,6 +53,58 @@ def test_run_test_missing_function_name():
     assert "Could not find function name" in message
 
 
+def test_run_test_xfail_strict_body_raises_is_green():
+    """An xfail(strict=True) test whose body raises is xfail -> pytest passes."""
+    code = (
+        "import pytest\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_expected_failure():\n"
+        "    raise TypeError('boom')\n"
+    )
+    passed, message = run_test(code, math)
+    assert passed is True
+    assert "xfail" in message
+
+
+def test_run_test_xfail_strict_body_passes_is_xpass_failure():
+    """An xfail(strict=True) test whose body no longer raises is XPASS(strict) -> failure.
+
+    This is the regression from issue #305: refinement rewrites the body into
+    ``pytest.raises`` (so it no longer raises out) but keeps the xfail marker.
+    """
+    code = (
+        "import pytest\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_was_expected_to_fail():\n"
+        "    with pytest.raises(TypeError):\n"
+        "        raise TypeError('boom')\n"
+    )
+    passed, message = run_test(code, math)
+    assert passed is False
+    assert "XPASS(strict)" in message
+
+
+def test_run_test_xfail_non_strict_body_passes_is_green():
+    """A non-strict xfail that passes is only a warning, so pytest still passes."""
+    code = "import pytest\n@pytest.mark.xfail\ndef test_maybe_fails():\n    assert True\n"
+    passed, _ = run_test(code, math)
+    assert passed is True
+
+
+def test_run_test_xfail_strict_timeout_is_still_failure():
+    """A timeout is a hard failure regardless of the xfail marker."""
+    code = (
+        "import pytest\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_hang():\n"
+        "    while True:\n"
+        "        pass\n"
+    )
+    passed, message = run_test(code, math, timeout=0.5)
+    assert passed is False
+    assert "TimeoutError" in message
+
+
 def test_run_test_multi_statement_passing():
     code = "def test_ok():\n    value = math.floor(1.5)\n    assert value == 1\n"
     passed, message = run_test(code, math)
