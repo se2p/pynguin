@@ -18,7 +18,10 @@ and repairs tests that break. Enabled with `llm_refinement.enabled=True`.
 
 `refiner.refine_generated_tests(test_file_path, module_name, ...)` (called from
 `generator.py` after export):
-1. `_load_test_functions` → `(import_block, test_functions)`.
+1. `_load_test_functions` → `(preamble, test_functions)`. The preamble is every
+   top-level statement that is *not* a `def test_*` (imports, the
+   `<mod>_ = sys.modules[...]` alias, the autouse reseed fixture, ...), so refined
+   tests referencing those names still resolve.
 2. Dispatch on `llm_refinement.refinement_granularity` (see below).
 3. Accumulate per-test outcomes (`_TestOutcome`) into statistics and write
    `<stem>_refined.py`.
