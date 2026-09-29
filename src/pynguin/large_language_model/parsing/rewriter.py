@@ -681,6 +681,14 @@ def rewrite_test(fn_def_node: ast.FunctionDef):
     return fn_def_node
 
 
+# Names of fixture methods whose ``self.``/``cls.`` assignments should be inlined into
+# each test method. Covers the unittest ``setUp`` as well as the pytest xUnit-style
+# fixtures (``setup_method``/``setup`` run before every test, ``setup_class`` once per
+# class). Without this, statements using the fixture attributes are dropped as
+# unresolved (see issue #303).
+SETUP_METHOD_NAMES = frozenset({"setUp", "setup_method", "setup", "setup_class"})
+
+
 class TestClassRewriter(ast.NodeTransformer):
     """A custom AST node transformer for rewriting test classes."""
 
@@ -690,7 +698,7 @@ class TestClassRewriter(ast.NodeTransformer):
         self.var_mapping = {}
 
     def visit_ClassDef(self, node: ast.ClassDef):  # noqa:N802
-        """Processes a class definition, collecting `setUp` variables.
+        """Processes a class definition, collecting setup-fixture variables.
 
         Args:
             node (ast.ClassDef): The class definition node.
@@ -699,7 +707,7 @@ class TestClassRewriter(ast.NodeTransformer):
             ast.ClassDef: The transformed class node.
         """
         for child_node in node.body:
-            if isinstance(child_node, ast.FunctionDef) and child_node.name == "setUp":
+            if isinstance(child_node, ast.FunctionDef) and child_node.name in SETUP_METHOD_NAMES:
                 self.collect_set_up_vars(child_node)
 
         for child_node in node.body:
@@ -709,9 +717,10 @@ class TestClassRewriter(ast.NodeTransformer):
         return node
 
     def collect_set_up_vars(self, set_up_node: ast.FunctionDef):
-        """Collects variables from `setUp` function, removes `self.` prefix.
+        """Collects variables from a setup fixture, removing the `self.`/`cls.` prefix.
 
-        and stores them with their original attribute names.
+        and stores them with their original attribute names. ``cls.`` is accepted so
+        that ``setup_class(cls)`` fixtures are inlined as well.
         """
         for stmt in set_up_node.body:
             if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
@@ -719,7 +728,7 @@ class TestClassRewriter(ast.NodeTransformer):
                 if (
                     isinstance(target, ast.Attribute)
                     and isinstance(target.value, ast.Name)
-                    and target.value.id == "self"
+                    and target.value.id in {"self", "cls"}
                 ):
                     var_name = target.attr
                     self.var_mapping[target.attr] = var_name

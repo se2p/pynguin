@@ -91,6 +91,57 @@ class TestAttrAccess:
                 "assert v == 5",
             ],
         ),
+        (
+            # pytest xUnit-style setup_method fixture (issue #303)
+            """
+class TestDiffMatchPatch:
+    def setup_method(self):
+        self.dmp = diff_match_patch()
+
+    def test_diff(self):
+        diffs = self.dmp.diff_main("Hello", "Helo")
+        assert diffs is not None
+""",
+            [
+                "def test_diff():",
+                "dmp = diff_match_patch()",
+                "diffs = dmp.diff_main('Hello', 'Helo')",
+                "assert diffs is not None",
+            ],
+        ),
+        (
+            # pytest nose-style setup fixture
+            """
+class TestSetup:
+    def setup(self):
+        self.data = [1, 2, 3]
+
+    def test_len(self):
+        assert len(self.data) == 3
+""",
+            [
+                "def test_len():",
+                "data = [1, 2, 3]",
+                "assert len(data) == 3",
+            ],
+        ),
+        (
+            # pytest setup_class fixture (uses cls)
+            """
+class TestSetupClass:
+    @classmethod
+    def setup_class(cls):
+        cls.obj = SomeObject()
+
+    def test_attr(self):
+        assert self.obj is not None
+""",
+            [
+                "def test_attr():",
+                "obj = SomeObject()",
+                "assert obj is not None",
+            ],
+        ),
     ],
 )
 def test_rewrite_tests(llm_output, expected_snippet):
