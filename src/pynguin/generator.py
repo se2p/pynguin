@@ -423,6 +423,26 @@ def _verify_config() -> None:
     # Currently all configured combinations of algorithms and coverage metrics are supported.
 
 
+def _is_random_entity(value: object, random_module: types.ModuleType) -> bool:
+    try:
+        if value is random_module:
+            return True
+        random_class = getattr(random_module, "Random", None)
+        if isinstance(random_class, type):
+            if isinstance(value, type) and issubclass(value, random_class):
+                return True
+            if isinstance(value, random_class):
+                return True
+            self_obj = getattr(value, "__self__", None)
+            if self_obj is not None and isinstance(self_obj, random_class):
+                return True
+        if getattr(value, "__module__", None) in {"random", "_random"}:
+            return True
+    except Exception:  # noqa: BLE001
+        return False
+    return False
+
+
 def _check_sut_uses_random(new_module_names: set[str]) -> bool:
     """Return True if any module loaded by the SUT import references Python's random.
 
@@ -444,9 +464,13 @@ def _check_sut_uses_random(new_module_names: set[str]) -> bool:
         module = sys.modules.get(n)
         if module is None or not isinstance(module, types.ModuleType):
             continue
-        for value in vars(module).values():
-            if value is random_module:
+        for value in list(vars(module).values()):
+            if _is_random_entity(value, random_module):
                 return True
+            if isinstance(value, type) and getattr(value, "__module__", None) == module.__name__:
+                for member in list(vars(value).values()):
+                    if _is_random_entity(member, random_module):
+                        return True
 
     return False
 

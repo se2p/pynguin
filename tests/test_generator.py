@@ -592,6 +592,61 @@ def test_check_sut_uses_random_false_when_no_random_reference():
         assert gen._check_sut_uses_random({"clean_sut"}) is False
 
 
+def test_check_sut_uses_random_true_when_bound_method():
+    fake_mod = types.ModuleType("bound_method_sut")
+    fake_mod.rnd = _random.random  # noqa: S311
+    fake_mod.choice = _random.choice  # noqa: S311
+    with mock.patch.dict(sys.modules, {"random": _random, "bound_method_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"bound_method_sut"}) is True
+
+
+def test_check_sut_uses_random_true_when_random_class():
+    fake_mod = types.ModuleType("random_class_sut")
+    fake_mod.Random = _random.Random  # noqa: S311
+    with mock.patch.dict(sys.modules, {"random": _random, "random_class_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"random_class_sut"}) is True
+
+
+def test_check_sut_uses_random_true_when_random_subclass():
+    class CustomRandom(_random.Random):  # noqa: S311
+        pass
+
+    fake_mod = types.ModuleType("random_subclass_sut")
+    fake_mod.CustomRandom = CustomRandom
+    with mock.patch.dict(sys.modules, {"random": _random, "random_subclass_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"random_subclass_sut"}) is True
+
+
+def test_check_sut_uses_random_true_when_random_instance():
+    fake_mod = types.ModuleType("random_instance_sut")
+    fake_mod.rng = _random.Random()  # noqa: S311
+    with mock.patch.dict(sys.modules, {"random": _random, "random_instance_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"random_instance_sut"}) is True
+
+
+def test_check_sut_uses_random_true_when_class_contains_random():
+    fake_mod = types.ModuleType("class_with_random_sut")
+
+    class Container:
+        __module__ = "class_with_random_sut"
+        choice = _random.choice  # noqa: S311
+
+    fake_mod.Container = Container
+    with mock.patch.dict(sys.modules, {"random": _random, "class_with_random_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"class_with_random_sut"}) is True
+
+
+def test_check_sut_uses_random_tolerates_attribute_error():
+    class BrokenObject:
+        def __getattr__(self, name: str) -> None:
+            raise RuntimeError("attribute access boom")
+
+    fake_mod = types.ModuleType("broken_sut")
+    fake_mod.broken = BrokenObject()
+    with mock.patch.dict(sys.modules, {"random": _random, "broken_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"broken_sut"}) is False
+
+
 def test_patch_random_sets_patched_flag():
     gen._patch_random()
     assert getattr(random.Random.seed, "__pynguin_patched__", False) is True

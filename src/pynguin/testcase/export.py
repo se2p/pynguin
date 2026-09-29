@@ -485,8 +485,8 @@ class TestSuiteWriter:
         """
         patch_source = (
             "import weakref as _pynguin_weakref\n"
-            "if not getattr(random.Random.seed, '__pynguin_patched__', False):\n"
-            "    _pynguin_orig_seed = random.Random.seed\n"
+            "if not getattr(_pynguin_random.Random.seed, '__pynguin_patched__', False):\n"
+            "    _pynguin_orig_seed = _pynguin_random.Random.seed\n"
             "    _pynguin_tracked = _pynguin_weakref.WeakSet()\n"
             "    def _pynguin_deterministic_seed(self, x=None):\n"
             "        if x is None:\n"
@@ -497,7 +497,7 @@ class TestSuiteWriter:
             "        _pynguin_tracked.add(self)\n"
             "    _pynguin_deterministic_seed.__pynguin_patched__ = True\n"
             "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
-            "    random.Random.seed = _pynguin_deterministic_seed\n"
+            "    _pynguin_random.Random.seed = _pynguin_deterministic_seed\n"
         )
         return list(cst.parse_module(patch_source).body)
 
@@ -514,8 +514,10 @@ class TestSuiteWriter:
         fixture_source = (
             "@pytest.fixture(autouse=True)\n"
             "def _pynguin_seed_random():\n"
-            f"    random.seed({seed})\n"
-            "    _pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
+            f"    _pynguin_random.seed({seed})\n"
+            "    _pynguin_instances = getattr(\n"
+            "        _pynguin_random.Random.seed, '__pynguin_instances__', None\n"
+            "    )\n"
             "    if _pynguin_instances is not None:\n"
             "        for _inst in list(_pynguin_instances):\n"
             f"            _inst.seed({seed})\n"
@@ -678,7 +680,10 @@ class TestSuiteWriter:
         if seed is not None:
             needs_pytest = True
             seed_preamble: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [
-                cast("cst.SimpleStatementLine", cst.parse_statement("import random\n")),
+                cast(
+                    "cst.SimpleStatementLine",
+                    cst.parse_statement("import random as _pynguin_random\n"),
+                ),
                 cast("cst.SimpleStatementLine", cst.parse_statement("import pytest\n")),
             ]
             if needs_asyncio:
