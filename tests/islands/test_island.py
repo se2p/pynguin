@@ -10,6 +10,7 @@ import importlib
 import inspect
 import pkgutil
 import queue
+import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -203,6 +204,8 @@ def test_only_lldynamosa_subclasses_dynamosa_across_pynguin():
         except Exception:  # noqa: BLE001, S112
             continue
         for _name, cls in inspect.getmembers(module, inspect.isclass):
+            if isinstance(cls, types.GenericAlias):
+                continue
             if issubclass(cls, DynaMOSAAlgorithm) and cls is not DynaMOSAAlgorithm:
                 subclasses.add(cls)
 
