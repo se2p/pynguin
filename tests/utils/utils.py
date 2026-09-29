@@ -45,7 +45,22 @@ def assert_generated_test_covers_lines(
 
     cov = coverage.Coverage(data_file=str(cov_db), config_file=str(cov_rc))
     cov.start()
+    try:
+        _run_generated_tests(generated_test_file)
+    finally:
+        cov.stop()
+    cov.save()
 
+    cov_data = cov.get_data()
+    covered_lines = set(cov_data.lines(str(target_file_path.absolute())) or [])
+    missing = target_lines - covered_lines
+    assert not missing, (
+        f"Target lines {missing} were not covered by generated test suite. "
+        f"Covered lines in {target_file_path.name}: {covered_lines}"
+    )
+
+
+def _run_generated_tests(generated_test_file: pathlib.Path) -> None:
     spec = importlib.util.spec_from_file_location(
         f"generated_test_{generated_test_file.stem}", generated_test_file
     )
@@ -58,17 +73,6 @@ def assert_generated_test_covers_lines(
     for attr_name in dir(mod):
         if attr_name.startswith("test_"):
             getattr(mod, attr_name)()
-
-    cov.stop()
-    cov.save()
-
-    cov_data = cov.get_data()
-    covered_lines = set(cov_data.lines(str(target_file_path.absolute())) or [])
-    missing = target_lines - covered_lines
-    assert not missing, (
-        f"Target lines {missing} were not covered by generated test suite. "
-        f"Covered lines in {target_file_path.name}: {covered_lines}"
-    )
 
 
 def _nx_to_dot(graph: nx.DiGraph) -> str:

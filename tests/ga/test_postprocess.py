@@ -134,6 +134,15 @@ def test_is_protected_statement_protects_field_and_subscript_assignments_and_met
     assert not pp._is_protected_statement(pure_read, {"handler"})
 
 
+def test_is_protected_statement_ignores_exception_assertions():
+    raising = stmt("var_0(1.5)")
+    raising.assertions.append(ExceptionAssertion("builtins", "TypeError"))
+    assert not pp._is_protected_statement(raising, set())
+
+    raising.assertions.append(ObjectAssertion("var_0", 1))
+    assert pp._is_protected_statement(raising, set())
+
+
 # -- AssertionMinimization -------------------------------------------------------------
 
 
