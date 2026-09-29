@@ -58,7 +58,10 @@ def _is_protected_statement(statement: tc.Statement, protected: set[str]) -> boo
 
     A statement is protected if it binds a variable referenced (transitively) by
     an assertion, if it is itself a raw ``assert`` statement, if it carries
-    assertions, or if it modifies a protected variable.
+    assertions other than ``ExceptionAssertion``, or if it modifies a protected
+    variable. A statement that only raises is removable like before: its exception
+    is no oracle for other statements, and keeping it turns tests whose exception
+    does not cover any goal into ``xfail`` tests.
 
     Args:
         statement: The statement to check.
@@ -70,7 +73,7 @@ def _is_protected_statement(statement: tc.Statement, protected: set[str]) -> boo
     return (
         (statement.bound_variable is not None and statement.bound_variable in protected)
         or statement.is_raw_assertion
-        or bool(statement.assertions)
+        or any(not isinstance(a, ExceptionAssertion) for a in statement.assertions)
         or statement.modifies_any_variable(protected)
     )
 
