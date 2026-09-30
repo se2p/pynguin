@@ -100,3 +100,12 @@ def match_keys_func(x):
             return 1
         case _:
             return 0
+
+
+def comprehension_then_conditional(items, previous):
+    # Regression fixture for https://github.com/se2p/pynguin/issues/150:
+    # a comprehension (which introduces an exception table on Python 3.12+)
+    # followed by a conditional expression containing a comparison used to
+    # crash instrumentation with "Failed to compute stacksize".
+    titles = [item for item in items if item == "["]  # noqa: F841
+    return previous if previous == "proof" else None

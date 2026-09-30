@@ -186,10 +186,15 @@ class BasicBlockNode:
         Returns:
             The index of the instruction in the basic block and the instruction itself
         """
+        # We must enumerate over the raw basic block so that the returned index is a
+        # valid index into ``basic_block`` (used later for insertion). Iterating over
+        # ``self.instructions`` would skip non-instruction markers such as ``TryBegin``
+        # and ``TryEnd`` (introduced by exception tables, e.g. inlined comprehensions on
+        # Python 3.12+), yielding an index that is shifted relative to ``basic_block``.
         return tuple(
             (instr_index, instr)
-            for instr_index, instr in enumerate(self.instructions)
-            if not isinstance(instr, ArtificialInstr)
+            for instr_index, instr in enumerate(self._basic_block)
+            if isinstance(instr, Instr) and not isinstance(instr, ArtificialInstr)
         )[original_index]
 
     def __eq__(self, other: object) -> bool:
