@@ -15,7 +15,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
@@ -156,22 +156,40 @@ def _failure_stats(error: str | None = None, wall_time: float = 0.0) -> dict[str
     return stats
 
 
+def _is_test_function(node: ast.stmt) -> TypeGuard[ast.FunctionDef]:
+    """Return whether ``node`` is a top-level generated test function.
+
+    Pynguin exports each generated test as a top-level ``def test_<idx>()``.
+    Every other module-level statement (imports, the ``<mod>_ = sys.modules[...]``
+    alias assignment, the autouse reseed fixture, ...) belongs to the shared
+    preamble rather than to the set of tests to refine.
+    """
+    return isinstance(node, ast.FunctionDef) and node.name.startswith("test")
+
+
 def _load_test_functions(test_file_path: Path) -> tuple[str, list[ast.FunctionDef]]:
-    """Read and parse the generated test file into (import_block, test_functions)."""
+    """Read and parse the generated test file into (preamble, test_functions).
+
+    The preamble is every top-level statement that is *not* a test function --
+    imports, module-alias assignments (``<mod>_ = sys.modules[...]``), the autouse
+    reseed fixture, and any other setup -- so that tests referencing those names
+    still resolve in the refined file. Only ``def test_<idx>`` functions are
+    returned as tests to refine.
+    """
     raw_test = Path(test_file_path).read_text(encoding="utf-8")
     tree = ast.parse(raw_test)
-    import_nodes = [node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))]
-    test_functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+    test_functions = [node for node in tree.body if _is_test_function(node)]
+    preamble_nodes = [node for node in tree.body if not _is_test_function(node)]
 
-    if import_nodes:
+    if preamble_nodes:
         module_wrapper = ast.Module(
-            body=cast("list[ast.stmt]", import_nodes),
+            body=preamble_nodes,
             type_ignores=[],
         )
-        import_block = ast.unparse(module_wrapper) + "\n"
+        preamble = ast.unparse(module_wrapper) + "\n"
     else:
-        import_block = ""
-    return import_block, test_functions
+        preamble = ""
+    return preamble, test_functions
 
 
 def _import_module_under_test(module_name: str) -> types.ModuleType | None:
@@ -187,13 +205,13 @@ def _import_module_under_test(module_name: str) -> types.ModuleType | None:
 
 def _process_one_test(
     refiner: TestRefiner,
-    import_block: str,
+    preamble: str,
     func: ast.FunctionDef,
     max_repair_iterations: int,
 ) -> _TestOutcome:
     """Refine a single test function and report the outcome."""
     try:
-        original_code = import_block + ast.unparse(func)
+        original_code = preamble + ast.unparse(func)
         original_metrics = compute_metrics(original_code)
 
         result = refiner.process_test_end_to_end(
@@ -233,10 +251,10 @@ def _slice_function_source(module_code: str, node: ast.FunctionDef) -> str:
     return "\n".join(lines[start:end]).rstrip()
 
 
-def _assemble_module_blob(import_block: str, funcs: list[ast.FunctionDef]) -> str:
+def _assemble_module_blob(preamble: str, funcs: list[ast.FunctionDef]) -> str:
     """Assemble the original tests into a single module string for batched generation."""
     body = "\n\n\n".join(ast.unparse(func) for func in funcs)
-    prefix = import_block.rstrip("\n")
+    prefix = preamble.rstrip("\n")
     if prefix:
         return prefix + "\n\n\n" + body
     return body
@@ -292,7 +310,7 @@ def _outcome_from_result(func: ast.FunctionDef, original_code: str, result: dict
 
 def _process_module(
     refiner: TestRefiner,
-    import_block: str,
+    preamble: str,
     test_functions: list[ast.FunctionDef],
     granularity: RefinementGranularity,
     max_repair_iterations: int,
@@ -305,7 +323,7 @@ def _process_module(
     missing, unparseable, or came from a truncated/failed response falls back to the
     per-test path (:func:`_process_one_test`) so no test is silently dropped.
     """
-    module_blob = _assemble_module_blob(import_block, test_functions)
+    module_blob = _assemble_module_blob(preamble, test_functions)
     sut_context = refiner.build_module_sut_context()
 
     refined_module = _generate_module(refiner, module_blob, sut_context, granularity)
@@ -329,7 +347,7 @@ def _process_module(
 
     outcomes: list[_TestOutcome] = []
     for func in test_functions:
-        original_code = import_block + ast.unparse(func)
+        original_code = preamble + ast.unparse(func)
         refined_func = refined_index.get(func.name) if refined_index is not None else None
 
         if refined_func is None:
@@ -340,10 +358,10 @@ def _process_module(
                     "refinement.",
                     func.name,
                 )
-            outcomes.append(_process_one_test(refiner, import_block, func, max_repair_iterations))
+            outcomes.append(_process_one_test(refiner, preamble, func, max_repair_iterations))
             continue
 
-        refined_single = import_block + _slice_function_source(refined_module, refined_func)
+        refined_single = preamble + _slice_function_source(refined_module, refined_func)
         try:
             result = refiner.finish_refined_test(
                 original_code=original_code,
@@ -353,7 +371,7 @@ def _process_module(
             outcomes.append(_outcome_from_result(func, original_code, result))
         except Exception as e:
             _LOGGER.exception("Error finishing module-refined test %s: %s", func.name, e)
-            outcomes.append(_process_one_test(refiner, import_block, func, max_repair_iterations))
+            outcomes.append(_process_one_test(refiner, preamble, func, max_repair_iterations))
 
     return outcomes
 
@@ -387,14 +405,14 @@ def _finalize_readability(stats: dict[str, Any]) -> None:
 def _maybe_write_refined_file(
     stats: dict[str, Any],
     test_file_path: Path,
-    import_block: str,
+    preamble: str,
     refined_tests: list[str],
 ) -> None:
     """Write the assembled refined test file when at least one test was refined."""
     if stats["tests_refined"] <= 0:
         return
     # Assemble file from text (preserves comments & AAA markers).
-    refined_code = import_block.rstrip("\n") + "\n\n\n" + "\n\n\n".join(refined_tests)
+    refined_code = preamble.rstrip("\n") + "\n\n\n" + "\n\n\n".join(refined_tests)
     refined_path = test_file_path.parent / f"{test_file_path.stem}_refined.py"
     header = (
         "# Test cases automatically generated by Pynguin"
@@ -519,7 +537,7 @@ def refine_generated_tests(
     start_wall = time.perf_counter()
 
     try:
-        import_block, test_functions = _load_test_functions(test_file_path)
+        preamble, test_functions = _load_test_functions(test_file_path)
 
         module_under_test = _import_module_under_test(module_name)
         if module_under_test is None:
@@ -552,7 +570,7 @@ def refine_generated_tests(
 
         if granularity == RefinementGranularity.PER_TEST:
             outcomes = [
-                _process_one_test(refiner, import_block, func, max_repair_iterations)
+                _process_one_test(refiner, preamble, func, max_repair_iterations)
                 for func in selected
             ]
         else:
@@ -562,7 +580,7 @@ def refine_generated_tests(
                 granularity.value,
             )
             outcomes = _process_module(
-                refiner, import_block, selected, granularity, max_repair_iterations
+                refiner, preamble, selected, granularity, max_repair_iterations
             )
 
         for outcome in outcomes:
@@ -571,7 +589,7 @@ def refine_generated_tests(
 
         _finalize_readability(stats)
         mutation.finalize(stats)
-        _maybe_write_refined_file(stats, test_file_path, import_block, refined_tests)
+        _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
 
         _LOGGER.info("Refinement complete: %s", stats)
         _attach_usage(stats, refiner, start_wall)
