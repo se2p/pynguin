@@ -50,6 +50,7 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.timeout import TestExecutionTimeoutError
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
+from tests.fixtures.cluster import dependency
 
 
 @pytest.fixture(scope="module")
@@ -710,12 +711,11 @@ def test_analyse_async_as_dependency():
 def test_import_dependency():
     cluster = generate_test_cluster("tests.fixtures.cluster.import_dependency")
     assert len(cluster.accessible_objects_under_test) == 3
-    # The numbers of the following values change depending on whether we run the test
-    # from PyCharm or from the command line.  Thus, use a very weak assertion to only
-    # ensures that the analysis of the included modules has found at least something.
-    # TODO Improve this test
-    assert len(cluster.generators) > 2
-    assert len(cluster.modifiers) > 0
+    # TODO check if The numbers of the following values change depending on whether
+    # we run the test from PyCharm or from the command line
+    assert len(cluster.get_generators_for(Instance(TypeInfo(dependency.SomeArgumentType)))) == 3
+    assert len(cluster.generators) == 5
+    assert len(cluster.modifiers) == 1
 
 
 def test_analyse_nested_functions(parsed_module_nested_functions):
