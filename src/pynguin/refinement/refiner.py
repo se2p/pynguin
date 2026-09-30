@@ -21,8 +21,9 @@ import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 from pynguin.configuration import RefinementGranularity
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
-from pynguin.refinement.pipeline import TestRefiner
+from pynguin.refinement.pipeline import TestRefiner, _strip_xfail_decorator
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
+from pynguin.refinement.validator import run_test
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -402,6 +403,115 @@ def _finalize_readability(stats: dict[str, Any]) -> None:
         stats["readability_delta"] = stats["readability_refined"] - stats["readability_original"]
 
 
+def _unparse_import_nodes(code: str) -> list[str]:
+    """Return the unparsed source of every ``import``/``from-import`` in ``code``.
+
+    Walks the whole tree, so imports nested inside function bodies are included.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    return [
+        ast.unparse(node)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    ]
+
+
+def _hoist_local_imports(preamble: str, refined_tests: list[str]) -> str:
+    """Hoist function-local imports up to module scope.
+
+    Refinement can leave an ``import`` inside one test whose bound name is used by
+    a *different* test, producing a ``NameError`` at run time.  We copy every
+    function-local import that is not already at module scope into the shared
+    preamble so the referenced name resolves for every test.  The local import is
+    left in place too (a duplicate import is harmless), which preserves comments
+    and AAA markers in the function bodies.
+
+    Args:
+        preamble: The shared module preamble (imports + fixtures + aliases).
+        refined_tests: The per-test source blocks that will be appended.
+
+    Returns:
+        The preamble with any missing imports appended at module scope.
+    """
+    existing = set(_unparse_import_nodes(preamble))
+    additions: list[str] = []
+    seen: set[str] = set()
+    for func_text in refined_tests:
+        for imp in _unparse_import_nodes(func_text):
+            if imp not in existing and imp not in seen:
+                seen.add(imp)
+                additions.append(imp)
+    if not additions:
+        return preamble
+    return preamble.rstrip("\n") + "\n" + "\n".join(additions) + "\n"
+
+
+def _sanitize_test(preamble: str, func_text: str, module_under_test) -> str | None:
+    """Validate one assembled test, repairing or dropping it if it cannot run green.
+
+    Executes ``preamble + func_text`` and:
+
+    * returns the test unchanged when it already passes;
+    * drops a now-invalid ``xfail`` marker when the body no longer raises
+      (``XPASS(strict)``) and the test passes without it;
+    * otherwise returns ``None`` so the caller drops a test that fails to execute
+      (never export a red test).
+
+    Args:
+        preamble: The shared module preamble (already import-hoisted).
+        func_text: The single test's source (decorators + function).
+        module_under_test: The imported module under test.
+
+    Returns:
+        The (possibly xfail-stripped) test source, or ``None`` to drop it.
+    """
+    passed, message = run_test(f"{preamble}\n{func_text}", module_under_test)
+    if passed:
+        return func_text
+    if "XPASS(strict)" in message:
+        stripped = _strip_xfail_decorator(func_text)
+        if stripped is not None and stripped != func_text:
+            passed_after, _ = run_test(f"{preamble}\n{stripped}", module_under_test)
+            if passed_after:
+                return stripped
+    return None
+
+
+def _finalize_refined_suite(
+    preamble: str,
+    refined_tests: list[str],
+    module_under_test,
+) -> tuple[str, list[str]]:
+    """Make the assembled refined suite self-contained and green.
+
+    Hoists function-local imports to module scope so no test references an
+    out-of-scope name, then validates each test, stripping stale ``xfail`` markers
+    and dropping any test that still fails to execute.
+
+    Args:
+        preamble: The shared module preamble.
+        refined_tests: The per-test source blocks.
+        module_under_test: The imported module under test (``None`` skips validation).
+
+    Returns:
+        The updated ``(preamble, kept_tests)``.
+    """
+    preamble = _hoist_local_imports(preamble, refined_tests)
+    if module_under_test is None:
+        return preamble, refined_tests
+    kept: list[str] = []
+    for func_text in refined_tests:
+        sanitized = _sanitize_test(preamble, func_text, module_under_test)
+        if sanitized is None:
+            _LOGGER.warning("Dropping refined test that could not run green:\n%s", func_text)
+            continue
+        kept.append(sanitized)
+    return preamble, kept
+
+
 def _maybe_write_refined_file(
     stats: dict[str, Any],
     test_file_path: Path,
@@ -589,6 +699,11 @@ def refine_generated_tests(
 
         _finalize_readability(stats)
         mutation.finalize(stats)
+        # Make the assembled suite self-contained and green: hoist function-local
+        # imports to module scope and strip/drop tests that cannot run.
+        preamble, refined_tests = _finalize_refined_suite(
+            preamble, refined_tests, module_under_test
+        )
         _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
 
         _LOGGER.info("Refinement complete: %s", stats)
