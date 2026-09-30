@@ -137,8 +137,6 @@ def _llm_cli_args(mode: str, *, no_assertions: bool = False) -> list[str]:
                 "LLM",
                 "--llm-refinement.enabled",
                 "True",
-                "--llm-refinement.refinement-granularity",
-                "PER_TEST",
             ]
     return args + _llm_credential_args()
 
