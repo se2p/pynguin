@@ -277,8 +277,8 @@ def _generate_module(
     return refiner.generate_semantic_assertions_module(readable, sut_context)
 
 
-def _index_refined_functions(module_code: str) -> dict[str, ast.FunctionDef] | None:
-    """Parse a refined module and index its top-level functions by name.
+def _parse_refined_functions(module_code: str) -> list[ast.FunctionDef] | None:
+    """Parse a refined module and return its top-level test functions in order.
 
     Returns ``None`` when the module is unparseable (e.g. a truncated response).
     """
@@ -286,7 +286,18 @@ def _index_refined_functions(module_code: str) -> dict[str, ast.FunctionDef] | N
         tree = ast.parse(module_code)
     except SyntaxError:
         return None
-    return {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    return [node for node in tree.body if _is_test_function(node)]
+
+
+def _index_refined_functions(module_code: str) -> dict[str, ast.FunctionDef] | None:
+    """Parse a refined module and index its top-level functions by name.
+
+    Returns ``None`` when the module is unparseable (e.g. a truncated response).
+    """
+    funcs = _parse_refined_functions(module_code)
+    if funcs is None:
+        return None
+    return {node.name: node for node in funcs}
 
 
 def _outcome_from_result(func: ast.FunctionDef, original_code: str, result: dict) -> _TestOutcome:
@@ -309,6 +320,24 @@ def _outcome_from_result(func: ast.FunctionDef, original_code: str, result: dict
     return _TestOutcome(func_text=ast.unparse(func), processed=True, failed=True)
 
 
+def _map_refined_functions(
+    test_functions: list[ast.FunctionDef],
+    refined_funcs: list[ast.FunctionDef] | None,
+) -> dict[str, ast.FunctionDef]:
+    """Map original test functions to their refined counterparts.
+
+    When the response preserves the count of test functions, maps positionally
+    to support descriptive test function renaming (test_0 -> test_<behavior>).
+    Otherwise, falls back to matching by original function name.
+    """
+    if refined_funcs is None:
+        return {}
+    if len(refined_funcs) == len(test_functions):
+        return {orig.name: ref for orig, ref in zip(test_functions, refined_funcs, strict=False)}
+    name_index = {f.name: f for f in refined_funcs}
+    return {orig.name: name_index[orig.name] for orig in test_functions if orig.name in name_index}
+
+
 def _process_module(
     refiner: TestRefiner,
     preamble: str,
@@ -329,7 +358,7 @@ def _process_module(
 
     refined_module = _generate_module(refiner, module_blob, sut_context, granularity)
 
-    refined_index: dict[str, ast.FunctionDef] | None = None
+    refined_funcs: list[ast.FunctionDef] | None = None
     if isinstance(refined_module, str) and refined_module.startswith(LLM_ERROR_PREFIX):
         _LOGGER.warning(
             "Module-level refinement failed (%s); falling back to per-test refinement "
@@ -338,22 +367,24 @@ def _process_module(
             len(test_functions),
         )
     else:
-        refined_index = _index_refined_functions(refined_module)
-        if refined_index is None:
+        refined_funcs = _parse_refined_functions(refined_module)
+        if refined_funcs is None:
             _LOGGER.warning(
                 "Module-level response was unparseable (likely truncated); falling back "
                 "to per-test refinement for all %d tests.",
                 len(test_functions),
             )
 
+    func_map = _map_refined_functions(test_functions, refined_funcs)
+
     outcomes: list[_TestOutcome] = []
     for func in test_functions:
         original_code = preamble + ast.unparse(func)
-        refined_func = refined_index.get(func.name) if refined_index is not None else None
+        refined_func = func_map.get(func.name)
 
         if refined_func is None:
-            # Missing / renamed / truncated / whole-module failure → per-test fallback.
-            if refined_index is not None:
+            # Missing / truncated / whole-module failure → per-test fallback.
+            if refined_funcs is not None:
                 _LOGGER.warning(
                     "Test %s missing from module-level response; falling back to per-test "
                     "refinement.",

@@ -93,6 +93,8 @@ def test_full_mode_drops_llm_assertion_generation_in_coverage_only():
     assert "--assertion-generation" not in coverage_only
     assert default["--llm-refinement.enabled"] == "True"
     assert "--llm-refinement.enabled" not in coverage_only
+    assert default["--llm-refinement.refinement-granularity"] == "PER_TEST"
+    assert "--llm-refinement.refinement-granularity" not in coverage_only
 
     # The coverage-driving LLM calls stay on.
     for flag in (

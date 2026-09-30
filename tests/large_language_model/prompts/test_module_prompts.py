@@ -58,5 +58,5 @@ def test_module_prompt_preserves_module_0_prefix_instruction(prompt_cls):
     prompt = prompt_cls(module_test_code=_MODULE_CODE, sut_context=_SUT_CONTEXT)
     user_content = prompt.render_request().messages[1]["content"]
     assert "module_0." in user_content
-    # Every module prompt must forbid dropping/renaming test functions.
-    assert "original name" in user_content.lower()
+    # Every module prompt must forbid dropping or merging test functions.
+    assert "do not drop" in user_content.lower()

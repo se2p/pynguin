@@ -27,7 +27,7 @@ user_message_template: |
   **Do NOT remove the `module_0.` prefix — that will cause NameError.**
 
   **CRITICAL - Keep EVERY test function. Do NOT drop, merge, or add test functions.**
-  **CRITICAL - Keep each test function's EXACT ORIGINAL NAME. Do NOT rename functions.**
+  **CRITICAL - Keep each test function's exact name and signature as given in the input module (do not rename them again).**
   **The number and names of `def test_...` functions in your output MUST match the input.**
 
   **Critical Rules (apply to each test function independently):**
@@ -45,6 +45,7 @@ user_message_template: |
      `len(result) > 0` for string returns, `isinstance(result, bool)` for booleans).
 
   4. **Preserve ALL existing code and AAA structure:**
+     - Keep the test function name and signature unchanged.
      - Keep the `# Arrange` section unchanged.
      - Keep the `# Act` section unchanged (unless converting try/except to pytest.raises).
      - Keep variable names unchanged.
@@ -52,7 +53,7 @@ user_message_template: |
      - Never remove the AAA comment markers.
 
   **Output Format:**
-  Return the complete module with ALL import statements and ALL original test functions
+  Return the complete module with ALL import statements and ALL test functions
   preserved, in the original order. Start with import statements, then the test functions.
   Do NOT change function names, variable names, or the Arrange sections.
   No explanations, no markdown prose.
