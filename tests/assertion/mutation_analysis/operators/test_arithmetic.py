@@ -144,6 +144,110 @@ def test_mult_to_div_and_pow_replacement():
     )
 
 
+def test_mult_to_pow_skipped_for_self_referential_accumulator_in_loop():
+    # Regression test for issue #306: ``x = x * i`` inside a loop must not be
+    # mutated to ``x = x ** i``, which grows super-linearly and blocks in C
+    # while holding the GIL, so the execution timeout cannot fire.
+    assert_mutation(
+        ArithmeticOperatorReplacement,
+        inspect.cleandoc(
+            """
+            x = 1
+            for i in range(3):
+                x = x * i
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 1
+                for i in range(3):
+                    x = x / i
+                """
+            ): ("mutate_Mult_to_Div", ast.Mult, ast.Div),
+            inspect.cleandoc(
+                """
+                x = 1
+                for i in range(3):
+                    x = x // i
+                """
+            ): ("mutate_Mult_to_FloorDiv", ast.Mult, ast.FloorDiv),
+        },
+    )
+
+
+def test_mult_to_pow_kept_for_self_reference_without_loop():
+    # A self-referential multiplication that is not in a loop runs once and is
+    # bounded, so the ``Mult -> Pow`` mutant is still generated.
+    assert_mutation(
+        ArithmeticOperatorReplacement,
+        inspect.cleandoc(
+            """
+            x = 1
+            x = x * 2
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 1
+                x = x / 2
+                """
+            ): ("mutate_Mult_to_Div", ast.Mult, ast.Div),
+            inspect.cleandoc(
+                """
+                x = 1
+                x = x // 2
+                """
+            ): ("mutate_Mult_to_FloorDiv", ast.Mult, ast.FloorDiv),
+            inspect.cleandoc(
+                """
+                x = 1
+                x = x ** 2
+                """
+            ): ("mutate_Mult_to_Pow", ast.Mult, ast.Pow),
+        },
+    )
+
+
+def test_mult_to_pow_kept_in_loop_without_self_reference():
+    # A multiplication in a loop that does not feed back into its own operands
+    # does not blow up, so the ``Mult -> Pow`` mutant is still generated.
+    assert_mutation(
+        ArithmeticOperatorReplacement,
+        inspect.cleandoc(
+            """
+            y = 1
+            for i in range(3):
+                y = i * 2
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                y = 1
+                for i in range(3):
+                    y = i / 2
+                """
+            ): ("mutate_Mult_to_Div", ast.Mult, ast.Div),
+            inspect.cleandoc(
+                """
+                y = 1
+                for i in range(3):
+                    y = i // 2
+                """
+            ): ("mutate_Mult_to_FloorDiv", ast.Mult, ast.FloorDiv),
+            inspect.cleandoc(
+                """
+                y = 1
+                for i in range(3):
+                    y = i ** 2
+                """
+            ): ("mutate_Mult_to_Pow", ast.Mult, ast.Pow),
+        },
+    )
+
+
 def test_div_to_mult_and_floordiv_replacement():
     assert_mutation(
         ArithmeticOperatorReplacement,
