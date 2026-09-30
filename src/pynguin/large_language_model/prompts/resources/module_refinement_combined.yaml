@@ -25,17 +25,17 @@ user_message_template: |
   **CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
   **Do NOT remove the `module_0.` prefix — that will cause NameError.**
 
-  **CRITICAL - Keep EVERY test function. Do NOT drop, merge, or add test functions.**
-  **CRITICAL - Keep each test function's EXACT ORIGINAL NAME. Do NOT rename functions.**
-  **The number and names of `def test_...` functions in your output MUST match the input.**
+  **CRITICAL - Keep EVERY test function in the original order. Do NOT drop, merge, or add test functions.**
+  **The number of `def test_...` functions in your output MUST match the input.**
 
   **Do BOTH of the following for each test function independently:**
 
   **A) Readability**
-  1. Rename generic variables (bool_0, int_0, str_0) to meaningful names.
-  2. Add clear `# Arrange`, `# Act`, `# Assert` section markers (do not skip empty ones).
-  3. Add a brief (1-2 line) docstring explaining what the test verifies.
-  4. Keep the exact same logic and control flow.
+  1. Rename each test function to be descriptive of what it tests (use pattern: `test_<behavior_being_tested>`). Ensure all test function names start with `test_` and are unique.
+  2. Rename generic variables (bool_0, int_0, str_0) to meaningful names.
+  3. Add clear `# Arrange`, `# Act`, `# Assert` section markers (do not skip empty ones).
+  4. Add a brief (1-2 line) docstring explaining what the test verifies.
+  5. Keep the exact same logic and control flow.
 
   **B) Assertions**
   1. Decide from the inputs whether each test is POSITIVE or NEGATIVE.
@@ -47,5 +47,5 @@ user_message_template: |
 
   **Output Format:**
   Return the complete refined module WITH ALL IMPORT STATEMENTS from the original.
-  Include imports at the top, then every test function in the original order, each keeping
-  its exact original name. No explanations, no markdown prose.
+  Include imports at the top, then every test function in the original order, each with its
+  descriptive test function name. No explanations, no markdown prose.
