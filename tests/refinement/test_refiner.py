@@ -19,11 +19,14 @@ from pynguin.refinement.refiner import (
     _attach_usage,  # noqa: PLC2701
     _extract_function_text,  # noqa: PLC2701
     _failure_stats,  # noqa: PLC2701
+    _finalize_refined_suite,  # noqa: PLC2701
+    _hoist_local_imports,  # noqa: PLC2701
     _is_test_function,  # noqa: PLC2701
     _load_test_functions,  # noqa: PLC2701
     _MutationAccumulator,  # noqa: PLC2701
     _new_stats,  # noqa: PLC2701
     _process_one_test,  # noqa: PLC2701
+    _sanitize_test,  # noqa: PLC2701
     _TestOutcome,  # noqa: PLC2701
     _track_statistics,  # noqa: PLC2701
     refine_generated_tests,
@@ -276,6 +279,9 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
     monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
     monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    # The fake module cannot actually execute the tests; treat every test as
+    # green so the suite-finalization step keeps them (it validates via run_test).
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
     # This test exercises the per-test path (mocking _process_one_test), so pin the
     # granularity to PER_TEST rather than the new COMBINED default.
     monkeypatch.setattr(
@@ -378,6 +384,9 @@ def test_refined_file_keeps_module_alias(tmp_path, monkeypatch):
     monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
     monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
     monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    # The fake module cannot actually execute the tests; treat every test as
+    # green so the suite-finalization step keeps them (it validates via run_test).
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
     monkeypatch.setattr(
         config.configuration.llm_refinement,
         "refinement_granularity",
@@ -441,3 +450,85 @@ def test_refine_returns_error_for_missing_file(tmp_path):
     )
     assert stats["tests_processed"] == 0
     assert "error" in stats
+
+
+# ===================================================================
+# issue #308 defect 2 — out-of-scope import hoisting / suite finalization
+# ===================================================================
+
+
+def test_hoist_local_imports_promotes_cross_test_import():
+    """An import used by one test but declared inside another is hoisted (issue #308)."""
+    preamble = "import sys\nlog_ = sys.modules['pytutils.log']\n"
+    tests = [
+        "def test_8():\n    from unittest.mock import MagicMock\n    m = MagicMock()\n",
+        "def test_11():\n    logger = MagicMock()\n    assert logger is not None\n",
+    ]
+
+    new_preamble = _hoist_local_imports(preamble, tests)
+
+    assert "from unittest.mock import MagicMock" in new_preamble
+    # The original preamble lines are preserved.
+    assert "log_ = sys.modules['pytutils.log']" in new_preamble
+
+
+def test_hoist_local_imports_no_duplicate_when_already_module_scope():
+    """An import already at module scope is not duplicated (issue #308)."""
+    preamble = "from unittest.mock import MagicMock\n"
+    tests = ["def test_0():\n    m = MagicMock()\n    assert m is not None\n"]
+
+    new_preamble = _hoist_local_imports(preamble, tests)
+
+    assert new_preamble.count("from unittest.mock import MagicMock") == 1
+
+
+def test_finalize_refined_suite_hoists_and_keeps_valid_tests(monkeypatch):
+    """Finalization hoists imports and keeps executable tests (issue #308)."""
+    preamble = "import sys\n"
+    tests = [
+        "def test_0():\n    from unittest.mock import MagicMock\n"
+        "    assert MagicMock() is not None\n",
+        "def test_1():\n    logger = MagicMock()\n    assert logger is not None\n",
+    ]
+    module = types.ModuleType("dummy")
+
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "ok"))
+
+    new_preamble, kept = _finalize_refined_suite(preamble, tests, module)
+
+    assert "from unittest.mock import MagicMock" in new_preamble
+    assert len(kept) == 2
+
+
+def test_sanitize_test_drops_non_executable_test(monkeypatch):
+    """A test that fails to execute (e.g. NameError) is dropped, never exported (issue #308)."""
+    module = types.ModuleType("dummy")
+    monkeypatch.setattr(
+        refiner_module, "run_test", lambda *_a, **_k: (False, "NameError: name 'x' is not defined")
+    )
+
+    result = _sanitize_test("import sys\n", "def test_0():\n    assert x == 1\n", module)
+
+    assert result is None
+
+
+def test_sanitize_test_strips_stale_xfail_on_xpass(monkeypatch):
+    """A now-passing xfail(strict) test has its marker stripped instead of failing (issue #308)."""
+    module = types.ModuleType("dummy")
+    calls = {"n": 0}
+
+    def fake_run_test(_code, _module):
+        calls["n"] += 1
+        # First call: the xfail-marked test XPASSes (a failure); second call
+        # (after the marker is stripped): it passes cleanly.
+        if calls["n"] == 1:
+            return False, "XPASS(strict): test is marked xfail(strict=True) but passed."
+        return True, "Test passed."
+
+    monkeypatch.setattr(refiner_module, "run_test", fake_run_test)
+
+    func = "@pytest.mark.xfail(strict=True)\ndef test_0():\n    assert True\n"
+    result = _sanitize_test("import pytest\n", func, module)
+
+    assert result is not None
+    assert "xfail" not in result
