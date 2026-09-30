@@ -851,12 +851,6 @@ class TestRefiner:
         mutation_stats: dict[str, Any],
     ) -> dict:
         """Run the coverage check and AAA insertion after a passing test."""
-        # Vacuous-test guard (issue #308, defect 1): refinement (or the
-        # assertion-failure policy that rewrites a failing assertion to ``pass``)
-        # can strip every check from a test, leaving a green no-op that kills no
-        # mutants and verifies nothing.  If the original test had a meaningful
-        # check but the refined one no longer does, reject the refinement so the
-        # caller falls back to the original (pre-refinement) test.
         if _has_meaningful_check(original_code) and not _has_meaningful_check(current_code):
             return {
                 "success": False,

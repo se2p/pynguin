@@ -1000,7 +1000,7 @@ def test_repair_loop_reconciles_xpass_strict_by_stripping_marker(refiner: TestRe
 
 
 # ===================================================================
-# issue #308 defect 1 — vacuous-test guard (_has_meaningful_check)
+# vacuous-test guard (_has_meaningful_check)
 # ===================================================================
 
 
@@ -1031,7 +1031,7 @@ def test_has_meaningful_check_false(code: str):
 
 
 def test_finalize_rejects_vacuous_refined_test(refiner: TestRefiner):
-    """A refined test that lost its only assertion must not be exported (issue #308)."""
+    """A refined test that lost its only assertion must not be exported."""
     original = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
     vacuous = "import module_0\n\ndef test_case_0():\n    module_0.add(1, 2)\n    pass\n"
 
@@ -1047,7 +1047,7 @@ def test_finalize_rejects_vacuous_refined_test(refiner: TestRefiner):
 
 
 def test_finalize_keeps_refined_test_with_assertion(refiner: TestRefiner):
-    """A refined test that keeps a check is still finalized successfully (issue #308)."""
+    """A refined test that keeps a check is still finalized successfully."""
     original = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
     refined = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
 

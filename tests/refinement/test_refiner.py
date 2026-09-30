@@ -453,12 +453,12 @@ def test_refine_returns_error_for_missing_file(tmp_path):
 
 
 # ===================================================================
-# issue #308 defect 2 — out-of-scope import hoisting / suite finalization
+# out-of-scope import hoisting / suite finalization
 # ===================================================================
 
 
 def test_hoist_local_imports_promotes_cross_test_import():
-    """An import used by one test but declared inside another is hoisted (issue #308)."""
+    """An import used by one test but declared inside another is hoisted."""
     preamble = "import sys\nlog_ = sys.modules['pytutils.log']\n"
     tests = [
         "def test_8():\n    from unittest.mock import MagicMock\n    m = MagicMock()\n",
@@ -473,7 +473,7 @@ def test_hoist_local_imports_promotes_cross_test_import():
 
 
 def test_hoist_local_imports_no_duplicate_when_already_module_scope():
-    """An import already at module scope is not duplicated (issue #308)."""
+    """An import already at module scope is not duplicated."""
     preamble = "from unittest.mock import MagicMock\n"
     tests = ["def test_0():\n    m = MagicMock()\n    assert m is not None\n"]
 
@@ -483,7 +483,7 @@ def test_hoist_local_imports_no_duplicate_when_already_module_scope():
 
 
 def test_finalize_refined_suite_hoists_and_keeps_valid_tests(monkeypatch):
-    """Finalization hoists imports and keeps executable tests (issue #308)."""
+    """Finalization hoists imports and keeps executable tests."""
     preamble = "import sys\n"
     tests = [
         "def test_0():\n    from unittest.mock import MagicMock\n"
@@ -501,7 +501,7 @@ def test_finalize_refined_suite_hoists_and_keeps_valid_tests(monkeypatch):
 
 
 def test_sanitize_test_drops_non_executable_test(monkeypatch):
-    """A test that fails to execute (e.g. NameError) is dropped, never exported (issue #308)."""
+    """A test that fails to execute (e.g. NameError) is dropped, never exported."""
     module = types.ModuleType("dummy")
     monkeypatch.setattr(
         refiner_module, "run_test", lambda *_a, **_k: (False, "NameError: name 'x' is not defined")
@@ -513,7 +513,7 @@ def test_sanitize_test_drops_non_executable_test(monkeypatch):
 
 
 def test_sanitize_test_strips_stale_xfail_on_xpass(monkeypatch):
-    """A now-passing xfail(strict) test has its marker stripped instead of failing (issue #308)."""
+    """A now-passing xfail(strict) test has its marker stripped instead of failing."""
     module = types.ModuleType("dummy")
     calls = {"n": 0}
 

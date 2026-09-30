@@ -420,7 +420,7 @@ def _unparse_import_nodes(code: str) -> list[str]:
 
 
 def _hoist_local_imports(preamble: str, refined_tests: list[str]) -> str:
-    """Hoist function-local imports up to module scope (issue #308, defect 2).
+    """Hoist function-local imports up to module scope.
 
     Refinement can leave an ``import`` inside one test whose bound name is used by
     a *different* test, producing a ``NameError`` at run time.  We copy every
@@ -458,7 +458,7 @@ def _sanitize_test(preamble: str, func_text: str, module_under_test) -> str | No
     * drops a now-invalid ``xfail`` marker when the body no longer raises
       (``XPASS(strict)``) and the test passes without it;
     * otherwise returns ``None`` so the caller drops a test that fails to execute
-      (issue #308, defect 1/2: never export a red test).
+      (never export a red test).
 
     Args:
         preamble: The shared module preamble (already import-hoisted).
@@ -485,7 +485,7 @@ def _finalize_refined_suite(
     refined_tests: list[str],
     module_under_test,
 ) -> tuple[str, list[str]]:
-    """Make the assembled refined suite self-contained and green (issue #308).
+    """Make the assembled refined suite self-contained and green.
 
     Hoists function-local imports to module scope so no test references an
     out-of-scope name, then validates each test, stripping stale ``xfail`` markers
@@ -700,7 +700,7 @@ def refine_generated_tests(
         _finalize_readability(stats)
         mutation.finalize(stats)
         # Make the assembled suite self-contained and green: hoist function-local
-        # imports to module scope and strip/drop tests that cannot run (issue #308).
+        # imports to module scope and strip/drop tests that cannot run.
         preamble, refined_tests = _finalize_refined_suite(
             preamble, refined_tests, module_under_test
         )
