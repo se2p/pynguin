@@ -329,6 +329,64 @@ def test_foo():
     assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
 
 
+def test_compound_sibling_block_resolves_leaked_with_binding(test_cluster):
+    """A sibling block resolves a name leaked by an earlier ``with ... as`` block.
+
+    ``with ... as f`` and an in-block ``fname = f.name`` leak ``f``/``fname`` into
+    the enclosing function scope, so the following ``try`` block that reads
+    ``fname`` must be admitted rather than dropped (regression for #307).
+    """
+    code = """
+def test_foo():
+    with open("f") as f:
+        fname = f.name
+    try:
+        result = list(fname)
+    finally:
+        print(fname)
+"""
+    result = _deserialize_function(code, test_cluster)
+    rendered = result.test_case.to_code()
+    assert 'with open("f") as f:' in rendered
+    assert "try:" in rendered
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+
+
+def test_compound_sibling_block_resolves_leaked_for_and_assign(test_cluster):
+    """A ``for`` target and an in-block assignment leak to a later sibling block."""
+    code = """
+def test_foo():
+    for item in range(3):
+        collected = item
+    if collected:
+        print(collected, item)
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+
+
+def test_compound_sibling_block_comprehension_target_does_not_leak(test_cluster):
+    """A comprehension target stays block-local and is not leaked to a sibling.
+
+    ``squares`` leaks (it is an in-block assignment) but the comprehension target
+    ``n`` does not, so a sibling block reading ``n`` must still be dropped.
+    """
+    code = """
+def test_foo():
+    if True:
+        squares = [n * n for n in range(3)]
+    while n:
+        print(n)
+"""
+    result = _deserialize_function(code, test_cluster)
+    # The first block is admitted (squares/comprehension are self-contained); the
+    # second block reads ``n``, which never leaks out of the comprehension.
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+
+
 @pytest.mark.parametrize(
     ("expression", "expected"),
     [
