@@ -558,6 +558,37 @@ class TestCounter:
     exec(source, {})  # noqa: S102
 
 
+def test_deserialize_setup_method_fixture_keeps_sut_calls(test_cluster):
+    """Pytest ``setup_method`` fixture attributes are inlined so SUT calls survive.
+
+    Regression for issue #303: the rewriter only inlined the unittest ``setUp``
+    method, so tests building their fixture in pytest's ``setup_method`` had every
+    ``self.<attr>`` left unresolved and all statements calling the SUT dropped.
+    """
+    ctor = _make_constructor("Foo", _Foo)
+    method = _make_method(_Foo.__name__, "bar", str)
+    test_cluster.accessible_objects_under_test = [ctor, method]
+    code = """
+class TestFoo:
+    def setup_method(self):
+        self.foo = Foo()
+
+    def test_bar(self):
+        result = self.foo.bar()
+        assert result is not None
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    testcase = result.test_cases[0]
+    rendered = testcase.to_code()
+    assert "foo = Foo()" in rendered
+    assert "foo.bar()" in rendered
+    assert "self." not in rendered
+    assert testcase.size() == 2
+    assert result.counts[Disposition.ADMITTED] == 2
+
+
 # ---------------------------------------------------------------------------
 # Assertion shapes (through the full deserializer, using directly-fed CST so the
 # rewriter's comparison-hoisting does not obscure the shape under test).
