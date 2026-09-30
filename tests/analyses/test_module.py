@@ -1153,3 +1153,126 @@ def test_analyse_generic_classes():
         assert isinstance(mod.instantiated_owner, Instance)
         assert not mod.instantiated_owner.contains_type_vars()
         assert not mod.inferred_signature.contains_type_vars()
+
+
+def test_generate_test_cluster_rewritten_module():
+    import tests.fixtures.cluster.rewritten_module as rm  # noqa: PLC0415
+
+    cluster = generate_test_cluster("tests.fixtures.cluster.rewritten_module")
+    assert cluster.num_accessible_objects_under_test() > 0
+
+    class_names = {
+        obj.owner.name
+        for obj in cluster.accessible_objects_under_test
+        if isinstance(obj, GenericConstructor) and obj.owner is not None
+    }
+    assert "RewrittenClass" in class_names
+    assert "RewrittenEmptyClass" in class_names
+
+    method_names = {
+        obj.method_name
+        for obj in cluster.accessible_objects_under_test
+        if isinstance(obj, GenericMethod)
+    }
+    assert "get_value" in method_names
+
+    function_names = {
+        obj.function_name
+        for obj in cluster.accessible_objects_under_test
+        if isinstance(obj, GenericFunction)
+    }
+    assert "rewritten_function" in function_names
+
+    # Verify no false positive C-extension detection
+    assert module.__check_c_modules(module=rm) == set()
+
+
+def test_generate_test_cluster_bidict_base():
+    pytest.importorskip("bidict")
+    import bidict._base  # noqa: PLC0415
+
+    cluster = generate_test_cluster("bidict._base")
+    assert cluster.num_accessible_objects_under_test() > 0
+
+    class_names = {
+        obj.owner.name
+        for obj in cluster.accessible_objects_under_test
+        if hasattr(obj, "owner") and obj.owner is not None
+    }
+    assert "BidictBase" in class_names
+    assert "BidictKeysView" in class_names
+    assert "GeneratedBidictInverse" in class_names
+
+    # Pure Python module should not be detected as C extension
+    assert module.__check_c_modules(module=bidict._base) == set()
+
+
+def test_is_same_file(tmp_path):
+    f1 = tmp_path / "foo.py"
+    f1.write_text("x = 1")
+    f2 = tmp_path / "foo.pyc"
+    f3 = tmp_path / "bar.py"
+    f3.write_text("y = 2")
+
+    assert module._is_same_file(str(f1), str(f1))
+    assert module._is_same_file(str(f1), str(f2))
+    assert not module._is_same_file(str(f1), str(f3))
+    assert not module._is_same_file(None, str(f1))
+    assert not module._is_same_file(str(f1), None)
+
+
+def test_find_module_name_for_file():
+    import tests.fixtures.cluster.enums as e  # noqa: PLC0415
+
+    assert module._find_module_name_for_file(e.__file__) == "tests.fixtures.cluster.enums"
+    assert module._find_module_name_for_file(None) is None
+    assert module._find_module_name_for_file("/non/existent/path.py") is None
+
+
+def test_resolve_defining_module_propagates_not_found():
+    import types  # noqa: PLC0415
+
+    class DummyUnimportable:
+        pass
+
+    DummyUnimportable.__module__ = "non_existent_module_12345"
+
+    dummy_module = types.ModuleType("some_other_module")
+    parse_results = module._ParseResults()
+
+    with pytest.raises(ModuleNotFoundError):
+        module._resolve_defining_module(
+            current=DummyUnimportable,
+            module=dummy_module,
+            syntax_tree=None,
+            parse_results=parse_results,
+        )
+
+
+def test_analyse_included_classes_skips_unimportable_c_extension():
+    import types  # noqa: PLC0415
+
+    class FakeCExtClass:
+        pass
+
+    FakeCExtClass.__module__ = "fake_c_ext_module_xyz"
+    assert not hasattr(FakeCExtClass, "__file__")
+
+    dummy_module = types.ModuleType("dummy_pkg")
+    dummy_module.FakeCExtClass = FakeCExtClass
+    dummy_module.__file__ = "/path/dummy.py"
+
+    parse_results = module._ParseResults()
+    test_cluster = ModuleTestCluster(0)
+    seen_classes: set[type] = set()
+
+    module.__analyse_included_classes(
+        module=dummy_module,
+        root_module_name="dummy_pkg",
+        type_inference_provider=HintInference(),
+        test_cluster=test_cluster,
+        parse_results=parse_results,
+        seen_classes=seen_classes,
+    )
+    assert FakeCExtClass in seen_classes
+    assert test_cluster.num_accessible_objects_under_test() == 0
