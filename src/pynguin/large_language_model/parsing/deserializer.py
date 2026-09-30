@@ -387,6 +387,89 @@ class _BlockBindingCollector(cst.CSTVisitor):
         return True
 
 
+class _LeakedBindingCollector(cst.CSTVisitor):
+    """Collects the names a compound statement *leaks* into the enclosing scope.
+
+    Where :class:`_BlockBindingCollector` reports *every* name bound anywhere
+    inside a block, this collector reports only the names that Python actually
+    leaks out to the surrounding function scope once a ``for``/``with``/``if``/
+    ``while``/``try`` block has executed:
+
+    * ``with ... as`` targets,
+    * ``for`` loop targets,
+    * in-block assignments (``=``/``:=``/augmented/annotated), and
+    * the *names* of nested ``def``/``class`` definitions.
+
+    The names that stay block-local -- comprehension targets, ``lambda``
+    parameters, and everything internal to a nested ``def``/``class`` body --
+    are deliberately *not* collected, so a sibling block cannot wrongly resolve
+    a reference against a name that does not exist at that point at runtime.
+    """
+
+    def __init__(self) -> None:
+        self.bound: set[str] = set()
+
+    @staticmethod
+    def collect(node: cst.CSTNode) -> set[str]:
+        """Collect the names leaked into the enclosing scope by *node*."""
+        collector = _LeakedBindingCollector()
+        node.visit(collector)
+        return collector.bound
+
+    def _add_targets(self, node: cst.BaseExpression) -> None:
+        self.bound.update(_target_names(node))
+
+    def visit_AssignTarget(self, node: cst.AssignTarget) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AugAssign(self, node: cst.AugAssign) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_NamedExpr(self, node: cst.NamedExpr) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_For(self, node: cst.For) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_WithItem(self, node: cst.WithItem) -> bool:  # noqa: N802
+        # ``with ... as target`` leaks ``target``; an ``except ... as`` handler
+        # (which uses a separate node) is deliberately not visited here because
+        # Python deletes that binding at the end of the handler.
+        if node.asname is not None:
+            if isinstance(node.asname.name, cst.Name):
+                self.bound.add(node.asname.name.value)
+            else:
+                self._add_targets(node.asname.name)
+        return True
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        # The def *name* leaks into the enclosing scope; its parameters and body
+        # stay local, so do not descend into it.
+        self.bound.add(node.name.value)
+        return False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        # The class *name* leaks; its body stays local, so do not descend.
+        self.bound.add(node.name.value)
+        return False
+
+    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
+        # ``lambda`` parameters stay local to the lambda; do not descend.
+        return False
+
+    def visit_CompFor(self, node: cst.CompFor) -> bool:  # noqa: N802
+        # Comprehensions have their own scope, so their targets never leak.
+        return False
+
+
 class _LocalRenamer(cst.CSTTransformer):
     """Renames bare ``Name`` leaves according to a mapping."""
 
@@ -1377,6 +1460,15 @@ class CstStatementDeserializer:
             assert isinstance(renamed, cst.BaseCompoundStatement)
             node = renamed
         state.testcase.add_statement(tc.Statement(node=node, bound_variable=new_bound))
+        if not isinstance(line, cst.FunctionDef | cst.ClassDef):
+            # A ``with``/``for``/``if``/``while``/``try`` block leaks its
+            # function-scope bindings (``with ... as`` targets, ``for`` targets,
+            # in-block assignments and nested ``def``/``class`` names) into the
+            # surrounding test function. Promote them into the running known-name
+            # set so a *sibling* top-level block can resolve them; the emitted
+            # nodes keep their original identifiers, so no rename bookkeeping is
+            # needed for these leaked names.
+            state.known.update(_LeakedBindingCollector.collect(line))
         return Disposition.ADMITTED_COMPOUND
 
     def _hoist_module_imports(
