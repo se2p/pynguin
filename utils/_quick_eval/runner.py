@@ -50,6 +50,9 @@ def _build_output_vars(*, include_mutation: bool, include_llm: bool) -> str:
             "TotalLLMOutputTokens",
             "LLMQueryTime",
             "LLMAdmitted",
+            "LLMAdmittedCompound",
+            "LLMAdmittedUnresolvedCall",
+            "LLMAdmittedImport",
         ]
     return ",".join(parts)
 
@@ -333,6 +336,9 @@ def _result_from_stats(
         llm_output_tokens=_as_int(stats["llm_output_tokens"]),
         llm_query_time_s=_as_float(stats["llm_query_time_s"]),
         llm_parsed_stmts=_as_int(stats["llm_parsed_stmts"]),
+        llm_compound=_as_int(stats["llm_compound"]),
+        llm_unresolved=_as_int(stats["llm_unresolved"]),
+        llm_import=_as_int(stats["llm_import"]),
         suite_coverage=suite_coverage,
         suite_tests=suite_tests,
         suite_error=suite_error,

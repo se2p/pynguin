@@ -8,7 +8,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import _LOG
 
@@ -40,6 +40,9 @@ class ModuleResult:
     llm_output_tokens: int | None = None
     llm_query_time_s: float | None = None
     llm_parsed_stmts: int | None = None
+    llm_compound: int | None = None
+    llm_unresolved: int | None = None
+    llm_import: int | None = None
     # Externally-measured coverage: the exported test suite run under coverage.py +
     # pytest, restricted to the module under test. Independent of Pynguin's own
     # statistics.csv number above — a gap between them flags a broken/optimistic suite.
@@ -58,6 +61,7 @@ class _StatSpec:
     field: str
     columns: tuple[str, ...]
     convert: Callable[[str], float | int]
+    aggregate: Callable[[list[Any]], Any] | None = None
 
 
 def _ns_to_s(raw: str) -> float:
@@ -79,8 +83,31 @@ _STAT_SPECS: tuple[_StatSpec, ...] = (
     _StatSpec("llm_input_tokens", ("TotalLLMInputTokens",), int),
     _StatSpec("llm_output_tokens", ("TotalLLMOutputTokens",), int),
     _StatSpec("llm_query_time_s", ("LLMQueryTime",), _ns_to_s),
-    _StatSpec("llm_parsed_stmts", ("LLMAdmitted",), int),
+    _StatSpec(
+        "llm_parsed_stmts",
+        ("LLMAdmitted", "LLMAdmittedCompound", "LLMAdmittedUnresolvedCall", "LLMAdmittedImport"),
+        int,
+        aggregate=sum,
+    ),
+    _StatSpec("llm_compound", ("LLMAdmittedCompound",), int),
+    _StatSpec("llm_unresolved", ("LLMAdmittedUnresolvedCall",), int),
+    _StatSpec("llm_import", ("LLMAdmittedImport",), int),
 )
+
+
+def _extract_stat(spec: _StatSpec, row: dict[str, str]) -> float | int | None:
+    """Extract and convert a metric from a CSV row according to its spec."""
+    if spec.aggregate is not None:
+        vals = [spec.convert(row[c]) for c in spec.columns if row.get(c) and row[c] != "None"]
+        return spec.aggregate(vals) if vals else None
+
+    raw = next((row[c] for c in spec.columns if row.get(c)), None)
+    # Pynguin serializes an unmeasurable metric (e.g. a mutation score with no usable
+    # checked mutants) as the literal string "None" in statistics.csv; treat it as
+    # absent rather than failing the numeric conversion.
+    if raw and raw != "None":
+        return spec.convert(raw)
+    return None
 
 
 def parse_statistics_csv(report_dir: str) -> dict[str, float | int | None]:
@@ -93,13 +120,9 @@ def parse_statistics_csv(report_dir: str) -> dict[str, float | int | None]:
         with csv_path.open(encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 for spec in _STAT_SPECS:
-                    raw = next((row[c] for c in spec.columns if row.get(c)), None)
-                    # Pynguin serializes an unmeasurable metric (e.g. a mutation
-                    # score with no usable checked mutants) as the literal string
-                    # "None" in statistics.csv; treat it as absent rather than
-                    # failing the numeric conversion.
-                    if raw and raw != "None":
-                        res[spec.field] = spec.convert(raw)
+                    val = _extract_stat(spec, row)
+                    if val is not None:
+                        res[spec.field] = val
     except Exception as exc:  # noqa: BLE001
         _LOG.debug("Failed to parse statistics CSV in %s: %s", report_dir, exc)
     return res
