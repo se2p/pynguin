@@ -299,6 +299,9 @@ class OpenAIClient(LLMClient):
         self._time_seconds = 0.0
         self._calls_with_no_python_code = 0
         self._is_cancelled = False
+        self._logical_queries = 0
+        self._endpoint_requests = 0
+        self._cache_hits = 0
 
         # Once a model rejects an explicit temperature of 0, remember it so all future
         # requests from this client skip the doomed attempt and use the fallback directly.
@@ -369,6 +372,9 @@ class OpenAIClient(LLMClient):
                 "output_tokens": self._output_tokens,
                 "time_seconds": self._time_seconds,
                 "calls_with_no_python_code": self._calls_with_no_python_code,
+                "logical_queries": self._logical_queries,
+                "endpoint_requests": self._endpoint_requests,
+                "cache_hits": self._cache_hits,
             }
 
     def reset_usage(self) -> None:
@@ -376,6 +382,9 @@ class OpenAIClient(LLMClient):
         with self._lock:
             self._calls = 0
             self._retries = 0
+            self._logical_queries = 0
+            self._endpoint_requests = 0
+            self._cache_hits = 0
             self._input_tokens = 0
             self._output_tokens = 0
             self._time_seconds = 0.0
@@ -505,12 +514,17 @@ class OpenAIClient(LLMClient):
         Returns:
             The response string, or None if failed.
         """
+        with self._lock:
+            self._logical_queries += 1
+
         if self._is_cancelled:
             return None
 
         if getattr(config.configuration.large_language_model, "enable_response_caching", False):
             cached = self._cache.get(request)
             if cached is not None:
+                with self._lock:
+                    self._cache_hits += 1
                 return cached
 
         max_attempts = config.configuration.large_language_model.max_retries
@@ -533,6 +547,8 @@ class OpenAIClient(LLMClient):
             start_time = time.perf_counter()
             try:
                 kwargs = self._build_request_kwargs(request, temperature, timeout)
+                with self._lock:
+                    self._endpoint_requests += 1
                 response = self._client.chat.completions.create(**kwargs)
                 elapsed = time.perf_counter() - start_time
                 return self._record_response(request, response, elapsed)
@@ -586,12 +602,17 @@ class OpenAIClient(LLMClient):
         Returns:
             The response string, or None if failed.
         """
+        with self._lock:
+            self._logical_queries += 1
+
         if self._is_cancelled:
             return None
 
         if getattr(config.configuration.large_language_model, "enable_response_caching", False):
             cached = self._cache.get(request)
             if cached is not None:
+                with self._lock:
+                    self._cache_hits += 1
                 return cached
 
         max_attempts = config.configuration.large_language_model.max_retries
@@ -614,6 +635,8 @@ class OpenAIClient(LLMClient):
             start_time = time.perf_counter()
             try:
                 kwargs = self._build_request_kwargs(request, temperature, timeout)
+                with self._lock:
+                    self._endpoint_requests += 1
                 response = await self.async_client.chat.completions.create(**kwargs)
                 elapsed = time.perf_counter() - start_time
                 return self._record_response(request, response, elapsed)

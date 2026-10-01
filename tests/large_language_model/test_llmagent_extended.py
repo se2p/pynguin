@@ -8,7 +8,7 @@
 
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
 
 import pytest
 
@@ -174,6 +174,9 @@ def test_query_with_cache_hit(monkeypatch):
     assert called_request.messages[-1]["content"] == "Test prompt"
     assert result == "Cached response"
     assert agent.llm_calls_counter == 0  # Counter should not increment on cache hit
+    assert agent.llm_logical_queries == 1
+    assert agent.llm_cache_hits == 1
+    assert agent.llm_endpoint_requests == 0
 
 
 def test_query_with_openai_error(monkeypatch):
@@ -627,3 +630,99 @@ def test_query_batch_keeps_successful_responses_and_tokens(monkeypatch):
     assert agent.llm_calls_counter == 3
     assert agent.llm_input_tokens == 20
     assert agent.llm_output_tokens == 8
+
+
+def _query_counter_stats() -> dict[RuntimeVariable, int | float]:
+    output_variables = stat.statistics_tracker.output_variables
+    return {
+        variable: output_variables[variable.name].value
+        for variable in (
+            RuntimeVariable.TotalLLMLogicalQueries,
+            RuntimeVariable.TotalLLMEndpointRequests,
+            RuntimeVariable.TotalLLMCacheHits,
+        )
+    }
+
+
+def _caching_agent(monkeypatch, cached_responses):
+    monkeypatch.setattr(config.configuration.large_language_model, "enable_response_caching", True)
+    monkeypatch.setattr(config.configuration.large_language_model, "model_name", "test-model")
+    monkeypatch.setattr(
+        "pynguin.large_language_model.client.require_api_key", _mock_require_api_key
+    )
+    monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
+    agent = LLMAgent()
+    agent.cache = MagicMock()
+    agent.cache.get.side_effect = cached_responses
+    return agent
+
+
+def _user_prompt(text):
+    prompt = MagicMock(spec=Prompt)
+    prompt.render_request.return_value = RenderedRequest(
+        messages=[{"role": "user", "content": text}], model="test-model", temperature=0.5
+    )
+    return prompt
+
+
+def test_query_cache_hit_records_statistics(monkeypatch):
+    agent = _caching_agent(monkeypatch, ["Cached response"])
+
+    assert agent.query(_user_prompt("Test prompt")) == "Cached response"
+
+    assert _query_counter_stats() == {
+        RuntimeVariable.TotalLLMLogicalQueries: 1,
+        RuntimeVariable.TotalLLMEndpointRequests: 0,
+        RuntimeVariable.TotalLLMCacheHits: 1,
+    }
+
+
+def test_query_async_cache_hit_records_statistics(monkeypatch):
+    agent = _caching_agent(monkeypatch, ["Cached response"])
+
+    assert asyncio.run(agent.query_async(_user_prompt("Test prompt"))) == "Cached response"
+
+    assert _query_counter_stats()[RuntimeVariable.TotalLLMLogicalQueries] == 1
+    assert _query_counter_stats()[RuntimeVariable.TotalLLMCacheHits] == 1
+
+
+def test_query_batch_async_all_cached_records_statistics(monkeypatch):
+    agent = _caching_agent(monkeypatch, ["first", "second"])
+    agent._client = MagicMock()
+    agent._client.send_batch_async = AsyncMock()
+
+    responses = asyncio.run(agent.query_batch_async([_user_prompt("one"), _user_prompt("two")]))
+
+    assert responses == ["first", "second"]
+    agent._client.send_batch_async.assert_not_called()
+    assert _query_counter_stats() == {
+        RuntimeVariable.TotalLLMLogicalQueries: 2,
+        RuntimeVariable.TotalLLMEndpointRequests: 0,
+        RuntimeVariable.TotalLLMCacheHits: 2,
+    }
+
+
+def test_query_batch_async_counts_hits_and_endpoint_requests(monkeypatch):
+    agent = _caching_agent(monkeypatch, ["cached", None, None])
+    agent._client = MagicMock()
+    agent._client.send_batch_async = AsyncMock(return_value=["fresh one", "fresh two"])
+    agent._client.get_usage.return_value = {
+        "input_tokens": 10,
+        "output_tokens": 20,
+        "calls_with_no_python_code": 0,
+        "endpoint_requests": 2,
+    }
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.save_prompt_info_to_file", MagicMock()
+    )
+
+    responses = asyncio.run(
+        agent.query_batch_async([_user_prompt("a"), _user_prompt("b"), _user_prompt("c")])
+    )
+
+    assert responses == ["cached", "fresh one", "fresh two"]
+    assert _query_counter_stats() == {
+        RuntimeVariable.TotalLLMLogicalQueries: 3,
+        RuntimeVariable.TotalLLMEndpointRequests: 2,
+        RuntimeVariable.TotalLLMCacheHits: 1,
+    }

@@ -12,7 +12,9 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import os
 import pathlib
+import uuid
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
@@ -24,7 +26,15 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMCache:
-    """A file-based cache that keys on RenderedRequest hashes."""
+    """A file-based cache that keys on RenderedRequest hashes.
+
+    Content-keyed and seed-agnostic: two requests with identical rendered content
+    hit the same entry regardless of which run or seed produced them. There is no
+    seed-aware invalidation here -- whether reusing a cache_dir across seed
+    repetitions is appropriate is the caller's call, not something this class
+    enforces. Safe for concurrent writers (parallel islands, or a shared
+    cache_dir across parallel runs) via the atomic write in set().
+    """
 
     def __init__(self, cache_dir: pathlib.Path | None = None) -> None:
         """Initializes the cache.
@@ -75,6 +85,11 @@ class LLMCache:
     def set(self, request: RenderedRequest, response: str) -> None:
         """Saves a response to the cache.
 
+        Writes to a uniquely-named temp file then os.replace()s it into place --
+        atomic on POSIX/Windows for same-filesystem renames, so concurrent writers
+        (parallel islands, parallel seed repetitions sharing the same cache_dir)
+        never observe a partially-written or corrupted cache file.
+
         Args:
             request: The RenderedRequest trigger.
             response: The response string.
@@ -92,10 +107,13 @@ class LLMCache:
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "model": request.model,
         }
+        tmp_file = cache_file.with_suffix(f".json.tmp.{os.getpid()}.{uuid.uuid4().hex}")
         try:
-            cache_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+            tmp_file.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+            tmp_file.replace(cache_file)
         except OSError as exc:
             _logger.warning("Failed to write cache file %s: %s", cache_file, exc)
+            tmp_file.unlink(missing_ok=True)
 
     def clear(self) -> None:
         """Clears all json cache entries."""

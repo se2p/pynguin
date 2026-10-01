@@ -270,6 +270,15 @@ class RuntimeVariable(str, enum.Enum):
     # Number of LLM responses with no python code within them
     TotalCodelessLLMResponses = "TotalCodelessLLMResponses"
 
+    # Number of logical LLM queries issued (cache hits and endpoint requests alike)
+    TotalLLMLogicalQueries = "TotalLLMLogicalQueries"
+
+    # Number of actual LLM endpoint requests made (retries count separately per attempt)
+    TotalLLMEndpointRequests = "TotalLLMEndpointRequests"
+
+    # Number of logical LLM queries served from the response cache
+    TotalLLMCacheHits = "TotalLLMCacheHits"
+
     # Number of seconds LLM queries took
     LLMQueryTime = "LLMQueryTime"
 
