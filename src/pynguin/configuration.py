@@ -1336,7 +1336,8 @@ class LLMRefinementConfiguration:
     Surviving mutants beyond this limit are chunked into multiple module-level requests."""
 
     max_surviving_mutants: int = 50
-    """Maximum number of surviving mutants to evaluate during mutation strengthening."""
+    """Maximum number of mutants to generate and evaluate during module-level mutation
+    strengthening."""
 
     refinement_granularity: RefinementGranularity = RefinementGranularity.COMBINED
     """Whether readability refinement and semantic-assertion generation are done with a

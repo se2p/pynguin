@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import importlib
+import sys
 import types
 from unittest.mock import MagicMock, patch
 
@@ -21,204 +23,183 @@ from pynguin.large_language_model.prompts.modulemutationstrengthenprompt import 
 from pynguin.refinement import refiner as refiner_module
 from pynguin.refinement.pipeline import TestRefiner
 
+_SUT_SOURCE = """\
+def inc(x):
+    return x + 1
 
-def _dummy_module() -> types.ModuleType:
-    mod = types.ModuleType("dummy_sut")
-    mod.__file__ = "/fake/dummy_sut.py"
-    return mod
+
+def fallback(values):
+    return values or [0]
+"""
+
+_PREAMBLE = "import strengthen_sut as module_0\n"
+
+_EXISTING_TEST = """\
+def test_inc():
+    # Act
+    result = module_0.inc(1)
+    # Assert
+    assert result == 2"""
 
 
 @pytest.fixture
-def fake_refiner():
-    refiner = TestRefiner(module_under_test=_dummy_module())
-    refiner.llm_client = MagicMock()
-    return refiner
+def sut(tmp_path, monkeypatch):
+    (tmp_path / "strengthen_sut.py").write_text(_SUT_SOURCE)
+    monkeypatch.syspath_prepend(str(tmp_path))
+    module = importlib.import_module("strengthen_sut")
+    yield module
+    sys.modules.pop("strengthen_sut", None)
 
 
-def test_strengthen_module_mutations_no_survivors(fake_refiner):
-    preamble = "import dummy_sut as module_0\n"
-    tests = ["def test_0():\n    assert module_0.f(1) == 2\n"]
-
-    with patch("pynguin.refinement.pipeline.get_surviving_mutants", return_value=[]):
-        p_out, t_out, stats = fake_refiner.strengthen_module_mutations(
-            preamble=preamble,
-            refined_tests=tests,
-            max_iterations=1,
-        )
-
-    assert p_out == preamble
-    assert t_out == tests
-    assert stats["mutants_killed_total"] == 0
-    fake_refiner.llm_client.generate_from_prompt.assert_not_called()
+@pytest.fixture
+def refiner(sut):
+    test_refiner = TestRefiner(module_under_test=sut)
+    test_refiner.llm_client = MagicMock()
+    return test_refiner
 
 
-def test_strengthen_module_mutations_chunks_survivors_by_max_mutants_per_prompt(fake_refiner):
-    preamble = "import dummy_sut as module_0\n"
-    tests = ["def test_0():\n    assert module_0.f(1) == 2\n"]
+def test_strengthen_module_mutations_without_mutants_is_a_no_op(refiner):
+    with patch("pynguin.refinement.pipeline.create_mutants", return_value=([], None)):
+        preamble, tests, stats = refiner.strengthen_module_mutations(_PREAMBLE, [_EXISTING_TEST])
 
-    # Create 5 fake mutant tuples: (mutant_module, [mutation_obj])
+    assert (preamble, tests, stats) == (_PREAMBLE, [_EXISTING_TEST], {})
+    refiner.llm_client.generate_from_prompt.assert_not_called()
+
+
+def test_strengthen_module_mutations_chunks_survivors_by_max_mutants_per_prompt(refiner):
     def make_fake_mutant(line: int):
-        m = MagicMock()
-        m.operator.__name__ = "ArithmeticOperatorReplacement"
-        m.node = MagicMock()
-        m.node.lineno = line
-        m.replacement_node = MagicMock()
-        return (MagicMock(), [m])
+        mutation = MagicMock()
+        mutation.operator.__name__ = "ArithmeticOperatorReplacement"
+        mutation.node.lineno = line
+        return (MagicMock(), [mutation])
 
-    mutants_list = [make_fake_mutant(i) for i in range(1, 6)]
-
-    llm_response = (
-        "import dummy_sut as module_0\n\n"
-        "def test_0():\n"
-        "    # Assert\n"
-        "    assert module_0.f(1) == 2\n"
-        "    assert module_0.f(1) > 0\n"
-    )
-    fake_refiner.llm_client.generate_from_prompt.return_value = llm_response
+    mutants = [make_fake_mutant(i) for i in range(1, 6)]
+    refiner.llm_client.generate_from_prompt.return_value = _PREAMBLE + _EXISTING_TEST
 
     with (
-        patch("pynguin.refinement.pipeline.get_surviving_mutants", return_value=mutants_list),
-        patch("pynguin.refinement.pipeline.run_test", return_value=(True, "Test passed.")),
-        patch(
-            "pynguin.refinement.pipeline.check_coverage_preservation",
-            return_value=(True, MagicMock()),
-        ),
-        patch(
-            "pynguin.refinement.pipeline._killed_set",
-            side_effect=[set(), {0}, set(), {0}, set(), {0}],
-        ),
-        patch("inspect.getsource", return_value="def f(x): return x + 1"),
+        patch("pynguin.refinement.pipeline.create_mutants", return_value=(mutants, None)),
+        patch("pynguin.refinement.pipeline.killed_set", return_value=set()),
     ):
-        _, _, _ = fake_refiner.strengthen_module_mutations(
-            preamble=preamble,
-            refined_tests=tests,
-            max_iterations=1,
-            max_mutants_per_prompt=2,
+        refiner.strengthen_module_mutations(
+            _PREAMBLE, [_EXISTING_TEST], max_iterations=1, max_mutants_per_prompt=2
         )
 
     # 5 mutants chunked by 2 -> 3 chunks -> 3 prompt calls
-    assert fake_refiner.llm_client.generate_from_prompt.call_count == 3
-    # Every call used ModuleMutationStrengthenPrompt
-    for call_args in fake_refiner.llm_client.generate_from_prompt.call_args_list:
-        prompt_arg = call_args[0][0]
-        assert isinstance(prompt_arg, ModuleMutationStrengthenPrompt)
+    calls = refiner.llm_client.generate_from_prompt.call_args_list
+    assert len(calls) == 3
+    assert all(isinstance(call.args[0], ModuleMutationStrengthenPrompt) for call in calls)
 
 
-def test_strengthen_module_mutations_gate1_accepts_green_boundary_test(fake_refiner):
-    preamble = "import dummy_sut as module_0\n"
-    tests = ["def test_0():\n    assert module_0.f(1) == 2\n"]
-
-    mutant = MagicMock()
-    mutant.operator.__name__ = "RelationalOperatorReplacement"
-    mutant.node.lineno = 10
-    mutants_list = [(MagicMock(), [mutant])]
-
-    # LLM added a new boundary test test_boundary_empty()
-    llm_response = (
-        "import dummy_sut as module_0\n\n"
-        "def test_0():\n"
-        "    assert module_0.f(1) == 2\n\n"
-        "def test_boundary_empty():\n"
-        "    assert module_0.f(0) == 1\n"
+def test_strengthen_module_mutations_kills_boundary_mutants(refiner):
+    refiner.llm_client.generate_from_prompt.return_value = (
+        "import math\n"
+        "import strengthen_sut as module_0\n\n"
+        "def test_inc():\n"
+        "    # Act\n"
+        "    result = module_0.inc(1)\n"
+        "    # Assert\n"
+        "    assert result == 2\n"
+        "    assert isinstance(result, int)\n\n"
+        "def test_fallback_empty():\n"
+        "    assert module_0.fallback([]) == [0]\n"
+        "    assert math.isfinite(module_0.fallback([])[0])\n\n"
+        "def test_fallback_empty():\n"
+        "    assert False\n\n"
+        "def test_kills_nothing():\n"
+        "    assert module_0.inc(0) >= 0\n"
     )
-    fake_refiner.llm_client.generate_from_prompt.return_value = llm_response
 
-    with (
-        patch("pynguin.refinement.pipeline.get_surviving_mutants", return_value=mutants_list),
-        patch("pynguin.refinement.pipeline.run_test", return_value=(True, "Test passed.")),
-        patch(
-            "pynguin.refinement.pipeline.check_coverage_preservation",
-            return_value=(True, MagicMock()),
-        ),
-        patch("pynguin.refinement.pipeline._killed_set", side_effect=[set(), {0}]),
-        patch("inspect.getsource", return_value="def f(x): return x + 1"),
-    ):
-        _, updated_tests, _ = fake_refiner.strengthen_module_mutations(
-            preamble=preamble,
-            refined_tests=tests,
-            max_iterations=1,
-        )
-
-    assert len(updated_tests) == 2
-    assert any("test_boundary_empty" in t for t in updated_tests)
-
-
-def test_strengthen_module_mutations_gate1_discards_failing_boundary_test(fake_refiner):
-    preamble = "import dummy_sut as module_0\n"
-    tests = ["def test_0():\n    assert module_0.f(1) == 2\n"]
-
-    mutant = MagicMock()
-    mutant.operator.__name__ = "RelationalOperatorReplacement"
-    mutant.node.lineno = 10
-    mutants_list = [(MagicMock(), [mutant])]
-
-    # LLM added a failing boundary test
-    llm_response = (
-        "import dummy_sut as module_0\n\n"
-        "def test_0():\n"
-        "    assert module_0.f(1) == 2\n\n"
-        "def test_hallucinated_boundary():\n"
-        "    assert module_0.f(0) == 999\n"
+    preamble, tests, stats = refiner.strengthen_module_mutations(
+        _PREAMBLE, [_EXISTING_TEST], max_iterations=1
     )
-    fake_refiner.llm_client.generate_from_prompt.return_value = llm_response
 
-    def fake_run_test(code, _mod):
-        if "test_hallucinated_boundary" in code:
-            return False, "AssertionError: assert 1 == 999"
-        return True, "Test passed."
-
-    with (
-        patch("pynguin.refinement.pipeline.get_surviving_mutants", return_value=mutants_list),
-        patch("pynguin.refinement.pipeline.run_test", side_effect=fake_run_test),
-        patch(
-            "pynguin.refinement.pipeline.check_coverage_preservation",
-            return_value=(True, MagicMock()),
-        ),
-        patch("pynguin.refinement.pipeline._killed_set", side_effect=[set(), {0}]),
-        patch("inspect.getsource", return_value="def f(x): return x + 1"),
-    ):
-        _, updated_tests, _ = fake_refiner.strengthen_module_mutations(
-            preamble=preamble,
-            refined_tests=tests,
-            max_iterations=1,
-        )
-
-    # Failing new test was discarded! Only test_0 remains.
-    assert len(updated_tests) == 1
-    assert "test_hallucinated_boundary" not in updated_tests[0]
+    # The import the new test needs is added; existing comments survive.
+    assert "import math" in preamble
+    assert "    # Act\n    result = module_0.inc(1)\n" in tests[0]
+    assert "# Assert" in tests[0]
+    # The vacuous isinstance assertion is pruned, the boundary test is kept once,
+    # the new test that kills nothing is dropped.
+    assert "isinstance" not in tests[0]
+    assert len(tests) == 2
+    assert "module_0.fallback([]) == [0]" in tests[1]
+    assert "test_kills_nothing" not in "\n".join(tests)
+    assert stats["mutants_killed_total"] > 0
+    assert stats["assertions_removed"] >= 1
+    assert stats["mutants_generated"] >= stats["mutants_killed_total"]
 
 
-def test_strengthen_module_mutations_gate2_rejects_coverage_drop(fake_refiner):
-    preamble = "import dummy_sut as module_0\n"
-    tests = ["def test_0():\n    assert module_0.f(1) == 2\n"]
+def test_strengthen_module_mutations_rejects_output_that_kills_nothing(refiner):
+    refiner.llm_client.generate_from_prompt.return_value = (
+        _PREAMBLE + _EXISTING_TEST + "\n    assert isinstance(result, int)\n"
+    )
 
-    mutant = MagicMock()
-    mutant.operator.__name__ = "ArithmeticOperatorReplacement"
-    mutant.node.lineno = 5
-    mutants_list = [(MagicMock(), [mutant])]
+    _, tests, stats = refiner.strengthen_module_mutations(
+        _PREAMBLE, [_EXISTING_TEST], max_iterations=1
+    )
 
-    llm_response = "import dummy_sut as module_0\n\ndef test_0():\n    pass\n"
-    fake_refiner.llm_client.generate_from_prompt.return_value = llm_response
-
-    with (
-        patch("pynguin.refinement.pipeline.get_surviving_mutants", return_value=mutants_list),
-        patch("pynguin.refinement.pipeline.run_test", return_value=(True, "Test passed.")),
-        # Coverage drops -> returns False
-        patch(
-            "pynguin.refinement.pipeline.check_coverage_preservation",
-            return_value=(False, MagicMock()),
-        ),
-        patch("inspect.getsource", return_value="def f(x): return x + 1"),
-    ):
-        _, updated_tests, stats = fake_refiner.strengthen_module_mutations(
-            preamble=preamble,
-            refined_tests=tests,
-            max_iterations=1,
-        )
-
-    # Rejected due to coverage drop, tests unchanged
-    assert updated_tests == tests
+    assert tests == [_EXISTING_TEST]
     assert stats["mutants_killed_total"] == 0
+
+
+def test_strengthen_module_mutations_rejects_coverage_drop(refiner):
+    refiner.llm_client.generate_from_prompt.return_value = (
+        _PREAMBLE + "\ndef test_fallback_empty():\n    assert module_0.fallback([]) == [0]\n"
+    )
+
+    with patch(
+        "pynguin.refinement.pipeline.check_coverage_preservation",
+        return_value=(False, MagicMock()),
+    ):
+        _, tests, stats = refiner.strengthen_module_mutations(
+            _PREAMBLE, [_EXISTING_TEST], max_iterations=1
+        )
+
+    assert tests == [_EXISTING_TEST]
+    assert stats["mutants_killed_total"] == 0
+
+
+def test_gate1_strips_the_failing_assertion_not_the_first_one(refiner):
+    strengthened = _PREAMBLE + _EXISTING_TEST + "\n    assert result > 0\n    assert result == 5\n"
+
+    _, tests = refiner._validate_and_filter_strengthened_functions(
+        strengthened, _PREAMBLE, [_EXISTING_TEST]
+    )
+
+    assert "assert result > 0" in tests[0]
+    assert "result == 5" not in tests[0]
+    assert "# Assert" in tests[0]
+
+
+def test_gate1_discards_failing_new_test(refiner):
+    strengthened = (
+        _PREAMBLE + _EXISTING_TEST + "\n\n\ndef test_wrong():\n    assert module_0.inc(0) == 9\n"
+    )
+
+    _, tests = refiner._validate_and_filter_strengthened_functions(
+        strengthened, _PREAMBLE, [_EXISTING_TEST]
+    )
+
+    assert tests == [_EXISTING_TEST]
+
+
+def test_gate1_unparseable_response(refiner):
+    assert (
+        refiner._validate_and_filter_strengthened_functions("def (", _PREAMBLE, [_EXISTING_TEST])
+        is None
+    )
+
+
+def test_gate1_keeps_xfail_tests_and_their_markers(refiner):
+    xfail_test = (
+        "@pytest.mark.xfail(strict=True)\ndef test_raises():\n    # Act\n    module_0.inc(None)"
+    )
+    preamble = "import pytest\n" + _PREAMBLE
+
+    _, tests = refiner._validate_and_filter_strengthened_functions(
+        preamble + "\n" + xfail_test + "\n", preamble, [xfail_test]
+    )
+
+    assert tests == [xfail_test]
 
 
 def test_refine_generated_tests_dispatches_full_module_strengthening(tmp_path, monkeypatch):

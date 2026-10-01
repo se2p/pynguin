@@ -44,7 +44,7 @@ robust and is the automatic **fallback**.
 
 ### Mutation strengthening granularity (`mutation_granularity`)
 
-- `full_module` (**default**): Detects surviving mutants across the whole suite, batches them (up to `max_mutants_per_prompt`, default 15), and prompts the LLM to strengthen existing tests or add new boundary tests using `ModuleMutationStrengthenPrompt`. Employs a 3-gate validation pipeline (clean SUT execution with assertion stripping, coverage preservation check, mutant verification).
+- `full_module` (**default**): Detects surviving mutants across the whole suite, batches them (up to `max_mutants_per_prompt`, default 15), and prompts the LLM to strengthen existing tests or add new boundary tests using `ModuleMutationStrengthenPrompt`. Employs a 3-gate validation pipeline per chunk: clean SUT execution with assertion stripping (failing new tests are discarded), mutant verification (the chunk must kill additional mutants; added assertions and new tests that kill none are pruned), and a coverage preservation check. Test functions in a module are run one by one with pytest's `xfail` semantics (`validator.call_test_functions`), so an expected failure neither counts as a kill nor hides later tests.
 - `per_test`: Legacy loop prompting up to 10 surviving mutants per test function.
 
 ### Module path (`_process_module`)

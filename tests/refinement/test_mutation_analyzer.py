@@ -17,15 +17,15 @@ from pynguin.refinement.mutation_analyzer import (
     _assertion_removal_lines,  # noqa: PLC2701
     _AssertionAnalysis,  # noqa: PLC2701
     _build_filtered_test,  # noqa: PLC2701
-    _create_mutants,  # noqa: PLC2701
     _evaluate_inferred,  # noqa: PLC2701
     _index_all_assertions,  # noqa: PLC2701
-    _killed_set,  # noqa: PLC2701
     _remove_assertion_by_index,  # noqa: PLC2701
     _run_test_against_mutant,  # noqa: PLC2701
     _vacuous_stats,  # noqa: PLC2701
+    create_mutants,
     filter_vacuous_assertions,
     get_surviving_mutants,
+    killed_set,
 )
 
 
@@ -76,6 +76,47 @@ def test_run_test_against_mutant_killed_when_test_fails():
     assert _run_test_against_mutant(code, mutant, "fakemod") is True
 
 
+def test_run_test_against_mutant_runs_every_test_function():
+    mutant = _make_module("fakemod", value=2)
+    code = (
+        "def test_a():\n    assert fakemod.value > 0\n\n"
+        "def test_b():\n    assert fakemod.value == 1\n"
+    )
+    assert _run_test_against_mutant(code, mutant, "fakemod") is True
+
+
+def test_run_test_against_mutant_expected_xfail_is_not_a_kill():
+    mutant = _make_module("fakemod", value=1)
+    code = (
+        "import pytest\n\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_raises():\n    raise ValueError\n\n"
+        "def test_value():\n    assert fakemod.value == 1\n"
+    )
+    assert _run_test_against_mutant(code, mutant, "fakemod") is False
+
+
+def test_run_test_against_mutant_xfail_does_not_hide_later_tests():
+    mutant = _make_module("fakemod", value=2)
+    code = (
+        "import pytest\n\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_raises():\n    raise ValueError\n\n"
+        "def test_value():\n    assert fakemod.value == 1\n"
+    )
+    assert _run_test_against_mutant(code, mutant, "fakemod") is True
+
+
+def test_run_test_against_mutant_strict_xpass_is_a_kill():
+    mutant = _make_module("fakemod", value=2)
+    code = (
+        "import pytest\n\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_raises():\n    assert fakemod.value == 2\n"
+    )
+    assert _run_test_against_mutant(code, mutant, "fakemod") is True
+
+
 def test_killed_set_reports_killed_indices():
     code = "def test_x():\n    assert fakemod.value == 1\n"
     mutants = [
@@ -83,7 +124,7 @@ def test_killed_set_reports_killed_indices():
         (_make_module("fakemod", value=1), None),  # survives
         (None, None),  # skipped
     ]
-    assert _killed_set(code, mutants, "fakemod") == {0}
+    assert killed_set(code, mutants, "fakemod") == {0}
 
 
 def test_vacuous_stats_defaults_and_error():
@@ -97,7 +138,7 @@ def test_vacuous_stats_defaults_and_error():
 def test_create_mutants_returns_error_for_module_without_file():
     module = types.ModuleType("no_file")
     module.__file__ = None
-    mutants, error = _create_mutants(module, max_mutants=3)
+    mutants, error = create_mutants(module, max_mutants=3)
     assert mutants == []
     assert error is not None
 
@@ -105,7 +146,7 @@ def test_create_mutants_returns_error_for_module_without_file():
 def test_create_mutants_returns_error_when_file_missing(tmp_path):
     module = types.ModuleType("missing_file")
     module.__file__ = str(tmp_path / "not_there.py")
-    mutants, error = _create_mutants(module, max_mutants=3)
+    mutants, error = create_mutants(module, max_mutants=3)
     assert mutants == []
     assert "not found" in (error or "")
 
@@ -144,7 +185,7 @@ def test_evaluate_inferred_reports_per_test_and_suite_level(monkeypatch):
         {0, 2},  # without assertion idx=1
     ])
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._killed_set",
+        "pynguin.refinement.mutation_analyzer.killed_set",
         lambda *_args, **_kwargs: next(responses),
     )
 
@@ -175,7 +216,7 @@ def test_filter_vacuous_assertions_create_mutants_error(monkeypatch):
     module = types.ModuleType("m")
     module.__file__ = str(Path(__file__))
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._create_mutants",
+        "pynguin.refinement.mutation_analyzer.create_mutants",
         lambda *_args, **_kwargs: ([], "mutant failure"),
     )
     code, stats = filter_vacuous_assertions(original, refined, module_under_test=module)
@@ -189,7 +230,7 @@ def test_filter_vacuous_assertions_no_mutants(monkeypatch):
     module = types.ModuleType("m")
     module.__file__ = str(Path(__file__))
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._create_mutants",
+        "pynguin.refinement.mutation_analyzer.create_mutants",
         lambda *_args, **_kwargs: ([], None),
     )
     code, stats = filter_vacuous_assertions(original, refined, module_under_test=module)
@@ -204,7 +245,7 @@ def test_filter_vacuous_assertions_no_inferred_indices(monkeypatch):
     module = types.ModuleType("m")
     module.__file__ = str(Path(__file__))
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._create_mutants",
+        "pynguin.refinement.mutation_analyzer.create_mutants",
         lambda *_args, **_kwargs: ([(_make_module("m"), None)], None),
     )
     _, stats = filter_vacuous_assertions(original, refined, module_under_test=module)
@@ -218,7 +259,7 @@ def test_filter_vacuous_assertions_removes_non_contributing_assertion(monkeypatc
     module.__file__ = str(Path(__file__))
 
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._create_mutants",
+        "pynguin.refinement.mutation_analyzer.create_mutants",
         lambda *_args, **_kwargs: ([(_make_module("m"), None)], None),
     )
     monkeypatch.setattr(
@@ -247,14 +288,14 @@ def test_filter_vacuous_assertions_removes_non_contributing_assertion(monkeypatc
 def test_get_surviving_mutants(monkeypatch):
     module = types.ModuleType("module_0")
     module.__file__ = "dummy.py"
-    # Mock _create_mutants to return a mock mutant
+    # Mock create_mutants to return a mock mutant
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._create_mutants",
+        "pynguin.refinement.mutation_analyzer.create_mutants",
         lambda *_args, **_kwargs: ([("mutant_module", "mutations")], None),
     )
-    # Mock _killed_set to return empty (mutant survived)
+    # Mock killed_set to return empty (mutant survived)
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._killed_set",
+        "pynguin.refinement.mutation_analyzer.killed_set",
         lambda *_args, **_kwargs: set(),
     )
     survivors = get_surviving_mutants("def test_x(): pass", module)
@@ -264,18 +305,18 @@ def test_get_surviving_mutants(monkeypatch):
 
 def test_get_surviving_mutants_excludes_failed_builds(monkeypatch):
     # Regression: mutants that failed to build (module is None) are skipped by
-    # _killed_set and must not be reported as survivors.
+    # killed_set and must not be reported as survivors.
     module = types.ModuleType("module_0")
     module.__file__ = "dummy.py"
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._create_mutants",
+        "pynguin.refinement.mutation_analyzer.create_mutants",
         lambda *_args, **_kwargs: (
             [(None, "mutations"), ("mutant_module", "mutations")],
             None,
         ),
     )
     monkeypatch.setattr(
-        "pynguin.refinement.mutation_analyzer._killed_set",
+        "pynguin.refinement.mutation_analyzer.killed_set",
         lambda *_args, **_kwargs: set(),
     )
     survivors = get_surviving_mutants("def test_x(): pass", module)
