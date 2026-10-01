@@ -11,6 +11,8 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, Any
 
+import libcst as cst
+
 import pynguin.configuration as config
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.utils import randomness
@@ -117,7 +119,10 @@ class TestCaseMutation(MutationOperator):
         while position <= last_mutatable_statement and position < chromosome.size():
             if randomness.next_float() < p_per_statement:
                 statement = chromosome.test_case.get_statement(position)
-                if statement.bound_variable is not None and chromosome._mutate_statement(  # noqa: SLF001
+                if (
+                    statement.bound_variable is not None
+                    or isinstance(statement.node, cst.BaseCompoundStatement)
+                ) and chromosome._mutate_statement(  # noqa: SLF001
                     position, statement
                 ):
                     changed = True
@@ -152,6 +157,10 @@ class TestCaseMutation(MutationOperator):
             # bound variable (Evosuite change_statement_type). On failure, fall
             # through to the regular value/call mutation below.
             return True
+        if isinstance(statement.node, cst.BaseCompoundStatement):
+            return test_factory.mutate_compound_statement(
+                chromosome.test_case, position, chromosome.get_last_execution_result()
+            )
         if statement.accessible is None:
             # Primitive statement: regenerate the literal value.
             return test_factory.mutate_value(
