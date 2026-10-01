@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import libcst as cst
+import pytest
 
 import pynguin.assertion.assertion as ass
 import pynguin.ga.testcasechromosome as tcc
@@ -44,8 +45,6 @@ from tests.testcase._builders import assign, int_stmt, make_test_case, stmt
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 class _CustomExportError(Exception):
@@ -232,6 +231,37 @@ def test_build_test_function_raw_code_docstring_only_appends_pass(monkeypatch):
     func, _ = writer._build_test_function(0, test_case, [])
 
     assert _code_of(func) == 'def test_0():\n    """Raw docstring."""\n    pass\n'
+
+
+def test_build_test_function_import_only_appends_pass():
+    """A test case containing only an import emits a function body with a pass."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("import os"))
+
+    func, _ = writer._build_test_function(0, test_case, [None])
+
+    assert _code_of(func) == "def test_0():\n    import os\n    pass\n"
+
+
+@pytest.mark.parametrize(
+    "code, expected",
+    [
+        ("import os", False),
+        ("from os import path, sep", False),
+        ("import os; import sys", False),
+        ("global x", False),
+        ("nonlocal x", False),
+        ('"""Doc."""', False),
+        ("import os; x = 1", True),
+        ("x = 1", True),
+        ("os.getcwd()", True),
+    ],
+)
+def test_is_executable_cst_statement(code: str, expected: bool):  # noqa: FBT001
+    """Imports and global/nonlocal declarations alone are not executable."""
+    node = cst.parse_module(code).body[0]
+
+    assert export._is_executable_cst_statement(node) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -1043,6 +1073,34 @@ def test_write_filters_out_docstring_only_and_noop_tests(tmp_path: Path):
     assert "def test_1():\n    int_1 = 2\n    assert int_1 == 2\n" in content
     assert "def test_2():" not in content
     assert "Docstring only" not in content
+
+
+def test_write_filters_out_import_only_tests(tmp_path: Path):
+    """Test cases left with only imports (plus a docstring) are not exported."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    tc_valid = make_test_case(int_stmt("int_0", 1))
+    tc_valid.get_statement(0).assertions.append(ass.ObjectAssertion("int_0", 1))
+    tc_import = make_test_case(stmt("import os"))
+    tc_import_from = make_test_case(stmt("from os import (\n    path,\n    sep,\n)"))
+    tc_import_docstring = make_test_case(
+        stmt('"""Only imports survived."""'), stmt("import collections")
+    )
+
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_import))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_valid))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_import_from))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_import_docstring))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+    content = out_file.read_text(encoding="utf-8")
+
+    assert "def test_0():\n    int_0 = 1\n    assert int_0 == 1\n" in content
+    assert "def test_1():" not in content
+    assert "import os" not in content
+    assert "from os import" not in content
+    assert "Only imports survived" not in content
 
 
 def test_write_all_noop_tests_falls_back_to_test_empty(tmp_path: Path):
