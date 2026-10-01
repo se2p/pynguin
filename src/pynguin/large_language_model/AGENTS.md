@@ -189,6 +189,8 @@ Tracks to `RuntimeVariable` (the call, time and token totals are summed over all
 - `LLMAssertionLifted`
 - `LLMAssertionKeptRaw`
 - `LLMAssertionDropped`
+- `LLMImportNamesRepaired`
+- `LLMImportNamesDropped`
 
 ## Debugging Support
 

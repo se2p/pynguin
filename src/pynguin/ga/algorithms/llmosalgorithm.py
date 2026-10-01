@@ -143,8 +143,34 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 "archive will not be seeded with LLM test cases.",
                 len(llm_chromosomes),
             )
+            self._log_common_failure(llm_chromosomes)
             return
         self._update_archive_with_initial_tests(working_chromosomes)
+
+    def _log_common_failure(self, chromosomes: list[tcc.TestCaseChromosome]) -> None:
+        """Log the exception if every candidate chromosome failed with the same one.
+
+        A single systematic problem (e.g. an ``ImportError`` in a shared import)
+        otherwise silently discards every LLM test case.
+
+        Args:
+            chromosomes: The executed candidate chromosomes.
+        """
+        failures: set[str] = set()
+        for chromosome in chromosomes:
+            result = chromosome.get_last_execution_result()
+            exceptions = result.exceptions if result is not None else None
+            if not isinstance(exceptions, dict) or not exceptions:
+                return
+            first = exceptions[min(exceptions)]
+            failures.add(repr(first))
+            if len(failures) > 1:
+                return
+        if failures:
+            self._logger.warning(
+                "All initial LLM test cases failed with the same exception: %s",
+                failures.pop(),
+            )
 
     def _generate_initial_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:
         """Generate initial test cases using the LLM for the module under test.
