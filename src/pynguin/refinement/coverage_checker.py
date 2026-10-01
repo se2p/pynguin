@@ -135,7 +135,15 @@ def _measure_coverage_pynguin(
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
-                if func_name and func_name in scope and callable(scope[func_name]):
+                test_funcs = [
+                    obj
+                    for name, obj in list(scope.items())
+                    if callable(obj) and name.startswith("test_")
+                ]
+                if test_funcs:
+                    for test_func in test_funcs:
+                        test_func()
+                elif func_name and func_name in scope and callable(scope[func_name]):
                     scope[func_name]()
         except BaseException as exc:  # noqa: BLE001
             # Catch BaseException because Pynguin's
@@ -249,7 +257,15 @@ def _measure_coverage_settrace(
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
-                if func_name and func_name in scope and callable(scope[func_name]):
+                test_funcs = [
+                    obj
+                    for name, obj in list(scope.items())
+                    if callable(obj) and name.startswith("test_")
+                ]
+                if test_funcs:
+                    for test_func in test_funcs:
+                        test_func()
+                elif func_name and func_name in scope and callable(scope[func_name]):
                     scope[func_name]()
         finally:
             sys.settrace(old_trace)

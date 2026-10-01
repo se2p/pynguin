@@ -28,9 +28,10 @@ and repairs tests that break. Enabled with `llm_refinement.enabled=True`.
 
 ## Refinement granularity
 
-`refinement_granularity` (enum `configuration.RefinementGranularity`) controls **only** the
-readability and semantic-assertion stages. Repair and mutation-strengthening are always
-per-test. Let `T` = number of tests.
+`refinement_granularity` (enum `configuration.RefinementGranularity`) controls the
+readability and semantic-assertion stages. Mutation strengthening is controlled by
+`mutation_granularity` (enum `configuration.MutationStrengtheningGranularity`, default: `full_module`).
+Repair stays per-broken-test. Let `T` = number of tests.
 
 | Mode | Readability + assertions | Requests (those stages) | Path |
 | --- | --- | --- | --- |
@@ -40,6 +41,11 @@ per-test. Let `T` = number of tests.
 
 `combined` is the most token-efficient and highest-variance mode; `per_test` is the most
 robust and is the automatic **fallback**.
+
+### Mutation strengthening granularity (`mutation_granularity`)
+
+- `full_module` (**default**): Detects surviving mutants across the whole suite, batches them (up to `max_mutants_per_prompt`, default 15), and prompts the LLM to strengthen existing tests or add new boundary tests using `ModuleMutationStrengthenPrompt`. Employs a 3-gate validation pipeline (clean SUT execution with assertion stripping, coverage preservation check, mutant verification).
+- `per_test`: Legacy loop prompting up to 10 surviving mutants per test function.
 
 ### Module path (`_process_module`)
 
@@ -79,13 +85,12 @@ or parse failure falls the entire module back to per-test.
 - **Repair stays per-broken-test.** `validator.run_test` runs one function at a time;
   `_run_repair_loop` calls the LLM only on failing tests (assertion failures are stripped
   locally, no LLM). Never batch repair.
-- **Mutation-strengthening stays per-test** (survivor detection is inherently per-test).
-- Module-level responses must preserve the total number and order of tests, imports, and
-  `module_0.` call prefixes — otherwise missing tests fall back to per-test.
+- **Mutation-strengthening supports full_module (default) and per_test.**
+- Module-level responses must preserve imports and `module_0.` call prefixes.
 
 ## Prompts
 
 Per-test: `ReadabilityRefinementPrompt`, `SemanticAssertionsPrompt`, `RepairPrompt`,
 `MutationStrengthenPrompt`. Module-level: `ModuleReadabilityRefinementPrompt`,
-`ModuleSemanticAssertionsPrompt`, `ModuleRefinementPrompt` (see
+`ModuleSemanticAssertionsPrompt`, `ModuleRefinementPrompt`, `ModuleMutationStrengthenPrompt` (see
 `../large_language_model/prompts/AGENTS.md`).

@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from pynguin.large_language_model.prompts import (
+    ModuleMutationStrengthenPrompt,
     ModuleReadabilityRefinementPrompt,
     ModuleRefinementPrompt,
     ModuleSemanticAssertionsPrompt,
@@ -60,3 +61,28 @@ def test_module_prompt_preserves_module_0_prefix_instruction(prompt_cls):
     assert "module_0." in user_content
     # Every module prompt must forbid dropping or merging test functions.
     assert "do not drop" in user_content.lower()
+
+
+def test_module_mutation_strengthen_prompt_render():
+    sut_code = "def f(x):\n    return x + 1\n"
+    test_code = "import module_0\n\ndef test_0():\n    module_0.f(1)\n"
+    mutants = "Line 2: Mutated '+' to '-' (operator: ArithmeticOperatorReplacement)"
+
+    prompt = ModuleMutationStrengthenPrompt(
+        module_code=sut_code,
+        module_test_code=test_code,
+        surviving_mutants=mutants,
+    )
+    assert prompt._template_vars() == ["module_code", "module_test_code", "surviving_mutants"]
+
+    request = prompt.render_request()
+    assert request.messages[0]["role"] == "system"
+    assert request.messages[1]["role"] == "user"
+    user_content = request.messages[1]["content"]
+
+    assert sut_code in user_content
+    assert test_code in user_content
+    assert mutants in user_content
+    assert "module_0." in user_content
+    assert request.temperature == 0.0
+    assert request.max_tokens is None

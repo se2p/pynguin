@@ -6,6 +6,9 @@
 #
 """Provides code related to Large Language Model(LLM) prompts."""
 
+from pynguin.large_language_model.prompts.modulemutationstrengthenprompt import (
+    ModuleMutationStrengthenPrompt,
+)
 from pynguin.large_language_model.prompts.modulereadabilityrefinementprompt import (
     ModuleReadabilityRefinementPrompt,
 )
@@ -27,6 +30,7 @@ from pynguin.large_language_model.prompts.semanticassertionsprompt import (
 )
 
 __all__ = [
+    "ModuleMutationStrengthenPrompt",
     "ModuleReadabilityRefinementPrompt",
     "ModuleRefinementPrompt",
     "ModuleSemanticAssertionsPrompt",

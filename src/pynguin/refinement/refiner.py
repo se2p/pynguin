@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-from pynguin.configuration import RefinementGranularity
+from pynguin.configuration import MutationStrengtheningGranularity, RefinementGranularity
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
 from pynguin.refinement.pipeline import TestRefiner, _strip_xfail_decorator
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
@@ -727,6 +727,22 @@ def refine_generated_tests(
         for outcome in outcomes:
             refined_tests.append(outcome.func_text)
             _accumulate_outcome(stats, mutation, outcome)
+
+        ref_config = config.configuration.llm_refinement
+        if (
+            ref_config.enable_mutation_strengthening
+            and ref_config.mutation_granularity == MutationStrengtheningGranularity.FULL_MODULE
+            and module_under_test is not None
+        ):
+            _LOGGER.info("Running module-level mutation strengthening...")
+            preamble, refined_tests, mod_mut_stats = refiner.strengthen_module_mutations(
+                preamble=preamble,
+                refined_tests=refined_tests,
+                max_iterations=ref_config.max_mutation_iterations,
+                max_mutants_per_prompt=ref_config.max_mutants_per_prompt,
+                max_surviving_mutants=ref_config.max_surviving_mutants,
+            )
+            mutation.add(stats, mod_mut_stats)
 
         _finalize_readability(stats)
         mutation.finalize(stats)

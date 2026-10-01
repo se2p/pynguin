@@ -107,11 +107,10 @@ def _run_test_against_mutant(
         with time_limit(resolve_timeout(None)):
             exec(compiled, test_globals)  # noqa: S102
 
-            # Find and call the test function
-            for name, obj in test_globals.items():
+            # Find and call all test functions
+            for name, obj in list(test_globals.items()):
                 if callable(obj) and name.startswith("test_"):
                     obj()
-                    break
 
         return False  # Test passed → mutant survived
     except TestExecutionTimeoutError:
