@@ -250,8 +250,9 @@ def _is_executable_cst_statement(
 ) -> bool:
     """Check whether a CST statement is executable.
 
-    Pass statements, string literal expressions (such as docstrings), and ellipsis
-    expressions are considered non-executable.
+    Pass statements, string literal expressions (such as docstrings), ellipsis
+    expressions, imports, and ``global``/``nonlocal`` declarations are considered
+    non-executable: a test body made only of them exercises no SUT code.
 
     Args:
         stmt: The CST statement to check.
@@ -261,7 +262,7 @@ def _is_executable_cst_statement(
     """
     if isinstance(stmt, cst.BaseCompoundStatement):
         return True
-    if isinstance(stmt, cst.Pass):
+    if isinstance(stmt, (cst.Pass, cst.Import, cst.ImportFrom, cst.Global, cst.Nonlocal)):
         return False
     if isinstance(stmt, cst.Expr):
         return not isinstance(stmt.value, (cst.SimpleString, cst.FormattedString, cst.Ellipsis))
