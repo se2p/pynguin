@@ -1014,6 +1014,24 @@ def test_build_sut_import_statements_sys_under_other_name(monkeypatch: pytest.Mo
     assert "from sut_with_stdlib import" not in code
 
 
+def test_build_sut_import_statements_sut_package_module_through_sut(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A module of the SUT's own package is imported through the SUT, not by __name__."""
+    helper = types.ModuleType("srcpkg.pkg.helper")
+    monkeypatch.setitem(sys.modules, "srcpkg.pkg.helper", helper)
+    fake_mod = types.ModuleType("srcpkg.pkg.mod")
+    fake_mod.helper = helper
+    monkeypatch.setitem(sys.modules, "srcpkg.pkg.mod", fake_mod)
+    monkeypatch.setattr(export, "canonical_module_name", lambda _: "pkg.mod")
+
+    stmts = export._build_sut_import_statements("srcpkg.pkg.mod", used_names={"helper"})
+
+    code = cst.Module(body=stmts).code
+    assert "from pkg.mod import helper\n" in code
+    assert "srcpkg.pkg.helper" not in code
+
+
 def test_build_sut_import_statements_no_used_names(monkeypatch: pytest.MonkeyPatch):
     """With no referenced SUT names, no ``from <sut> import`` line is emitted."""
     _register_fake_sut(monkeypatch, "sut_with_stdlib")
