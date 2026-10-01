@@ -582,7 +582,8 @@ class TestSuite:
         "helper",
         "val",
     ]
-    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+    # Target is flattened to type('Target', (), {}), so only helper is ADMITTED_COMPOUND.
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
     assert result.counts[Disposition.ASSERTION_LIFTED] == 1
 
 

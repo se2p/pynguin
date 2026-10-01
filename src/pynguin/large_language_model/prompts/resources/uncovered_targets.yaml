@@ -26,6 +26,10 @@ user_message_template: |
     outcome). Address the hint directly — construct valid inputs to reach it, or vary
     one input/state axis to flip an unobserved branch.
   - Write test functions named `test_<callable>_<scenario>`.
+  - When testing class properties, descriptors, or callables that require a dummy class,
+    do not define nested `class` statements. Instead, create classes dynamically using
+    `type('ClassName', (), {'attr': value})` or `cls = type('ClassName', (), {})` followed
+    by attribute assignment. Keep tests flat.
   {% if visibility_instructions -%}
   - {{ visibility_instructions }}
   {% endif %}
