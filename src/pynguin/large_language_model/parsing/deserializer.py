@@ -529,10 +529,11 @@ def _restrict_import_to_names(
 
     Returns:
         The import with only the needed aliases, or ``None`` if none is needed.
-        Star imports are returned unchanged.
+        Star imports always yield ``None``: ``import *`` is only allowed at
+        module level, so it must never be hoisted into a test function.
     """
     if isinstance(node.names, cst.ImportStar):
-        return node
+        return None
     kept = []
     for alias in node.names:
         bare = alias.with_changes(comma=cst.MaybeSentinel.DEFAULT)

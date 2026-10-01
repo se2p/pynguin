@@ -8,6 +8,7 @@
 
 import importlib
 import re
+import textwrap
 from collections import Counter
 from unittest.mock import MagicMock, patch
 
@@ -1452,6 +1453,22 @@ def test_foo():
     assert "json" not in source
     assert "from collections import deque\n" in source
     assert "OrderedDict" not in source
+
+
+def test_module_level_star_import_is_not_hoisted(test_cluster, monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+from collections import *
+def test_foo():
+    d = deque()
+def test_bar():
+    x = 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=False)
+    for test_case in result.test_cases:
+        source = test_case.to_code()
+        assert "import *" not in source
+        compile(f"def test_x():\n{textwrap.indent(source, '    ')}", "<test>", "exec")
 
 
 def test_shared_import_with_bad_name_only_breaks_its_users(test_cluster, monkeypatch):
