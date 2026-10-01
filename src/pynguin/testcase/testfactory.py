@@ -19,12 +19,13 @@ import collections.abc
 import inspect
 import logging
 import types
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import libcst as cst
 
 import pynguin.configuration as config
 import pynguin.testcase.mock_templates_store as _mock_store
+import pynguin.testcase.testcase as tc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TupleType, TypeVarType
@@ -36,7 +37,6 @@ from pynguin.utils.naming import get_module_alias
 from pynguin.utils.pynguinml import ndarray_cst
 
 if TYPE_CHECKING:
-    import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.typesystem import InferredSignature
     from pynguin.mock_generation.mock_generator import MockTemplate
@@ -300,6 +300,33 @@ def _function_call_name(accessible: gao.GenericFunction) -> str | None:
     return name if isinstance(name, str) and name.isidentifier() else None
 
 
+class _CompoundLiteralCollector(cst.CSTVisitor):
+    def __init__(self) -> None:
+        super().__init__()
+        self.candidates: list[tuple[cst.BaseExpression, type]] = []
+
+    def on_visit(self, node: cst.CSTNode) -> bool:
+        if isinstance(node, cst.BaseExpression):
+            t = literalgen.infer_literal_type(node)
+            if t in literalgen.LITERAL_TYPES:
+                self.candidates.append((node, t))
+        return True
+
+
+class _CompoundLiteralReplacer(cst.CSTTransformer):
+    def __init__(self, target: cst.BaseExpression, replacement: cst.BaseExpression) -> None:
+        super().__init__()
+        self.target = target
+        self.replacement = replacement
+        self.replaced = False
+
+    def on_leave(self, original_node: cst.CSTNode, updated_node: cst.CSTNode):
+        if original_node is self.target and not self.replaced:
+            self.replaced = True
+            return self.replacement
+        return updated_node
+
+
 class TestFactory:
     """A factory for libcst-backed test-case generation.
 
@@ -407,7 +434,7 @@ class TestFactory:
         else:
             test_case.insert_statement(position, statement)
 
-    def has_call_on_sut(self, test_case: tc.TestCase) -> bool:
+    def has_call_on_sut(self, test_case: tc.TestCase) -> bool:  # noqa: C901
         """Return whether *test_case* contains a call to an accessible under test.
 
         Args:
@@ -417,10 +444,36 @@ class TestFactory:
             True if any statement calls an accessible object under test.
         """
         under_test = self._test_cluster.accessible_objects_under_test
-        return any(
-            statement.accessible is not None and statement.accessible in under_test
-            for statement in test_case.statements()
-        )
+        sut_names: set[str] = {self._module_alias()}
+        for acc in under_test:
+            if hasattr(acc, "function_name") and acc.function_name:
+                sut_names.add(acc.function_name)
+            if hasattr(acc, "method_name") and acc.method_name:
+                sut_names.add(acc.method_name)
+            if hasattr(acc, "owner") and acc.owner:
+                sut_names.add(acc.owner.name)
+            if hasattr(acc, "field") and acc.field:
+                sut_names.add(acc.field)
+
+        class _SutReferenceCollector(cst.CSTVisitor):
+            def __init__(self) -> None:
+                super().__init__()
+                self.has_sut_reference = False
+
+            def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
+                if node.value in sut_names:
+                    self.has_sut_reference = True
+                return not self.has_sut_reference
+
+        for statement in test_case.statements():
+            if statement.accessible is not None and statement.accessible in under_test:
+                return True
+            if isinstance(statement.node, cst.BaseCompoundStatement):
+                collector = _SutReferenceCollector()
+                statement.node.visit(collector)
+                if collector.has_sut_reference:
+                    return True
+        return False
 
     @staticmethod
     def delete_statement(test_case: tc.TestCase, position: int) -> bool:
@@ -551,6 +604,8 @@ class TestFactory:
             return False
         stmt = test_case.get_statement(position)
         if stmt.bound_variable is None:
+            return False
+        if isinstance(stmt.node, cst.BaseCompoundStatement):
             return False
 
         probability = randomness.next_float()
@@ -2205,6 +2260,70 @@ class TestFactory:
         test_case.replace_statement(
             position,
             Statement(
+                node=new_node,
+                bound_variable=stmt.bound_variable,
+                bound_type=stmt.bound_type,
+                assertions=list(stmt.assertions),
+                accessible=None,
+            ),
+        )
+        return True
+
+    def mutate_compound_statement(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        execution_result: ExecutionResult | None = None,
+    ) -> bool:
+        """Perturb a literal value inside a compound statement at *position*.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to mutate.
+            execution_result: Optional last execution result.
+
+        Returns:
+            True if the statement was mutated.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        stmt = test_case.get_statement(position)
+        if not isinstance(stmt.node, cst.BaseCompoundStatement):
+            return False
+
+        collector = _CompoundLiteralCollector()
+        stmt.node.visit(collector)
+
+        if not collector.candidates:
+            return False
+
+        target_node, raw_type = randomness.choice(collector.candidates)
+
+        collection_trace = (
+            execution_result.collection_trace.get(position)
+            if execution_result is not None
+            and config.configuration.test_creation.track_collection_accesses
+            else None
+        )
+
+        new_expr = literalgen.mutate_literal(
+            target_node,
+            raw_type,
+            self._constant_provider,
+            [],
+            collection_trace=collection_trace,
+        )
+
+        replacer = _CompoundLiteralReplacer(target_node, new_expr)
+
+        new_node = cast("cst.BaseCompoundStatement", stmt.node.visit(replacer))
+
+        if not replacer.replaced:
+            return False
+
+        test_case.replace_statement(
+            position,
+            tc.Statement(
                 node=new_node,
                 bound_variable=stmt.bound_variable,
                 bound_type=stmt.bound_type,
