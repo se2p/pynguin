@@ -247,24 +247,36 @@ def _public_sut_names(module: object, module_alias: str) -> list[str]:
     return sorted(name for name in dir(module) if not name.startswith("_") and name != module_alias)
 
 
-def _direct_module_import(name: str, value: object) -> str | None:
+def _direct_module_import(
+    name: str, value: object, sut_packages: frozenset[str] = frozenset()
+) -> str | None:
     """Return a direct import binding *name* to the module *value*, if possible.
 
     A module the SUT merely imported (``os``, ``datetime``) should be imported
     by the test file itself rather than through the SUT, so the tests do not
     depend on the SUT's own imports.
 
+    Modules of the SUT's own top-level package are excluded: their runtime
+    ``__name__`` may differ from the canonical name the test file imports the SUT
+    under (e.g. ``src.pkg.helper`` for a SUT emitted as ``pkg.mod``), so importing
+    them by ``__name__`` could fail or load a second copy. They stay imported
+    through the SUT.
+
     Args:
         name: The name the SUT binds the module to.
         value: The object bound to *name* in the SUT.
+        sut_packages: The top-level package names of the SUT, both as
+            configured and as canonically emitted.
 
     Returns:
         The import source, or ``None`` if *value* is not a module that can be
-        imported by its own name.
+        imported directly by its own name.
     """
     if not isinstance(value, types.ModuleType):
         return None
     real_name = value.__name__
+    if real_name.split(".", 1)[0] in sut_packages:
+        return None
     if sys.modules.get(real_name) is not value:
         return None
     if real_name == name:
@@ -302,6 +314,10 @@ def _build_sut_import_statements(
 
     canonical_name = canonical_module_name(module_name)
     module_alias = get_module_alias(module_name)
+    sut_packages = frozenset({
+        module_name.split(".", 1)[0],
+        canonical_name.split(".", 1)[0],
+    })
     module_imports: list[str] = []
     from_names: list[str] = []
     try:
@@ -314,10 +330,10 @@ def _build_sut_import_statements(
         if used_names is not None and name not in used_names:
             continue
         value = getattr(sut_mod, name, None)
-        if value is sys:
+        if name == "sys" and value is sys:
             # Already bound by the header's ``import sys``.
             continue
-        direct_import = _direct_module_import(name, value)
+        direct_import = _direct_module_import(name, value, sut_packages)
         if direct_import is not None:
             module_imports.append(direct_import)
         else:
