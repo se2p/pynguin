@@ -523,6 +523,7 @@ def test_is_type_picklable():
     assert is_type_picklable(dict[str, int]) is True
     assert is_type_picklable(int | str) is True
     assert is_type_picklable(None) is True
+    assert is_type_picklable(type(None)) is True
     assert is_type_picklable(42) is True
 
     # Local class inside a function cannot be pickled by global name
