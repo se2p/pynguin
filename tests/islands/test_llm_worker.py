@@ -12,11 +12,13 @@ import dataclasses
 import logging
 import queue
 import threading
+import time
 from unittest.mock import MagicMock
 
 import multiprocess as mp
 
 import pynguin.configuration as config
+from pynguin import generator
 from pynguin.islands import llm_worker
 from pynguin.islands.llm_worker import LLMWorkerTask, llm_worker_main
 from pynguin.islands.llm_worker_protocol import StatusReport
@@ -24,9 +26,10 @@ from pynguin.islands.llm_worker_protocol import StatusReport
 
 @dataclasses.dataclass
 class _FakeTestCase:
-    """A plain, hashable stand-in for TestCase -- MagicMock's to_code() isn't a
-    real string, which compute_test_case_hash() needs.
-    """  # noqa: D205
+    """A plain, hashable stand-in for TestCase.
+
+    MagicMock's to_code() isn't a real string, which compute_test_case_hash() needs.
+    """
 
     source: str
 
@@ -176,11 +179,11 @@ def test_targeted_routing_delivers_only_to_the_addressed_island(tmp_path):
 
 
 def test_broadcast_routing_delivers_via_broadcast_channel_to_every_island(tmp_path):
-    """Global Broadcast Migration must always go through the broadcast channel's
-    broadcast() -- never rewired onto a single destination the way periodic
-    migration's one-neighbor send works, regardless of what migration strategy
-    islands happen to be configured with.
-    """  # noqa: D205
+    """Global Broadcast Migration always goes through the broadcast channel.
+
+    It is never rewired onto a single destination the way periodic migration's
+    one-neighbor send works, regardless of the islands' migration strategy.
+    """
     configuration = _build_configuration(
         tmp_path, max_in_flight=1, routing=config.ImmigrationRouting.BROADCAST
     )
@@ -222,10 +225,11 @@ def test_run_processes_reports_and_returns_stats(tmp_path):
     worker, status_queue, _result_inboxes, agent = _build_worker(tmp_path, max_in_flight=1)
 
     async def _drive():
+        run = asyncio.create_task(worker.run())
         status_queue.put(StatusReport(island_id=0, first_line=10, coverage=0.5, covered=False))
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.3)
         status_queue.put(None)
-        return await worker.run()
+        return await run
 
     stats = asyncio.run(_drive())
 
@@ -233,6 +237,48 @@ def test_run_processes_reports_and_returns_stats(tmp_path):
     assert stats.input_tokens == 10
     assert stats.output_tokens == 20
     assert len(agent.calls) == 1
+
+
+def test_run_drops_pending_targets_on_shutdown(tmp_path):
+    worker, status_queue, _result_inboxes, agent = _build_worker(
+        tmp_path, max_in_flight=1, num_islands=3
+    )
+    for island_id in range(3):
+        worker._update_coverage(
+            StatusReport(island_id=island_id, first_line=10, coverage=0.5, covered=False)
+        )
+    status_queue.put(None)
+
+    stats = asyncio.run(worker.run())
+
+    assert worker._coverage == {}
+    assert len(agent.calls) <= 1
+    assert stats.queries_issued <= 1
+
+
+class _SlowStubAgent(_StubAgent):
+    async def call_llm_for_uncovered_targets_async(self, gao_coverage_map, diagnostics):
+        await asyncio.sleep(30)
+        return await super().call_llm_for_uncovered_targets_async(gao_coverage_map, diagnostics)
+
+
+def test_run_cancels_in_flight_requests_on_shutdown(tmp_path):
+    worker, status_queue, _result_inboxes, _agent = _build_worker(tmp_path, max_in_flight=1)
+    worker._agent = _SlowStubAgent()
+
+    async def _drive():
+        run = asyncio.create_task(worker.run())
+        status_queue.put(StatusReport(island_id=0, first_line=10, coverage=0.5, covered=False))
+        await asyncio.sleep(0.3)
+        status_queue.put(None)
+        return await run
+
+    started = time.monotonic()
+    stats = asyncio.run(_drive())
+
+    assert time.monotonic() - started < 5
+    assert stats.queries_issued == 0
+    assert worker._inflight_tasks == set()
 
 
 def test_run_calls_cancel_all_on_shutdown(tmp_path):
@@ -254,6 +300,8 @@ def test_llm_worker_main_sends_stats_report_via_real_process(tmp_path):
     )
     configuration.project_path = "docs/source/_static"
     configuration.llm_worker.enabled = True
+    generator.set_configuration(configuration)
+    _executor, test_cluster, _constant_provider = generator._setup_and_check()
 
     with mp.Manager() as manager:
         status_queue = manager.Queue()
@@ -266,7 +314,9 @@ def test_llm_worker_main_sends_stats_report_via_real_process(tmp_path):
         )
         receiving_connection, sending_connection = mp.Pipe(duplex=False)
         status_queue.put(None)
-        process = mp.Process(target=llm_worker_main, args=(task, sending_connection))
+        process = mp.get_context("fork").Process(
+            target=llm_worker_main, args=(task, sending_connection, test_cluster)
+        )
         process.start()
         sending_connection.close()
         stats_report = receiving_connection.recv()
@@ -294,10 +344,11 @@ def test_query_log_records_the_selected_coverage_and_the_delivery(tmp_path, capl
     worker._task.configuration.statistics_output.report_dir = str(tmp_path)
 
     async def _drive():
+        run = asyncio.create_task(worker.run())
         status_queue.put(StatusReport(island_id=0, first_line=10, coverage=0.5, covered=False))
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.3)
         status_queue.put(None)
-        return await worker.run()
+        return await run
 
     with caplog.at_level(logging.INFO, logger=llm_worker.__name__):
         asyncio.run(_drive())

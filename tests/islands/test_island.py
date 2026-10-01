@@ -27,6 +27,8 @@ from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.algorithms.lldynamosaalgorithm import LLDynaMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
+from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
+from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.llmtestsuitechromosomefactory import LLMTestSuiteChromosomeFactory
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.generator import ReturnCode
@@ -60,18 +62,20 @@ def _island_task(island_id: int, tmp_path: Path) -> IslandTask:
     return IslandTask(island_id, configuration)
 
 
-def test_covered_goals_compare_equal_across_independently_instrumented_processes(tmp_path):
+def test_covered_goals_compare_equal_across_islands_sharing_the_orchestrator_setup(tmp_path):
     for island_id in range(2):
         (tmp_path / str(island_id)).mkdir()
     tasks = [_island_task(island_id, tmp_path / str(island_id)) for island_id in range(2)]
 
     generator.set_configuration(tasks[0].configuration)
-    generator._setup_and_check()
+    setup_result = generator._setup_and_check()
 
     processes_and_connections = []
     for task in tasks:
         receiving_connection, sending_connection = mp.Pipe(duplex=False)
-        process = mp.Process(target=island_main, args=(task, sending_connection))
+        process = mp.get_context("fork").Process(
+            target=island_main, args=(task, sending_connection, setup_result)
+        )
         process.start()
         sending_connection.close()
         processes_and_connections.append((process, receiving_connection))
@@ -143,7 +147,7 @@ def test_worker_island_is_plain_dynamosa_with_migration_then_worker(tmp_path):
     base_configuration.algorithm = config.Algorithm.LLDYNAMOSA
     base_configuration.island.migration_strategy = config.MigrationStrategy.GOAL_TRIGGERED
     base_configuration.llm_worker.enabled = True
-    island_configuration = orchestrator._fan_out_island_configs(base_configuration, 1)[0]
+    island_configuration = orchestrator._fan_out_island_configs(base_configuration)[0]
     llm_channel = LLMWorkerChannel(0, queue.Queue(), queue.Queue())
 
     algorithm, migration_extension = _built_island(
@@ -175,7 +179,7 @@ def test_worker_island_initial_population_is_plain_test_cases_without_llm_seedin
     base_configuration.algorithm = config.Algorithm.LLDYNAMOSA
     base_configuration.search_algorithm.population = 4
     base_configuration.llm_worker.enabled = True
-    island_configuration = orchestrator._fan_out_island_configs(base_configuration, 1)[0]
+    island_configuration = orchestrator._fan_out_island_configs(base_configuration)[0]
     llm_channel = LLMWorkerChannel(0, queue.Queue(), queue.Queue())
 
     algorithm, _ = _built_island(island_configuration, None, llm_channel)
@@ -184,6 +188,24 @@ def test_worker_island_initial_population_is_plain_test_cases_without_llm_seedin
     assert len(population) == 4
     assert all(isinstance(c, TestCaseChromosome) for c in population)
     assert seeding_calls == []
+
+
+@pytest.mark.parametrize(
+    "algorithm_class", [MOSAAlgorithm, WholeSuiteAlgorithm, LLDynaMOSAAlgorithm]
+)
+def test_island_without_channels_accepts_any_algorithm(monkeypatch, algorithm_class):
+    algorithm = object.__new__(algorithm_class)
+    factory = MagicMock()
+    factory.return_value.get_search_algorithm.return_value = algorithm
+    monkeypatch.setattr(gaf, "TestSuiteGenerationAlgorithmFactory", factory)
+    task = IslandTask(0, MagicMock())
+
+    built_algorithm, migration_extension = island_module._build_algorithm(
+        task, MagicMock(), MagicMock(), MagicMock()
+    )
+
+    assert built_algorithm is algorithm
+    assert migration_extension is None
 
 
 def test_island_extensions_are_refused_on_lldynamosa(monkeypatch):

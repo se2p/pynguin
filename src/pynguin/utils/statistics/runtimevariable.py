@@ -261,15 +261,6 @@ class RuntimeVariable(str, enum.Enum):
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
-    # Number of logical LLM queries issued (cache hits and endpoint requests alike)
-    TotalLLMLogicalQueries = "TotalLLMLogicalQueries"
-
-    # Number of actual LLM endpoint requests made (retries count separately per attempt)
-    TotalLLMEndpointRequests = "TotalLLMEndpointRequests"
-
-    # Number of logical LLM queries served from the response cache
-    TotalLLMCacheHits = "TotalLLMCacheHits"
-
     # Seconds the synchronous search loop spent blocked waiting for LLM responses
     LLMBlockingTimeSeconds = "LLMBlockingTimeSeconds"
 
@@ -416,6 +407,32 @@ class RuntimeVariable(str, enum.Enum):
 
     # Estimated USD cost of the async worker's queries
     EstimatedLLMWorkerCostUSD = "EstimatedLLMWorkerCostUSD"
+
+    # ========= Island model =========
+
+    # Number of islands whose results were merged into the final test suite
+    IslandsMerged = "IslandsMerged"
+
+    # Number of test cases returned by all islands before deduplication
+    IslandTestCasesBeforeDedup = "IslandTestCasesBeforeDedup"
+
+    # Number of test cases left after deduplication across islands
+    IslandTestCasesAfterDedup = "IslandTestCasesAfterDedup"
+
+    # Number of duplicate test cases removed when merging the island results
+    IslandDuplicateTestCasesRemoved = "IslandDuplicateTestCasesRemoved"
+
+    # Number of migrants sent by all islands because a new goal was covered
+    MigrantsSentGoalTriggered = "MigrantsSentGoalTriggered"
+
+    # Number of migrants sent by all islands at periodic migration events
+    MigrantsSentPeriodic = "MigrantsSentPeriodic"
+
+    # Number of received migrants accepted into an island population, duplicates excluded
+    MigrantsReceived = "MigrantsReceived"
+
+    # Number of migrants skipped as duplicates, either before sending or on arrival
+    MigrantsDroppedAsDuplicate = "MigrantsDroppedAsDuplicate"
 
     def __repr__(self):
         return f"{self.name}"

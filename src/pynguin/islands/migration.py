@@ -41,9 +41,7 @@ def compute_test_case_hash(test_case: tc.TestCase) -> str:
 
 @dataclasses.dataclass
 class MigrationMessage:
-    """One migrated test case, broadcast from the island (or LLM worker) that
-    found it.
-    """  # noqa: D205
+    """One migrated test case, sent by the island or LLM worker that found it."""
 
     source_island: int
     covered_goal: bg.BranchGoal | None
@@ -52,9 +50,10 @@ class MigrationMessage:
 
 
 class MigrationChannel:
-    """One island's view of the migration mailbox mesh: its own inbox, and every
-    other island's inbox to broadcast into.
-    """  # noqa: D205
+    """One island's view of the migration mailbox mesh.
+
+    It holds the island's own inbox and every other island's inbox to broadcast into.
+    """
 
     def __init__(self, island_id: int | None, inboxes: dict[int, mp_managers.BaseProxy]) -> None:
         """Creates a channel for one island, or a broadcast-only.

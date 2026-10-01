@@ -45,6 +45,8 @@ except ImportError:
 
 import weakref
 
+import multiprocess as mp
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
@@ -421,14 +423,7 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
 
 def _verify_config() -> None:
     """Verify the configuration and raise an exception if something is invalid/not supported."""
-    coverage_metrics = config.configuration.search_algorithm.coverage_metrics
-    if config.configuration.algorithm in {
-        config.Algorithm.DYNAMOSA,
-        config.Algorithm.LLDYNAMOSA,
-    } and any(m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH):
-        raise ConfigurationException(
-            "DynaMosa currently only supports branch coverage as coverage criterion."
-        )
+    # All combinations of algorithms and coverage metrics are supported.
     migration_strategy = config.configuration.island.migration_strategy
     migration_active = migration_strategy is not config.MigrationStrategy.DISABLED
     if migration_active and config.configuration.algorithm not in {
@@ -446,6 +441,12 @@ def _verify_config() -> None:
         raise ConfigurationException(
             "Island mode requires a positive --maximum_search_time -- it is the only "
             "shared stopping condition all islands use."
+        )
+    if config.configuration.island.num_islands > 1 and "fork" not in mp.get_all_start_methods():
+        raise ConfigurationException(
+            "Island mode requires the fork start method, which this platform does not "
+            "provide -- the islands and the LLM worker inherit the orchestrator's SUT "
+            "setup by forking."
         )
     if migration_strategy in {
         config.MigrationStrategy.PERIODIC,
@@ -465,6 +466,14 @@ def _verify_config() -> None:
                 f"population_allocation={island_config.population_allocation.value} with "
                 f"{island_config.num_islands} islands -- periodic migration would have "
                 "to repeat or fabricate migrants to reach K."
+            )
+        if (
+            island_config.migrant_selection_policy is config.MigrantSelectionPolicy.RANK
+            and not 1.0 < island_config.migrant_rank_bias <= 2.0
+        ):
+            raise ConfigurationException(
+                f"migrant_rank_bias ({island_config.migrant_rank_bias}) must be in the "
+                "range (1, 2] for rank selection of periodic migrants."
             )
     _verify_llm_worker_config(migration_active=migration_active)
 
@@ -1188,19 +1197,27 @@ def add_additional_metrics(  # noqa: D103
         ))
 
 
-def _run() -> ReturnCode:
-    _verify_config()
-    if (setup_result := _setup_and_check()) is None:
-        return ReturnCode.SETUP_FAILED
-    executor, test_cluster, constant_provider = setup_result
-    # traces slices for test cases after execution
-    coverage_metrics = config.configuration.search_algorithm.coverage_metrics
-    if config.CoverageMetric.CHECKED in coverage_metrics:
+def _add_slicing_observer_if_needed(executor: TestCaseExecutor) -> None:
+    """Traces slices for test cases after execution, which checked coverage needs.
+
+    Args:
+        executor: The executor to add the slicing observer to.
+    """
+    if config.CoverageMetric.CHECKED in config.configuration.search_algorithm.coverage_metrics:
         from pynguin.slicer.statementslicingobserver import (  # noqa: PLC0415
             RemoteStatementSlicingObserver,
         )
 
         executor.add_remote_observer(RemoteStatementSlicingObserver())
+
+
+def _run() -> ReturnCode:
+    _verify_config()
+    if (setup_result := _setup_and_check()) is None:
+        return ReturnCode.SETUP_FAILED
+    executor, test_cluster, constant_provider = setup_result
+    _add_slicing_observer_if_needed(executor)
+    coverage_metrics = config.configuration.search_algorithm.coverage_metrics
 
     algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider

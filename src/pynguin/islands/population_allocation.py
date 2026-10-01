@@ -4,9 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Computes the per-island population size used by configuration validation
-and island initialization.
-"""  # noqa: D205
+"""Computes the per-island population size.
+
+Used by configuration validation and island initialization.
+"""
 
 from __future__ import annotations
 

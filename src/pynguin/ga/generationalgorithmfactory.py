@@ -62,7 +62,6 @@ from pynguin.ga.stoppingcondition import (
     MaxTestExecutionsStoppingCondition,
     MinimumCoveragePlateauStoppingCondition,
     StoppingCondition,
-    WallClockDeadlineStoppingCondition,
 )
 from pynguin.testcase.execution import AbstractTestCaseExecutor, TypeTracingTestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
@@ -101,9 +100,7 @@ class GenerationAlgorithmFactory(ABC, Generic[C]):
             conditions.append(MaxStatementExecutionsStoppingCondition(max_stmt))
         if (max_test_exec := stopping.maximum_test_executions) >= 0:
             conditions.append(MaxTestExecutionsStoppingCondition(max_test_exec))
-        if (deadline := config.configuration.island.deadline_epoch_ns) > 0:
-            conditions.append(WallClockDeadlineStoppingCondition(deadline))
-        elif (max_search_time := stopping.maximum_search_time) >= 0:
+        if (max_search_time := stopping.maximum_search_time) >= 0:
             conditions.append(MaxSearchTimeStoppingCondition(max_search_time))
         if (max_coverage := stopping.maximum_coverage) < 100:
             conditions.append(MaxCoverageStoppingCondition(max_coverage))

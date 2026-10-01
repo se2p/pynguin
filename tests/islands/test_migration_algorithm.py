@@ -16,6 +16,7 @@ import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.islands import migration_algorithm
 from pynguin.islands.migration import MigrationMessage, compute_test_case_hash
+from pynguin.utils import randomness
 
 
 @dataclasses.dataclass
@@ -33,9 +34,11 @@ class _FakeTestCase:
 
 @pytest.fixture
 def island_algorithm(monkeypatch):
-    """A plain DynaMOSAAlgorithm with mocked components, mirroring
-    tests/ga/algorithms/test_lldynamosaalgorithm.py's lldynamosa_algorithm fixture.
-    """  # noqa: D205
+    """A plain DynaMOSAAlgorithm with mocked components.
+
+    Mirrors the lldynamosa_algorithm fixture in
+    tests/ga/algorithms/test_lldynamosaalgorithm.py.
+    """
     monkeypatch.setattr(
         config.configuration.island, "migration_strategy", config.MigrationStrategy.GOAL_TRIGGERED
     )
@@ -236,6 +239,13 @@ def test_select_migrants_best_picks_lowest_rank_then_highest_distance(ranked_pop
     assert selected == [ranked_population[0], ranked_population[1]]
 
 
+def test_select_migrants_best_orders_an_unsorted_population(ranked_population):
+    selected = migration_algorithm.select_migrants(
+        list(reversed(ranked_population)), 3, config.MigrantSelectionPolicy.BEST
+    )
+    assert selected == ranked_population[:3]
+
+
 def test_select_migrants_best_empty_population():
     assert migration_algorithm.select_migrants([], 2, config.MigrantSelectionPolicy.BEST) == []
 
@@ -253,11 +263,21 @@ def test_select_migrants_rank_empty_population():
 
 
 def test_select_migrants_rank_r_zero_picks_the_best_individual(monkeypatch, ranked_population):
-    monkeypatch.setattr(migration_algorithm.randomness, "next_float", lambda: 0.0)
+    monkeypatch.setattr(randomness, "next_float", lambda: 0.0)
     selected = migration_algorithm.select_migrants(
         ranked_population, 1, config.MigrantSelectionPolicy.RANK
     )
     assert selected == [ranked_population[0]]
+
+
+def test_select_migrants_rank_uses_the_configured_migrant_rank_bias(monkeypatch, ranked_population):
+    rank_selection = MagicMock()
+    monkeypatch.setattr(migration_algorithm, "RankSelection", rank_selection)
+    monkeypatch.setattr(config.configuration.island, "migrant_rank_bias", 1.5)
+
+    migration_algorithm.select_migrants(ranked_population, 2, config.MigrantSelectionPolicy.RANK)
+
+    rank_selection.assert_called_once_with(bias=1.5)
 
 
 def _set_periodic_config(
@@ -279,10 +299,11 @@ def _set_periodic_config(
 def test_periodic_migration_sends_to_ring_neighbor_only_not_broadcast(
     monkeypatch, island_algorithm, ranked_population
 ):
-    """Uses BEST selection so the two migrants are guaranteed distinct (RANDOM
-    selects with replacement and could otherwise draw the same individual
-    twice, making the exact call count flaky).
-    """  # noqa: D205
+    """Uses BEST selection so the two migrants are guaranteed distinct.
+
+    RANDOM selects with replacement and could draw the same individual twice,
+    which would make the exact call count flaky.
+    """
     _set_periodic_config(
         monkeypatch,
         strategy=config.MigrationStrategy.PERIODIC,
@@ -305,10 +326,11 @@ def test_periodic_migration_sends_to_ring_neighbor_only_not_broadcast(
 
 
 def _patch_select_migrants_with_fresh_chromosomes(monkeypatch) -> None:
-    """Makes each periodic-migration trigger select a distinct, never-before-seen
-    chromosome, so frequency-triggering tests are independent of dedup/selection
-    policy (both already covered by their own dedicated tests above).
-    """  # noqa: D205
+    """Makes each periodic-migration trigger select a fresh, unseen chromosome.
+
+    This keeps the frequency-triggering tests independent of dedup and selection
+    policy, which have their own dedicated tests above.
+    """
     counter = iter(range(1_000_000))
 
     def _fresh(*_args, **_kwargs):

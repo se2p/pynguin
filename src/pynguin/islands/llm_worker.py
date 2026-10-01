@@ -58,25 +58,26 @@ class LLMWorkerTask:
     """Per-island migration queues used for broadcast delivery, if enabled."""
 
 
-def llm_worker_main(task: LLMWorkerTask, sending_connection: mp_conn.Connection) -> None:
+def llm_worker_main(
+    task: LLMWorkerTask, sending_connection: mp_conn.Connection, test_cluster: TestCluster
+) -> None:
     """Run the LLM worker process.
 
-    The worker performs its own setup, processes LLM requests, and sends the
-    collected worker statistics back to the orchestrator.
+    The worker reuses the orchestrator's test cluster, which it inherits as a
+    forked process, processes LLM requests, and sends the collected worker
+    statistics back to the orchestrator.
 
     Args:
-    task: The task assigned to the worker.
-    sending_connection: Connection used to send the worker statistics.
+        task: The task assigned to the worker.
+        sending_connection: Connection used to send the worker statistics.
+        test_cluster: The orchestrator's test cluster; the worker works on its own
+            forked copy of it.
     """
     try:
         with WorkerFormatting():
             _LOGGER.info("LLM worker process started (PID: %d)", mp.current_process().pid)
             set_configuration(task.configuration)
-            setup_result = generator._setup_and_check()  # noqa: SLF001
-            if setup_result is None:
-                sending_connection.send(WorkerStatsReport(0, 0.0, 0, 0, 0.0))
-                return
-            _executor, test_cluster, _constant_provider = setup_result
+            generator._setup_random_number_generator()  # noqa: SLF001
             gao_by_first_line = _build_gao_by_first_line(test_cluster)
             agent = LLMAgent()
             worker = _LLMQueryWorker(task, gao_by_first_line, agent, test_cluster)
@@ -191,25 +192,35 @@ class _LLMQueryWorker:
     async def run(self) -> WorkerStatsReport:
         """Runs the status-listener and dispatch loops until shutdown.
 
+        The shutdown sentinel marks the end of island search, so no island can use
+        a result any more. Pending targets are dropped instead of queried, and
+        in-flight requests are cancelled.
+
         Returns:
             The accumulated stats for this worker's whole run.
         """
         listener = asyncio.create_task(self._status_report_listener())
         dispatcher = asyncio.create_task(self._dispatch_loop())
         await self._shutdown.wait()
-        # The sentinel marks the end of island search.
-        # Continue processing queued work until it is drained.
-        # Do not accept any new reports.
-        while self._coverage:
-            await asyncio.sleep(0.05)
+        dropped_targets = len(self._coverage)
+        self._coverage.clear()
+        self._has_work.clear()
         listener.cancel()
         dispatcher.cancel()
         await asyncio.gather(listener, dispatcher, return_exceptions=True)
+        self._logger.info(
+            "LLM worker shutting down: dropped %d pending target(s), cancelling %d "
+            "in-flight request(s)",
+            dropped_targets,
+            len(self._inflight_tasks),
+        )
         # Cancel in-flight requests so they fail immediately instead of waiting for
         # their configured timeout. This keeps shutdown bounded and matches the
         # search algorithms' shutdown behavior.
         if hasattr(self._agent, "cancel_all"):
             self._agent.cancel_all()
+        for inflight_task in self._inflight_tasks:
+            inflight_task.cancel()
         if self._inflight_tasks:
             await asyncio.wait(self._inflight_tasks, timeout=5)
         return WorkerStatsReport(

@@ -555,9 +555,7 @@ class MigrationStrategy(str, enum.Enum):
 
 
 class MigrantSelectionPolicy(str, enum.Enum):
-    """How periodic migration selects which individuals to send to the ring
-    neighbor.
-    """  # noqa: D205
+    """How periodic migration selects the individuals sent to the ring neighbor."""
 
     RANDOM = "RANDOM"
     """Selects K individuals uniformly at random, with replacement."""
@@ -612,15 +610,16 @@ class IslandConfiguration:
     """How periodic migrants are selected. Only used when migration_strategy is
     PERIODIC or COMBINED."""
 
+    migrant_rank_bias: float = 2.0
+    """Bias for better individuals in rank selection of periodic migrants, in the
+    range (1, 2]. The default 2.0 is the strongest selection pressure. Only used
+    when migrant_selection_policy is RANK."""
+
     population_allocation: PopulationAllocation = PopulationAllocation.FULL_PER_ISLAND
     """How the reference sequential population size is allocated across islands."""
 
     island_id: int = -1
     """Set per-island by the orchestrator before spawning; -1 in the base config."""
-
-    deadline_epoch_ns: int = -1
-    """Absolute wall-clock deadline (time.time_ns()) shared by all islands, set once
-    by the orchestrator before spawning; -1 in the base config."""
 
 
 class ImmigrationRouting(str, enum.Enum):

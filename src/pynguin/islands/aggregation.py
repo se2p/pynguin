@@ -8,14 +8,16 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.utils.statistics.stats as stat
 from pynguin import generator
 from pynguin.generator import ReturnCode, set_configuration
+from pynguin.islands.migration import compute_test_case_hash
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
@@ -43,8 +45,7 @@ def _deduplicate_by_source(results: list[IslandResult]) -> list[tc.TestCase]:
     seen: dict[str, tc.TestCase] = {}
     for result in results:
         for test_case in result.test_cases:
-            content_hash = hashlib.sha256(test_case.to_code().encode()).hexdigest()
-            seen.setdefault(content_hash, test_case)
+            seen.setdefault(compute_test_case_hash(test_case), test_case)
     return list(seen.values())
 
 
@@ -56,7 +57,9 @@ def prepare_orchestrator_setup(
     The SUT is imported before collecting island results because the returned test
     cases may reference SUT modules and functions during deserialization.
 
-    The configuration is also validated before any island search is started.
+    The configuration is also validated before any island search is started. The
+    executor gets the same observers as in a single-process run, e.g., the slicing
+    observer checked coverage needs; the forked islands inherit them.
 
     Args:
         base_configuration: The configuration used for the search.
@@ -70,7 +73,10 @@ def prepare_orchestrator_setup(
     """
     set_configuration(base_configuration)
     generator._verify_config()  # noqa: SLF001
-    return generator._setup_and_check()  # noqa: SLF001
+    setup_result = generator._setup_and_check()  # noqa: SLF001
+    if setup_result is not None:
+        generator._add_slicing_observer_if_needed(setup_result[0])  # noqa: SLF001
+    return setup_result
 
 
 def assemble_final_suite(
@@ -86,7 +92,8 @@ def assemble_final_suite(
     not reused.
 
     The merged suite is then finalized using the same steps as the single-process
-    search.
+    search. The number of merged islands and test cases before and after
+    deduplication are tracked as output variables.
 
     Args:
         results: One IslandResult per island.
@@ -98,11 +105,18 @@ def assemble_final_suite(
         The result of exporting the merged suite.
     """
     deduplicated = _deduplicate_by_source(results)
+    num_before_dedup = sum(len(result.test_cases) for result in results)
     _LOGGER.info(
         "Merging %d islands: %d test cases before dedup, %d after",
         len(results),
-        sum(len(r.test_cases) for r in results),
+        num_before_dedup,
         len(deduplicated),
+    )
+    stat.track_output_variable(RuntimeVariable.IslandsMerged, len(results))
+    stat.track_output_variable(RuntimeVariable.IslandTestCasesBeforeDedup, num_before_dedup)
+    stat.track_output_variable(RuntimeVariable.IslandTestCasesAfterDedup, len(deduplicated))
+    stat.track_output_variable(
+        RuntimeVariable.IslandDuplicateTestCasesRemoved, num_before_dedup - len(deduplicated)
     )
 
     # Built only to harvest correctly-wired test_factory/fitness/coverage functions

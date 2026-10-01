@@ -74,12 +74,12 @@ class LLMTestCaseHandler:
         test cases to a test factory or fitness functions.
 
         Args:
-        llm_query_results: Raw results returned by the LLM. If None, an empty
-        list is returned.
-        test_cluster: Test cluster used during deserialization.
+            llm_query_results: Raw results returned by the LLM. If None, an empty
+                list is returned.
+            test_cluster: Test cluster used during deserialization.
 
         Returns:
-        The parsed test cases, or an empty list if no test cases could be created.
+            The parsed test cases, or an empty list if no test cases could be created.
         """
         if llm_query_results is None:
             return []

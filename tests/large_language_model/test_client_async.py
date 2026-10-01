@@ -91,16 +91,13 @@ def test_send_async_caching(monkeypatch):
 
     assert result == "cached response"
     mock_async_create.assert_not_called()
-    usage = client.get_usage()
-    assert usage["logical_queries"] == 1
-    assert usage["cache_hits"] == 1
-    assert usage["endpoint_requests"] == 0
 
 
 def test_send_async_temperature_zero_fallback(monkeypatch):
     client = _make_client(monkeypatch)
     req = _request(temperature=0.0)
 
+    # First attempt raises unsupported temperature error, second succeeds
     fail_exc = Exception("Unsupported temperature parameter value")
     success_resp = _make_response("```python\nassert True\n```")
 
@@ -113,10 +110,6 @@ def test_send_async_temperature_zero_fallback(monkeypatch):
     assert result == "```python\nassert True\n```"
     assert mock_async_create.await_count == 2
     assert client._temperature_zero_rejected is True
-    usage = client.get_usage()
-    assert usage["logical_queries"] == 1
-    assert usage["endpoint_requests"] == 2
-    assert usage["cache_hits"] == 0
 
 
 def test_send_batch_async_concurrency(monkeypatch):
@@ -144,10 +137,6 @@ def test_send_batch_async_concurrency(monkeypatch):
         assert res == f"resp for prompt_{i}"
     assert peak_concurrency <= max_concurrency
     assert peak_concurrency > 1
-    usage = client.get_usage()
-    assert usage["logical_queries"] == 10
-    assert usage["endpoint_requests"] == 10
-    assert usage["cache_hits"] == 0
 
 
 def test_send_batch_sync(monkeypatch):

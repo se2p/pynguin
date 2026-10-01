@@ -641,6 +641,44 @@ def test_verify_config_dynamosa_islands_with_migration_without_worker_is_accepte
     gen._verify_config()
 
 
+def test_verify_config_islands_without_fork_start_method_is_rejected(tmp_path, monkeypatch):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(num_islands=3),
+    )
+    gen.set_configuration(configuration)
+    monkeypatch.setattr(gen.mp, "get_all_start_methods", lambda: ["spawn"])
+    with pytest.raises(gen.ConfigurationException, match="requires the fork start method"):
+        gen._verify_config()
+
+
+@pytest.mark.parametrize("algorithm", [config.Algorithm.DYNAMOSA, config.Algorithm.LLDYNAMOSA])
+@pytest.mark.parametrize(
+    "coverage_metrics",
+    [
+        [config.CoverageMetric.LINE],
+        [config.CoverageMetric.CHECKED],
+        [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
+    ],
+)
+def test_verify_config_dynamosa_accepts_non_branch_coverage_metrics(
+    tmp_path, algorithm, coverage_metrics
+):
+    configuration = config.Configuration(
+        algorithm=algorithm,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        search_algorithm=config.SearchAlgorithmConfiguration(coverage_metrics=coverage_metrics),
+    )
+    gen.set_configuration(configuration)
+    gen._verify_config()
+
+
 def test_verify_config_sequential_lldynamosa_is_accepted(tmp_path):
     configuration = config.Configuration(
         algorithm=config.Algorithm.LLDYNAMOSA,
@@ -745,6 +783,35 @@ def test_verify_config_periodic_migration_k_exceeds_population_is_rejected(tmp_p
         match=r"periodic_migration_size \(K=3\) exceeds the smallest per-island population \(2\)",
     ):
         gen._verify_config()
+
+
+def _rank_migration_configuration(tmp_path, migrant_rank_bias: float) -> config.Configuration:
+    return config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        stopping=config.StoppingConfiguration(maximum_search_time=5),
+        island=config.IslandConfiguration(
+            num_islands=4,
+            migration_strategy=config.MigrationStrategy.PERIODIC,
+            migrant_selection_policy=config.MigrantSelectionPolicy.RANK,
+            migrant_rank_bias=migrant_rank_bias,
+        ),
+    )
+
+
+@pytest.mark.parametrize("migrant_rank_bias", [0.5, 1.0, 2.5])
+def test_verify_config_migrant_rank_bias_outside_range_is_rejected(tmp_path, migrant_rank_bias):
+    gen.set_configuration(_rank_migration_configuration(tmp_path, migrant_rank_bias))
+    with pytest.raises(gen.ConfigurationException, match=r"must be in the range \(1, 2\]"):
+        gen._verify_config()
+
+
+@pytest.mark.parametrize("migrant_rank_bias", [1.5, 2.0])
+def test_verify_config_migrant_rank_bias_inside_range_is_accepted(tmp_path, migrant_rank_bias):
+    gen.set_configuration(_rank_migration_configuration(tmp_path, migrant_rank_bias))
+    gen._verify_config()
 
 
 def test_verify_config_periodic_migration_k_within_population_is_accepted(tmp_path):

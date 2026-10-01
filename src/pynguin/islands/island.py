@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, cast
 import multiprocess as mp
 
 import pynguin.ga.generationalgorithmfactory as gaf
-import pynguin.utils.statistics.statisticsobserver as sso
+import pynguin.utils.statistics.stats as stat
 from pynguin import generator
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.generator import ReturnCode, set_configuration
@@ -24,6 +24,7 @@ from pynguin.islands.llm_worker_algorithm import IslandLLMWorkerExtension
 from pynguin.islands.migration_algorithm import IslandMigrationExtension
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.logging_utils import WorkerFormatting
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import multiprocess.connection as mp_conn
@@ -49,7 +50,7 @@ class IslandTask:
 
     island_id: int
     configuration: config.Configuration
-    """The orchestrator must set a unique seed, island ID, and shared deadline
+    """The orchestrator must set a unique seed and island ID
     before starting the island process. See ``orchestrator.py``.
     """
 
@@ -78,9 +79,10 @@ class IslandResult:
     processes. The final merge itself deduplicates test cases by content.
     """
 
-    coverage_samples: list[tuple[float, float]] = dataclasses.field(default_factory=list)
-    """Coverage recorded after each generation as ``(elapsed_seconds, coverage)``.
-    Used by the orchestrator to track per-island and merged coverage over time.
+    coverage_timeline: list[tuple[int, float]] = dataclasses.field(default_factory=list)
+    """The island's CoverageTimeline samples as ``(time_stamp_ns, coverage)``, with
+    time stamps in nanoseconds since the island's search start. The orchestrator
+    merges them into its own CoverageTimeline output variable.
     """
 
     migration_stats: MigrationStats | None = None
@@ -101,7 +103,9 @@ def _build_algorithm(
     The algorithm always comes from the normal factory. Migration and LLM-worker
     integration, when their channels are present, are attached to it as generation
     extensions, migration first, so the worker's goal reporting sees goals that
-    migrants just unlocked.
+    migrants just unlocked. Only islands with such a channel must run DynaMOSA;
+    without one, any algorithm is returned unchanged. Runs without islands never
+    reach this function.
 
     Args:
         task: The island task and its optional communication channels.
@@ -141,16 +145,21 @@ def _build_algorithm(
 def island_main(
     task: IslandTask,
     sending_connection: mp_conn.Connection,
+    setup_result: tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider],
 ) -> None:
     """Run test generation for a single island.
 
-    The island performs its own setup and search, then sends the generated test
-    cases and related search data back to the orchestrator. Final assertion
-    generation and export are handled after the island results are merged.
+    The island reuses the orchestrator's SUT setup, which it inherits as a forked
+    process, and only reseeds the random number generators with its own seed. It
+    then searches and sends the generated test cases and related search data back
+    to the orchestrator. Final assertion generation and export are handled after
+    the island results are merged.
 
     Args:
         task: The task assigned to the island.
         sending_connection: Connection used to send the result to the orchestrator.
+        setup_result: The orchestrator's executor, test cluster, and constant
+            provider; the island works on its own forked copy of them.
     """
     try:
         with WorkerFormatting():
@@ -163,16 +172,11 @@ def island_main(
                 task.island_id,
                 task.configuration.search_algorithm.population,
             )
-            setup_result = generator._setup_and_check()  # noqa: SLF001
-            if setup_result is None:
-                sending_connection.send(IslandResult(task.island_id, [], ReturnCode.SETUP_FAILED))
-                return
+            generator._setup_random_number_generator()  # noqa: SLF001
             executor, test_cluster, constant_provider = setup_result
             algorithm, migration_extension = _build_algorithm(
                 task, executor, test_cluster, constant_provider
             )
-            coverage_observer = sso.CoverageOverTimeObserver()
-            algorithm.add_search_observer(coverage_observer)
             generation_result = algorithm.generate_tests()
             test_cases = [
                 chromosome.test_case.clone()
@@ -189,7 +193,7 @@ def island_main(
                     test_cases,
                     ReturnCode.OK,
                     covered_goals,
-                    coverage_observer.coverage_samples,
+                    stat.get_sequence_samples(RuntimeVariable.CoverageTimeline),
                     migration_stats,
                 )
             )

@@ -17,9 +17,13 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
-from pynguin.ga.operators.selection import RankSelection
+from pynguin.ga.operators.selection import (
+    RandomSelection,
+    RankSelection,
+    SelectionFunction,
+    TruncationSelection,
+)
 from pynguin.islands.migration import MigrationMessage, compute_test_case_hash
-from pynguin.utils import randomness
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
@@ -30,16 +34,12 @@ if TYPE_CHECKING:
     from pynguin.islands.migration import MigrationChannel
 
 
-# Selection pressure used for Whitley's linear rank selection. The value is set to
-# the upper bound of the range defined by the selection method.
-_WHITLEY_SELECTION_PRESSURE = 2.0
-
-
 @dataclasses.dataclass
 class MigrationStats:
-    """One island's migration event counts for this run, for cross-process
-    statistics logging.
-    """  # noqa: D205
+    """One island's migration event counts for this run.
+
+    The orchestrator collects them from every island for statistics output.
+    """
 
     goal_triggered_sent: int = 0
     periodic_sent: int = 0
@@ -60,66 +60,25 @@ def ring_destination(island_id: int, num_islands: int) -> int:
     return (island_id + 1) % num_islands
 
 
-def _select_migrants_random(
-    population: list[tcc.TestCaseChromosome], k: int
-) -> list[tcc.TestCaseChromosome]:
-    """Selects k individuals uniformly at random, with replacement."""
-    if not population:
-        return []
-    return randomness.choices(population, k=k)
-
-
-def _select_migrants_best(
-    population: list[tcc.TestCaseChromosome], k: int
-) -> list[tcc.TestCaseChromosome]:
-    """Select up to ``k`` individuals using the population ranking.
-
-    Individuals are ordered by rank first and crowding distance second, matching
-    the ordering used during survivor selection.
+def _migrant_selection_function(
+    policy: config.MigrantSelectionPolicy,
+) -> SelectionFunction[tcc.TestCaseChromosome]:
+    """Provides Pynguin's selection function for a migrant selection policy.
 
     Args:
-        population: Population to select from.
-        k: Maximum number of individuals to select.
+        policy: Which selection policy to use.
 
     Returns:
-        The selected individuals, without replacement.
+        RandomSelection for RANDOM, TruncationSelection for BEST, and
+        RankSelection with island.migrant_rank_bias for RANK.
     """
-    if not population:
-        return []
-    ranked = sorted(population, key=lambda c: (c.rank, -c.distance))
-    return ranked[:k]
-
-
-def _select_migrants_rank(
-    population: list[tcc.TestCaseChromosome], k: int
-) -> list[tcc.TestCaseChromosome]:
-    """Select ``k`` individuals using Whitley's linear rank selection.
-
-    The population is ordered by rank and crowding distance before sampling.
-    Selection is performed with replacement by Pynguin's RankSelection, using
-    the migration selection pressure instead of the search's rank bias.
-
-    Args:
-        population: Population to select from.
-        k: Number of individuals to select.
-
-    Returns:
-        The selected individuals.
-    """
-    if not population:
-        return []
-    ranked = sorted(population, key=lambda c: (c.rank, -c.distance))
-    selection: RankSelection[tcc.TestCaseChromosome] = RankSelection(
-        bias=_WHITLEY_SELECTION_PRESSURE
-    )
-    return selection.select(ranked, k)
-
-
-_SELECTION_FUNCTIONS = {
-    config.MigrantSelectionPolicy.RANDOM: _select_migrants_random,
-    config.MigrantSelectionPolicy.BEST: _select_migrants_best,
-    config.MigrantSelectionPolicy.RANK: _select_migrants_rank,
-}
+    match policy:
+        case config.MigrantSelectionPolicy.RANDOM:
+            return RandomSelection()
+        case config.MigrantSelectionPolicy.BEST:
+            return TruncationSelection()
+        case config.MigrantSelectionPolicy.RANK:
+            return RankSelection(bias=config.configuration.island.migrant_rank_bias)
 
 
 def select_migrants(
@@ -128,6 +87,10 @@ def select_migrants(
     policy: config.MigrantSelectionPolicy,
 ) -> list[tcc.TestCaseChromosome]:
     """Selects k periodic migrants from population per the configured policy.
+
+    The population is ordered by rank first and crowding distance second, the
+    ordering used during survivor selection, because BEST and RANK expect the
+    fittest individuals first.
 
     Args:
         population: The sending island's own local population to select from.
@@ -139,7 +102,10 @@ def select_migrants(
         fewer than k individuals (RANDOM/RANK still draw with replacement, so
         this only affects BEST or an empty population).
     """
-    return _SELECTION_FUNCTIONS[policy](population, k)
+    if not population:
+        return []
+    ranked = sorted(population, key=lambda c: (c.rank, -c.distance))
+    return _migrant_selection_function(policy).select(ranked, k)
 
 
 class IslandMigrationExtension:

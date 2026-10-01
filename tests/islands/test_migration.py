@@ -19,9 +19,10 @@ from pynguin.islands.migration import (
 
 @dataclasses.dataclass
 class _FakeTestCase:
-    """A plain, picklable stand-in for TestCase -- MagicMock isn't picklable, and
-    these messages cross a real Manager().Queue() in these tests.
-    """  # noqa: D205
+    """A plain, picklable stand-in for TestCase.
+
+    MagicMock isn't picklable, and these messages cross a real Manager().Queue().
+    """
 
     source: str
 

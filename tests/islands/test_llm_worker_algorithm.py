@@ -44,9 +44,10 @@ def _fake_goal(code_object_id: int) -> MagicMock:
 
 @pytest.fixture
 def island_algorithm():
-    """A plain DynaMOSAAlgorithm with mocked components, mirroring
-    tests/islands/test_migration_algorithm.py's island_algorithm fixture.
-    """  # noqa: D205
+    """A plain DynaMOSAAlgorithm with mocked components.
+
+    Mirrors the island_algorithm fixture in tests/islands/test_migration_algorithm.py.
+    """
     algorithm = DynaMOSAAlgorithm()
     algorithm._logger = MagicMock()
     algorithm._archive = MagicMock()

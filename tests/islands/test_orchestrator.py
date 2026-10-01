@@ -18,8 +18,13 @@ import multiprocess as mp
 
 import pynguin.configuration as config
 import pynguin.generator as gen
+import pynguin.utils.statistics.stats as stat
+from pynguin.generator import ReturnCode
 from pynguin.islands import orchestrator
+from pynguin.islands.island import IslandResult
+from pynguin.islands.migration_algorithm import MigrationStats
 from pynguin.islands.orchestrator import run_pynguin_with_islands
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 _CANNED_LLM_TEST_CASE_SOURCE = (
     'def test_llm_generated():\n    difficult_branches("not-a", 1337, 999)\n'
@@ -79,12 +84,11 @@ def test_fan_out_island_configs_gives_distinct_seeds_and_ids(tmp_path):
     base_configuration.seeding.seed = 42
     base_configuration.island.num_islands = 3
 
-    island_configs = orchestrator._fan_out_island_configs(base_configuration, deadline_epoch_ns=999)
+    island_configs = orchestrator._fan_out_island_configs(base_configuration)
 
     assert len(island_configs) == 3
     assert [c.seeding.seed for c in island_configs] == [42, 43, 44]
     assert [c.island.island_id for c in island_configs] == [0, 1, 2]
-    assert all(c.island.deadline_epoch_ns == 999 for c in island_configs)
     assert base_configuration.seeding.seed == 42
     assert base_configuration.island.island_id == -1
 
@@ -94,7 +98,7 @@ def test_fan_out_island_configs_full_per_island_keeps_base_population(tmp_path):
     base_configuration.island.num_islands = 3
     base_configuration.search_algorithm.population = 20
 
-    island_configs = orchestrator._fan_out_island_configs(base_configuration, deadline_epoch_ns=1)
+    island_configs = orchestrator._fan_out_island_configs(base_configuration)
 
     assert [c.search_algorithm.population for c in island_configs] == [20, 20, 20]
 
@@ -107,7 +111,7 @@ def test_fan_out_island_configs_fixed_total_distributed_splits_the_population(tm
     )
     base_configuration.search_algorithm.population = 20
 
-    island_configs = orchestrator._fan_out_island_configs(base_configuration, deadline_epoch_ns=1)
+    island_configs = orchestrator._fan_out_island_configs(base_configuration)
 
     sizes = [c.search_algorithm.population for c in island_configs]
     assert sizes == [7, 7, 6]
@@ -117,7 +121,7 @@ def test_fan_out_island_configs_fixed_total_distributed_splits_the_population(tm
 def test_fan_out_island_configs_does_not_alias_nested_fields(tmp_path):
     base_configuration = _base_configuration(tmp_path)
 
-    island_configs = orchestrator._fan_out_island_configs(base_configuration, deadline_epoch_ns=1)
+    island_configs = orchestrator._fan_out_island_configs(base_configuration)
     island_configs[0].seeding.seed = 111
     island_configs[1].seeding.seed = 222
 
@@ -133,7 +137,7 @@ def test_fan_out_island_configs_switches_worker_islands_to_dynamosa_only_in_the_
         immigration_routing=config.ImmigrationRouting.TARGETED,
     )
 
-    island_configs = orchestrator._fan_out_island_configs(base_configuration, deadline_epoch_ns=1)
+    island_configs = orchestrator._fan_out_island_configs(base_configuration)
 
     assert [c.algorithm for c in island_configs] == [config.Algorithm.DYNAMOSA] * 3
     assert base_configuration.algorithm is config.Algorithm.LLDYNAMOSA
@@ -144,7 +148,7 @@ def test_fan_out_island_configs_keeps_the_algorithm_without_the_worker(tmp_path)
     base_configuration = _base_configuration(tmp_path)
     base_configuration.algorithm = config.Algorithm.MOSA
 
-    island_configs = orchestrator._fan_out_island_configs(base_configuration, deadline_epoch_ns=1)
+    island_configs = orchestrator._fan_out_island_configs(base_configuration)
 
     assert [c.algorithm for c in island_configs] == [config.Algorithm.MOSA] * 2
 
@@ -303,6 +307,71 @@ def test_stop_child_processes_shuts_down_the_manager_before_waiting():
     assert events == ["terminate", "manager shutdown", "join"]
 
 
+def _send_result(sending_connection):
+    sending_connection.send("result")
+
+
+def _exit_without_sending(_sending_connection):
+    pass
+
+
+def _start_with_pipe(target):
+    receiving_connection, sending_connection = mp.Pipe(duplex=False)
+    process = mp.get_context("fork").Process(target=target, args=(sending_connection,))
+    process.start()
+    sending_connection.close()
+    return process, receiving_connection
+
+
+def test_collect_island_result_returns_the_sent_result_and_joins_the_process():
+    process, receiving_connection = _start_with_pipe(_send_result)
+
+    result = orchestrator._collect_island_result(
+        process, receiving_connection, time.monotonic() + 30
+    )
+
+    assert result == "result"
+    assert not process.is_alive()
+
+
+def test_collect_island_result_returns_none_when_the_island_dies_without_sending():
+    process, receiving_connection = _start_with_pipe(_exit_without_sending)
+
+    result = orchestrator._collect_island_result(
+        process, receiving_connection, time.monotonic() + 30
+    )
+
+    assert result is None
+    assert not process.is_alive()
+
+
+def test_collect_island_result_stops_a_hung_island_at_the_deadline(monkeypatch):
+    monkeypatch.setattr(orchestrator, "_TERMINATE_TIMEOUT_SECONDS", 0.5)
+    process, receiving_connection = _start_with_pipe(
+        lambda _connection: _ignore_sigterm_and_sleep()
+    )
+    started = time.monotonic()
+
+    result = orchestrator._collect_island_result(process, receiving_connection, started + 0.5)
+
+    assert result is None
+    assert not process.is_alive()
+    assert time.monotonic() - started < 10
+
+
+def test_collect_llm_worker_result_stops_a_hung_worker(monkeypatch):
+    monkeypatch.setattr(orchestrator, "_RESULT_GRACE_SECONDS", 0.5)
+    monkeypatch.setattr(orchestrator, "_TERMINATE_TIMEOUT_SECONDS", 0.5)
+    process, receiving_connection = _start_with_pipe(
+        lambda _connection: _ignore_sigterm_and_sleep()
+    )
+
+    result = orchestrator._collect_llm_worker_result(process, receiving_connection)
+
+    assert result is None
+    assert not process.is_alive()
+
+
 def _process_group_is_empty(process_group_id: int) -> bool:
     try:
         os.killpg(process_group_id, 0)
@@ -381,3 +450,47 @@ def test_sigterm_to_the_orchestrator_stops_all_island_and_worker_processes(tmp_p
     finally:
         if not _process_group_is_empty(run.pid):
             os.killpg(run.pid, signal.SIGKILL)  # pragma: no cover
+
+
+def test_report_coverage_timeline_adds_the_best_coverage_so_far_across_islands():
+    results = [
+        IslandResult(
+            0, [], ReturnCode.OK, coverage_timeline=[(1_000_000_000, 0.5), (3_000_000_000, 0.6)]
+        ),
+        IslandResult(
+            1, [], ReturnCode.OK, coverage_timeline=[(2_000_000_000, 0.4), (4_000_000_000, 0.9)]
+        ),
+    ]
+
+    orchestrator._report_coverage_timeline(results)
+
+    assert stat.get_sequence_samples(RuntimeVariable.CoverageTimeline) == [
+        (1_000_000_000, 0.5),
+        (2_000_000_000, 0.5),
+        (3_000_000_000, 0.6),
+        (4_000_000_000, 0.9),
+    ]
+
+
+def test_report_migration_stats_tracks_totals_across_islands():
+    results = [
+        IslandResult(0, [], ReturnCode.OK, migration_stats=MigrationStats(3, 1, 2, 1)),
+        IslandResult(1, [], ReturnCode.OK, migration_stats=MigrationStats(2, 4, 5, 0)),
+        IslandResult(2, [], ReturnCode.OK),
+    ]
+
+    orchestrator._report_migration_stats(results)
+
+    tracked = dict(stat.statistics_tracker.variables_generator)
+    assert tracked[RuntimeVariable.MigrantsSentGoalTriggered] == 5
+    assert tracked[RuntimeVariable.MigrantsSentPeriodic] == 5
+    assert tracked[RuntimeVariable.MigrantsReceived] == 7
+    assert tracked[RuntimeVariable.MigrantsDroppedAsDuplicate] == 1
+
+
+def test_report_migration_stats_tracks_nothing_without_migration():
+    results = [IslandResult(0, [], ReturnCode.OK), IslandResult(1, [], ReturnCode.OK)]
+
+    orchestrator._report_migration_stats(results)
+
+    assert dict(stat.statistics_tracker.variables_generator) == {}

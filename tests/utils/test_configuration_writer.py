@@ -228,9 +228,9 @@ migration_strategy = "DISABLED"
 periodic_migration_frequency = 5
 periodic_migration_size = 5
 migrant_selection_policy = "RANDOM"
+migrant_rank_bias = 2.0
 population_allocation = "FULL_PER_ISLAND"
 island_id = -1
-deadline_epoch_ns = -1
 
 [llm_worker]
 enabled = false
@@ -398,8 +398,9 @@ def expected_txt(tmp_path):
  "migration_strategy=<MigrationStrategy.DISABLED: 'DISABLED'>, "
  'periodic_migration_frequency=5, periodic_migration_size=5, '
  "migrant_selection_policy=<MigrantSelectionPolicy.RANDOM: 'RANDOM'>, "
+ 'migrant_rank_bias=2.0, '
  'population_allocation=<PopulationAllocation.FULL_PER_ISLAND: '
- "'FULL_PER_ISLAND'>, island_id=-1, deadline_epoch_ns=-1), "
+ "'FULL_PER_ISLAND'>, island_id=-1), "
  'llm_worker=LLMWorkerConfiguration(enabled=False, max_in_flight_requests=1, '
  "immigration_routing=<ImmigrationRouting.TARGETED: 'TARGETED'>, "
  'cost_per_1k_input_tokens=0.0, cost_per_1k_output_tokens=0.0), '
@@ -455,10 +456,10 @@ False
 RANK_SELECTION
 --generator_selection.generator_selection_bias
 1.7
---island.deadline_epoch_ns
--1
 --island.island_id
 -1
+--island.migrant_rank_bias
+2.0
 --island.migrant_selection_policy
 RANDOM
 --island.migration_strategy

@@ -110,6 +110,26 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
         self._time_stamps.append(time.time_ns() - self._start_time)
         self._values.append(value)
 
+    def get_samples(self) -> list[tuple[int, T]]:
+        """Provides the recorded samples.
+
+        Returns:
+            The (time stamp, value) pairs, with time stamps in nanoseconds since the
+            start time
+        """
+        return list(zip(self._time_stamps, self._values, strict=True))
+
+    def add_sample(self, time_stamp: int, value: T) -> None:
+        """Adds a sample that was recorded elsewhere, e.g., in another process.
+
+        Args:
+            time_stamp: The time stamp in nanoseconds since the start time, not
+                earlier than the last recorded one
+            value: The value
+        """
+        self._time_stamps.append(time_stamp)
+        self._values.append(value)
+
     def get_variable_names_indices(self) -> list[tuple[int, str]]:
         """Provides a list of variable names.
 
