@@ -15,6 +15,7 @@ import logging
 import re
 import sys
 import threading
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -160,14 +161,81 @@ def _xfail_decorator() -> cst.Decorator:
     )
 
 
+class _ReferencedNameCollector(cst.CSTVisitor):
+    """Collects every bare name a CST node references.
+
+    Attribute members (``bar`` in ``foo.bar``) and call keywords (``x`` in
+    ``f(x=1)``) are member or parameter names, not references, and are skipped.
+    The result over-approximates the names a test reads (assignment targets are
+    included), which is safe: it only decides which SUT names get imported.
+    """
+
+    def __init__(self) -> None:
+        self.names: set[str] = set()
+
+    def visit_Name(self, node: cst.Name) -> None:  # noqa: N802
+        self.names.add(node.value)
+
+    def visit_Attribute(self, node: cst.Attribute) -> bool:  # noqa: N802
+        node.value.visit(self)
+        return False
+
+    def visit_Arg(self, node: cst.Arg) -> bool:  # noqa: N802
+        node.value.visit(self)
+        return False
+
+
+def _referenced_names(nodes: Sequence[cst.CSTNode]) -> set[str]:
+    """Collect the bare names referenced by the given CST nodes.
+
+    Args:
+        nodes: The nodes to inspect.
+
+    Returns:
+        The set of referenced names.
+    """
+    collector = _ReferencedNameCollector()
+    for node in nodes:
+        node.visit(collector)
+    return collector.names
+
+
+def _test_case_referenced_names(
+    tc: TestCase,
+    module_aliases: dict[str, str] | None = None,
+) -> set[str]:
+    """Collect the bare names a test case references once it is rendered.
+
+    This covers the statements and the assertions rendered after them. A test
+    case without statements (a seed holding raw code) is parsed from its code.
+
+    Args:
+        tc: The test case to inspect.
+        module_aliases: Optional mapping from module names to their aliases, as
+            used when rendering the assertions.
+
+    Returns:
+        The set of referenced names.
+    """
+    nodes: list[cst.CSTNode] = []
+    for stmt in tc.statements():
+        nodes.append(stmt.node)
+        for assertion in stmt.assertions:
+            cst_node = assertion_to_cst(assertion, module_aliases=module_aliases)
+            if cst_node is not None:
+                nodes.append(cst_node)
+    if not nodes:
+        with contextlib.suppress(Exception):
+            nodes.extend(cst.parse_module(tc.to_code()).body)
+    return _referenced_names(nodes)
+
+
 def _public_sut_names(module: object, module_alias: str) -> list[str]:
     """Return the SUT module's public names, sorted.
 
-    These are exactly the names the rendered test file imports via
-    ``from <module> import <names>`` (see ``TestSuiteWriter.write``). Underscore-prefixed
-    names and the module alias are excluded so the alias binding is never shadowed. The
-    re-execution namespace binds the same names, so statements that call a function by its
-    bare imported name (as LLM-generated tests do) resolve instead of raising ``NameError``.
+    These are the candidates for the ``from <module> import <names>`` line of the
+    rendered test file (see ``_build_sut_import_statements``). Underscore-prefixed
+    names and the module alias are excluded so the alias binding is never shadowed.
 
     Args:
         module: The imported SUT module.
@@ -179,9 +247,35 @@ def _public_sut_names(module: object, module_alias: str) -> list[str]:
     return sorted(name for name in dir(module) if not name.startswith("_") and name != module_alias)
 
 
+def _direct_module_import(name: str, value: object) -> str | None:
+    """Return a direct import binding *name* to the module *value*, if possible.
+
+    A module the SUT merely imported (``os``, ``datetime``) should be imported
+    by the test file itself rather than through the SUT, so the tests do not
+    depend on the SUT's own imports.
+
+    Args:
+        name: The name the SUT binds the module to.
+        value: The object bound to *name* in the SUT.
+
+    Returns:
+        The import source, or ``None`` if *value* is not a module that can be
+        imported by its own name.
+    """
+    if not isinstance(value, types.ModuleType):
+        return None
+    real_name = value.__name__
+    if sys.modules.get(real_name) is not value:
+        return None
+    if real_name == name:
+        return f"import {name}\n"
+    return f"import {real_name} as {name}\n"
+
+
 def _build_sut_import_statements(
     module_name: str,
     project_path: str | None = None,
+    used_names: set[str] | None = None,
 ) -> list[cst.SimpleStatementLine]:
     """Build the CST import statements for the SUT.
 
@@ -189,9 +283,15 @@ def _build_sut_import_statements(
     executed into the namespace of the dry-run statement execution so that both
     execution environments are identical and cannot drift.
 
+    Only the SUT's public names that the tests reference are imported. Names that
+    are bound to modules (e.g. ``os`` when the SUT does ``import os``) are imported
+    directly instead of through the SUT.
+
     Args:
         module_name: The name of the module under test.
         project_path: Optional path prepended to ``sys.path``.
+        used_names: The names referenced by the tests; ``None`` imports every
+            public name of the SUT.
 
     Returns:
         A list of CST import statements for the SUT.
@@ -202,11 +302,26 @@ def _build_sut_import_statements(
 
     canonical_name = canonical_module_name(module_name)
     module_alias = get_module_alias(module_name)
+    module_imports: list[str] = []
+    from_names: list[str] = []
     try:
         sut_mod = importlib.import_module(module_name)
         public_names = _public_sut_names(sut_mod, module_alias)
     except Exception:  # noqa: BLE001
+        sut_mod = None
         public_names = []
+    for name in public_names:
+        if used_names is not None and name not in used_names:
+            continue
+        value = getattr(sut_mod, name, None)
+        if value is sys:
+            # Already bound by the header's ``import sys``.
+            continue
+        direct_import = _direct_module_import(name, value)
+        if direct_import is not None:
+            module_imports.append(direct_import)
+        else:
+            from_names.append(name)
 
     stmts: list[cst.SimpleStatementLine] = [
         cast("cst.SimpleStatementLine", cst.parse_statement("import sys\n")),
@@ -216,8 +331,11 @@ def _build_sut_import_statements(
             cst.parse_statement(f"{module_alias} = sys.modules['{canonical_name}']\n"),
         ),
     ]
-    if public_names:
-        names_str = ", ".join(public_names)
+    stmts.extend(
+        cast("cst.SimpleStatementLine", cst.parse_statement(source)) for source in module_imports
+    )
+    if from_names:
+        names_str = ", ".join(from_names)
         stmts.append(
             cast(
                 "cst.SimpleStatementLine",
@@ -348,7 +466,11 @@ class TestSuiteWriter:
         import_stmts = (
             sut_import_stmts
             if sut_import_stmts is not None
-            else _build_sut_import_statements(module_name, project_path)
+            else _build_sut_import_statements(
+                module_name,
+                project_path,
+                _test_case_referenced_names(tc, module_aliases),
+            )
         )
         for stmt_node in import_stmts:
             with contextlib.suppress(Exception):
@@ -595,8 +717,16 @@ class TestSuiteWriter:
             used_aliases.add(candidate)
             isinstance_module_aliases[mod] = candidate
 
+        # Import only the SUT names the rendered tests reference. The same list is
+        # bound in the dry-run namespace, so both resolve exactly the same names.
+        used_names: set[str] = set()
+        for individual in suite.test_case_chromosomes:
+            individual.test_case.remove_unused_variables()
+            used_names |= _test_case_referenced_names(
+                individual.test_case, isinstance_module_aliases
+            )
         sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = list(
-            _build_sut_import_statements(module_name, project_path)
+            _build_sut_import_statements(module_name, project_path, used_names)
         )
 
         functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
@@ -608,7 +738,6 @@ class TestSuiteWriter:
         # Build one test function per test case chromosome in the suite
         for individual in suite.test_case_chromosomes:
             tc = individual.test_case
-            tc.remove_unused_variables()
             exc_types = self._per_statement_exceptions(
                 tc,
                 module_name,

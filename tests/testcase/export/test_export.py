@@ -653,7 +653,7 @@ def test_write_with_seed_when_sut_exports_random_does_not_shadow_prelude(
     monkeypatch.setitem(sys.modules, "sut_with_random", fake_mod)
 
     writer = TestSuiteWriter()
-    test_case = make_test_case(int_stmt("int_0", 5))
+    test_case = make_test_case(stmt("random()"))
     suite = tsc.TestSuiteChromosome()
     suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
 
@@ -955,6 +955,109 @@ def test_build_sut_import_statements_unimportable_module():
     assert f"import {bogus}" in code
     assert f"{bogus}_ = sys.modules['{bogus}']" in code
     assert f"from {bogus} import" not in code
+
+
+def _register_fake_sut(monkeypatch: pytest.MonkeyPatch, name: str) -> types.ModuleType:
+    """Register a fake SUT module that imports stdlib modules and typing helpers.
+
+    Args:
+        monkeypatch: The monkeypatch fixture used to register the module.
+        name: The module name.
+
+    Returns:
+        The fake SUT module.
+    """
+    import datetime  # noqa: PLC0415
+    import os.path  # noqa: PLC0415
+    from typing import Any  # noqa: PLC0415
+
+    fake_mod = types.ModuleType(name)
+    fake_mod.os = os
+    fake_mod.sys = sys
+    fake_mod.datetime = datetime
+    fake_mod.path = os.path
+    fake_mod.Any = Any
+    fake_mod.f = lambda: 1
+    fake_mod.g = lambda: 2
+    monkeypatch.setitem(sys.modules, name, fake_mod)
+    return fake_mod
+
+
+def test_build_sut_import_statements_only_used_names(monkeypatch: pytest.MonkeyPatch):
+    """Only referenced SUT names are imported; modules are imported directly."""
+    _register_fake_sut(monkeypatch, "sut_with_stdlib")
+
+    stmts = export._build_sut_import_statements(
+        "sut_with_stdlib", used_names={"f", "datetime", "path", "sys", "int_0"}
+    )
+
+    code = cst.Module(body=stmts).code
+    assert code == (
+        "import sys\n"
+        "import sut_with_stdlib\n"
+        "sut_with_stdlib_ = sys.modules['sut_with_stdlib']\n"
+        "import datetime\n"
+        f"import {os.path.__name__} as path\n"
+        "from sut_with_stdlib import f\n"
+    )
+
+
+def test_build_sut_import_statements_no_used_names(monkeypatch: pytest.MonkeyPatch):
+    """With no referenced SUT names, no ``from <sut> import`` line is emitted."""
+    _register_fake_sut(monkeypatch, "sut_with_stdlib")
+
+    stmts = export._build_sut_import_statements("sut_with_stdlib", used_names=set())
+
+    code = cst.Module(body=stmts).code
+    assert "from sut_with_stdlib import" not in code
+    assert "import sut_with_stdlib\n" in code
+
+
+def test_write_imports_only_used_sut_names(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A test calling only ``f()`` imports exactly ``f`` from the SUT."""
+    _register_fake_sut(monkeypatch, "sut_with_stdlib")
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("res = f()"), stmt("assert res == 1"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, "sut_with_stdlib", tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "from sut_with_stdlib import f\n" in content
+    for name in ("os", "Any", "datetime", "g"):
+        assert f"import {name}" not in content
+        assert f", {name}" not in content
+
+
+def test_write_imports_module_used_through_sut_directly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """A module that reaches the tests only through the SUT is imported directly."""
+    _register_fake_sut(monkeypatch, "sut_with_stdlib")
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        stmt("date_0 = datetime.datetime(2020, 1, 1)"), stmt("assert date_0.year == 2020")
+    )
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, "sut_with_stdlib", tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import datetime\n" in content
+    assert "from sut_with_stdlib import" not in content
+    assert "@pytest.mark.xfail" not in content
+    exec_ns: dict[str, object] = {}
+    exec(compile(content, str(out_file), "exec"), exec_ns)  # noqa: S102
+    exec_ns["test_0"]()  # type: ignore[operator]
+
+
+def test_referenced_names_skip_attributes_and_keywords():
+    """Attribute members and call keywords are not referenced names."""
+    node = cst.parse_statement("x = a.b.c(d, key=e)\n")
+
+    assert export._referenced_names([node]) == {"x", "a", "d", "e"}
 
 
 def test_per_statement_exceptions_binds_canonical_module_name_dotted():
