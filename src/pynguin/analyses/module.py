@@ -2263,8 +2263,6 @@ def __analyse_included_classes(
             continue
         seen_classes.add(current)
 
-        type_info = test_cluster.type_system.to_type_info(current)
-
         # Skip if the class is _ObjectProxyMethods, as it is broken
         # since __module__ is not well defined on it.
         if isinstance(current.__module__, property):
@@ -2293,6 +2291,8 @@ def __analyse_included_classes(
                 LOGGER.info("C-extension module not found: %s", current.__module__)
                 continue
             raise error
+
+        type_info = test_cluster.type_system.to_type_info(current)
 
         __analyse_class(
             type_info=type_info,

@@ -13,6 +13,7 @@ import copy
 import enum
 import inspect
 import numbers
+import pickle  # noqa: S403
 import sys
 import types
 import typing
@@ -86,6 +87,28 @@ def is_ignorable_type(typ: type) -> bool:
         Whether the type is ignorable
     """
     return f"{typ.__module__}.{typ.__name__}" in IGNORABLE_TYPES
+
+
+def is_type_picklable(typ: Any) -> bool:
+    """Check if a type can be safely pickled and referenced by name.
+
+    In Python, types and classes are pickled by their global name:
+    (module, qualname). If a type is an internal C-extension type (such as
+    `_json.Scanner`) or not accessible as an attribute on its defining module,
+    it cannot be looked up during pickling or unpickling and cannot be imported
+    in generated test cases.
+
+    Args:
+        typ: The object or type to check.
+
+    Returns:
+        True if the type can be safely pickled by reference, False otherwise.
+    """
+    try:
+        pickle.dumps(typ)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def is_none_type(typ: type | None) -> bool:
