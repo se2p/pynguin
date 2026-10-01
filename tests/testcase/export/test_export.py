@@ -974,6 +974,7 @@ def _register_fake_sut(monkeypatch: pytest.MonkeyPatch, name: str) -> types.Modu
     fake_mod = types.ModuleType(name)
     fake_mod.os = os
     fake_mod.sys = sys
+    fake_mod.system = sys
     fake_mod.datetime = datetime
     fake_mod.path = os.path
     fake_mod.Any = Any
@@ -1000,6 +1001,17 @@ def test_build_sut_import_statements_only_used_names(monkeypatch: pytest.MonkeyP
         f"import {os.path.__name__} as path\n"
         "from sut_with_stdlib import f\n"
     )
+
+
+def test_build_sut_import_statements_sys_under_other_name(monkeypatch: pytest.MonkeyPatch):
+    """The sys module bound under another name is imported under that name."""
+    _register_fake_sut(monkeypatch, "sut_with_stdlib")
+
+    stmts = export._build_sut_import_statements("sut_with_stdlib", used_names={"system"})
+
+    code = cst.Module(body=stmts).code
+    assert "import sys as system\n" in code
+    assert "from sut_with_stdlib import" not in code
 
 
 def test_build_sut_import_statements_no_used_names(monkeypatch: pytest.MonkeyPatch):

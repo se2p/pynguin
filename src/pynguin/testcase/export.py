@@ -314,7 +314,7 @@ def _build_sut_import_statements(
         if used_names is not None and name not in used_names:
             continue
         value = getattr(sut_mod, name, None)
-        if value is sys:
+        if name == "sys" and value is sys:
             # Already bound by the header's ``import sys``.
             continue
         direct_import = _direct_module_import(name, value)
