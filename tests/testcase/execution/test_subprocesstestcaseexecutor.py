@@ -10,6 +10,7 @@ import importlib
 import logging
 import multiprocessing.connection as mp_conn
 import os
+import pickle  # noqa: S403
 import signal
 import unittest.mock
 from typing import Any
@@ -18,6 +19,7 @@ from unittest.mock import patch
 import pytest
 
 import pynguin.configuration as config
+from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import (
@@ -288,3 +290,35 @@ def test_executor_remote_observers_respects_track_collection_accesses():
         assert any(
             isinstance(obs, RemoteCollectionTrackingObserver) for obs in executor.remote_observers
         )
+
+
+def test_fix_result_for_pickle_unpicklable_raw_types():
+    def _local():
+        class _Local:
+            pass
+
+        return _Local
+
+    local_cls = _local()
+    result = ExecutionResult()
+    result.raw_return_types = {0: int, 1: local_cls}
+    result.raw_return_type_generic_args = {0: (int,), 1: (local_cls,)}
+
+    SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+    assert result.raw_return_types == {0: int}
+    assert result.raw_return_type_generic_args == {0: (int,)}
+
+
+def test_typeinfo_pickling_with_unpicklable_raw_type():
+    def _local():
+        class _Local:
+            pass
+
+        return _Local
+
+    local_cls = _local()
+    info = TypeInfo(local_cls)
+    dumped = pickle.dumps(info)
+    loaded = pickle.loads(dumped)  # noqa: S301
+    assert loaded.full_name == info.full_name
+    assert loaded.raw_type is None

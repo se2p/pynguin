@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import enum
+import importlib
 import inspect
 import numbers
 import sys
@@ -86,6 +87,47 @@ def is_ignorable_type(typ: type) -> bool:
         Whether the type is ignorable
     """
     return f"{typ.__module__}.{typ.__name__}" in IGNORABLE_TYPES
+
+
+def is_type_picklable(typ: Any) -> bool:
+    """Check if a type can be safely pickled and referenced by name.
+
+    In Python, types and classes are pickled by their global name:
+    (module, qualname). If a type is an internal C-extension type (such as
+    `_json.Scanner`) or not accessible as an attribute on its defining module,
+    it cannot be looked up during pickling or unpickling and cannot be imported
+    in generated test cases.
+
+    Args:
+        typ: The object or type to check.
+
+    Returns:
+        True if the type can be safely pickled by reference, False otherwise.
+    """
+    if (origin := typing.get_origin(typ)) is not None:
+        args = typing.get_args(typ)
+        return is_type_picklable(origin) and all(is_type_picklable(arg) for arg in args)
+    if not isinstance(typ, type):
+        return True
+    mod_name = getattr(typ, "__module__", None)
+    qualname = getattr(typ, "__qualname__", None)
+    if (
+        not mod_name
+        or not qualname
+        or not isinstance(mod_name, str)
+        or not isinstance(qualname, str)
+    ):
+        return False
+    try:
+        mod = sys.modules.get(mod_name)
+        if mod is None:
+            mod = importlib.import_module(mod_name)
+        obj: Any = mod
+        for part in qualname.split("."):
+            obj = getattr(obj, part)
+        return obj is typ
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def is_none_type(typ: type | None) -> bool:

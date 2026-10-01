@@ -37,6 +37,7 @@ from pynguin.utils.type_utils import (
     is_set,
     is_string,
     is_tuple,
+    is_type_picklable,
 )
 
 
@@ -513,3 +514,35 @@ def test_is_repr_assertable_namespace_none_with_sys_modules(monkeypatch):
 
     p = DummyPoint(1, 2)
     assert is_repr_assertable(p, namespace=None) is True
+
+
+def test_is_type_picklable():
+    assert is_type_picklable(int) is True
+    assert is_type_picklable(str) is True
+    assert is_type_picklable(list[int]) is True
+    assert is_type_picklable(dict[str, int]) is True
+    assert is_type_picklable(int | str) is True
+    assert is_type_picklable(None) is True
+    assert is_type_picklable(42) is True
+
+    # Local class inside a function cannot be pickled by global name
+    def _make_local():
+        class _Local:
+            pass
+
+        return _Local
+
+    local_cls = _make_local()
+    assert is_type_picklable(local_cls) is False
+    assert is_type_picklable(list[local_cls]) is False
+    assert is_type_picklable(int | local_cls) is False
+
+    # C-extension type not exposed on its module (like _json.Scanner)
+    try:
+        import json.scanner  # noqa: PLC0415
+
+        scanner = json.scanner.c_make_scanner
+        assert is_type_picklable(scanner) is False
+        assert is_type_picklable(list[scanner]) is False
+    except (ImportError, AttributeError):
+        pass
