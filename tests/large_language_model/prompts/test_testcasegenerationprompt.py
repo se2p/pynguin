@@ -33,6 +33,9 @@ def test_testcasegenerationprompt_build_prompt():
     assert "Module path: `example/path.py`" in user_prompt
     assert "def foo():\n    pass" in user_prompt
     assert "```python code block" in user_prompt
+    assert "Exercise error paths: only wrap calls in `with pytest.raises(...)`" in user_prompt
+    assert "suppresses, or logs" in user_prompt
+    assert "without `pytest.raises`" in user_prompt
 
 
 def test_testcasegenerationprompt_render():

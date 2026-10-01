@@ -193,6 +193,23 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, subject_properties_
     )
 
 
+def test_comprehension_then_conditional(simple_module, subject_properties_mock: MagicMock):
+    # Regression test for https://github.com/se2p/pynguin/issues/150: instrumenting a
+    # comprehension followed by a conditional expression with a comparison used to raise
+    # "Failed to compute stacksize" on Python 3.12+ because the exception table markers
+    # introduced by the inlined comprehension shifted the instruction insertion index.
+    adapter = BranchCoverageInstrumentation(subject_properties_mock)
+    transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
+    instrument_function(transformer, simple_module.comprehension_then_conditional)
+    assert simple_module.comprehension_then_conditional(["[", "x"], "proof") == "proof"
+    assert simple_module.comprehension_then_conditional([], "other") is None
+    # The comparison of the conditional expression must be reported to the tracer,
+    # which only happens if its instrumentation is inserted at the correct position.
+    subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_any_call(
+        "proof", "proof", mock.ANY, PynguinCompare.EQ
+    )
+
+
 def test_add_cmp_predicate_lambda(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])

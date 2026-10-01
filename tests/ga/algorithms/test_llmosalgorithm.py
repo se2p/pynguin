@@ -656,6 +656,36 @@ def test_seed_archive_from_llm_all_crashing(llmosa_algorithm):
     llmosa_algorithm._logger.warning.assert_called_once()
 
 
+def _crashed_chromosome(exceptions):
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    result = MagicMock()
+    result.exceptions = exceptions
+    chromosome.get_last_execution_result.return_value = result
+    return chromosome
+
+
+def test_seed_archive_from_llm_logs_common_exception(llmosa_algorithm):
+    error = ImportError("cannot import name 'is_32bit' from 'croniter'")
+    candidates = [_crashed_chromosome({2: error, 5: ValueError()}) for _ in range(3)]
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=candidates)
+    llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=[])
+
+    llmosa_algorithm._seed_archive_from_llm()
+
+    assert llmosa_algorithm._logger.warning.call_count == 2
+    assert llmosa_algorithm._logger.warning.call_args.args[1] == repr(error)
+
+
+def test_seed_archive_from_llm_does_not_log_differing_exceptions(llmosa_algorithm):
+    candidates = [_crashed_chromosome({0: ValueError("a")}), _crashed_chromosome({0: KeyError()})]
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=candidates)
+    llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=[])
+
+    llmosa_algorithm._seed_archive_from_llm()
+
+    llmosa_algorithm._logger.warning.assert_called_once()
+
+
 def test_get_random_chromosome(llmosa_algorithm):
     mock_chrom = MagicMock(spec=tcc.TestCaseChromosome)
     tc_factory = llmosa_algorithm._chromosome_factory.test_case_chromosome_factory

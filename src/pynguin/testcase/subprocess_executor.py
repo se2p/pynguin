@@ -31,6 +31,7 @@ from pynguin.testcase.execution_result import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.statistics import stats as stat
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+from pynguin.utils.type_utils import is_type_picklable
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Generator, Iterable
@@ -686,6 +687,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             lambda: _clear_bad_proper_return_type_traces(result),
         )
 
+        unpicklable_generic_args = [
+            t
+            for generic_args in result.raw_return_type_generic_args.values()
+            for t in generic_args
+            if not is_type_picklable(t)
+        ]
+        if unpicklable_generic_args:
+            SubprocessTestCaseExecutor._log_different_results(
+                "Unpicklable raw return type generic args",
+                unpicklable_generic_args,
+            )
+            _filter_bad_raw_return_type_generic_args(result, unpicklable_generic_args)
+
         SubprocessTestCaseExecutor._fix_unpicklable(
             result.raw_return_type_generic_args,
             "Unpicklable raw return type generic args",
@@ -693,6 +707,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             "Failed to fix raw return type generic args for pickle",
             lambda: _clear_bad_raw_return_type_generic_args(result),
         )
+
+        unpicklable_raw = [t for t in result.raw_return_types.values() if not is_type_picklable(t)]
+        if unpicklable_raw:
+            SubprocessTestCaseExecutor._log_different_results(
+                "Unpicklable raw return types",
+                unpicklable_raw,
+            )
+            _filter_bad_raw_return_types(result, unpicklable_raw)
 
         SubprocessTestCaseExecutor._fix_unpicklable(
             result.raw_return_types,

@@ -30,22 +30,25 @@ user_message_template: |
   **MUST keep the `module_0.` prefix. Do NOT convert `module_0.func()` to bare `func()`**
   **— that will cause NameError.**
 
-  **CRITICAL - Keep EVERY test function. Do NOT drop, merge, or add test functions.**
-  **CRITICAL - Keep each test function's EXACT ORIGINAL NAME. Do NOT rename functions.**
-  **The number and names of `def test_...` functions in your output MUST match the input.**
+  **CRITICAL - Keep EVERY test function in the original order. Do NOT drop, merge, or add test functions.**
+  **The number of `def test_...` functions in your output MUST match the input.**
 
   **Requirements (apply to each test function independently):**
-  1. **Semantic Naming:** Rename generic variables (bool_0, int_0, str_0) to meaningful
+  1. **Test Function Name:** Rename each test function to be descriptive of what it tests
+     (use pattern: `test_<behavior_being_tested>`). Ensure all test function names start
+     with 'test_' and are unique.
+  2. **Semantic Naming:** Rename generic variables (bool_0, int_0, str_0) to meaningful
      names based on the method's purpose.
-  2. **AAA Structure:** Add clear `# Arrange`, `# Act`, `# Assert` section markers.
+  3. **AAA Structure:** Add clear `# Arrange`, `# Act`, `# Assert` section markers.
      Do NOT skip sections even if they are empty.
-  3. **Preserve Behavior:** Keep the exact same logic, assertions, and control flow.
+  4. **Preserve Behavior:** Keep the exact same logic, assertions, and control flow.
      Do NOT change assertion conditions, add new assertions, remove existing code,
      or modify try/except blocks.
-  4. **Docstring:** Add a brief (1-2 line) docstring to each test explaining what it
+  5. **Docstring:** Add a brief (1-2 line) docstring to each test explaining what it
      verifies. Do NOT add excessive inline comments.
 
   **Output Format:**
   Return the complete refactored module WITH ALL IMPORT STATEMENTS from the original.
-  Include imports at the top, then every test function in the original order.
+  Include imports at the top, then every test function in the original order with its
+  descriptive test function name.
   No explanations, no markdown prose.

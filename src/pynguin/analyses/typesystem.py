@@ -9,9 +9,11 @@
 from __future__ import annotations
 
 import functools
+import importlib
 import inspect
 import logging
 import re
+import sys
 import types
 import typing
 from abc import ABC, abstractmethod
@@ -44,6 +46,7 @@ from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
     get_method_for_signature,
+    is_type_picklable,
 )
 
 if typing.TYPE_CHECKING:
@@ -1224,6 +1227,45 @@ class TypeInfo:
     def __repr__(self):
         return f"TypeInfo({self.full_name})"
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Prepare the instance for pickling.
+
+        Internal C-extension types (such as `_json.Scanner`) cannot be pickled
+        by name. If `raw_type` is unpicklable, we replace it with `None` in the
+        serialized state so the `TypeInfo` and any enclosing objects can still
+        be transferred across processes without causing `PicklingError`.
+
+        Returns:
+            The state dictionary for serialization.
+        """
+        state = self.__dict__.copy()
+        if not is_type_picklable(self.raw_type):
+            state["raw_type"] = None
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """Restore the instance after unpickling.
+
+        If `raw_type` was set to `None` due to unpicklability, attempt a
+        best-effort re-import and attribute lookup.
+
+        Args:
+            state: The state dictionary.
+        """
+        self.__dict__.update(state)
+        if self.raw_type is None and self.module and self.qualname:
+            try:
+                mod = sys.modules.get(self.module)
+                if mod is None:
+                    mod = importlib.import_module(self.module)
+                obj: Any = mod
+                for part in self.qualname.split("."):
+                    obj = getattr(obj, part)
+                if isinstance(obj, type):
+                    self.raw_type = obj
+            except Exception:  # noqa: BLE001, S110
+                pass
+
 
 class NamedDefaultDict(dict[str, tt.UsageTraceNode]):  # noqa: FURB189
     """A default dictionary that automatically creates nodes for keys.
@@ -1903,6 +1945,7 @@ class TypeSystem:  # noqa: PLR0904
         for subtype in STRING_SUBTYPES:
             type_info = TypeInfo(subtype)
             self.add_subclass_edge(super_class=self.to_type_info(str), sub_class=type_info)
+        self.to_type_info(object)
 
     def enable_numeric_tower(self):
         """Enable the numeric tower on this type system."""
@@ -2226,8 +2269,7 @@ class TypeSystem:  # noqa: PLR0904
         # some of it attributes, as they are only stubs. For example, when searching for
         # an object that supports comparison, choosing object does not make sense,
         # because it will raise a NotImplementedError.
-        object_info = self.find_type_info("builtins.object")
-        assert object_info is not None
+        object_info = self.to_type_info(object)
         object_info.attributes.difference_update({
             "__lt__",
             "__le__",

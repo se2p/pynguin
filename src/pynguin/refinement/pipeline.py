@@ -181,8 +181,90 @@ def _remove_failing_inferred_assertion(
     return "\n".join(new_lines), assertion_str
 
 
+def _strip_xfail_decorator(current_code: str) -> str | None:
+    """Remove a ``@pytest.mark.xfail`` decorator from the test function.
+
+    Used to reconcile a test whose body was rewritten so it no longer raises
+    (e.g. wrapped in ``pytest.raises``) but which kept its ``xfail(strict=True)``
+    marker -- pytest would report such a test as ``XPASS(strict)`` (a failure).
+    Dropping the now-invalid marker turns it into an ordinary passing test.
+
+    Args:
+        current_code: The test code (imports + one decorated function).
+
+    Returns:
+        The code without the ``xfail`` decorator line(s), or ``None`` if no such
+        decorator is present or the code cannot be parsed.
+    """
+    try:
+        tree = ast.parse(current_code)
+    except SyntaxError:
+        return None
+
+    lines = current_code.split("\n")
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            if isinstance(target, ast.Attribute) and target.attr == "xfail":
+                start = decorator.lineno - 1  # 1-based -> 0-based
+                end = decorator.end_lineno or decorator.lineno
+                new_lines = [*lines[:start], *lines[end:]]
+                return "\n".join(new_lines)
+    return None
+
+
+def _expr_calls_pytest(node: ast.expr, names: frozenset[str]) -> bool:
+    """Return whether ``node`` is a call to one of ``pytest.<name>``."""
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    return isinstance(func, ast.Attribute) and func.attr in names
+
+
+def _has_meaningful_check(code: str) -> bool:
+    """Return whether the test code contains at least one behavioural check.
+
+    A "meaningful check" is anything that can make the test fail for the right
+    reason: an ``assert`` statement, a ``with pytest.raises(...)``/``pytest.warns``
+    block, a bare ``pytest.raises``/``pytest.fail`` call, or an ``xfail`` decorator
+    (an ``xfail`` test asserts by *raising*).  A test that has none of these is a
+    vacuous no-op that kills no mutants and verifies nothing.
+
+    Args:
+        code: The test source (imports + one function).
+
+    Returns:
+        ``True`` if the code contains a meaningful check, ``False`` otherwise
+        (including when the code cannot be parsed).
+    """
+    raises_like = frozenset({"raises", "warns", "fail"})
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assert):
+            return True
+        if isinstance(node, ast.FunctionDef):
+            for decorator in node.decorator_list:
+                target = decorator.func if isinstance(decorator, ast.Call) else decorator
+                if isinstance(target, ast.Attribute) and target.attr == "xfail":
+                    return True
+        if isinstance(node, (ast.With, ast.AsyncWith)) and any(
+            _expr_calls_pytest(item.context_expr, raises_like) for item in node.items
+        ):
+            return True
+        if isinstance(node, ast.Expr) and _expr_calls_pytest(node.value, raises_like):
+            return True
+    return False
+
+
 def _classify_error(error_msg: str) -> str:
     """Classify a validation error message into a coarse error type."""
+    if "XPASS(strict)" in error_msg:
+        return "XPASS Strict"
     if "TimeoutError" in error_msg:
         return "Timeout Error"
     if "SyntaxError" in error_msg:
@@ -769,6 +851,13 @@ class TestRefiner:
         mutation_stats: dict[str, Any],
     ) -> dict:
         """Run the coverage check and AAA insertion after a passing test."""
+        if _has_meaningful_check(original_code) and not _has_meaningful_check(current_code):
+            return {
+                "success": False,
+                "error": "Refinement removed all assertions (vacuous test); reverting to original.",
+                "iterations": repair_iterations,
+            }
+
         coverage_passed, coverage_details = check_coverage_preservation(
             original_test=original_code,
             refined_test=current_code,
@@ -823,6 +912,16 @@ class TestRefiner:
                     "last_error_msg": error_msg,
                     "iterations": iteration,
                 }
+
+            # XPASS(strict) policy: the body no longer raises (e.g. it was rewritten
+            # into ``pytest.raises``) but the test kept its ``xfail(strict=True)``
+            # marker. Drop the now-invalid marker deterministically (no LLM call)
+            # so the refined test passes instead of failing as XPASS(strict).
+            if error_type == "XPASS Strict":
+                stripped_code = _strip_xfail_decorator(current_code)
+                if stripped_code is not None and stripped_code != current_code:
+                    current_code = stripped_code
+                    continue  # Don't count this as a repair iteration
 
             if iteration >= max_retries:
                 return {

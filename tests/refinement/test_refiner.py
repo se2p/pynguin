@@ -19,9 +19,14 @@ from pynguin.refinement.refiner import (
     _attach_usage,  # noqa: PLC2701
     _extract_function_text,  # noqa: PLC2701
     _failure_stats,  # noqa: PLC2701
+    _finalize_refined_suite,  # noqa: PLC2701
+    _hoist_local_imports,  # noqa: PLC2701
+    _is_test_function,  # noqa: PLC2701
+    _load_test_functions,  # noqa: PLC2701
     _MutationAccumulator,  # noqa: PLC2701
     _new_stats,  # noqa: PLC2701
     _process_one_test,  # noqa: PLC2701
+    _sanitize_test,  # noqa: PLC2701
     _TestOutcome,  # noqa: PLC2701
     _track_statistics,  # noqa: PLC2701
     refine_generated_tests,
@@ -123,7 +128,7 @@ def test_process_one_test_success(monkeypatch):
 
     outcome = _process_one_test(
         refiner=_FakeRefiner(),
-        import_block="",
+        preamble="",
         func=func,
         max_repair_iterations=3,
     )
@@ -148,7 +153,7 @@ def test_process_one_test_failed_result(monkeypatch):
 
     outcome = _process_one_test(
         refiner=_FakeRefiner(),
-        import_block="",
+        preamble="",
         func=func,
         max_repair_iterations=1,
     )
@@ -169,7 +174,7 @@ def test_process_one_test_exception_path(monkeypatch):
 
     outcome = _process_one_test(
         refiner=_FakeRefiner(),
-        import_block="",
+        preamble="",
         func=func,
         max_repair_iterations=1,
     )
@@ -274,6 +279,9 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
     monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
     monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    # The fake module cannot actually execute the tests; treat every test as
+    # green so the suite-finalization step keeps them (it validates via run_test).
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
     # This test exercises the per-test path (mocking _process_one_test), so pin the
     # granularity to PER_TEST rather than the new COMBINED default.
     monkeypatch.setattr(
@@ -295,6 +303,108 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     assert stats["readability_delta"] == pytest.approx(0.6)
     assert stats["llm_calls"] == 2
     assert stats["mutation_inferred_total"] == 1
+
+
+_EXPORTED_FILE = (
+    "import sys\n"
+    "import ftfy.fixes\n"
+    "fixes_ = sys.modules['ftfy.fixes']\n"
+    "from ftfy.fixes import fix_text\n\n\n"
+    "@pytest.fixture(autouse=True)\n"
+    "def _pynguin_seed_random():\n"
+    "    yield\n\n\n"
+    "def test_0():\n"
+    "    assert fixes_ is not None\n\n\n"
+    "def test_1():\n"
+    "    assert fix_text('x') == 'x'\n"
+)
+
+
+def test_is_test_function_identifies_only_test_defs():
+    tree = ast.parse(_EXPORTED_FILE)
+    names = {node.name for node in tree.body if _is_test_function(node)}
+    assert names == {"test_0", "test_1"}
+
+
+def test_load_test_functions_preserves_module_alias_in_preamble(tmp_path):
+    test_file = tmp_path / "test_fixes.py"
+    test_file.write_text(_EXPORTED_FILE, encoding="utf-8")
+
+    preamble, test_functions = _load_test_functions(test_file)
+
+    # The `<mod>_ = sys.modules[...]` alias must survive in the preamble so that
+    # tests referencing `fixes_` still resolve (regression for issue #304).
+    assert "fixes_ = sys.modules['ftfy.fixes']" in preamble
+    assert "import sys" in preamble
+    assert "from ftfy.fixes import fix_text" in preamble
+    # The autouse reseed fixture is preamble, not a test to refine.
+    assert "_pynguin_seed_random" in preamble
+    assert [func.name for func in test_functions] == ["test_0", "test_1"]
+
+
+def test_load_test_functions_empty_preamble_when_only_tests(tmp_path):
+    test_file = tmp_path / "test_only.py"
+    test_file.write_text("def test_0():\n    assert True\n", encoding="utf-8")
+
+    preamble, test_functions = _load_test_functions(test_file)
+
+    assert not preamble
+    assert [func.name for func in test_functions] == ["test_0"]
+
+
+def test_refined_file_keeps_module_alias(tmp_path, monkeypatch):
+    """End-to-end: the written *_refined.py preserves the full preamble (issue #304)."""
+    test_file = tmp_path / "test_fixes.py"
+    test_file.write_text(_EXPORTED_FILE, encoding="utf-8")
+
+    fake_module = types.ModuleType("fake_module")
+
+    class _FakeClient:
+        def reset_usage(self):
+            return None
+
+        def get_usage(self):
+            return {"calls": 1, "input_tokens": 1, "output_tokens": 1}
+
+    class _FakeRefiner:
+        def __init__(self, **_kwargs):
+            self.llm_client = _FakeClient()
+
+    def _fake_process(_refiner, _preamble, func, _max_iterations):
+        # Echo the original test body back as the "refined" text.
+        return _TestOutcome(
+            func_text=ast.unparse(func),
+            processed=True,
+            refined=True,
+            iterations=1,
+            readability_original=0.1,
+            readability_refined=0.2,
+        )
+
+    monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
+    monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
+    monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    # The fake module cannot actually execute the tests; treat every test as
+    # green so the suite-finalization step keeps them (it validates via run_test).
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "refinement_granularity",
+        config.RefinementGranularity.PER_TEST,
+    )
+
+    refine_generated_tests(
+        test_file_path=test_file,
+        module_name="fake_module",
+        max_tests=None,
+    )
+
+    refined = (tmp_path / "test_fixes_refined.py").read_text(encoding="utf-8")
+    assert "fixes_ = sys.modules['ftfy.fixes']" in refined
+    assert "import sys" in refined
+    assert "_pynguin_seed_random" in refined
+    assert "def test_0():" in refined
+    assert "def test_1():" in refined
 
 
 def test_refine_generated_tests_exception_tracks_error(tmp_path, monkeypatch):
@@ -340,3 +450,85 @@ def test_refine_returns_error_for_missing_file(tmp_path):
     )
     assert stats["tests_processed"] == 0
     assert "error" in stats
+
+
+# ===================================================================
+# out-of-scope import hoisting / suite finalization
+# ===================================================================
+
+
+def test_hoist_local_imports_promotes_cross_test_import():
+    """An import used by one test but declared inside another is hoisted."""
+    preamble = "import sys\nlog_ = sys.modules['pytutils.log']\n"
+    tests = [
+        "def test_8():\n    from unittest.mock import MagicMock\n    m = MagicMock()\n",
+        "def test_11():\n    logger = MagicMock()\n    assert logger is not None\n",
+    ]
+
+    new_preamble = _hoist_local_imports(preamble, tests)
+
+    assert "from unittest.mock import MagicMock" in new_preamble
+    # The original preamble lines are preserved.
+    assert "log_ = sys.modules['pytutils.log']" in new_preamble
+
+
+def test_hoist_local_imports_no_duplicate_when_already_module_scope():
+    """An import already at module scope is not duplicated."""
+    preamble = "from unittest.mock import MagicMock\n"
+    tests = ["def test_0():\n    m = MagicMock()\n    assert m is not None\n"]
+
+    new_preamble = _hoist_local_imports(preamble, tests)
+
+    assert new_preamble.count("from unittest.mock import MagicMock") == 1
+
+
+def test_finalize_refined_suite_hoists_and_keeps_valid_tests(monkeypatch):
+    """Finalization hoists imports and keeps executable tests."""
+    preamble = "import sys\n"
+    tests = [
+        "def test_0():\n    from unittest.mock import MagicMock\n"
+        "    assert MagicMock() is not None\n",
+        "def test_1():\n    logger = MagicMock()\n    assert logger is not None\n",
+    ]
+    module = types.ModuleType("dummy")
+
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "ok"))
+
+    new_preamble, kept = _finalize_refined_suite(preamble, tests, module)
+
+    assert "from unittest.mock import MagicMock" in new_preamble
+    assert len(kept) == 2
+
+
+def test_sanitize_test_drops_non_executable_test(monkeypatch):
+    """A test that fails to execute (e.g. NameError) is dropped, never exported."""
+    module = types.ModuleType("dummy")
+    monkeypatch.setattr(
+        refiner_module, "run_test", lambda *_a, **_k: (False, "NameError: name 'x' is not defined")
+    )
+
+    result = _sanitize_test("import sys\n", "def test_0():\n    assert x == 1\n", module)
+
+    assert result is None
+
+
+def test_sanitize_test_strips_stale_xfail_on_xpass(monkeypatch):
+    """A now-passing xfail(strict) test has its marker stripped instead of failing."""
+    module = types.ModuleType("dummy")
+    calls = {"n": 0}
+
+    def fake_run_test(_code, _module):
+        calls["n"] += 1
+        # First call: the xfail-marked test XPASSes (a failure); second call
+        # (after the marker is stripped): it passes cleanly.
+        if calls["n"] == 1:
+            return False, "XPASS(strict): test is marked xfail(strict=True) but passed."
+        return True, "Test passed."
+
+    monkeypatch.setattr(refiner_module, "run_test", fake_run_test)
+
+    func = "@pytest.mark.xfail(strict=True)\ndef test_0():\n    assert True\n"
+    result = _sanitize_test("import pytest\n", func, module)
+
+    assert result is not None
+    assert "xfail" not in result

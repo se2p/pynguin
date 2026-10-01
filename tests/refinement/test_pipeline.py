@@ -19,7 +19,10 @@ import pynguin.configuration as config
 from pynguin.assertion.mutation_analysis.operators.base import Mutation
 from pynguin.refinement.pipeline import (
     TestRefiner,
+    _classify_error,  # noqa: PLC2701
+    _has_meaningful_check,  # noqa: PLC2701
     _remove_failing_inferred_assertion,  # noqa: PLC2701
+    _strip_xfail_decorator,  # noqa: PLC2701
 )
 
 # ---------------------------------------------------------------------------
@@ -644,12 +647,13 @@ def test_process_end_to_end_post_filter_validation_fails(refiner: TestRefiner):
         ),
         patch(
             "pynguin.refinement.pipeline.filter_vacuous_assertions",
-            return_value=("broken code", {}),
+            return_value=(MULTI_ASSERT_TEST, {}),
         ),
     ):
         result = refiner.process_test_end_to_end(SIMPLE_TEST_CODE, max_retries=3)
 
-    # Pipeline should still succeed (fell back to pre-filter code)
+    # Post-filter code still carries assertions and passes validation, so the
+    # pipeline succeeds (the vacuous-test guard does not trigger).
     assert result["success"] is True
 
 
@@ -925,3 +929,140 @@ def test_mutation_strengthening_loop(refiner: TestRefiner, monkeypatch):
             max_iterations=1,
         )
         assert "assert add(1, 1) == 2" in strengthened
+
+
+# ===================================================================
+# xfail marker reconciliation (issue #305)
+# ===================================================================
+
+
+def test_classify_error_detects_xpass_strict():
+    assert _classify_error("XPASS(strict): test is marked xfail(strict=True) but passed.") == (
+        "XPASS Strict"
+    )
+
+
+def test_strip_xfail_decorator_removes_marker():
+    code = (
+        "import pytest\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_case_0():\n"
+        "    with pytest.raises(TypeError):\n"
+        "        raise TypeError('boom')\n"
+    )
+    stripped = _strip_xfail_decorator(code)
+    assert stripped is not None
+    assert "xfail" not in stripped
+    assert "def test_case_0():" in stripped
+    # Result must still be valid Python.
+    ast.parse(stripped)
+
+
+def test_strip_xfail_decorator_returns_none_without_marker():
+    code = "import module_0\ndef test_case_0():\n    assert module_0.add(1, 1) == 2\n"
+    assert _strip_xfail_decorator(code) is None
+
+
+def test_strip_xfail_decorator_returns_none_on_syntax_error():
+    assert _strip_xfail_decorator("def broken(:\n") is None
+
+
+def test_repair_loop_reconciles_xpass_strict_by_stripping_marker(refiner: TestRefiner):
+    """An xfail(strict=True) test whose body no longer raises drops the marker and passes.
+
+    Regression guard for issue #305: without reconciliation the refined test would be
+    emitted with the xfail marker and fail under pytest as XPASS(strict).
+    """
+    xpass_code = (
+        "import pytest\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_case_0():\n"
+        "    with pytest.raises(TypeError):\n"
+        "        raise TypeError('boom')\n"
+    )
+    original_code = (
+        "import pytest\n@pytest.mark.xfail(strict=True)\ndef test_case_0():\n    raise TypeError\n"
+    )
+    with patch(
+        "pynguin.refinement.pipeline.check_coverage_preservation",
+        return_value=(True, {}),
+    ):
+        result = refiner._run_repair_loop(
+            original_code=original_code,
+            current_code=xpass_code,
+            mutation_stats={},
+            max_retries=1,
+        )
+    assert result["success"] is True
+    assert "xfail" not in result["final_code"]
+    # The LLM repair path must not have been used for a deterministic reconciliation.
+    refiner.llm_client.generate_from_prompt.assert_not_called()
+
+
+# ===================================================================
+# vacuous-test guard (_has_meaningful_check)
+# ===================================================================
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def test_x():\n    assert module_0.add(1, 2) == 3\n",
+        "import pytest\ndef test_x():\n    with pytest.raises(ValueError):\n        module_0.f()\n",
+        "import pytest\n@pytest.mark.xfail(strict=True)\ndef test_x():\n    module_0.f()\n",
+        "import pytest\ndef test_x():\n    pytest.raises(ValueError, module_0.f)\n",
+    ],
+)
+def test_has_meaningful_check_true(code: str):
+    assert _has_meaningful_check(code) is True
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def test_x():\n    result = module_0.f()\n    pass\n",
+        "def test_x():\n    import pytest\n",
+        "def test_x():\n    module_0.f()\n",
+        "not valid python <<<",
+    ],
+)
+def test_has_meaningful_check_false(code: str):
+    assert _has_meaningful_check(code) is False
+
+
+def test_finalize_rejects_vacuous_refined_test(refiner: TestRefiner):
+    """A refined test that lost its only assertion must not be exported."""
+    original = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
+    vacuous = "import module_0\n\ndef test_case_0():\n    module_0.add(1, 2)\n    pass\n"
+
+    result = refiner._finalize_on_pass(
+        original_code=original,
+        current_code=vacuous,
+        repair_iterations=0,
+        mutation_stats={},
+    )
+
+    assert result["success"] is False
+    assert "vacuous" in result["error"].lower()
+
+
+def test_finalize_keeps_refined_test_with_assertion(refiner: TestRefiner):
+    """A refined test that keeps a check is still finalized successfully."""
+    original = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
+    refined = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
+
+    with (
+        patch(
+            "pynguin.refinement.pipeline.check_coverage_preservation",
+            return_value=(True, {"status": "passed"}),
+        ),
+        patch("pynguin.refinement.pipeline.run_test", return_value=(True, "Test passed.")),
+    ):
+        result = refiner._finalize_on_pass(
+            original_code=original,
+            current_code=refined,
+            repair_iterations=0,
+            mutation_stats={},
+        )
+
+    assert result["success"] is True

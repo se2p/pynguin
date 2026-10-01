@@ -6,7 +6,9 @@
 #
 """Tests for the LLM Deserializer."""
 
+import importlib
 import re
+import textwrap
 from collections import Counter
 from unittest.mock import MagicMock, patch
 
@@ -329,6 +331,64 @@ def test_foo():
     assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
 
 
+def test_compound_sibling_block_resolves_leaked_with_binding(test_cluster):
+    """A sibling block resolves a name leaked by an earlier ``with ... as`` block.
+
+    ``with ... as f`` and an in-block ``fname = f.name`` leak ``f``/``fname`` into
+    the enclosing function scope, so the following ``try`` block that reads
+    ``fname`` must be admitted rather than dropped (regression for #307).
+    """
+    code = """
+def test_foo():
+    with open("f") as f:
+        fname = f.name
+    try:
+        result = list(fname)
+    finally:
+        print(fname)
+"""
+    result = _deserialize_function(code, test_cluster)
+    rendered = result.test_case.to_code()
+    assert 'with open("f") as f:' in rendered
+    assert "try:" in rendered
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+
+
+def test_compound_sibling_block_resolves_leaked_for_and_assign(test_cluster):
+    """A ``for`` target and an in-block assignment leak to a later sibling block."""
+    code = """
+def test_foo():
+    for item in range(3):
+        collected = item
+    if collected:
+        print(collected, item)
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 0
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+
+
+def test_compound_sibling_block_comprehension_target_does_not_leak(test_cluster):
+    """A comprehension target stays block-local and is not leaked to a sibling.
+
+    ``squares`` leaks (it is an in-block assignment) but the comprehension target
+    ``n`` does not, so a sibling block reading ``n`` must still be dropped.
+    """
+    code = """
+def test_foo():
+    if True:
+        squares = [n * n for n in range(3)]
+    while n:
+        print(n)
+"""
+    result = _deserialize_function(code, test_cluster)
+    # The first block is admitted (squares/comprehension are self-contained); the
+    # second block reads ``n``, which never leaks out of the comprehension.
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+
+
 @pytest.mark.parametrize(
     ("expression", "expected"),
     [
@@ -524,7 +584,8 @@ class TestSuite:
         "helper",
         "val",
     ]
-    assert result.counts[Disposition.ADMITTED_COMPOUND] == 2
+    # Target is flattened to type('Target', (), {}), so only helper is ADMITTED_COMPOUND.
+    assert result.counts[Disposition.ADMITTED_COMPOUND] == 1
     assert result.counts[Disposition.ASSERTION_LIFTED] == 1
 
 
@@ -556,6 +617,37 @@ class TestCounter:
     assert "self.n += 1" in source
     # The exported test must run without raising.
     exec(source, {})  # noqa: S102
+
+
+def test_deserialize_setup_method_fixture_keeps_sut_calls(test_cluster):
+    """Pytest ``setup_method`` fixture attributes are inlined so SUT calls survive.
+
+    Regression for issue #303: the rewriter only inlined the unittest ``setUp``
+    method, so tests building their fixture in pytest's ``setup_method`` had every
+    ``self.<attr>`` left unresolved and all statements calling the SUT dropped.
+    """
+    ctor = _make_constructor("Foo", _Foo)
+    method = _make_method(_Foo.__name__, "bar", str)
+    test_cluster.accessible_objects_under_test = [ctor, method]
+    code = """
+class TestFoo:
+    def setup_method(self):
+        self.foo = Foo()
+
+    def test_bar(self):
+        result = self.foo.bar()
+        assert result is not None
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    testcase = result.test_cases[0]
+    rendered = testcase.to_code()
+    assert "foo = Foo()" in rendered
+    assert "foo.bar()" in rendered
+    assert "self." not in rendered
+    assert testcase.size() == 2
+    assert result.counts[Disposition.ADMITTED] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -1314,3 +1406,136 @@ def test_helper():
     assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 0
     assert result.counts[Disposition.ADMITTED] == 2
     assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+
+
+# ---------------------------------------------------------------------------
+# Import stability (issue #317)
+# ---------------------------------------------------------------------------
+
+_REEXPORT_SUT = "tests.fixtures.examples.reexport_package.widget"
+
+
+def test_normalize_sut_references_keeps_reexported_class_import():
+    module = cst.parse_module(
+        "from tests.fixtures.examples.reexport_package import widget\n"
+        "def test_x():\n"
+        "    w = widget(3)\n"
+    )
+    code = normalize_sut_references(module, _REEXPORT_SUT, "widget_").code
+    assert "from tests.fixtures.examples.reexport_package import widget" in code
+    assert "w = widget(3)" in code
+    assert "widget_" not in code
+
+
+def test_normalize_sut_references_binds_submodule_import():
+    module = cst.parse_module(
+        "from tests.fixtures.examples.submodule_package import target\n"
+        "res = target.target_function()\n"
+    )
+    code = normalize_sut_references(
+        module, "tests.fixtures.examples.submodule_package.target", "target_"
+    ).code
+    assert "import target" not in code
+    assert "res = target_.target_function()" in code
+
+
+def test_hoisted_import_keeps_only_used_names(test_cluster, monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+import os, json
+from collections import OrderedDict, deque
+def test_foo():
+    x = os.getcwd()
+    d = deque()
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=False)
+    source = result.test_cases[0].to_code()
+    assert "import os\n" in source
+    assert "json" not in source
+    assert "from collections import deque\n" in source
+    assert "OrderedDict" not in source
+
+
+def test_module_level_star_import_is_not_hoisted(test_cluster, monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+from collections import *
+def test_foo():
+    d = deque()
+def test_bar():
+    x = 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=False)
+    for test_case in result.test_cases:
+        source = test_case.to_code()
+        assert "import *" not in source
+        compile(f"def test_x():\n{textwrap.indent(source, '    ')}", "<test>", "exec")
+
+
+def test_shared_import_with_bad_name_only_breaks_its_users(test_cluster, monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+from collections import deque, does_not_exist
+def test_good():
+    d = deque()
+def test_bad():
+    y = does_not_exist(1)
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=False)
+    assert result.import_names_dropped == 1
+    assert result.import_names_repaired == 0
+    assert len(result.test_cases) == 1
+    source = result.test_cases[0].to_code()
+    assert "from collections import deque\n" in source
+    assert "does_not_exist" not in source
+    exec(source, {})  # noqa: S102
+    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
+
+
+def test_bad_name_defined_in_sut_is_retargeted(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+from tests.fixtures.examples.reexport_package import widget, is_small
+def test_small():
+    w = widget(3)
+    res = is_small(w.size)
+"""
+    result = deserialize_code_to_testcases(
+        code, generate_test_cluster(_REEXPORT_SUT), create_assertions=False
+    )
+    assert result.import_names_repaired == 1
+    assert result.import_names_dropped == 0
+    assert len(result.test_cases) == 1
+    source = result.test_cases[0].to_code()
+    assert "from tests.fixtures.examples.reexport_package import widget\n" in source
+    alias = re.search(r"(\w+)\.is_small\(", source)
+    assert alias is not None
+    # ``import pkg.widget as alias`` would bind the re-exported class, not the module.
+    namespace = {alias.group(1): importlib.import_module(_REEXPORT_SUT)}
+    exec(source, namespace)  # noqa: S102
+
+
+def test_nested_import_with_only_bad_names_keeps_block_valid(test_cluster, monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+def test_foo():
+    if True:
+        from collections import does_not_exist
+    x = 1
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=False)
+    source = result.test_cases[0].to_code()
+    assert "does_not_exist" not in source
+    compile(source, "<test>", "exec")
+
+
+def test_import_from_unloaded_foreign_module_is_kept(test_cluster, monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", _REEXPORT_SUT)
+    code = """
+from some_unknown_package_xyz import thing
+def test_foo():
+    t = thing()
+"""
+    result = deserialize_code_to_testcases(code, test_cluster, create_assertions=False)
+    assert result.import_names_dropped == 0
+    assert "from some_unknown_package_xyz import thing" in result.test_cases[0].to_code()

@@ -21,6 +21,27 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _has_zero_arg_super(node: ast.AST) -> bool:
+    """Check if node contains a zero-argument super() call.
+
+    Args:
+        node: The AST node to check.
+
+    Returns:
+        True if a zero-argument super() call is present, False otherwise.
+    """
+    for child in ast.walk(node):
+        if (
+            isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Name)
+            and child.func.id == "super"
+            and not child.args
+            and not child.keywords
+        ):
+            return True
+    return False
+
+
 class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
     """Rewrites a statement as much as possible.
 
@@ -314,8 +335,151 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
 
         return fn_def_node
 
+    def _convert_class_statement(
+        self, stmt: ast.stmt, class_name: str
+    ) -> tuple[list[tuple[str, ast.expr]], list[ast.stmt]] | None:
+        """Convert a single statement within a helper class body.
+
+        Args:
+            stmt: The statement to convert.
+            class_name: The name of the class enclosing the statement.
+
+        Returns:
+            A tuple of ((attr_name, value_expr) pairs, hoisted_stmts) if convertible,
+            or None if the statement cannot be represented dynamically.
+        """
+        if isinstance(stmt, ast.Pass):
+            return ([], [])
+        if isinstance(stmt, ast.Expr):
+            return ([], []) if isinstance(stmt.value, ast.Constant) else None
+        if isinstance(stmt, ast.Assign):
+            if not all(isinstance(target, ast.Name) for target in stmt.targets):
+                return None
+            val = self.visit(stmt.value)
+            return (
+                [(target.id, val) for target in stmt.targets if isinstance(target, ast.Name)],
+                [],
+            )
+        if isinstance(stmt, ast.AnnAssign):
+            if not isinstance(stmt.target, ast.Name):
+                return None
+            if stmt.value is not None:
+                return ([(stmt.target.id, self.visit(stmt.value))], [])
+            return ([], [])
+        if isinstance(stmt, ast.FunctionDef):
+            return self._convert_function_def(stmt, class_name)
+        return None
+
+    def _convert_function_def(
+        self, stmt: ast.FunctionDef, class_name: str
+    ) -> tuple[list[tuple[str, ast.expr]], list[ast.stmt]] | None:
+        """Convert a function definition within a helper class body.
+
+        Args:
+            stmt: The function definition node.
+            class_name: The name of the class enclosing the function.
+
+        Returns:
+            A tuple of ((attr_name, value_expr) pairs, hoisted_stmts) if convertible,
+            or None if the method contains zero-arg super().
+        """
+        if _has_zero_arg_super(stmt):
+            return None
+        fn_name = f"_{class_name}_{stmt.name}"
+        if fn_name in self.used_varnames:
+            fn_name = self.generate_new_varname()
+        else:
+            self.used_varnames.add(fn_name)
+        hoisted_fn = self._create_hoisted_method(stmt, fn_name)
+        return ([(stmt.name, ast.Name(id=fn_name, ctx=ast.Load()))], [hoisted_fn])
+
+    def _create_hoisted_method(self, stmt: ast.FunctionDef, fn_name: str) -> ast.FunctionDef:
+        """Create a hoisted function definition with a new name.
+
+        Args:
+            stmt: The original function definition inside the class.
+            fn_name: The new unique name for the hoisted function.
+
+        Returns:
+            The new hoisted ast.FunctionDef node.
+        """
+        if sys.version_info >= (3, 12):
+            hoisted_fn = ast.FunctionDef(
+                name=fn_name,
+                args=stmt.args,
+                body=stmt.body,
+                decorator_list=stmt.decorator_list,
+                returns=stmt.returns,
+                type_comment=stmt.type_comment,
+                type_params=getattr(stmt, "type_params", []),
+            )
+        else:
+            hoisted_fn = ast.FunctionDef(
+                name=fn_name,
+                args=stmt.args,
+                body=stmt.body,
+                decorator_list=stmt.decorator_list,
+                returns=stmt.returns,
+                type_comment=stmt.type_comment,
+            )
+        ast.copy_location(hoisted_fn, stmt)
+        ast.fix_missing_locations(hoisted_fn)
+        return hoisted_fn
+
+    def _try_convert_class_to_dynamic_type(self, node: ast.ClassDef) -> ast.Assign | None:
+        """Attempt to convert a simple helper ClassDef to an assignment with type(...).
+
+        This eliminates PEP 227 scoping violations (NameError when class attributes
+        reference enclosing local variables) and flattens class definitions so they
+        can participate in GA mutation and crossover.
+
+        Args:
+            node: The class definition node to convert.
+
+        Returns:
+            An ast.Assign node if the class can be converted, or None otherwise.
+        """
+        if node.decorator_list or node.keywords or getattr(node, "type_params", None):
+            return None
+
+        dict_keys: list[ast.expr | None] = []
+        dict_values: list[ast.expr] = []
+        hoisted_stmts: list[ast.stmt] = []
+
+        for stmt in node.body:
+            converted = self._convert_class_statement(stmt, node.name)
+            if converted is None:
+                return None
+            entries, hoisted = converted
+            for key, val in entries:
+                dict_keys.append(ast.Constant(value=key))
+                dict_values.append(val)
+            hoisted_stmts.extend(hoisted)
+
+        bases = [self.visit(b) for b in node.bases]
+        bases_tuple = ast.Tuple(elts=bases, ctx=ast.Load())
+        namespace_dict = ast.Dict(keys=dict_keys, values=dict_values)
+        type_call = ast.Call(
+            func=ast.Name(id="type", ctx=ast.Load()),
+            args=[ast.Constant(value=node.name), bases_tuple, namespace_dict],
+            keywords=[],
+        )
+        assign = ast.Assign(
+            targets=[ast.Name(id=node.name, ctx=ast.Store())],
+            value=type_call,
+        )
+        ast.copy_location(assign, node)
+        ast.fix_missing_locations(assign)
+
+        self.used_varnames.add(node.name)
+        self.stmts_to_add.extend(hoisted_stmts)
+        return assign
+
     def visit_ClassDef(self, node: ast.ClassDef):  # noqa: N802
         """Transform the class by filtering and taking only test methods.
+
+        If the class is a nested helper class without test methods, normalize it
+        to a dynamic type(...) assignment if possible.
 
         Args:
             node: the node to visit.
@@ -351,6 +515,10 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
                 body=new_body,
                 decorator_list=node.decorator_list,
             )
+
+        converted = self._try_convert_class_to_dynamic_type(node)
+        if converted is not None:
+            return converted
         return node
 
     def visit_For(self, node):  # noqa: N802
@@ -681,6 +849,14 @@ def rewrite_test(fn_def_node: ast.FunctionDef):
     return fn_def_node
 
 
+# Names of fixture methods whose ``self.``/``cls.`` assignments should be inlined into
+# each test method. Covers the unittest ``setUp`` as well as the pytest xUnit-style
+# fixtures (``setup_method``/``setup`` run before every test, ``setup_class`` once per
+# class). Without this, statements using the fixture attributes are dropped as
+# unresolved (see issue #303).
+SETUP_METHOD_NAMES = frozenset({"setUp", "setup_method", "setup", "setup_class"})
+
+
 class TestClassRewriter(ast.NodeTransformer):
     """A custom AST node transformer for rewriting test classes."""
 
@@ -690,7 +866,7 @@ class TestClassRewriter(ast.NodeTransformer):
         self.var_mapping = {}
 
     def visit_ClassDef(self, node: ast.ClassDef):  # noqa:N802
-        """Processes a class definition, collecting `setUp` variables.
+        """Processes a class definition, collecting setup-fixture variables.
 
         Args:
             node (ast.ClassDef): The class definition node.
@@ -699,7 +875,7 @@ class TestClassRewriter(ast.NodeTransformer):
             ast.ClassDef: The transformed class node.
         """
         for child_node in node.body:
-            if isinstance(child_node, ast.FunctionDef) and child_node.name == "setUp":
+            if isinstance(child_node, ast.FunctionDef) and child_node.name in SETUP_METHOD_NAMES:
                 self.collect_set_up_vars(child_node)
 
         for child_node in node.body:
@@ -709,9 +885,10 @@ class TestClassRewriter(ast.NodeTransformer):
         return node
 
     def collect_set_up_vars(self, set_up_node: ast.FunctionDef):
-        """Collects variables from `setUp` function, removes `self.` prefix.
+        """Collects variables from a setup fixture, removing the `self.`/`cls.` prefix.
 
-        and stores them with their original attribute names.
+        and stores them with their original attribute names. ``cls.`` is accepted so
+        that ``setup_class(cls)`` fixtures are inlined as well.
         """
         for stmt in set_up_node.body:
             if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
@@ -719,7 +896,7 @@ class TestClassRewriter(ast.NodeTransformer):
                 if (
                     isinstance(target, ast.Attribute)
                     and isinstance(target.value, ast.Name)
-                    and target.value.id == "self"
+                    and target.value.id in {"self", "cls"}
                 ):
                     var_name = target.attr
                     self.var_mapping[target.attr] = var_name

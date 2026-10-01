@@ -16,13 +16,20 @@ user_message_template: |
   ### Instructions
   - Use pytest only; do not use the `unittest` module.
   - Derive imports from the module path: for `a/b/c.py`, import via `from a.b.c import ...`.
-  - Focus each test on reaching an uncovered callable and its branches, including error
-    paths via `with pytest.raises(...)`.
+  - Focus each test on reaching an uncovered callable and its branches.
+  - Only wrap calls in `with pytest.raises(...)` when the callable actually raises or
+    propagates an uncaught exception. If the callable catches, suppresses, or logs the
+    exception internally (handling it without re-raising), invoke the callable directly
+    without `pytest.raises`.
   - When a callable has a `[hint: ...]` note, use it: it diagnoses why the search could
     not cover the callable (e.g. it was never reached, or a branch only took one
     outcome). Address the hint directly — construct valid inputs to reach it, or vary
     one input/state axis to flip an unobserved branch.
   - Write test functions named `test_<callable>_<scenario>`.
+  - When testing class properties, descriptors, or callables that require a dummy class,
+    do not define nested `class` statements. Instead, create classes dynamically using
+    `type('ClassName', (), {'attr': value})` or `cls = type('ClassName', (), {})` followed
+    by attribute assignment. Keep tests flat.
   {% if visibility_instructions -%}
   - {{ visibility_instructions }}
   {% endif %}

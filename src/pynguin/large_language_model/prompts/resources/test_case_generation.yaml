@@ -16,7 +16,14 @@ user_message_template: |
     into dots).
   - Write test functions named `test_<function>_<scenario>`.
   - Cover edge cases: empty inputs, `None`, boundary values, and invalid types.
-  - Exercise error paths with `with pytest.raises(...)`.
+  - Exercise error paths: only wrap calls in `with pytest.raises(...)` when the callable
+    actually raises or propagates an uncaught exception. If the callable catches,
+    suppresses, or logs the exception internally (handling it without re-raising), invoke
+    the callable directly without `pytest.raises`.
+  - When testing class properties, descriptors, or callables that require a dummy class,
+    do not define nested `class` statements. Instead, create classes dynamically using
+    `type('ClassName', (), {'attr': value})` or `cls = type('ClassName', (), {})` followed
+    by attribute assignment. Keep tests flat.
   {% if visibility_instructions -%}
   - {{ visibility_instructions }}
   {% endif %}

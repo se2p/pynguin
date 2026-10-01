@@ -50,6 +50,9 @@ def _build_output_vars(*, include_mutation: bool, include_llm: bool) -> str:
             "TotalLLMOutputTokens",
             "LLMQueryTime",
             "LLMAdmitted",
+            "LLMAdmittedCompound",
+            "LLMAdmittedUnresolvedCall",
+            "LLMAdmittedImport",
         ]
     return ",".join(parts)
 
@@ -227,26 +230,60 @@ def _run_coverage_json(
 
 def _measure_scoped_coverage(
     python_exe: str, data_file: Path, json_file: Path, module: str, out: Path
-) -> float:
+) -> tuple[float, list[Path]]:
     """Return the combined line+branch fraction restricted to the target module's file.
 
     ``coverage run --source=<module>`` traces the whole package when ``module`` is a
     package name, so scope the *report* to just the target module's file. Fall back to
     the unscoped total if the include pattern happens to match no files (e.g. an unusual
-    install layout), so the measurement is never worse than before.
+    install layout), so the measurement is never worse than before. Also return the
+    (absolute) source files the measurement is based on.
     """
     data = _run_coverage_json(
         python_exe, data_file, json_file, out, include=_module_include_patterns(module)
     )
     if not data.get("files"):
         data = _run_coverage_json(python_exe, data_file, json_file, out, include=None)
-    return float(data["totals"]["percent_covered"]) / 100.0
+    files = [(out / name).resolve() for name in data.get("files", {})]
+    return float(data["totals"]["percent_covered"]) / 100.0, files
+
+
+def _suite_env(project_path: str) -> dict[str, str]:
+    """Return the environment for running the exported suite against ``project_path``.
+
+    Pynguin imports the SUT from ``--project-path`` during search, so the exported suite
+    must import the very same copy; otherwise it silently measures whatever copy of the
+    subject the runner venv happens to have (or fails to import it at all).
+    """
+    env = dict(os.environ)
+    existing = env.get("PYTHONPATH")
+    # Resolve here: the suite runs with cwd=<output dir>, where a relative path breaks.
+    env["PYTHONPATH"] = str(Path(project_path).resolve()) + (
+        os.pathsep + existing if existing else ""
+    )
+    return env
+
+
+def _outside_project(files: list[Path], project_path: str) -> list[Path]:
+    """Return the measured files that do not live under ``project_path``."""
+    root = Path(project_path).resolve()
+    return [f for f in files if not f.is_relative_to(root)]
+
+
+def _tail(text: str, limit: int = 300) -> str:
+    """Return the last non-empty line(s) of ``text``, capped at ``limit`` characters."""
+    lines = [line for line in text.strip().splitlines() if line.strip()]
+    return " | ".join(lines[-3:])[-limit:]
 
 
 def _measure_generated_suite(
-    python_exe: str, output_dir: str, module: str, timeout: int
+    python_exe: str, output_dir: str, module: str, timeout: int, project_path: str
 ) -> tuple[float | None, int | None, str | None]:
     """Run the exported test suite under coverage.py and return (coverage, tests, error).
+
+    The suite runs with ``project_path`` first on ``PYTHONPATH``, matching Pynguin's
+    ``--project-path``. A measurement of a module copy outside ``project_path`` (e.g. a
+    shadowing copy in site-packages) is reported as an error instead of a number.
 
     ``coverage`` is coverage.py's combined line+branch fraction (0..1) restricted to
     ``module``; ``tests`` is the number of passing tests; ``error`` is a short note when
@@ -281,6 +318,7 @@ def _measure_generated_suite(
             timeout=timeout,
             check=False,
             cwd=str(out),
+            env=_suite_env(project_path),
         )
     except subprocess.TimeoutExpired:
         return None, None, f"suite timeout after {timeout}s"
@@ -290,9 +328,11 @@ def _measure_generated_suite(
         return None, 0, "no tests collected"
     passed, failed = _parse_pytest_counts(proc.stdout)
     try:
-        coverage = _measure_scoped_coverage(python_exe, data_file, json_file, module, out)
+        coverage, files = _measure_scoped_coverage(python_exe, data_file, json_file, module, out)
     except (subprocess.SubprocessError, OSError, ValueError, KeyError) as exc:
-        return None, passed, f"coverage parse error: {exc}"
+        return None, passed, f"coverage parse error: {exc}; pytest: {_tail(proc.stdout)}"
+    if outside := _outside_project(files, project_path):
+        return None, passed, f"suite measured {outside[0]} outside project path {project_path}"
     return coverage, passed, (f"{failed} failed" if failed else None)
 
 
@@ -333,6 +373,9 @@ def _result_from_stats(
         llm_output_tokens=_as_int(stats["llm_output_tokens"]),
         llm_query_time_s=_as_float(stats["llm_query_time_s"]),
         llm_parsed_stmts=_as_int(stats["llm_parsed_stmts"]),
+        llm_compound=_as_int(stats["llm_compound"]),
+        llm_unresolved=_as_int(stats["llm_unresolved"]),
+        llm_import=_as_int(stats["llm_import"]),
         suite_coverage=suite_coverage,
         suite_tests=suite_tests,
         suite_error=suite_error,
@@ -438,7 +481,11 @@ def run_module(
         duration = time.monotonic() - start
         stats = parse_statistics_csv(tmpdir)
         suite = _measure_generated_suite(
-            python_exe, tmpdir, task.module, timeout=min(timeout, _SUITE_TIMEOUT_S)
+            python_exe,
+            tmpdir,
+            task.module,
+            timeout=min(timeout, _SUITE_TIMEOUT_S),
+            project_path=task.project_path,
         )
         result = _result_from_stats(task, stats, duration, exit_code, error, suite=suite)
         if output_dir is not None:

@@ -107,6 +107,12 @@ class LLMTestCaseHandler:
 
         for disposition, runtime_variable in _DISPOSITION_STATISTICS.items():
             stat.track_output_variable(runtime_variable, deserialization_result.counts[disposition])
+        stat.track_output_variable(
+            RuntimeVariable.LLMImportNamesRepaired, deserialization_result.import_names_repaired
+        )
+        stat.track_output_variable(
+            RuntimeVariable.LLMImportNamesDropped, deserialization_result.import_names_dropped
+        )
 
         return test_cases
 

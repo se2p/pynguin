@@ -21,7 +21,9 @@ import dataclasses
 import enum
 import importlib
 import importlib.util
+import inspect
 import logging
+import sys
 from typing import TYPE_CHECKING, Any
 
 import libcst as cst
@@ -103,6 +105,10 @@ class DeserializationResult:
     status: ParseStatus
     #: Per-statement dispositions aggregated across all deserialized functions.
     counts: collections.Counter[Disposition]
+    #: Distinct ``from m import name`` names re-targeted to the module under test.
+    import_names_repaired: int = 0
+    #: Distinct ``from m import name`` names dropped because they do not exist.
+    import_names_dropped: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +393,89 @@ class _BlockBindingCollector(cst.CSTVisitor):
         return True
 
 
+class _LeakedBindingCollector(cst.CSTVisitor):
+    """Collects the names a compound statement *leaks* into the enclosing scope.
+
+    Where :class:`_BlockBindingCollector` reports *every* name bound anywhere
+    inside a block, this collector reports only the names that Python actually
+    leaks out to the surrounding function scope once a ``for``/``with``/``if``/
+    ``while``/``try`` block has executed:
+
+    * ``with ... as`` targets,
+    * ``for`` loop targets,
+    * in-block assignments (``=``/``:=``/augmented/annotated), and
+    * the *names* of nested ``def``/``class`` definitions.
+
+    The names that stay block-local -- comprehension targets, ``lambda``
+    parameters, and everything internal to a nested ``def``/``class`` body --
+    are deliberately *not* collected, so a sibling block cannot wrongly resolve
+    a reference against a name that does not exist at that point at runtime.
+    """
+
+    def __init__(self) -> None:
+        self.bound: set[str] = set()
+
+    @staticmethod
+    def collect(node: cst.CSTNode) -> set[str]:
+        """Collect the names leaked into the enclosing scope by *node*."""
+        collector = _LeakedBindingCollector()
+        node.visit(collector)
+        return collector.bound
+
+    def _add_targets(self, node: cst.BaseExpression) -> None:
+        self.bound.update(_target_names(node))
+
+    def visit_AssignTarget(self, node: cst.AssignTarget) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_AugAssign(self, node: cst.AugAssign) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_NamedExpr(self, node: cst.NamedExpr) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_For(self, node: cst.For) -> bool:  # noqa: N802
+        self._add_targets(node.target)
+        return True
+
+    def visit_WithItem(self, node: cst.WithItem) -> bool:  # noqa: N802
+        # ``with ... as target`` leaks ``target``; an ``except ... as`` handler
+        # (which uses a separate node) is deliberately not visited here because
+        # Python deletes that binding at the end of the handler.
+        if node.asname is not None:
+            if isinstance(node.asname.name, cst.Name):
+                self.bound.add(node.asname.name.value)
+            else:
+                self._add_targets(node.asname.name)
+        return True
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        # The def *name* leaks into the enclosing scope; its parameters and body
+        # stay local, so do not descend into it.
+        self.bound.add(node.name.value)
+        return False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        # The class *name* leaks; its body stays local, so do not descend.
+        self.bound.add(node.name.value)
+        return False
+
+    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
+        # ``lambda`` parameters stay local to the lambda; do not descend.
+        return False
+
+    def visit_CompFor(self, node: cst.CompFor) -> bool:  # noqa: N802
+        # Comprehensions have their own scope, so their targets never leak.
+        return False
+
+
 class _LocalRenamer(cst.CSTTransformer):
     """Renames bare ``Name`` leaves according to a mapping."""
 
@@ -427,6 +516,34 @@ def _imported_local_names(node: cst.Import | cst.ImportFrom) -> list[str]:
             if chain:
                 result.append(chain[0])
     return result
+
+
+def _restrict_import_to_names(
+    node: cst.Import | cst.ImportFrom, names: set[str]
+) -> cst.Import | cst.ImportFrom | None:
+    """Restrict an import statement to the aliases that bind one of *names*.
+
+    Args:
+        node: The import statement.
+        names: The local names that are needed.
+
+    Returns:
+        The import with only the needed aliases, or ``None`` if none is needed.
+        Star imports always yield ``None``: ``import *`` is only allowed at
+        module level, so it must never be hoisted into a test function.
+    """
+    if isinstance(node.names, cst.ImportStar):
+        return None
+    kept = []
+    for alias in node.names:
+        bare = alias.with_changes(comma=cst.MaybeSentinel.DEFAULT)
+        if set(_imported_local_names(node.with_changes(names=[bare]))) & names:
+            kept.append(bare)
+    if not kept:
+        return None
+    if isinstance(node, cst.ImportFrom):
+        return node.with_changes(names=kept, lpar=None, rpar=None)
+    return node.with_changes(names=kept)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -574,6 +691,223 @@ def _proper_type_to_raw(proper_type: Any) -> type | None:
 # ---------------------------------------------------------------------------
 
 
+_MISSING = object()
+
+
+def _loaded_module(name: str, *, allow_import: bool) -> Any:
+    """Return the module *name* if it is loaded (or importable), else ``None``.
+
+    Args:
+        name: The dotted module name.
+        allow_import: Whether to import the module if it is not loaded yet.
+
+    Returns:
+        The module object, or ``None`` if it is not available.
+    """
+    module = sys.modules.get(name)
+    if module is not None or not allow_import:
+        return module
+    try:
+        return importlib.import_module(name)
+    except BaseException:  # noqa: BLE001
+        logger.debug("Could not import %s while validating LLM imports", name)
+        return None
+
+
+def _binds_submodule(parent: str, member: str, submodule: str) -> bool:
+    """Check whether ``from <parent> import <member>`` binds the submodule *submodule*.
+
+    A package frequently re-exports a class under the name of the submodule that
+    defines it (``croniter/__init__.py`` does ``from .croniter import croniter``),
+    so ``from croniter import croniter`` binds the class, not the submodule. If the
+    package cannot be inspected, the name is assumed to be the submodule.
+
+    Args:
+        parent: The dotted name of the package.
+        member: The imported name.
+        submodule: The dotted name of the submodule ``<parent>.<member>``.
+
+    Returns:
+        Whether the imported name refers to the submodule.
+    """
+    package = _loaded_module(parent, allow_import=True)
+    if package is None:
+        return True
+    try:
+        value = getattr(package, member, _MISSING)
+    except BaseException:  # noqa: BLE001
+        return True
+    if value is _MISSING:
+        return True
+    return inspect.ismodule(value) and value.__name__ == submodule
+
+
+class _ImportCheck(enum.Enum):
+    """Outcome of validating a single ``from <module> import <name>`` name."""
+
+    #: The name exists (or cannot be checked); keep it as written.
+    KEEP = "keep"
+    #: The name does not exist in its module but in the module under test.
+    REPAIR = "repair"
+    #: The name exists in neither its module nor the module under test.
+    DROP = "drop"
+
+
+class _ImportNameResolver:
+    """Validates ``from <module> import <name>`` names, caching the verdicts.
+
+    Only modules that are already loaded, or that belong to the package of the
+    module under test, are inspected; everything else is kept as written, so
+    validation never imports unrelated third-party code.
+    """
+
+    def __init__(self, module_name: str) -> None:
+        self._module_name = module_name
+        self._top_package = module_name.partition(".")[0]
+        self._cache: dict[tuple[str, str], _ImportCheck] = {}
+        self.repaired: set[tuple[str, str]] = set()
+        self.dropped: set[tuple[str, str]] = set()
+
+    def _has_name(self, module: Any, module_name: str, name: str) -> bool:
+        try:
+            if hasattr(module, name):
+                return True
+        except BaseException:  # noqa: BLE001
+            return True
+        submodule = f"{module_name}.{name}"
+        if submodule in sys.modules:
+            return True
+        try:
+            return importlib.util.find_spec(submodule) is not None
+        except BaseException:  # noqa: BLE001
+            return False
+
+    def _compute(self, module_name: str, name: str) -> _ImportCheck:
+        allow_import = module_name.partition(".")[0] == self._top_package
+        module = _loaded_module(module_name, allow_import=allow_import)
+        if module is None or self._has_name(module, module_name, name):
+            return _ImportCheck.KEEP
+        if module_name != self._module_name:
+            sut = _loaded_module(self._module_name, allow_import=True)
+            if sut is not None and self._has_name(sut, self._module_name, name):
+                return _ImportCheck.REPAIR
+        return _ImportCheck.DROP
+
+    def check(self, module_name: str, name: str) -> _ImportCheck:
+        """Validate that *name* can be imported from *module_name*.
+
+        Args:
+            module_name: The dotted name of the module imported from.
+            name: The imported name.
+
+        Returns:
+            Whether to keep, repair or drop the name.
+        """
+        key = (module_name, name)
+        verdict = self._cache.get(key)
+        if verdict is None:
+            verdict = self._compute(module_name, name)
+            self._cache[key] = verdict
+            if verdict is _ImportCheck.REPAIR:
+                logger.debug(
+                    "Re-targeting LLM import of %s from %s to %s",
+                    name,
+                    module_name,
+                    self._module_name,
+                )
+                self.repaired.add(key)
+            elif verdict is _ImportCheck.DROP:
+                logger.debug("Dropping LLM import of missing name %s from %s", name, module_name)
+                self.dropped.add(key)
+        return verdict
+
+
+class _ImportNameRepairer(cst.CSTTransformer):
+    """Repairs or drops ``from <module> import <name>`` names that do not exist.
+
+    LLMs frequently import a name from a package that only defines it in a
+    submodule (``from croniter import is_32bit``). Executing such an import
+    raises ``ImportError``, so one bad name would break every test that shares
+    the import line. A missing name that exists in the module under test is
+    re-targeted to it (and later rewritten to the canonical module alias by
+    :class:`_SutReferenceNormalizer`); any other missing name is dropped, so
+    only the statements that actually use it are discarded later on.
+    """
+
+    def __init__(self, resolver: _ImportNameResolver, module_name: str) -> None:
+        self._resolver = resolver
+        self._module_name = module_name
+        self._depth = 0
+
+    def visit_IndentedBlock(self, node: cst.IndentedBlock) -> bool:  # noqa: N802
+        self._depth += 1
+        return True
+
+    def leave_IndentedBlock(  # noqa: N802
+        self, original_node: cst.IndentedBlock, updated_node: cst.IndentedBlock
+    ) -> cst.IndentedBlock:
+        self._depth -= 1
+        return updated_node
+
+    def _repair(self, node: cst.ImportFrom) -> list[cst.BaseSmallStatement]:
+        if node.relative or node.module is None or isinstance(node.names, cst.ImportStar):
+            return [node]
+        dotted = _dotted_chain(node.module)
+        if dotted is None:
+            return [node]
+        module_name = ".".join(dotted)
+        kept: list[cst.ImportAlias] = []
+        repaired: list[cst.ImportAlias] = []
+        for alias in node.names:
+            if not isinstance(alias.name, cst.Name):
+                kept.append(alias)
+                continue
+            verdict = self._resolver.check(module_name, alias.name.value)
+            if verdict is _ImportCheck.KEEP:
+                kept.append(alias)
+            elif verdict is _ImportCheck.REPAIR:
+                repaired.append(alias)
+        if len(kept) == len(node.names):
+            return [node]
+        result: list[cst.BaseSmallStatement] = []
+        if kept:
+            result.append(
+                node.with_changes(
+                    names=[a.with_changes(comma=cst.MaybeSentinel.DEFAULT) for a in kept],
+                    lpar=None,
+                    rpar=None,
+                )
+            )
+        if repaired:
+            result.append(
+                cst.ImportFrom(
+                    module=cst.parse_expression(self._module_name),  # type: ignore[arg-type]
+                    names=[a.with_changes(comma=cst.MaybeSentinel.DEFAULT) for a in repaired],
+                )
+            )
+        return result
+
+    def leave_SimpleStatementLine(  # noqa: N802
+        self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
+    ) -> cst.SimpleStatementLine | cst.RemovalSentinel:
+        if not any(isinstance(small, cst.ImportFrom) for small in updated_node.body):
+            return updated_node
+        new_body: list[cst.BaseSmallStatement] = []
+        for small in updated_node.body:
+            if isinstance(small, cst.ImportFrom):
+                new_body.extend(self._repair(small))
+            else:
+                new_body.append(small)
+        if new_body:
+            return updated_node.with_changes(
+                body=[s.with_changes(semicolon=cst.MaybeSentinel.DEFAULT) for s in new_body]
+            )
+        if self._depth > 1:
+            # Keep nested blocks syntactically valid.
+            return updated_node.with_changes(body=[cst.Pass()])
+        return cst.RemoveFromParent()
+
+
 @dataclasses.dataclass
 class _SutBinding:
     """A rule that rewrites references to a locally-bound SUT import."""
@@ -649,7 +983,9 @@ class _SutReferenceNormalizer(cst.CSTTransformer):
                 kept_names.append(alias)
                 continue
             member = alias.name.value
-            if member == target_submod:
+            if member == target_submod and _binds_submodule(
+                ".".join(dotted), member, ".".join([*dotted, member])
+            ):
                 local = (
                     alias.asname.name.value
                     if alias.asname is not None and isinstance(alias.asname.name, cst.Name)
@@ -977,6 +1313,7 @@ class CstStatementDeserializer:
         self._module_name = config.configuration.module_name
         self._module_alias = get_module_alias(self._module_name)
         self._ambient_names = self._compute_ambient_names()
+        self._import_resolver = _ImportNameResolver(self._module_name)
 
     @property
     def _all_accessibles(self) -> Sequence[GenericAccessibleObject]:
@@ -987,6 +1324,16 @@ class CstStatementDeserializer:
         ):
             return getattr(self._test_cluster, "accessible_objects_under_test", ())
         return all_objs
+
+    @property
+    def import_names_repaired(self) -> int:
+        """The number of distinct imported names re-targeted to the module under test."""
+        return len(self._import_resolver.repaired)
+
+    @property
+    def import_names_dropped(self) -> int:
+        """The number of distinct imported names dropped because they do not exist."""
+        return len(self._import_resolver.dropped)
 
     def _compute_ambient_names(self) -> frozenset[str]:
         names: set[str] = set(dir(builtins)) | {"pytest", self._module_alias}
@@ -1377,6 +1724,15 @@ class CstStatementDeserializer:
             assert isinstance(renamed, cst.BaseCompoundStatement)
             node = renamed
         state.testcase.add_statement(tc.Statement(node=node, bound_variable=new_bound))
+        if not isinstance(line, cst.FunctionDef | cst.ClassDef):
+            # A ``with``/``for``/``if``/``while``/``try`` block leaks its
+            # function-scope bindings (``with ... as`` targets, ``for`` targets,
+            # in-block assignments and nested ``def``/``class`` names) into the
+            # surrounding test function. Promote them into the running known-name
+            # set so a *sibling* top-level block can resolve them; the emitted
+            # nodes keep their original identifiers, so no rename bookkeeping is
+            # needed for these leaked names.
+            state.known.update(_LeakedBindingCollector.collect(line))
         return Disposition.ADMITTED_COMPOUND
 
     def _hoist_module_imports(
@@ -1390,10 +1746,9 @@ class CstStatementDeserializer:
             for imp_stmt in module_level_imports:
                 for small in imp_stmt.body:
                     if isinstance(small, cst.Import | cst.ImportFrom):
-                        local_names = set(_imported_local_names(small))
-                        if local_names & fn_reads:
-                            lines.append(imp_stmt)
-                            break
+                        hoisted = _restrict_import_to_names(small, fn_reads)
+                        if hoisted is not None:
+                            lines.append(cst.SimpleStatementLine(body=[hoisted]))
         lines.extend(body.body)
         return lines
 
@@ -1449,6 +1804,11 @@ class CstStatementDeserializer:
 
         lines_to_process = self._hoist_module_imports(fn.body, module_level_imports)
         combined_block = fn.body.with_changes(body=lines_to_process)
+        repaired_block = combined_block.visit(
+            _ImportNameRepairer(self._import_resolver, self._module_name)
+        )
+        assert isinstance(repaired_block, cst.IndentedBlock)
+        combined_block = repaired_block
         normalizer = _SutReferenceNormalizer(self._module_name, self._module_alias)
         normalized = combined_block.visit(normalizer)
         assert isinstance(normalized, cst.IndentedBlock)
@@ -1574,4 +1934,10 @@ def deserialize_code_to_testcases(
                 _format_counts(function_result.counts),
             )
 
-    return DeserializationResult(test_cases, ParseStatus.OK, counts)
+    return DeserializationResult(
+        test_cases,
+        ParseStatus.OK,
+        counts,
+        import_names_repaired=deserializer.import_names_repaired,
+        import_names_dropped=deserializer.import_names_dropped,
+    )

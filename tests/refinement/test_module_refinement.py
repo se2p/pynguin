@@ -21,6 +21,7 @@ from pynguin.refinement.refiner import (
     _assemble_module_blob,  # noqa: PLC2701
     _generate_module,  # noqa: PLC2701
     _index_refined_functions,  # noqa: PLC2701
+    _parse_refined_functions,  # noqa: PLC2701
     _process_module,  # noqa: PLC2701
     _slice_function_source,  # noqa: PLC2701
     _TestOutcome,  # noqa: PLC2701
@@ -247,4 +248,52 @@ def test_process_module_finish_exception_falls_back(no_fallback):
         refiner, IMPORT_BLOCK, _original_functions(), RefinementGranularity.COMBINED, 2
     )
     assert len(outcomes) == 2
+    assert no_fallback == ["test_case_0", "test_case_1"]
+
+
+def test_parse_refined_functions_returns_ordered_list():
+    funcs = _parse_refined_functions(REFINED_MODULE)
+    assert funcs is not None
+    assert [f.name for f in funcs] == ["test_case_0", "test_case_1"]
+
+
+def test_parse_refined_functions_returns_none_on_syntax_error():
+    assert _parse_refined_functions("def broken(: pass") is None
+
+
+def test_process_module_renamed_functions_maps_positionally(no_fallback):
+    # LLM renamed test_case_0 -> test_behavior_a and test_case_1 -> test_behavior_b
+    renamed_module = (
+        "import module_0\n\n"
+        "def test_behavior_a():\n"
+        "    # Arrange\n    value = 1\n"
+        "    # Act\n    result = module_0.f(value)\n"
+        "    # Assert\n    assert result == 2\n\n"
+        "def test_behavior_b():\n"
+        "    # Arrange\n    value = 2\n"
+        "    # Act\n    result = module_0.f(value)\n"
+        "    # Assert\n    assert result == 3\n"
+    )
+    refiner = _RecordingRefiner(refined_module=renamed_module)
+    outcomes = _process_module(
+        refiner, IMPORT_BLOCK, _original_functions(), RefinementGranularity.COMBINED, 2
+    )
+    assert len(outcomes) == 2
+    assert all(o.refined for o in outcomes)
+    assert no_fallback == []  # mapped positionally without fallback
+    assert "def test_behavior_a():" in outcomes[0].func_text
+    assert "def test_behavior_b():" in outcomes[1].func_text
+
+
+def test_process_module_renamed_count_mismatch_falls_back(no_fallback):
+    # Refined module has only 1 renamed function, while original has 2
+    mismatch_module = (
+        "import module_0\n\ndef test_behavior_a():\n    # Assert\n    assert module_0.f(1) == 2\n"
+    )
+    refiner = _RecordingRefiner(refined_module=mismatch_module)
+    outcomes = _process_module(
+        refiner, IMPORT_BLOCK, _original_functions(), RefinementGranularity.COMBINED, 2
+    )
+    assert len(outcomes) == 2
+    # Because count didn't match and names don't match original names, both fall back
     assert no_fallback == ["test_case_0", "test_case_1"]

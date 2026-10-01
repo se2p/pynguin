@@ -78,14 +78,15 @@ Used by `pynguin.refinement.pipeline` on one test function at a time.
 Used by `pynguin.refinement.refiner` when `llm_refinement.refinement_granularity` is
 `combined` or `module_separate`.  Each takes the **whole** test module in one request
 (vars: `module_test_code`, `sut_context`) and has a raised `max_tokens` (8000) for
-whole-module output.  All three demand that every test function keep its **exact original
-name** so the refiner can split the response back and map functions by name.
-- **ModuleReadabilityRefinementPrompt**: readability of all tests (readability stage of
-  `module_separate`).
-- **ModuleSemanticAssertionsPrompt**: assertions for all tests (assertion stage of
-  `module_separate`).
-- **ModuleRefinementPrompt**: readability **and** assertions in a single pass
-  (`combined`, the default).
+whole-module output.  `ModuleReadabilityRefinementPrompt` and `ModuleRefinementPrompt`
+instruct descriptive test function renaming (`test_<behavior_being_tested>`), which the
+refiner maps positionally by preserving test function order.
+- **ModuleReadabilityRefinementPrompt**: readability and descriptive renaming of all tests
+  (readability stage of `module_separate`).
+- **ModuleSemanticAssertionsPrompt**: assertions for all tests, preserving test function
+  names and signatures (assertion stage of `module_separate`).
+- **ModuleRefinementPrompt**: readability, descriptive renaming, **and** assertions in a
+  single pass (`combined`, the default).
 
 ## Usage Context
 

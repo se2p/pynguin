@@ -18,7 +18,10 @@ and repairs tests that break. Enabled with `llm_refinement.enabled=True`.
 
 `refiner.refine_generated_tests(test_file_path, module_name, ...)` (called from
 `generator.py` after export):
-1. `_load_test_functions` → `(import_block, test_functions)`.
+1. `_load_test_functions` → `(preamble, test_functions)`. The preamble is every
+   top-level statement that is *not* a `def test_*` (imports, the
+   `<mod>_ = sys.modules[...]` alias, the autouse reseed fixture, ...), so refined
+   tests referencing those names still resolve.
 2. Dispatch on `llm_refinement.refinement_granularity` (see below).
 3. Accumulate per-test outcomes (`_TestOutcome`) into statistics and write
    `<stem>_refined.py`.
@@ -46,8 +49,10 @@ robust and is the automatic **fallback**.
 3. Batched generation (`_generate_module`): `combined` → `refine_module_combined` (1 call);
    `module_separate` → `refine_readability_module` then
    `generate_semantic_assertions_module` (2 calls).
-4. Split & map: `ast.parse` the response, index functions by name
-   (`_index_refined_functions`), slice each function's source text
+4. Split & map: `ast.parse` the response, parse functions in order
+   (`_parse_refined_functions`). When test count matches, map positionally to support
+   descriptive test function renaming (`test_0` → `test_<behavior>`); otherwise fall back
+   to name-based matching (`_index_refined_functions`), and slice each function's source text
    (`_slice_function_source`, preserves comments/AAA markers).
 5. Per-test finish: `TestRefiner.finish_refined_test` runs the mutation-vacuous filter,
    optional mutation strengthening, and the per-broken-test repair loop — identical
@@ -55,10 +60,10 @@ robust and is the automatic **fallback**.
 
 ### Fallback (no silent test drops)
 
-Any test that is **missing**, **renamed**, from a **truncated/unparseable** response, or
-whose finish stage raises falls back to the per-test path (`_process_one_test`) and is
-logged. A whole-module `# LLM error` sentinel or parse failure falls the entire module
-back to per-test.
+Any test that is **missing** (when count mismatches and name is not found), from a
+**truncated/unparseable** response, or whose finish stage raises falls back to the
+per-test path (`_process_one_test`) and is logged. A whole-module `# LLM error` sentinel
+or parse failure falls the entire module back to per-test.
 
 ## Key files
 
@@ -75,8 +80,8 @@ back to per-test.
   `_run_repair_loop` calls the LLM only on failing tests (assertion failures are stripped
   locally, no LLM). Never batch repair.
 - **Mutation-strengthening stays per-test** (survivor detection is inherently per-test).
-- Module-level responses must preserve every test's exact original name, imports, and
-  `module_0.` call prefixes — otherwise the test falls back.
+- Module-level responses must preserve the total number and order of tests, imports, and
+  `module_0.` call prefixes — otherwise missing tests fall back to per-test.
 
 ## Prompts
 
