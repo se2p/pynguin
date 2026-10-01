@@ -303,6 +303,12 @@ class RuntimeVariable(str, enum.Enum):
     # LLM asserts dropped because they reference a name that is not in scope
     LLMAssertionDropped = "LLMAssertionDropped"
 
+    # Names in LLM ``from m import name`` statements re-targeted to the module under test
+    LLMImportNamesRepaired = "LLMImportNamesRepaired"
+
+    # Names in LLM ``from m import name`` statements dropped because they do not exist
+    LLMImportNamesDropped = "LLMImportNamesDropped"
+
     # The coverage before LLM call for uncovered targets (initial coverage)
     CoverageBeforeLLMCall = "CoverageBeforeLLMCall"
 
