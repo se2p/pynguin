@@ -66,6 +66,9 @@ def print_results_table(results: list[ModuleResult]) -> None:
         table.add_column("LLM Tokens (I/O)", justify="right")
         table.add_column("LLM Time (s)", justify="right")
         table.add_column("Parsed Stmts", justify="right")
+        table.add_column("Compound", justify="right")
+        table.add_column("Unresolved", justify="right")
+        table.add_column("Import", justify="right")
     table.add_column("Time (s)", justify="right")
     table.add_column("Exit")
     if show_output:
@@ -100,6 +103,9 @@ def print_results_table(results: list[ModuleResult]) -> None:
                 f"{in_tok}/{out_tok}" if (in_tok or out_tok) else "-",
                 f"{r.llm_query_time_s:.1f}" if r.llm_query_time_s is not None else "-",
                 str(r.llm_parsed_stmts) if r.llm_parsed_stmts is not None else "-",
+                str(r.llm_compound) if r.llm_compound is not None else "-",
+                str(r.llm_unresolved) if r.llm_unresolved is not None else "-",
+                str(r.llm_import) if r.llm_import is not None else "-",
             ])
         row += [f"{r.duration_s:.0f}", str(r.exit_code)]
         if show_output:
@@ -225,6 +231,9 @@ def results_to_json(results: list[ModuleResult], git_ref: str, budget: int, seed
                 "llm_output_tokens": r.llm_output_tokens,
                 "llm_query_time_s": r.llm_query_time_s,
                 "llm_parsed_stmts": r.llm_parsed_stmts,
+                "llm_compound": r.llm_compound,
+                "llm_unresolved": r.llm_unresolved,
+                "llm_import": r.llm_import,
                 "suite_coverage": r.suite_coverage,
                 "suite_tests": r.suite_tests,
                 "suite_error": r.suite_error,
