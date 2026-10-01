@@ -9,7 +9,10 @@ import ast
 
 import pytest
 
+import pynguin.configuration as config
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.large_language_model.parsing import rewriter
+from pynguin.large_language_model.parsing.deserializer import deserialize_code_to_testcases
 
 
 @pytest.mark.parametrize(
@@ -659,3 +662,183 @@ def test_eq():
 """
     result = rewriter.rewrite_tests(code)
     assert list(result.functions) == ["test_eq", "test_eq_2"]
+
+
+def test_rewrite_nested_class_to_dynamic_type_descriptor_pattern():
+    code = """
+def test_0():
+    def my_prop(cls):
+        return 42
+
+    class MyClass:
+        my_prop = my_prop
+
+    assert MyClass.my_prop == 42
+"""
+    result = rewriter.rewrite_tests(code)
+    assert "test_0" in result.functions
+    func_code = result.functions["test_0"]
+    assert "MyClass = type('MyClass', (), {'my_prop': my_prop})" in func_code
+    assert "class MyClass" not in func_code
+
+
+def test_rewrite_nested_class_with_bases_and_pass():
+    code = """
+def test_1():
+    class Dummy(Base):
+        \"\"\"Docstring\"\"\"
+        pass
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_1"]
+    assert "Dummy = type('Dummy', (Base,), {})" in func_code
+    assert "class Dummy" not in func_code
+
+
+def test_rewrite_nested_class_with_multiple_attributes_and_annotations():
+    code = """
+def test_2():
+    class Holder:
+        a: int = 1
+        b = "val"
+        c: str
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_2"]
+    assert "Holder = type('Holder', (), {'a': 1, 'b': 'val'})" in func_code
+    assert "class Holder" not in func_code
+
+
+def test_rewrite_nested_class_with_methods():
+    code = """
+def test_3():
+    class Calculator:
+        def add(self, x, y):
+            return x + y
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_3"]
+    assert "def _Calculator_add(self, x, y):" in func_code
+    assert "Calculator = type('Calculator', (), {'add': _Calculator_add})" in func_code
+    assert "class Calculator" not in func_code
+
+
+def test_rewrite_nested_class_with_decorated_methods():
+    code = """
+def test_4():
+    class PropHolder:
+        @property
+        def prop(self):
+            return 100
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_4"]
+    assert "@property" in func_code
+    assert "def _PropHolder_prop(self):" in func_code
+    assert "PropHolder = type('PropHolder', (), {'prop': _PropHolder_prop})" in func_code
+
+
+def test_preserve_nested_class_with_zero_arg_super():
+    code = """
+def test_5():
+    class Child(Parent):
+        def method(self):
+            return super().method()
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_5"]
+    assert "class Child(Parent):" in func_code
+    assert "super().method()" in func_code
+
+
+def test_preserve_nested_class_with_class_decorator():
+    code = """
+def test_6():
+    @dataclass
+    class DataHolder:
+        x: int
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_6"]
+    assert "@dataclass" in func_code
+    assert "class DataHolder:" in func_code
+
+
+def test_preserve_nested_class_with_keywords():
+    code = """
+def test_7():
+    class MetaHolder(metaclass=ABCMeta):
+        pass
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_7"]
+    assert "class MetaHolder(metaclass=ABCMeta):" in func_code
+
+
+def test_preserve_nested_class_with_unsupported_statement():
+    code = """
+def test_8():
+    class SideEffectHolder:
+        side_effect()
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_8"]
+    assert "class SideEffectHolder:" in func_code
+
+
+def test_integration_nested_class_deserialization():
+    config.configuration.module_name = "math"
+    raw_test = """
+def test_property():
+    def my_prop(cls):
+        return 42
+
+    class MyClass:
+        my_prop = my_prop
+
+    res = MyClass.my_prop
+    assert res == 42
+"""
+    rewritten = rewriter.rewrite_tests(raw_test)
+    rewritten_code = rewritten.functions["test_property"]
+    res = deserialize_code_to_testcases(rewritten_code, ModuleTestCluster(0))
+    assert res.status.name == "OK"
+    assert len(res.test_cases) == 1
+    tc = res.test_cases[0]
+    assert tc.size() >= 3
+
+
+def test_preserve_nested_class_with_non_name_assign_target():
+    code = """
+def test_9():
+    class ComplexTarget:
+        a.b = 1
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_9"]
+    assert "class ComplexTarget:" in func_code
+
+
+def test_preserve_nested_class_with_non_name_annassign_target():
+    code = """
+def test_10():
+    class ComplexAnnTarget:
+        a.b: int = 1
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_10"]
+    assert "class ComplexAnnTarget:" in func_code
+
+
+def test_rewrite_nested_class_method_name_collision_resolves():
+    code = """
+def test_11():
+    _Calculator_add = 1
+    class Calculator:
+        def add(self):
+            return 2
+"""
+    result = rewriter.rewrite_tests(code)
+    func_code = result.functions["test_11"]
+    assert "class Calculator" not in func_code
+    assert "Calculator = type('Calculator', (), {'add': var_0})" in func_code
