@@ -13,12 +13,19 @@ import copy
 import logging
 import sys
 import textwrap
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import pytest
 
-from pynguin.assertion.mutation_analysis.controller import MutationController
+import pynguin.configuration as config
+from pynguin.assertion.mutation_analysis.controller import (
+    MutationController,
+    MutationMetrics,
+    compute_reported_mutation_score,
+    create_mutation_controller,
+)
 from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator
 from pynguin.assertion.mutation_analysis.operators import (
     ArithmeticOperatorReplacement,
@@ -27,11 +34,17 @@ from pynguin.assertion.mutation_analysis.operators import (
     RelationalOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
-from pynguin.refinement.validator import call_test_functions, collect_test_functions
+from pynguin.refinement.validator import (
+    call_test_functions,
+    collect_test_functions,
+    run_test,
+)
+from pynguin.testcase.execution import ModuleProvider
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
 
 if TYPE_CHECKING:
     import types
+    from collections.abc import Callable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -527,3 +540,130 @@ def get_surviving_mutants(
         if mutant_module is not None and idx not in killed_indices:
             survivors.append(mutant)
     return survivors
+
+
+def _evaluate_single_mutant(
+    test_sources: list[str],
+    module_under_test: types.ModuleType,
+    mutant_module: types.ModuleType,
+    module_provider: ModuleProvider,
+    budget_exceeded: Callable[[], bool],
+) -> tuple[bool, bool]:
+    """Evaluate a single mutant against test sources.
+
+    Returns:
+        Tuple of (is_killed, is_timed_out).
+    """
+    module_name = module_under_test.__name__
+    module_provider.clear_mutated_modules()
+    module_provider.add_mutated_version(module_name, mutant_module)
+    mutant_killed = False
+    with module_provider.mutated_modules_installed():
+        for test_source in test_sources:
+            passed, message = run_test(test_source, module_under_test)
+            if message.startswith("TimeoutError:"):
+                return False, True
+            if not passed:
+                mutant_killed = True
+            if budget_exceeded():
+                break
+    return mutant_killed, False
+
+
+def evaluate_refined_suite_mutations(
+    preamble: str,
+    refined_tests: list[str],
+    module_under_test: types.ModuleType | None,
+    *,
+    maximum_time: float | None = None,
+) -> dict[str, Any]:
+    """Run mutation analysis on the final refined test suite.
+
+    Args:
+        preamble: Shared imports and preamble for the refined test file.
+        refined_tests: List of test function sources.
+        module_under_test: The SUT module.
+        maximum_time: Optional maximum mutation budget in seconds.
+
+    Returns:
+        Dictionary containing post-refinement mutation metrics:
+        - post_refinement_mutation_score: float | None
+        - post_refinement_killed_mutants: int
+        - post_refinement_checked_mutants: int
+        - post_refinement_timed_out_mutants: int
+        - post_refinement_created_mutants: int
+    """
+    empty_result = {
+        "post_refinement_mutation_score": None,
+        "post_refinement_killed_mutants": 0,
+        "post_refinement_checked_mutants": 0,
+        "post_refinement_timed_out_mutants": 0,
+        "post_refinement_created_mutants": 0,
+    }
+    if not refined_tests or module_under_test is None:
+        return empty_result
+
+    try:
+        controller = create_mutation_controller(module_under_test)
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.warning("Could not create mutation controller for refined suite: %s", e)
+        return empty_result
+
+    num_created = controller.mutant_count()
+    if num_created == 0:
+        return {
+            **empty_result,
+            "post_refinement_mutation_score": 1.0,
+        }
+
+    test_sources = [f"{preamble}\n{func}" for func in refined_tests]
+    start_time = time.monotonic()
+    max_time = (
+        maximum_time
+        if maximum_time is not None
+        else config.configuration.test_case_output.maximum_mutation_time
+    )
+
+    def budget_exceeded() -> bool:
+        return max_time >= 0 and time.monotonic() - start_time >= max_time
+
+    module_provider = ModuleProvider()
+    num_checked = 0
+    killed_mutants = 0
+    timeout_mutants = 0
+
+    for mutant_module, _ in controller.create_mutants():
+        if budget_exceeded():
+            _LOGGER.info(
+                "Post-refinement mutation budget of %ss exceeded; checked %i of %i mutant(s).",
+                max_time,
+                num_checked,
+                num_created,
+            )
+            break
+        if mutant_module is None:
+            continue
+
+        num_checked += 1
+        killed, timed_out = _evaluate_single_mutant(
+            test_sources, module_under_test, mutant_module, module_provider, budget_exceeded
+        )
+        if timed_out:
+            timeout_mutants += 1
+        elif killed:
+            killed_mutants += 1
+
+    metrics = MutationMetrics(
+        num_created_mutants=num_checked,
+        num_killed_mutants=killed_mutants,
+        num_timeout_mutants=timeout_mutants,
+    )
+    score = compute_reported_mutation_score(metrics, num_created)
+
+    return {
+        "post_refinement_mutation_score": score,
+        "post_refinement_killed_mutants": killed_mutants,
+        "post_refinement_checked_mutants": num_checked,
+        "post_refinement_timed_out_mutants": timeout_mutants,
+        "post_refinement_created_mutants": num_created,
+    }

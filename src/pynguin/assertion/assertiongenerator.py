@@ -276,47 +276,8 @@ class _MutationSummary:
         )
 
 
-@dataclasses.dataclass
-class _MutationMetrics:
-    num_created_mutants: int
-    num_killed_mutants: int
-    num_timeout_mutants: int
-
-    def get_score(self) -> float | None:
-        """Computes the mutation score.
-
-        Returns:
-            The mutation score, or ``None`` if no checked mutant contributed
-            usable information (every created mutant timed out), in which case
-            the score is unmeasurable rather than vacuously perfect.
-        """
-        divisor = self.num_created_mutants - self.num_timeout_mutants
-        assert divisor >= 0
-        if divisor == 0:
-            if self.num_created_mutants == 0:
-                # No mutants were created -> vacuously covered.
-                return 1.0
-            # Every created mutant timed out; we learned nothing about the
-            # assertions, so the score cannot be measured.
-            return None
-        return self.num_killed_mutants / divisor
-
-
-def _compute_reported_score(metrics: _MutationMetrics, num_created: int) -> float | None:
-    """Computes the mutation score to report, given the pre-truncation mutant count.
-
-    Args:
-        metrics: The metrics over the checked mutants.
-        num_created: The number of mutants the module yielded, checked or not.
-
-    Returns:
-        The mutation score, or ``None`` if mutants were created but none of them
-        could be checked (e.g., every mutant was an invalid module), in which case
-        the score is unmeasurable rather than vacuously perfect.
-    """
-    if num_created > 0 and metrics.num_created_mutants == 0:
-        return None
-    return metrics.get_score()
+_MutationMetrics = ct.MutationMetrics
+_compute_reported_score = ct.compute_reported_mutation_score
 
 
 def _select_minimal_assertions(
@@ -727,8 +688,17 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 num_created,
                 metrics.num_created_mutants,
             )
+        score = _compute_reported_score(metrics, num_created)
+        stat.track_output_variable(RuntimeVariable.MutationScore, score)
+        stat.track_output_variable(RuntimeVariable.PreRefinementMutationScore, score)
         stat.track_output_variable(
-            RuntimeVariable.MutationScore, _compute_reported_score(metrics, num_created)
+            RuntimeVariable.PreRefinementKilledMutants, metrics.num_killed_mutants
+        )
+        stat.track_output_variable(
+            RuntimeVariable.PreRefinementCheckedMutants, metrics.num_created_mutants
+        )
+        stat.track_output_variable(
+            RuntimeVariable.PreRefinementTimedOutMutants, metrics.num_timeout_mutants
         )
 
         for info in mutation_summary.mutant_information:

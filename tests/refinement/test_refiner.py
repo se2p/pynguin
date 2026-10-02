@@ -14,6 +14,7 @@ import types
 import pytest
 
 import pynguin.configuration as config
+import pynguin.utils.statistics.stats as stat
 from pynguin.refinement import refiner as refiner_module
 from pynguin.refinement.refiner import (
     _attach_usage,  # noqa: PLC2701
@@ -532,3 +533,152 @@ def test_sanitize_test_strips_stale_xfail_on_xpass(monkeypatch):
 
     assert result is not None
     assert "xfail" not in result
+
+
+def test_refine_generated_tests_evaluates_and_tracks_post_refinement_mutation(
+    tmp_path, monkeypatch
+):
+    test_file = tmp_path / "test_mod.py"
+    test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
+
+    fake_module = types.ModuleType("fake_module")
+    func = ast.parse("def test_case_0():\n    assert True\n").body[0]
+
+    class _FakeClient:
+        def reset_usage(self):
+            return None
+
+        def get_usage(self):
+            return {"calls": 1, "input_tokens": 10, "output_tokens": 5}
+
+    class _FakeRefiner:
+        def __init__(self, **_kwargs):
+            self.llm_client = _FakeClient()
+
+    def _fake_process(*_args, **_kwargs):
+        return _TestOutcome(
+            func_text="def test_case_0():\n    assert True\n",
+            processed=True,
+            refined=True,
+            iterations=1,
+            readability_original=0.5,
+            readability_refined=0.9,
+            mutation_stats={},
+        )
+
+    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func]))
+    monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
+    monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
+    monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "refinement_granularity",
+        config.RefinementGranularity.PER_TEST,
+    )
+
+    eval_called = []
+
+    def _fake_eval(preamble, refined_tests, module_under_test, **_kw):
+        del preamble, refined_tests, module_under_test
+        eval_called.append(True)
+        return {
+            "post_refinement_mutation_score": 0.8,
+            "post_refinement_killed_mutants": 4,
+            "post_refinement_checked_mutants": 5,
+            "post_refinement_timed_out_mutants": 0,
+            "post_refinement_created_mutants": 5,
+        }
+
+    monkeypatch.setattr(refiner_module, "evaluate_refined_suite_mutations", _fake_eval)
+
+    tracked = {}
+    monkeypatch.setattr(stat, "track_output_variable", tracked.__setitem__)
+
+    stats = refine_generated_tests(
+        test_file_path=test_file,
+        module_name="fake_module",
+        max_repair_iterations=1,
+        max_tests=1,
+    )
+
+    assert eval_called == [True]
+    assert stats["post_refinement_mutation_score"] == 0.8
+    assert stats["post_refinement_killed_mutants"] == 4
+
+    assert tracked[RuntimeVariable.PostRefinementMutationScore] == 0.8
+    assert tracked[RuntimeVariable.PostRefinementKilledMutants] == 4
+    assert tracked[RuntimeVariable.MutationScore] == 0.8
+    assert tracked[RuntimeVariable.NumberOfKilledMutants] == 4
+    assert tracked[RuntimeVariable.NumberOfCheckedMutants] == 5
+
+
+def test_refine_generated_tests_disabled_mutation_skips_evaluation(tmp_path, monkeypatch):
+    test_file = tmp_path / "test_mod.py"
+    test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
+
+    fake_module = types.ModuleType("fake_module")
+    func = ast.parse("def test_case_0():\n    assert True\n").body[0]
+
+    class _FakeClient:
+        def reset_usage(self):
+            return None
+
+        def get_usage(self):
+            return {}
+
+    class _FakeRefiner:
+        def __init__(self, **_kwargs):
+            self.llm_client = _FakeClient()
+
+    def _fake_process(*_args, **_kwargs):
+        return _TestOutcome(
+            func_text="def test_case_0():\n    assert True\n",
+            processed=True,
+            refined=True,
+            iterations=1,
+            readability_original=0.5,
+            readability_refined=0.9,
+            mutation_stats={},
+        )
+
+    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func]))
+    monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
+    monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
+    monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "refinement_granularity",
+        config.RefinementGranularity.PER_TEST,
+    )
+
+    eval_called = []
+    monkeypatch.setattr(
+        refiner_module,
+        "evaluate_refined_suite_mutations",
+        lambda *_a, **_k: eval_called.append(True) or {},
+    )
+
+    # Disable assertion generation and ensure neither MutationScore nor
+    # PostRefinementMutationScore is in output_variables
+    monkeypatch.setattr(
+        config.configuration.test_case_output,
+        "assertion_generation",
+        config.AssertionGenerator.NONE,
+    )
+    monkeypatch.setattr(
+        config.configuration.statistics_output,
+        "output_variables",
+        [RuntimeVariable.TargetModule],
+    )
+
+    stats = refine_generated_tests(
+        test_file_path=test_file,
+        module_name="fake_module",
+        max_repair_iterations=1,
+        max_tests=1,
+    )
+
+    assert eval_called == []
+    assert "post_refinement_mutation_score" not in stats

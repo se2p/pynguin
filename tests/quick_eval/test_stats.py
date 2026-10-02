@@ -39,6 +39,10 @@ def test_build_output_vars_includes_mutation_denominator():
     parts = output_vars.split(",")
     assert "NumberOfCheckedMutants" in parts
     assert "NumberOfTimedOutMutants" in parts
+    assert "PreRefinementMutationScore" in parts
+    assert "PreRefinementKilledMutants" in parts
+    assert "PostRefinementMutationScore" in parts
+    assert "PostRefinementKilledMutants" in parts
 
 
 def test_build_output_vars_without_mutation_omits_mutation_vars():
@@ -64,6 +68,31 @@ def test_parse_statistics_csv_reads_checked_and_timed_out(tmp_path):
     assert res["mutation_checked"] == 5
     assert res["mutation_timed_out"] == 0
     assert res["mutation_score"] == 0.2
+
+
+def test_parse_statistics_csv_reads_pre_and_post_refinement_mutation(tmp_path):
+    _write_statistics_csv(
+        tmp_path,
+        {
+            "BranchCoverage": "0.8",
+            "MutationScore": "0.75",
+            "NumberOfKilledMutants": "3",
+            "NumberOfCreatedMutants": "5",
+            "NumberOfCheckedMutants": "4",
+            "NumberOfTimedOutMutants": "0",
+            "PreRefinementMutationScore": "0.5",
+            "PreRefinementKilledMutants": "2",
+            "PostRefinementMutationScore": "0.75",
+            "PostRefinementKilledMutants": "3",
+        },
+    )
+    res = parse_statistics_csv(str(tmp_path))
+    assert res["mutation_score"] == 0.75
+    assert res["mutation_killed"] == 3
+    assert res["pre_refinement_mutation_score"] == 0.5
+    assert res["pre_refinement_mutation_killed"] == 2
+    assert res["post_refinement_mutation_score"] == 0.75
+    assert res["post_refinement_mutation_killed"] == 3
 
 
 def test_parse_statistics_csv_treats_none_mutation_score_as_unmeasurable(tmp_path):
@@ -194,3 +223,35 @@ def test_report_includes_llm_breakdown(monkeypatch, capsys):
     assert entry["llm_compound"] == 3
     assert entry["llm_unresolved"] == 2
     assert entry["llm_import"] == 1
+
+
+def test_report_includes_pre_post_refinement_mutation(monkeypatch, capsys):
+    monkeypatch.setattr(console, "_width", 200)
+    monkeypatch.setattr(console, "_height", 50)
+    result = ModuleResult(
+        project="foo",
+        module="bar",
+        branch_coverage=0.8,
+        line_coverage=0.9,
+        duration_s=10.0,
+        exit_code=0,
+        mutation_score=0.75,
+        mutation_killed=3,
+        mutation_total=4,
+        mutation_checked=4,
+        pre_refinement_mutation_score=0.5,
+        pre_refinement_mutation_killed=2,
+        post_refinement_mutation_score=0.75,
+        post_refinement_mutation_killed=3,
+    )
+    print_results_table([result])
+    captured = capsys.readouterr()
+    assert "75.0%" in captured.out
+    assert "(pre: 50.0%)" in captured.out
+
+    data = results_to_json([result], git_ref="test", budget=60, seed=42)
+    entry = data["results"][0]
+    assert entry["pre_refinement_mutation_score"] == 0.5
+    assert entry["pre_refinement_mutation_killed"] == 2
+    assert entry["post_refinement_mutation_score"] == 0.75
+    assert entry["post_refinement_mutation_killed"] == 3

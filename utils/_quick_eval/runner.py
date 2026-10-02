@@ -42,6 +42,10 @@ def _build_output_vars(*, include_mutation: bool, include_llm: bool) -> str:
             "NumberOfCreatedMutants",
             "NumberOfCheckedMutants",
             "NumberOfTimedOutMutants",
+            "PreRefinementMutationScore",
+            "PreRefinementKilledMutants",
+            "PostRefinementMutationScore",
+            "PostRefinementKilledMutants",
         ]
     if include_llm:
         parts += [
@@ -368,6 +372,10 @@ def _result_from_stats(
         mutation_total=_as_int(stats["mutation_total"]),
         mutation_checked=_as_int(stats["mutation_checked"]),
         mutation_timed_out=_as_int(stats["mutation_timed_out"]),
+        pre_refinement_mutation_score=_as_float(stats["pre_refinement_mutation_score"]),
+        pre_refinement_mutation_killed=_as_int(stats["pre_refinement_mutation_killed"]),
+        post_refinement_mutation_score=_as_float(stats["post_refinement_mutation_score"]),
+        post_refinement_mutation_killed=_as_int(stats["post_refinement_mutation_killed"]),
         llm_calls=_as_int(stats["llm_calls"]),
         llm_input_tokens=_as_int(stats["llm_input_tokens"]),
         llm_output_tokens=_as_int(stats["llm_output_tokens"]),

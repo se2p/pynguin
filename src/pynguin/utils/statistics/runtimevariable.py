@@ -258,6 +258,16 @@ class RuntimeVariable(str, enum.Enum):
     RefinementPerTestContributionMean = "RefinementPerTestContributionMean"
     RefinementSuiteContributionMean = "RefinementSuiteContributionMean"
 
+    # Pre- and post-refinement mutation metrics
+    PreRefinementMutationScore = "PreRefinementMutationScore"
+    PreRefinementKilledMutants = "PreRefinementKilledMutants"
+    PreRefinementCheckedMutants = "PreRefinementCheckedMutants"
+    PreRefinementTimedOutMutants = "PreRefinementTimedOutMutants"
+    PostRefinementMutationScore = "PostRefinementMutationScore"
+    PostRefinementKilledMutants = "PostRefinementKilledMutants"
+    PostRefinementCheckedMutants = "PostRefinementCheckedMutants"
+    PostRefinementTimedOutMutants = "PostRefinementTimedOutMutants"
+
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 

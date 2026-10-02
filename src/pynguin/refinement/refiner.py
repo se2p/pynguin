@@ -21,6 +21,7 @@ import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 from pynguin.configuration import MutationStrengtheningGranularity, RefinementGranularity
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
+from pynguin.refinement.mutation_analyzer import evaluate_refined_suite_mutations
 from pynguin.refinement.pipeline import TestRefiner, _strip_xfail_decorator
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
 from pynguin.refinement.validator import run_test
@@ -645,6 +646,25 @@ def _track_statistics(stats: dict[str, Any]) -> None:
         RuntimeVariable.RefinementSuiteContributionMean,
         float(stats.get("mutation_suite_contribution_mean", 0.0) or 0.0),
     )
+    if "post_refinement_mutation_score" in stats or "post_refinement_checked_mutants" in stats:
+        score = stats.get("post_refinement_mutation_score")
+        killed = int(stats.get("post_refinement_killed_mutants", 0) or 0)
+        checked = int(stats.get("post_refinement_checked_mutants", 0) or 0)
+        timed_out = int(stats.get("post_refinement_timed_out_mutants", 0) or 0)
+        created = int(stats.get("post_refinement_created_mutants", 0) or 0)
+
+        # Track post-refinement metrics
+        stat.track_output_variable(RuntimeVariable.PostRefinementMutationScore, score)
+        stat.track_output_variable(RuntimeVariable.PostRefinementKilledMutants, killed)
+        stat.track_output_variable(RuntimeVariable.PostRefinementCheckedMutants, checked)
+        stat.track_output_variable(RuntimeVariable.PostRefinementTimedOutMutants, timed_out)
+
+        # Overwrite primary/final mutation variables with refined suite metrics
+        stat.track_output_variable(RuntimeVariable.MutationScore, score)
+        stat.track_output_variable(RuntimeVariable.NumberOfKilledMutants, killed)
+        stat.track_output_variable(RuntimeVariable.NumberOfCheckedMutants, checked)
+        stat.track_output_variable(RuntimeVariable.NumberOfTimedOutMutants, timed_out)
+        stat.track_output_variable(RuntimeVariable.NumberOfCreatedMutants, created)
 
 
 def refine_generated_tests(
@@ -757,6 +777,26 @@ def refine_generated_tests(
             preamble, refined_tests, module_under_test
         )
         _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
+
+        should_run_mutation = (
+            config.configuration.test_case_output.assertion_generation
+            != config.AssertionGenerator.NONE
+            or RuntimeVariable.MutationScore
+            in config.configuration.statistics_output.output_variables
+            or RuntimeVariable.PostRefinementMutationScore
+            in config.configuration.statistics_output.output_variables
+        )
+        if stats.get("tests_refined", 0) > 0 and refined_tests and should_run_mutation:
+            try:
+                _LOGGER.info("Evaluating mutation score of the refined test suite")
+                post_mutation_stats = evaluate_refined_suite_mutations(
+                    preamble=preamble,
+                    refined_tests=refined_tests,
+                    module_under_test=module_under_test,
+                )
+                stats.update(post_mutation_stats)
+            except Exception as ex:
+                _LOGGER.exception("Failed to evaluate refined test suite mutations: %s", ex)
 
         _LOGGER.info("Refinement complete: %s", stats)
         _attach_usage(stats, refiner, start_wall)

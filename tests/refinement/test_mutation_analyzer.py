@@ -24,6 +24,7 @@ from pynguin.refinement.mutation_analyzer import (
     _run_test_against_mutant,  # noqa: PLC2701
     _vacuous_stats,  # noqa: PLC2701
     create_mutants,
+    evaluate_refined_suite_mutations,
     filter_vacuous_assertions,
     get_surviving_mutants,
     killed_set,
@@ -350,3 +351,103 @@ def test_get_surviving_mutants_excludes_failed_builds(monkeypatch):
     )
     survivors = get_surviving_mutants("def test_x(): pass", module)
     assert survivors == [("mutant_module", "mutations")]
+
+
+def test_evaluate_refined_suite_mutations_empty_or_none():
+    res = evaluate_refined_suite_mutations("", [], None)
+    assert res["post_refinement_mutation_score"] is None
+    assert res["post_refinement_killed_mutants"] == 0
+
+    module = types.ModuleType("test_mod")
+    res2 = evaluate_refined_suite_mutations("", [], module)
+    assert res2["post_refinement_mutation_score"] is None
+
+
+def test_evaluate_refined_suite_mutations_creation_failure(monkeypatch):
+    module = types.ModuleType("test_mod")
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: (_ for _ in ()).throw(RuntimeError("AST error")),
+    )
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] is None
+    assert res["post_refinement_checked_mutants"] == 0
+
+
+def test_evaluate_refined_suite_mutations_zero_mutants(monkeypatch):
+    class _MockController:
+        def mutant_count(self):
+            return 0
+
+    module = types.ModuleType("test_mod")
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: _MockController(),
+    )
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] == 1.0
+    assert res["post_refinement_created_mutants"] == 0
+
+
+def test_evaluate_refined_suite_mutations_happy_path(monkeypatch):
+    mutant_1 = types.ModuleType("test_mod")
+    mutant_2 = types.ModuleType("test_mod")
+
+    class _MockController:
+        def mutant_count(self):
+            return 2
+
+        def create_mutants(self):
+            yield mutant_1, []
+            yield mutant_2, []
+
+    module = types.ModuleType("test_mod")
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: _MockController(),
+    )
+
+    # First mutant killed, second mutant survives
+    call_count = [0]
+
+    def _mock_run_test(_source, _mod):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return False, "AssertionError"
+        return True, "Test passed."
+
+    monkeypatch.setattr("pynguin.refinement.mutation_analyzer.run_test", _mock_run_test)
+
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] == 0.5
+    assert res["post_refinement_killed_mutants"] == 1
+    assert res["post_refinement_checked_mutants"] == 2
+    assert res["post_refinement_timed_out_mutants"] == 0
+
+
+def test_evaluate_refined_suite_mutations_timeout(monkeypatch):
+    mutant_1 = types.ModuleType("test_mod")
+
+    class _MockController:
+        def mutant_count(self):
+            return 1
+
+        def create_mutants(self):
+            yield mutant_1, []
+
+    module = types.ModuleType("test_mod")
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: _MockController(),
+    )
+
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.run_test",
+        lambda _src, _mod: (False, "TimeoutError: timed out"),
+    )
+
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] is None  # all checked mutants timed out
+    assert res["post_refinement_killed_mutants"] == 0
+    assert res["post_refinement_checked_mutants"] == 1
+    assert res["post_refinement_timed_out_mutants"] == 1

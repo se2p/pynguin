@@ -85,7 +85,14 @@ def print_results_table(results: list[ModuleResult]) -> None:
             suite_cell,
         ]
         if show_mutation:
-            row.append(fmt_pct(r.mutation_score))
+            score_text = fmt_pct(r.mutation_score)
+            if (
+                r.post_refinement_mutation_score is not None
+                and r.pre_refinement_mutation_score is not None
+                and r.post_refinement_mutation_score != r.pre_refinement_mutation_score
+            ):
+                score_text += f" (pre: {fmt_pct(r.pre_refinement_mutation_score)})"
+            row.append(score_text)
             killed = r.mutation_killed if r.mutation_killed is not None else "?"
             checked = r.mutation_checked if r.mutation_checked is not None else r.mutation_total
             checked_display = checked if checked is not None else "?"
@@ -226,6 +233,10 @@ def results_to_json(results: list[ModuleResult], git_ref: str, budget: int, seed
                 "mutation_total": r.mutation_total,
                 "mutation_checked": r.mutation_checked,
                 "mutation_timed_out": r.mutation_timed_out,
+                "pre_refinement_mutation_score": r.pre_refinement_mutation_score,
+                "pre_refinement_mutation_killed": r.pre_refinement_mutation_killed,
+                "post_refinement_mutation_score": r.post_refinement_mutation_score,
+                "post_refinement_mutation_killed": r.post_refinement_mutation_killed,
                 "llm_calls": r.llm_calls,
                 "llm_input_tokens": r.llm_input_tokens,
                 "llm_output_tokens": r.llm_output_tokens,
