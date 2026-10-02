@@ -82,15 +82,15 @@ class AssertionTracker:
         return list(new_assertions)
 
 
-def _run_test_against_mutant(
+def _execute_against(
     test_code: str,
     mutant_module: types.ModuleType,
     module_name: str,
-) -> bool:
+) -> bool | None:
     """Execute *test_code* with *mutant_module* in place of the real module.
 
-    Returns ``True`` if the mutant was **killed** (test raised an exception),
-    ``False`` if the mutant **survived** (test passed).
+    Returns ``True`` if the test raised an exception, ``False`` if it passed, and
+    ``None`` if it timed out.
     """
     test_globals: dict[str, Any] = {
         "__builtins__": __builtins__,
@@ -111,18 +111,40 @@ def _run_test_against_mutant(
             # expected failure does not count as a kill or hide the other tests.
             call_test_functions(test_globals, collect_test_functions(cleaned))
 
-        return False  # Test passed → mutant survived
-    except TestExecutionTimeoutError:
-        # The mutant made the test run away rather than fail; we cannot claim a kill.
         return False
+    except TestExecutionTimeoutError:
+        return None
     except BaseException:  # noqa: BLE001
-        return True  # Any exception → mutant killed (incl. pytest.fail)
+        return True  # Any exception, incl. pytest.fail
     finally:
         # Restore the original module (or remove if it wasn't there)
         if old_module is None:
             sys.modules.pop(module_name, None)
         else:
             sys.modules[module_name] = old_module
+
+
+def _run_test_against_mutant(
+    test_code: str,
+    mutant_module: types.ModuleType,
+    module_name: str,
+) -> bool:
+    """Execute *test_code* with *mutant_module* in place of the real module.
+
+    Returns ``True`` if the mutant was **killed** (test raised an exception),
+    ``False`` if the mutant **survived** (test passed, or ran away into a timeout,
+    in which case we cannot claim a kill).
+    """
+    return _execute_against(test_code, mutant_module, module_name) is True
+
+
+def passes_on_module(test_code: str, module_under_test: types.ModuleType) -> bool:
+    """Return whether every test in *test_code* passes on the unmutated module.
+
+    Kills only mean something for code that passes on the clean module: code that
+    raises there "kills" every mutant.
+    """
+    return _execute_against(test_code, module_under_test, module_under_test.__name__) is False
 
 
 def _remove_assertion_by_index(tree: ast.Module, target_idx: int) -> ast.Module:

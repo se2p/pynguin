@@ -26,7 +26,9 @@ from pynguin.refinement.mutation_analyzer import (
     filter_vacuous_assertions,
     get_surviving_mutants,
     killed_set,
+    passes_on_module,
 )
+from pynguin.utils.timeout import TestExecutionTimeoutError
 
 
 def _make_module(name: str, **attrs) -> types.ModuleType:
@@ -115,6 +117,21 @@ def test_run_test_against_mutant_strict_xpass_is_a_kill():
         "def test_raises():\n    assert fakemod.value == 2\n"
     )
     assert _run_test_against_mutant(code, mutant, "fakemod") is True
+
+
+def test_passes_on_module():
+    module = _make_module("fakemod", value=1)
+    assert passes_on_module("def test_x():\n    assert fakemod.value == 1\n", module)
+    assert not passes_on_module("def test_x():\n    assert fakemod.value == 2\n", module)
+
+
+def test_passes_on_module_timeout_is_not_a_pass(monkeypatch):
+    def time_out(*_args):
+        raise TestExecutionTimeoutError
+
+    monkeypatch.setattr("pynguin.refinement.mutation_analyzer.call_test_functions", time_out)
+    module = _make_module("fakemod", value=1)
+    assert not passes_on_module("def test_x():\n    pass\n", module)
 
 
 def test_killed_set_reports_killed_indices():

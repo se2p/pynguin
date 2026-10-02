@@ -158,6 +158,72 @@ def test_strengthen_module_mutations_rejects_coverage_drop(refiner):
     assert stats["mutants_killed_total"] == 0
 
 
+_FALLBACK_TEST = """\
+def test_fallback():
+    # Act
+    result = module_0.fallback([])
+    # Assert
+    assert result"""
+
+
+def test_strengthen_module_mutations_rejects_weakening_an_existing_test(refiner):
+    # test_fallback is tightened (kills the [0] mutants), but test_inc loses the
+    # only assertion that kills the inc mutants.
+    refiner.llm_client.generate_from_prompt.return_value = (
+        _PREAMBLE
+        + _EXISTING_TEST.replace("result == 2", "result is not None")
+        + "\n\n"
+        + _FALLBACK_TEST.replace("assert result", "assert result == [0]")
+    )
+
+    _, tests, stats = refiner.strengthen_module_mutations(
+        _PREAMBLE, [_EXISTING_TEST, _FALLBACK_TEST], max_iterations=1
+    )
+
+    assert tests == [_EXISTING_TEST, _FALLBACK_TEST]
+    assert stats["mutants_killed_total"] == 0
+
+
+def test_strengthen_module_mutations_ignores_unusable_unused_import(refiner):
+    refiner.llm_client.generate_from_prompt.return_value = (
+        _PREAMBLE
+        + "import not_installed_helper\n\n"
+        + _EXISTING_TEST
+        + "\n\n"
+        + _FALLBACK_TEST.replace("assert result", "assert result == [0]")
+    )
+
+    preamble, tests, stats = refiner.strengthen_module_mutations(
+        _PREAMBLE, [_EXISTING_TEST, _FALLBACK_TEST], max_iterations=1
+    )
+
+    assert "not_installed_helper" not in preamble
+    assert "assert result == [0]" in tests[1]
+    assert stats["mutants_killed_total"] > 0
+
+
+def test_strengthen_module_mutations_rejects_module_failing_on_clean_sut(refiner):
+    # Each test passes on its own, but the new one breaks when run after test_inc,
+    # so the module as a whole fails on the clean SUT and "kills" every mutant.
+    order_dependent = (
+        "def test_fallback_empty():\n"
+        "    assert module_0.fallback([]) == [0]\n"
+        "    assert 'result' not in module_0.__dict__\n"
+    )
+    breaking_inc = _EXISTING_TEST + "\n    module_0.result = result"
+    refiner.llm_client.generate_from_prompt.return_value = (
+        _PREAMBLE + breaking_inc + "\n\n" + order_dependent
+    )
+
+    with patch.object(refiner, "_validate_strengthened_test", side_effect=lambda _p, f, _o: f):
+        _, tests, stats = refiner.strengthen_module_mutations(
+            _PREAMBLE, [_EXISTING_TEST], max_iterations=1
+        )
+
+    assert tests == [_EXISTING_TEST]
+    assert stats["mutants_killed_total"] == 0
+
+
 def test_gate1_strips_the_failing_assertion_not_the_first_one(refiner):
     strengthened = _PREAMBLE + _EXISTING_TEST + "\n    assert result > 0\n    assert result == 5\n"
 
