@@ -13,7 +13,7 @@ framework allows to export test suites in various styles, i.e., using the `unitt
 library from the Python standard library or tests in the style used by the PyTest
 framework.
 
-Pynguin is supposed to be used as a standalone command-line application but it
+Pynguin is supposed to be used as a standalone command-line application, but it
 can also be used as a library by instantiating this class directly.
 """
 
@@ -45,6 +45,8 @@ except ImportError:
 
 import weakref
 
+import multiprocess as mp
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
@@ -75,6 +77,7 @@ from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.islands.population_allocation import minimum_island_population_size
 from pynguin.large_language_model.client import OpenAIClient, extract_python_code
 from pynguin.testcase import export
 from pynguin.testcase.execution import (
@@ -420,7 +423,100 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
 
 def _verify_config() -> None:
     """Verify the configuration and raise an exception if something is invalid/not supported."""
-    # Currently all configured combinations of algorithms and coverage metrics are supported.
+    # All combinations of algorithms and coverage metrics are supported.
+    migration_strategy = config.configuration.island.migration_strategy
+    migration_active = migration_strategy is not config.MigrationStrategy.DISABLED
+    if migration_active and config.configuration.algorithm not in {
+        config.Algorithm.DYNAMOSA,
+        config.Algorithm.LLDYNAMOSA,
+    }:
+        raise ConfigurationException(
+            "Island migration requires algorithm to be DYNAMOSA or LLDYNAMOSA -- "
+            "migration unlocks children via a goals manager only those two have."
+        )
+    if (
+        config.configuration.island.num_islands > 1
+        and config.configuration.stopping.maximum_search_time <= 0
+    ):
+        raise ConfigurationException(
+            "Island mode requires a positive --maximum_search_time -- it is the only "
+            "shared stopping condition all islands use."
+        )
+    if config.configuration.island.num_islands > 1 and "fork" not in mp.get_all_start_methods():
+        raise ConfigurationException(
+            "Island mode requires the fork start method, which this platform does not "
+            "provide -- the islands and the LLM worker inherit the orchestrator's SUT "
+            "setup by forking."
+        )
+    if migration_strategy in {
+        config.MigrationStrategy.PERIODIC,
+        config.MigrationStrategy.COMBINED,
+    }:
+        island_config = config.configuration.island
+        worst_case_population = minimum_island_population_size(
+            config.configuration.search_algorithm.population,
+            island_config.population_allocation,
+            island_config.num_islands,
+        )
+        if island_config.periodic_migration_size > worst_case_population:
+            raise ConfigurationException(
+                f"periodic_migration_size (K={island_config.periodic_migration_size}) "
+                f"exceeds the smallest per-island population "
+                f"({worst_case_population}) under "
+                f"population_allocation={island_config.population_allocation.value} with "
+                f"{island_config.num_islands} islands -- periodic migration would have "
+                "to repeat or fabricate migrants to reach K."
+            )
+        if (
+            island_config.migrant_selection_policy is config.MigrantSelectionPolicy.RANK
+            and not 1.0 < island_config.migrant_rank_bias <= 2.0
+        ):
+            raise ConfigurationException(
+                f"migrant_rank_bias ({island_config.migrant_rank_bias}) must be in the "
+                "range (1, 2] for rank selection of periodic migrants."
+            )
+    _verify_llm_worker_config(migration_active=migration_active)
+
+
+def _verify_llm_worker_config(*, migration_active: bool) -> None:
+    """Verify how LLDYNAMOSA, parallel islands and the LLM worker are combined.
+
+    Args:
+        migration_active: Whether any island migration strategy is enabled.
+
+    Raises:
+        ConfigurationException: If the combination is not supported.
+    """
+    algorithm = config.configuration.algorithm
+    num_islands = config.configuration.island.num_islands
+    if not config.configuration.llm_worker.enabled:
+        if algorithm is config.Algorithm.LLDYNAMOSA and num_islands > 1:
+            raise ConfigurationException(
+                "LLDYNAMOSA with parallel islands requires the centralized LLM worker "
+                "(--llm_worker.enabled True); use DYNAMOSA for parallel island search "
+                "without the LLM worker."
+            )
+        return
+    if algorithm is not config.Algorithm.LLDYNAMOSA:
+        raise ConfigurationException(
+            f"The LLM worker requires algorithm=LLDYNAMOSA, got {algorithm.name}. "
+            "With the worker enabled, the islands run DYNAMOSA and receive "
+            "LLM-generated tests from the centralized worker."
+        )
+    if num_islands <= 1:
+        raise ConfigurationException(
+            "The LLM worker requires island.num_islands > 1 -- standalone "
+            "single-island use is not supported."
+        )
+    if (
+        config.configuration.llm_worker.immigration_routing is config.ImmigrationRouting.BROADCAST
+        and not migration_active
+    ):
+        raise ConfigurationException(
+            "immigration_routing=BROADCAST requires island.migration_strategy to "
+            "not be DISABLED -- it delivers results via the same migration "
+            "mechanism."
+        )
 
 
 def _is_random_entity(value: object, random_module: types.ModuleType) -> bool:
@@ -1101,19 +1197,27 @@ def add_additional_metrics(  # noqa: D103
         ))
 
 
-def _run() -> ReturnCode:  # noqa: C901, PLR0915
-    _verify_config()
-    if (setup_result := _setup_and_check()) is None:
-        return ReturnCode.SETUP_FAILED
-    executor, test_cluster, constant_provider = setup_result
-    # traces slices for test cases after execution
-    coverage_metrics = config.configuration.search_algorithm.coverage_metrics
-    if config.CoverageMetric.CHECKED in coverage_metrics:
+def _add_slicing_observer_if_needed(executor: TestCaseExecutor) -> None:
+    """Traces slices for test cases after execution, which checked coverage needs.
+
+    Args:
+        executor: The executor to add the slicing observer to.
+    """
+    if config.CoverageMetric.CHECKED in config.configuration.search_algorithm.coverage_metrics:
         from pynguin.slicer.statementslicingobserver import (  # noqa: PLC0415
             RemoteStatementSlicingObserver,
         )
 
         executor.add_remote_observer(RemoteStatementSlicingObserver())
+
+
+def _run() -> ReturnCode:
+    _verify_config()
+    if (setup_result := _setup_and_check()) is None:
+        return ReturnCode.SETUP_FAILED
+    executor, test_cluster, constant_provider = setup_result
+    _add_slicing_observer_if_needed(executor)
+    coverage_metrics = config.configuration.search_algorithm.coverage_metrics
 
     algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider
@@ -1133,6 +1237,35 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
     executor.clear_observers()
     executor.clear_remote_observers()
 
+    return finalize_generation_result(
+        algorithm, executor, test_cluster, constant_provider, generation_result, coverage_metrics
+    )
+
+
+def finalize_generation_result(  # noqa: C901, PLR0917
+    algorithm: GenerationAlgorithm,
+    executor: TestCaseExecutor,
+    test_cluster: ModuleTestCluster,
+    constant_provider: ConstantProvider,
+    generation_result: tsc.TestSuiteChromosome,
+    coverage_metrics: list[config.CoverageMetric],
+) -> ReturnCode:
+    """Finalize a generated test suite and write the resulting artifacts.
+
+    This includes assertion generation, minimization, final metric tracking,
+    export, LLM refinement, and coverage-report generation.
+
+    Args:
+        algorithm: Generation algorithm used for coverage-related setup.
+        executor: Executor used to run test cases.
+        test_cluster: Test cluster for the current run.
+        constant_provider: Provider for generated constants.
+        generation_result: Generated or aggregated test suite to finalize.
+        coverage_metrics: Coverage metrics configured for the run.
+
+    Returns:
+        The result of exporting the finalized test suite.
+    """
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
 
     # Generate assertions FIRST

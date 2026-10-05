@@ -255,7 +255,24 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
         Returns:
             A fully configured test-generation strategy
         """
-        strategy = self._get_generation_strategy()
+        return self.get_search_algorithm_with_strategy(self._get_generation_strategy())
+
+    def get_search_algorithm_with_strategy(
+        self, strategy: GenerationAlgorithm
+    ) -> GenerationAlgorithm:
+        """Wires up a pre-constructed test-generation strategy instance.
+
+        Uses the same setup as get_search_algorithm() for a strategy that has
+        already been created. This is useful for strategy implementations that are
+        constructed directly instead of being selected through the regular strategy
+        registry.
+
+        Args:
+            strategy: The already-constructed strategy instance to wire up.
+
+        Returns:
+            The same strategy instance, fully configured.
+        """
         strategy.branch_goal_pool = bg.BranchGoalPool(self._executor.subject_properties)
         strategy.test_case_fitness_functions = self._get_test_case_fitness_functions(strategy)
         strategy.test_suite_fitness_functions = self._get_test_suite_fitness_functions()

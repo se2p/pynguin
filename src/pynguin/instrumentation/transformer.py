@@ -12,7 +12,7 @@ import ast
 import ast as _ast
 
 try:
-    from ast import TryStar  # type: ignore[attr-defined]
+    from ast import TryStar  # type: ignore[attr-defined, unused-ignore]
 except ImportError:
 
     class TryStar(_ast.AST):  # type: ignore[no-redef]

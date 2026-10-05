@@ -324,6 +324,40 @@ def test_call_llm_for_uncovered_targets(monkeypatch):
     assert result == "Test response"
 
 
+def test_call_llm_for_uncovered_targets_sync_and_async_build_the_same_prompt(monkeypatch):
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.get_module_source_code", lambda: "def f():\n    pass"
+    )
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.get_module_path", lambda: Path("/path/to/module.py")
+    )
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.get_visibility_instructions", lambda: "visibility"
+    )
+    prompt_class = MagicMock()
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.UncoveredTargetsPrompt", prompt_class
+    )
+    agent = MagicMock(spec=LLMAgent)
+    agent.query.return_value = "sync response"
+    agent.query_async = AsyncMock(return_value="async response")
+    gao = MagicMock()
+
+    sync_result = LLMAgent.call_llm_for_uncovered_targets(agent, {gao: 0.5}, {gao: "hint"})
+    async_result = asyncio.run(
+        LLMAgent.call_llm_for_uncovered_targets_async(agent, {gao: 0.5}, {gao: "hint"})
+    )
+
+    assert sync_result == "sync response"
+    assert async_result == "async response"
+    assert prompt_class.call_count == 2
+    sync_call, async_call = prompt_class.call_args_list
+    assert sync_call == async_call
+    assert async_call.kwargs["visibility_instructions"] == "visibility"
+    assert async_call.kwargs["diagnostics"] == {gao: "hint"}
+    agent.query_async.assert_awaited_once_with(prompt_class.return_value)
+
+
 def test_extract_python_code_no_code(monkeypatch):
     """Test extract_python_code_from_llm_output with no Python code blocks."""
     # Mock require_api_key and OpenAI client to avoid actual API calls

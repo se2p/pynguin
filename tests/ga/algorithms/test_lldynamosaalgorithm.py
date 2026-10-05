@@ -150,14 +150,18 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, lldynamosa_al
     lldynamosa_algorithm.create_test_suite = MagicMock(
         side_effect=[test_suite_before, test_suite_after]
     )
-    lldynamosa_algorithm.target_uncovered_callables = MagicMock(
+    lldynamosa_algorithm._select_uncovered_targets = MagicMock(
+        return_value=({MagicMock(): 0.5}, {})
+    )
+    lldynamosa_algorithm._query_llm_for_targets = MagicMock(
         return_value=[MagicMock(spec=tcc.TestCaseChromosome)]
     )
 
     with patch.object(stat, "track_output_variable") as mock_track:
         lldynamosa_algorithm._target_initial_uncovered_goals()
 
-    lldynamosa_algorithm.target_uncovered_callables.assert_called_once()
+    lldynamosa_algorithm._select_uncovered_targets.assert_called_once()
+    lldynamosa_algorithm._query_llm_for_targets.assert_called_once()
     assert len(lldynamosa_algorithm._population) == 1
     # DynaMOSA's UpdateTargets, not a flat archive.update(): this is the whole point
     # of Task 1.4 -- covering a parent target via an LLM chromosome must still unlock

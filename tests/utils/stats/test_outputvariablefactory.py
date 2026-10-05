@@ -84,6 +84,20 @@ def test_sequence_factory_update(sequence_factory, chromosome):
     assert sequence_factory._values[0] == 42
 
 
+def test_sequence_factory_get_samples_returns_updates_and_added_samples(
+    sequence_factory, chromosome
+):
+    sequence_factory.set_start_time(time.time_ns())
+    sequence_factory.update(chromosome)
+    sequence_factory.add_sample(10_000_000_000, 7)
+
+    samples = sequence_factory.get_samples()
+
+    assert len(samples) == 2
+    assert samples[0][1] == 42
+    assert samples[1] == (10_000_000_000, 7)
+
+
 def test_get_output_variables_with_content(sequence_factory, chromosome):
     def check_result(name: str, value: int, index: int):
         assert name == f"CoverageTimeline_T{index}"  # pragma: no cover

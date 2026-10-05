@@ -146,6 +146,38 @@ class RankSelection(SelectionFunction[T]):
         )
 
 
+class TruncationSelection(SelectionFunction[T]):
+    """Truncation selection.
+
+    Selects the fittest individuals without replacement. Make sure that the
+    population is sorted. The fittest chromosomes have to come first.
+    """
+
+    def get_index(self, population: list[T]) -> int:
+        """Provides the index of the fittest individual.
+
+        Args:
+            population: A list of chromosomes to select from, fittest first
+
+        Returns:
+            The index that should be used for selection
+        """
+        return 0
+
+    def select(self, population: list[T], number: int = 1) -> list[T]:
+        """Return the first ``number`` individuals of the population.
+
+        Args:
+            population: A list of chromosomes to select from, fittest first
+            number: The number of elements to select
+
+        Returns:
+            The selected chromosomes, fewer than ``number`` only if the population
+            is smaller
+        """
+        return population[:number]
+
+
 class TournamentSelection(SelectionFunction[T]):
     """Tournament selection."""
 

@@ -222,6 +222,23 @@ exploitation_starts_at_percent = 0.5
 max_sequence_length = 10
 max_sequences_combined = 10
 
+[island]
+num_islands = 1
+migration_strategy = "DISABLED"
+periodic_migration_frequency = 5
+periodic_migration_size = 5
+migrant_selection_policy = "RANDOM"
+migrant_rank_bias = 2.0
+population_allocation = "FULL_PER_ISLAND"
+island_id = -1
+
+[llm_worker]
+enabled = false
+max_in_flight_requests = 1
+immigration_routing = "TARGETED"
+cost_per_1k_input_tokens = 0.0
+cost_per_1k_output_tokens = 0.0
+
 [to_cover]
 only_cover = []
 only_cover_line_ranges = []
@@ -377,8 +394,18 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
- 'only_cover_line_ranges=[], no_cover=[], enable_inline_pynguin_no_cover=True, '
+ 'max_sequences_combined=10), island=IslandConfiguration(num_islands=1, '
+ "migration_strategy=<MigrationStrategy.DISABLED: 'DISABLED'>, "
+ 'periodic_migration_frequency=5, periodic_migration_size=5, '
+ "migrant_selection_policy=<MigrantSelectionPolicy.RANDOM: 'RANDOM'>, "
+ 'migrant_rank_bias=2.0, '
+ 'population_allocation=<PopulationAllocation.FULL_PER_ISLAND: '
+ "'FULL_PER_ISLAND'>, island_id=-1), "
+ 'llm_worker=LLMWorkerConfiguration(enabled=False, max_in_flight_requests=1, '
+ "immigration_routing=<ImmigrationRouting.TARGETED: 'TARGETED'>, "
+ 'cost_per_1k_input_tokens=0.0, cost_per_1k_output_tokens=0.0), '
+ 'to_cover=ToCoverConfiguration(only_cover=[], only_cover_line_ranges=[], '
+ 'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), '
  'llm_refinement=LLMRefinementConfiguration(enabled=False, '
  'max_repair_iterations=2, max_tests=None, request_timeout=180.0, '
@@ -429,6 +456,22 @@ False
 RANK_SELECTION
 --generator_selection.generator_selection_bias
 1.7
+--island.island_id
+-1
+--island.migrant_rank_bias
+2.0
+--island.migrant_selection_policy
+RANDOM
+--island.migration_strategy
+DISABLED
+--island.num_islands
+1
+--island.periodic_migration_frequency
+5
+--island.periodic_migration_size
+5
+--island.population_allocation
+FULL_PER_ISLAND
 --large_language_model.cache_dir
 ~/.cache/pynguin/llm
 --large_language_model.call_llm_for_uncovered_targets
@@ -493,6 +536,16 @@ COMBINED
 True
 --llm_refinement.save_refined
 True
+--llm_worker.cost_per_1k_input_tokens
+0.0
+--llm_worker.cost_per_1k_output_tokens
+0.0
+--llm_worker.enabled
+False
+--llm_worker.immigration_routing
+TARGETED
+--llm_worker.max_in_flight_requests
+1
 --local_search.local_search
 True
 --local_search.local_search_collections

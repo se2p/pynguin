@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.module import TestCluster
 from pynguin.ga.computations import CoverageFunction, FitnessFunction
@@ -62,37 +63,26 @@ class LLMTestCaseHandler:
         save_llm_tests_to_file(python_code, "extracted_llm_test_cases.py")
         return python_code
 
-    def get_test_case_chromosomes_from_llm_results(
+    def get_test_cases_from_llm_results(
         self,
         llm_query_results: str | None,
         test_cluster: TestCluster,
-        test_factory: TestFactory,
-        fitness_functions: Iterable[FitnessFunction],
-        coverage_functions: Iterable[CoverageFunction],
-    ) -> list[tcc.TestCaseChromosome]:
-        """Process LLM query results into test case chromosomes.
+    ) -> list[tc.TestCase]:
+        """Parse LLM query results into test cases.
+
+        This handles only the parsing and deserialization step and does not attach the
+        test cases to a test factory or fitness functions.
 
         Args:
-            llm_query_results: The raw string results returned from the LLM.
-                If None, no processing will occur, and an empty list will be returned.
-            test_cluster: The test cluster to which the generated test cases belong.
-                Provides context for deserialization and test case generation.
-            test_factory: A factory object used to create instances of `TestCaseChromosome`.
-            fitness_functions: An iterable collection of fitness functions
-            to attach to each generated chromosome.
-                These define objectives for evolutionary algorithms.
-            coverage_functions: An iterable collection of coverage functions
-            to attach to each generated chromosome.
-                These define metrics for evaluating test case coverage.
+            llm_query_results: Raw results returned by the LLM. If None, an empty
+                list is returned.
+            test_cluster: Test cluster used during deserialization.
 
         Returns:
-            A list of `TestCaseChromosome` objects created from the deserialized
-             LLM test cases. Each chromosome is augmented with the provided
-             fitness and coverage functions.
+            The parsed test cases, or an empty list if no test cases could be created.
         """
-        llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
         if llm_query_results is None:
-            return llm_test_case_chromosomes
+            return []
 
         save_llm_tests_to_file(llm_query_results, "llm_query_results.txt")
         llm_test_cases_str = self.extract_test_cases_from_llm_output(llm_query_results)
@@ -124,13 +114,43 @@ class LLMTestCaseHandler:
             RuntimeVariable.LLMImportNamesDropped, deserialization_result.import_names_dropped
         )
 
-        for test_case in test_cases:
-            test_case_chromosome = _create_test_case_chromosome(
+        return test_cases
+
+    def get_test_case_chromosomes_from_llm_results(
+        self,
+        llm_query_results: str | None,
+        test_cluster: TestCluster,
+        test_factory: TestFactory,
+        fitness_functions: Iterable[FitnessFunction],
+        coverage_functions: Iterable[CoverageFunction],
+    ) -> list[tcc.TestCaseChromosome]:
+        """Process LLM query results into test case chromosomes.
+
+        Args:
+            llm_query_results: The raw string results returned from the LLM.
+                If None, no processing will occur, and an empty list will be returned.
+            test_cluster: The test cluster to which the generated test cases belong.
+                Provides context for deserialization and test case generation.
+            test_factory: A factory object used to create instances of `TestCaseChromosome`.
+            fitness_functions: An iterable collection of fitness functions
+            to attach to each generated chromosome.
+                These define objectives for evolutionary algorithms.
+            coverage_functions: An iterable collection of coverage functions
+            to attach to each generated chromosome.
+                These define metrics for evaluating test case coverage.
+
+        Returns:
+            A list of `TestCaseChromosome` objects created from the deserialized
+             LLM test cases. Each chromosome is augmented with the provided
+             fitness and coverage functions.
+        """
+        test_cases = self.get_test_cases_from_llm_results(llm_query_results, test_cluster)
+        return [
+            _create_test_case_chromosome(
                 test_case, test_factory, fitness_functions, coverage_functions
             )
-            llm_test_case_chromosomes.append(test_case_chromosome)
-
-        return llm_test_case_chromosomes
+            for test_case in test_cases
+        ]
 
 
 def _create_test_case_chromosome(

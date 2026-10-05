@@ -261,6 +261,30 @@ def _find_lines(name: str) -> tuple[list[str], int] | None:
         return None
 
 
+def _uncovered_targets_prompt(
+    gao_coverage_map: dict[GenericCallableAccessibleObject, float],
+    diagnostics: dict[GenericCallableAccessibleObject, str] | None,
+) -> UncoveredTargetsPrompt:
+    """Builds the prompt asking the LLM for tests that cover the given targets.
+
+    Shared by the synchronous and asynchronous queries, so both send the same prompt.
+
+    Args:
+        gao_coverage_map: Maps callable objects to coverage percentages.
+        diagnostics: Optional per-callable hints describing why a target is uncovered.
+
+    Returns:
+        The prompt for the uncovered targets.
+    """
+    return UncoveredTargetsPrompt(
+        list(gao_coverage_map.keys()),
+        get_module_source_code(),
+        str(get_module_path()),
+        diagnostics=diagnostics,
+        visibility_instructions=get_visibility_instructions(),
+    )
+
+
 class LLMAgent:  # noqa: PLR0904
     """A class to interact with OpenAI's language model for generating unit tests."""
 
@@ -607,16 +631,24 @@ class LLMAgent:  # noqa: PLR0904
         Returns:
             Any: Result of the query based on the constructed prompt.
         """
-        module_code = get_module_source_code()
-        module_path = get_module_path()
-        prompt = UncoveredTargetsPrompt(
-            list(gao_coverage_map.keys()),
-            module_code,
-            str(module_path),
-            diagnostics=diagnostics,
-            visibility_instructions=get_visibility_instructions(),
-        )
-        return self.query(prompt)
+        return self.query(_uncovered_targets_prompt(gao_coverage_map, diagnostics))
+
+    async def call_llm_for_uncovered_targets_async(
+        self,
+        gao_coverage_map: dict[GenericCallableAccessibleObject, float],
+        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
+    ):
+        """Asynchronously queries the language model for uncovered targets.
+
+        Args:
+            gao_coverage_map (dict): Maps callable objects to coverage percentages.
+            diagnostics (dict): Optional per-callable diagnostic hints describing why
+                a target is uncovered (e.g. never reached, one-sided branch).
+
+        Returns:
+            Any: Result of the query based on the constructed prompt.
+        """
+        return await self.query_async(_uncovered_targets_prompt(gao_coverage_map, diagnostics))
 
     def extract_python_code_from_llm_output(self, llm_output: str | None) -> str:
         """Extracts Python code blocks from the LLM output.

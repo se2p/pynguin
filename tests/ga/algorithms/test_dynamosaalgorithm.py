@@ -391,3 +391,172 @@ def test_dynamosa_integration_with_no_cover(tmp_path: Path) -> None:
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.OK
+
+
+class _RecordingExtension:
+    def __init__(self, name: str, calls: list[str]) -> None:
+        self._name = name
+        self._calls = calls
+
+    def after_local_search(self, search) -> None:
+        self._calls.append(self._name)
+
+
+def _loop_ready_algorithm(
+    monkeypatch, calls: list[str], generations: int
+) -> dyna.DynaMOSAAlgorithm:
+    monkeypatch.setattr(config.configuration.local_search, "local_search", True)
+    monkeypatch.setattr(dyna, "_GoalsManager", MagicMock())
+    algorithm = dyna.DynaMOSAAlgorithm()
+    algorithm._test_case_fitness_functions = OrderedSet()
+    algorithm._archive = MagicMock()
+    algorithm._archive.uncovered_goals = [MagicMock()]
+    algorithm._archive.solutions = []
+    algorithm._ranking_function = MagicMock()
+    algorithm._ranking_function.compute_ranking_assignment.return_value.get_number_of_sub_fronts.return_value = 0  # noqa: E501
+    algorithm.executor = MagicMock()
+    monkeypatch.setattr(algorithm, "_get_random_population", list)
+    monkeypatch.setattr(algorithm, "_get_best_individuals", list)
+    monkeypatch.setattr(algorithm, "create_test_suite", MagicMock())
+    monkeypatch.setattr(algorithm, "before_search_start", MagicMock())
+    monkeypatch.setattr(algorithm, "before_first_search_iteration", MagicMock())
+    monkeypatch.setattr(algorithm, "after_search_finish", MagicMock())
+    monkeypatch.setattr(
+        algorithm, "resources_left", MagicMock(side_effect=[True] * generations + [False])
+    )
+    monkeypatch.setattr(algorithm, "evolve", lambda: calls.append("evolve"))
+    monkeypatch.setattr(algorithm, "local_search", lambda: calls.append("local_search"))
+    monkeypatch.setattr(
+        algorithm, "after_search_iteration", lambda _best: calls.append("after_search_iteration")
+    )
+    return algorithm
+
+
+def test_generate_tests_without_extensions_keeps_the_original_generation_order(monkeypatch):
+    calls: list[str] = []
+    algorithm = _loop_ready_algorithm(monkeypatch, calls, generations=2)
+
+    algorithm.generate_tests()
+
+    assert calls == ["evolve", "local_search", "after_search_iteration"] * 2
+
+
+def test_generate_tests_runs_extensions_after_local_search_in_registration_order(monkeypatch):
+    calls: list[str] = []
+    algorithm = _loop_ready_algorithm(monkeypatch, calls, generations=3)
+    algorithm.add_generation_extension(_RecordingExtension("migration", calls))
+    algorithm.add_generation_extension(_RecordingExtension("worker", calls))
+
+    algorithm.generate_tests()
+
+    assert (
+        calls
+        == [
+            "evolve",
+            "local_search",
+            "migration",
+            "worker",
+            "after_search_iteration",
+        ]
+        * 3
+    )
+
+
+def test_generate_tests_passes_the_algorithm_itself_as_the_search_view(monkeypatch):
+    seen = []
+    algorithm = _loop_ready_algorithm(monkeypatch, [], generations=1)
+    extension = MagicMock()
+    extension.after_local_search.side_effect = seen.append
+    algorithm.add_generation_extension(extension)
+
+    algorithm.generate_tests()
+
+    assert seen == [algorithm]
+
+
+@pytest.fixture
+def integrating_algorithm() -> dyna.DynaMOSAAlgorithm:
+    algorithm = dyna.DynaMOSAAlgorithm()
+    algorithm._archive = MagicMock()
+    algorithm._goals_manager = MagicMock()
+    algorithm._population = []
+    algorithm.test_factory = MagicMock()
+    own_fitness_function = MagicMock()
+    own_fitness_function.is_maximisation_function.return_value = False
+    algorithm.test_case_fitness_functions = OrderedSet([own_fitness_function])
+    return algorithm
+
+
+def test_integrate_external_test_cases_adds_chromosomes_and_updates_goals_once(
+    integrating_algorithm,
+):
+    test_cases = [MagicMock(), MagicMock()]
+
+    added = integrating_algorithm.integrate_external_test_cases(test_cases)
+
+    assert added == 2
+    assert [c.test_case for c in integrating_algorithm._population] == test_cases
+    assert all(
+        c.test_factory is integrating_algorithm.test_factory
+        for c in integrating_algorithm._population
+    )
+    integrating_algorithm._goals_manager.update.assert_called_once_with(
+        integrating_algorithm._population
+    )
+
+
+def test_integrate_external_test_cases_never_writes_the_archive(integrating_algorithm):
+    integrating_algorithm.integrate_external_test_cases([MagicMock()])
+
+    assert integrating_algorithm._archive.method_calls == []
+
+
+def test_integrate_external_test_cases_with_nothing_does_not_update_goals(integrating_algorithm):
+    assert integrating_algorithm.integrate_external_test_cases([]) == 0
+    integrating_algorithm._goals_manager.update.assert_not_called()
+
+
+def test_search_view_snapshots_are_copies(integrating_algorithm):
+    goal = MagicMock()
+    integrating_algorithm._goals_manager.current_goals = OrderedSet([goal])
+    integrating_algorithm._population = [MagicMock()]
+
+    goals = integrating_algorithm.current_goals_snapshot()
+    population = integrating_algorithm.population_snapshot()
+    goals.clear()
+    population.clear()
+
+    assert list(integrating_algorithm._goals_manager.current_goals) == [goal]
+    assert len(integrating_algorithm._population) == 1
+
+
+def test_extensions_are_not_run_at_registration_or_when_no_generation_completes(monkeypatch):
+    calls: list[str] = []
+    algorithm = _loop_ready_algorithm(monkeypatch, calls, generations=0)
+    algorithm.add_generation_extension(_RecordingExtension("migration", calls))
+
+    assert calls == []
+    algorithm.generate_tests()
+
+    assert calls == []
+
+
+def test_extensions_run_once_per_completed_generation_when_all_goals_get_covered(monkeypatch):
+    calls: list[str] = []
+    algorithm = _loop_ready_algorithm(monkeypatch, calls, generations=10)
+    uncovered = [MagicMock()]
+    type(algorithm._archive).uncovered_goals = mock.PropertyMock(side_effect=lambda: uncovered)
+
+    def _evolve_covering_on_second_generation() -> None:
+        calls.append("evolve")
+        if calls.count("evolve") == 2:
+            uncovered.clear()
+
+    monkeypatch.setattr(algorithm, "evolve", _evolve_covering_on_second_generation)
+    algorithm.add_generation_extension(_RecordingExtension("migration", calls))
+
+    algorithm.generate_tests()
+
+    assert calls.count("evolve") == 2
+    assert calls.count("migration") == 2
+    assert calls[-2:] == ["migration", "after_search_iteration"]

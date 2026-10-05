@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
 from pynguin.master_worker.master import MasterProcess, RunningTask
 from pynguin.master_worker.worker import WorkerReturnCode, WorkerTask
 from tests.master_worker.test_worker import (
@@ -34,6 +35,7 @@ def master_and_config() -> tuple[MasterProcess, MagicMock]:
     mock_config.subprocess = False
     mock_config.subprocess_if_recommended = False
     mock_config.stopping.maximum_search_time = 100
+    mock_config.island.migration_strategy = config.MigrationStrategy.DISABLED
     master._configuration = mock_config
     return master, mock_config
 

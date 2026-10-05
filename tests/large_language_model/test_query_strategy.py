@@ -6,6 +6,7 @@
 #
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 
@@ -35,6 +36,51 @@ def test_sync_strategy_execute():
     strategy.shutdown()
 
 
+def test_sync_strategy_tracks_blocked_seconds():
+    strategy = SyncLLMQueryStrategy()
+    assert strategy.blocked_seconds == 0.0
+
+    strategy.execute(lambda: time.sleep(0.05))
+
+    assert strategy.blocked_seconds >= 0.05
+
+
+def test_sync_strategy_accumulates_blocked_seconds_across_calls():
+    strategy = SyncLLMQueryStrategy()
+
+    strategy.execute(lambda: time.sleep(0.02))
+    first = strategy.blocked_seconds
+    strategy.execute(lambda: time.sleep(0.02))
+    second = strategy.blocked_seconds
+
+    assert second > first
+
+
+def test_sync_strategy_tracks_blocked_seconds_even_when_query_fn_raises():
+    strategy = SyncLLMQueryStrategy()
+
+    def failing_query() -> None:
+        time.sleep(0.02)
+        raise ValueError("boom")
+
+    with contextlib.suppress(ValueError):
+        strategy.execute(failing_query)
+
+    assert strategy.blocked_seconds >= 0.02
+
+
+def test_async_strategy_blocked_seconds_is_always_zero():
+    strategy = AsyncLLMQueryStrategy()
+    event = threading.Event()
+
+    try:
+        strategy.execute(event.wait)
+        assert strategy.blocked_seconds == 0.0
+    finally:
+        event.set()
+        strategy.shutdown()
+
+
 def test_async_strategy_execute_and_poll():
     strategy = AsyncLLMQueryStrategy()
     event = threading.Event()
@@ -50,7 +96,6 @@ def test_async_strategy_execute_and_poll():
         assert strategy.is_in_progress() is True
         assert strategy.poll() is None
 
-        # Trying to execute again while in progress should skip
         duplicate_called = False
 
         def dup_fn() -> str:
@@ -61,7 +106,6 @@ def test_async_strategy_execute_and_poll():
         assert strategy.execute(dup_fn) is None
         assert duplicate_called is False
 
-        # Release worker and wait for completion
         event.set()
         timeout = time.time() + 5.0
         polled_result = None
@@ -90,7 +134,6 @@ def test_async_strategy_exception_handling():
         while strategy.is_in_progress() and time.time() < timeout:
             time.sleep(0.01)
 
-        # poll should return None and not crash
         assert strategy.poll() is None
         assert strategy.is_in_progress() is False
     finally:
@@ -128,7 +171,6 @@ def test_get_query_strategy():
     assert isinstance(async_strat_str, AsyncLLMQueryStrategy)
     async_strat_str.shutdown()
 
-    # Default from config
     config.configuration.large_language_model.llm_mode = LLMMode.SYNC
     assert isinstance(get_query_strategy(), SyncLLMQueryStrategy)
 

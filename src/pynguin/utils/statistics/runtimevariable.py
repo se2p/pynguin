@@ -261,6 +261,9 @@ class RuntimeVariable(str, enum.Enum):
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
+    # Seconds the synchronous search loop spent blocked waiting for LLM responses
+    LLMBlockingTimeSeconds = "LLMBlockingTimeSeconds"
+
     # Number of input tokens sent LLM to model
     TotalLLMInputTokens = "TotalLLMInputTokens"
 
@@ -402,6 +405,49 @@ class RuntimeVariable(str, enum.Enum):
 
     # Number of MockStatements present in the final generated test suite
     MockStatementsInserted = "MockStatementsInserted"
+
+    # ========= Centralized asynchronous LLM query worker =========
+
+    # Number of LLM queries issued by the async worker
+    TotalLLMWorkerQueries = "TotalLLMWorkerQueries"
+
+    # Total wall-clock seconds spent on async worker LLM queries
+    TotalLLMWorkerQueryTimeSeconds = "TotalLLMWorkerQueryTimeSeconds"
+
+    # Number of input tokens sent by the async worker
+    TotalLLMWorkerInputTokens = "TotalLLMWorkerInputTokens"
+
+    # Number of output tokens received by the async worker
+    TotalLLMWorkerOutputTokens = "TotalLLMWorkerOutputTokens"
+
+    # Estimated USD cost of the async worker's queries
+    EstimatedLLMWorkerCostUSD = "EstimatedLLMWorkerCostUSD"
+
+    # ========= Island model =========
+
+    # Number of islands whose results were merged into the final test suite
+    IslandsMerged = "IslandsMerged"
+
+    # Number of test cases returned by all islands before deduplication
+    IslandTestCasesBeforeDedup = "IslandTestCasesBeforeDedup"
+
+    # Number of test cases left after deduplication across islands
+    IslandTestCasesAfterDedup = "IslandTestCasesAfterDedup"
+
+    # Number of duplicate test cases removed when merging the island results
+    IslandDuplicateTestCasesRemoved = "IslandDuplicateTestCasesRemoved"
+
+    # Number of migrants sent by all islands because a new goal was covered
+    MigrantsSentGoalTriggered = "MigrantsSentGoalTriggered"
+
+    # Number of migrants sent by all islands at periodic migration events
+    MigrantsSentPeriodic = "MigrantsSentPeriodic"
+
+    # Number of received migrants accepted into an island population, duplicates excluded
+    MigrantsReceived = "MigrantsReceived"
+
+    # Number of migrants skipped as duplicates, either before sending or on arrival
+    MigrantsDroppedAsDuplicate = "MigrantsDroppedAsDuplicate"
 
     def __repr__(self):
         return f"{self.name}"

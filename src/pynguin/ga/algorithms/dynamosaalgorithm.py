@@ -8,13 +8,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
@@ -24,12 +25,58 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     import pynguin.ga.computations as ff
-    import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
+    import pynguin.testcase.testcase as tc
     from pynguin.ga.algorithms.archive import CoverageArchive
     from pynguin.instrumentation.controlflow import BasicBlockNode
     from pynguin.instrumentation.tracer import CodeObjectMetaData, SubjectProperties
+
+
+class DynaMOSASearchView(Protocol):
+    """Expose the DynaMOSA state that generation extensions need.
+
+    Extensions can inspect the search state through this interface and use
+    `integrate_external_test_cases()` to add external tests. They should not
+    modify the population, archive, or goals manager directly.
+    """
+
+    @property
+    def test_case_fitness_functions(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
+        """All test-case fitness functions of the search, active or not."""
+
+    @property
+    def subject_properties(self) -> SubjectProperties:
+        """The instrumentation metadata of the subject under test."""
+
+    def current_goals_snapshot(self) -> OrderedSet[ff.FitnessFunction]:
+        """Returns a copy of the currently active DynaMOSA goals."""
+
+    def covered_goals_snapshot(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
+        """Returns a copy of the goals covered by the archive."""
+
+    def covering_solution(self, goal: ff.TestCaseFitnessFunction) -> tcc.TestCaseChromosome | None:
+        """Returns the archive's solution for goal, or None if it isn't covered."""
+
+    def register_on_target_covered(
+        self, callback: Callable[[ff.TestCaseFitnessFunction], None]
+    ) -> None:
+        """Calls callback whenever the archive newly covers a goal."""
+
+    def population_snapshot(self) -> list[tcc.TestCaseChromosome]:
+        """Returns a shallow copy of the current population."""
+
+    def integrate_external_test_cases(self, test_cases: Iterable[tc.TestCase]) -> int:
+        """Adds test cases from outside this search; see DynaMOSAAlgorithm."""
+
+
+class GenerationExtension(Protocol):
+    """Hook for additional work performed during a DynaMOSA generation."""
+
+    def after_local_search(self, search: DynaMOSASearchView) -> None:
+        """Runs after evolve() and local search, before after_search_iteration()."""
 
 
 class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
@@ -40,6 +87,96 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self._goals_manager: _GoalsManager
+        self._generation_extensions: list[GenerationExtension] = []
+
+    def add_generation_extension(self, extension: GenerationExtension) -> None:
+        """Add an extension to the DynaMOSA generation loop.
+
+        Extensions run in registration order during `generate_tests()`.
+
+        Args:
+            extension: The extension to run once per generation.
+        """
+        self._generation_extensions.append(extension)
+
+    @property
+    def subject_properties(self) -> SubjectProperties:
+        """Provides the instrumentation metadata of the subject under test.
+
+        Returns:
+            The executor's subject properties.
+        """
+        return self.executor.subject_properties
+
+    def current_goals_snapshot(self) -> OrderedSet[ff.FitnessFunction]:
+        """Provides a copy of the currently active goals.
+
+        Returns:
+            The active goals, as a new set.
+        """
+        return OrderedSet(self._goals_manager.current_goals)
+
+    def covered_goals_snapshot(self) -> OrderedSet[ff.TestCaseFitnessFunction]:
+        """Provides the goals covered by the archive.
+
+        Returns:
+            The covered goals, as a new set.
+        """
+        return self._archive.covered_goals
+
+    def covering_solution(self, goal: ff.TestCaseFitnessFunction) -> tcc.TestCaseChromosome | None:
+        """Provides the archive's covering solution for a goal.
+
+        Args:
+            goal: The goal to look up.
+
+        Returns:
+            The covering chromosome, or None if the goal isn't covered.
+        """
+        return self._archive.get_covering_solution(goal)
+
+    def register_on_target_covered(
+        self, callback: Callable[[ff.TestCaseFitnessFunction], None]
+    ) -> None:
+        """Registers a callback for goals the archive newly covers.
+
+        Args:
+            callback: Called with each newly covered goal.
+        """
+        self._archive.add_on_target_covered(callback)
+
+    def population_snapshot(self) -> list[tcc.TestCaseChromosome]:
+        """Provides a shallow copy of the current population.
+
+        Returns:
+            The population's chromosomes, in a new list.
+        """
+        return list(self._population)
+
+    def integrate_external_test_cases(self, test_cases: Iterable[tc.TestCase]) -> int:
+        """Adds test cases produced outside this search to the population.
+
+        Each test case is wrapped in a chromosome built with this search's own
+        test factory and fitness functions, then competes like any other
+        individual. The archive is never written directly: it only changes if the
+        following goals-manager update finds that a new test covers a goal.
+
+        Args:
+            test_cases: The test cases to add, e.g. migrants or LLM results.
+
+        Returns:
+            The number of test cases added.
+        """
+        added = 0
+        for test_case in test_cases:
+            chromosome = tcc.TestCaseChromosome(test_case=test_case, test_factory=self.test_factory)
+            for fitness_function in self.test_case_fitness_functions:
+                chromosome.add_fitness_function(fitness_function)
+            self._population.append(chromosome)
+            added += 1
+        if added:
+            self._goals_manager.update(self._population)
+        return added
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
@@ -68,6 +205,8 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             self.evolve()
             if config.configuration.local_search.local_search:
                 self.local_search()
+            for extension in self._generation_extensions:
+                extension.after_local_search(self)
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 
         self.after_search_finish()

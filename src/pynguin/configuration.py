@@ -535,6 +535,131 @@ class RandomConfiguration:
     """The maximum number of combined sequences, 0 means infinite."""
 
 
+class MigrationStrategy(str, enum.Enum):
+    """Which island-migration mechanism(s) are active."""
+
+    DISABLED = "DISABLED"
+    """No migration; islands search in complete isolation. Ablation baseline."""
+
+    GOAL_TRIGGERED = "GOAL_TRIGGERED"
+    """Broadcast newly-covered-parent test cases between islands, event-triggered."""
+
+    PERIODIC = "PERIODIC"
+    """Every F local generations, send K migrants to the ring neighbor only."""
+
+    COMBINED = "COMBINED"
+    """Both mechanisms run independently: a test case can be sent immediately via
+    goal-triggered broadcast and, separately, be selected as a periodic migrant
+    later. The shared content-hash dedup set prevents redundant local execution
+    when the same content arrives via both paths."""
+
+
+class MigrantSelectionPolicy(str, enum.Enum):
+    """How periodic migration selects the individuals sent to the ring neighbor."""
+
+    RANDOM = "RANDOM"
+    """Selects K individuals uniformly at random, with replacement."""
+
+    BEST = "BEST"
+    """Selects the K individuals with the highest fitness value from the
+    recently evolved population."""
+
+    RANK = "RANK"
+    """Whitley's linear rank selection: draws K individuals (with replacement)
+    from the population ordered best-to-worst, with selection probability
+    decreasing linearly by rank."""
+
+
+class PopulationAllocation(str, enum.Enum):
+    """How the reference sequential population size is allocated across islands."""
+
+    FULL_PER_ISLAND = "FULL_PER_ISLAND"
+    """Every island gets the full reference population size."""
+
+    FIXED_TOTAL_DISTRIBUTED = "FIXED_TOTAL_DISTRIBUTED"
+    """The reference population size is the aggregate across all islands,
+    distributed as evenly as possible."""
+
+
+@dataclasses.dataclass
+class IslandConfiguration:
+    """Configuration for island-model parallel search.
+
+    This configuration is independent of the selected search algorithm, and each
+    island runs a normal instance of it; setting num_islands > 1 spawns that many
+    concurrent island processes instead of a single one.
+    """
+
+    num_islands: int = 1
+    """Number of island processes to run concurrently. 1 disables island mode."""
+
+    migration_strategy: MigrationStrategy = MigrationStrategy.DISABLED
+    """Which migration mechanism(s) are active. Requires algorithm to be DYNAMOSA
+    or LLDYNAMOSA. DISABLED isolates islands completely, for comparison against
+    migration's effect."""
+
+    periodic_migration_frequency: int = 5
+    """F: send periodic migrants every F local generations. Only used when
+    migration_strategy is PERIODIC or COMBINED."""
+
+    periodic_migration_size: int = 5
+    """K: number of individuals sent to the ring neighbor per periodic migration
+    event. Only used when migration_strategy is PERIODIC or COMBINED."""
+
+    migrant_selection_policy: MigrantSelectionPolicy = MigrantSelectionPolicy.RANDOM
+    """How periodic migrants are selected. Only used when migration_strategy is
+    PERIODIC or COMBINED."""
+
+    migrant_rank_bias: float = 2.0
+    """Bias for better individuals in rank selection of periodic migrants, in the
+    range (1, 2]. The default 2.0 is the strongest selection pressure. Only used
+    when migrant_selection_policy is RANK."""
+
+    population_allocation: PopulationAllocation = PopulationAllocation.FULL_PER_ISLAND
+    """How the reference sequential population size is allocated across islands."""
+
+    island_id: int = -1
+    """Set per-island by the orchestrator before spawning; -1 in the base config."""
+
+
+class ImmigrationRouting(str, enum.Enum):
+    """Where a completed LLM-worker query result gets delivered."""
+
+    TARGETED = "TARGETED"
+    """Deliver only to the island named in the queried (island, callable) pair."""
+
+    BROADCAST = "BROADCAST"
+    """Deliver to every island via the same migration mechanism peer-covered test
+    cases use. Requires island.migration_strategy to not be DISABLED."""
+
+
+@dataclasses.dataclass
+class LLMWorkerConfiguration:
+    """Configuration for the centralized asynchronous LLM query worker.
+
+    A dedicated process that islands report under-covered callables to; it queries
+    the LLM asynchronously and routes results back per immigration_routing.
+    """
+
+    enabled: bool = False
+    """Run a dedicated async LLM query worker alongside the islands. Requires
+    algorithm=LLDYNAMOSA and island.num_islands > 1."""
+
+    max_in_flight_requests: int = 1
+    """Maximum number of LLM requests the worker keeps in flight at once.
+    1 means a request completes before the next is sent."""
+
+    immigration_routing: ImmigrationRouting = ImmigrationRouting.TARGETED
+    """Where completed query results are delivered."""
+
+    cost_per_1k_input_tokens: float = 0.0
+    """USD cost per 1,000 input tokens, for estimating query cost. 0 disables cost
+    estimation (only counts/latency are tracked)."""
+
+    cost_per_1k_output_tokens: float = 0.0
+    """USD cost per 1,000 output tokens, for estimating query cost."""
+
+
 @dataclasses.dataclass
 class TypeInferenceConfiguration:
     """Configuration related to type inference."""
@@ -1266,6 +1391,12 @@ class Configuration:
 
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
+
+    island: IslandConfiguration = dataclasses.field(default_factory=IslandConfiguration)
+    """Island-model parallel search configuration."""
+
+    llm_worker: LLMWorkerConfiguration = dataclasses.field(default_factory=LLMWorkerConfiguration)
+    """Centralized asynchronous LLM query worker configuration."""
 
     to_cover: ToCoverConfiguration = dataclasses.field(default_factory=ToCoverConfiguration)
     """Configuration of which code elements are included or excluded as coverage goals."""

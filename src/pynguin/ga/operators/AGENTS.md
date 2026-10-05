@@ -52,6 +52,11 @@ This module provides core operators for genetic algorithms used in Pynguin's tes
    - Respects `maximize` flag for direction
    - Higher tournament sizes → stronger selection pressure
 
+4. **TruncationSelection**
+   - Selects the first `number` individuals, without replacement
+   - Requires sorted population (best first)
+   - Used by island migration for `MigrantSelectionPolicy.BEST`
+
 ### Crossover Functions (`crossover.py`)
 
 **Purpose**: Combine genetic material from two parents.

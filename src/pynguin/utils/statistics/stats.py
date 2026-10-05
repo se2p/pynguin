@@ -82,6 +82,30 @@ class _StatisticsTracker:
         """
         self._search_statistics.set_sequence_output_variable_start_time(start_time)
 
+    def get_sequence_samples(self, variable: RuntimeVariable) -> list[tuple[int, Any]]:
+        """Provides the samples recorded for a sequence output variable.
+
+        Args:
+            variable: The sequence variable, e.g., RuntimeVariable.CoverageTimeline
+
+        Returns:
+            The (time stamp, value) pairs, with time stamps in nanoseconds since the
+            sequence start time
+        """
+        return self._search_statistics.get_sequence_samples(variable)
+
+    def add_sequence_samples(
+        self, variable: RuntimeVariable, samples: list[tuple[int, Any]]
+    ) -> None:
+        """Adds samples that were recorded elsewhere, e.g., in another process.
+
+        Args:
+            variable: The sequence variable, e.g., RuntimeVariable.CoverageTimeline
+            samples: The (time stamp, value) pairs in ascending time-stamp order,
+                with time stamps in nanoseconds since the sequence start time
+        """
+        self._search_statistics.add_sequence_samples(variable, samples)
+
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.
 
@@ -232,6 +256,32 @@ class _SearchStatistics:
         """
         for factory in self._sequence_output_variable_factories.values():
             factory.set_start_time(start_time)
+
+    def get_sequence_samples(self, variable: RuntimeVariable) -> list[tuple[int, Any]]:
+        """Provides the samples recorded for a sequence output variable.
+
+        Args:
+            variable: The sequence variable, e.g., RuntimeVariable.CoverageTimeline
+
+        Returns:
+            The (time stamp, value) pairs, with time stamps in nanoseconds since the
+            sequence start time
+        """
+        return self._sequence_output_variable_factories[variable.name].get_samples()
+
+    def add_sequence_samples(
+        self, variable: RuntimeVariable, samples: list[tuple[int, Any]]
+    ) -> None:
+        """Adds samples that were recorded elsewhere, e.g., in another process.
+
+        Args:
+            variable: The sequence variable, e.g., RuntimeVariable.CoverageTimeline
+            samples: The (time stamp, value) pairs in ascending time-stamp order,
+                with time stamps in nanoseconds since the sequence start time
+        """
+        factory = self._sequence_output_variable_factories[variable.name]
+        for time_stamp, value in samples:
+            factory.add_sample(time_stamp, value)
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.
@@ -478,6 +528,8 @@ variables = statistics_tracker.variables
 variables_generator = statistics_tracker.variables_generator
 search_statistics = statistics_tracker.search_statistics
 set_sequence_start_time = statistics_tracker.set_sequence_start_time
+get_sequence_samples = statistics_tracker.get_sequence_samples
+add_sequence_samples = statistics_tracker.add_sequence_samples
 current_individual = statistics_tracker.current_individual
 set_output_variable = statistics_tracker.set_output_variable
 set_output_variable_for_runtime_variable = (
