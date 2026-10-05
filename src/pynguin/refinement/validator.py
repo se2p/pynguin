@@ -11,6 +11,7 @@ import sys
 import textwrap
 import traceback
 from pathlib import Path
+from typing import NamedTuple
 
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
 
@@ -156,8 +157,24 @@ def _ensure_module_package_on_path(module_under_test) -> str | None:
     return None
 
 
-def run_test(test_code: str, module_under_test, timeout: float | None = None):
-    """Executes a test function from a string and returns pass/fail.
+class TestExecution(NamedTuple):
+    """The raw outcome of executing one test function, ignoring ``xfail`` markers."""
+
+    function_name: str
+    """Name of the executed test function, or ``""`` if none was found."""
+
+    error: BaseException | None
+    """The exception the test body raised, or *None* if it completed."""
+
+    message: str
+    """A human-readable description of the outcome."""
+
+    timed_out: bool = False
+    """Whether the test exceeded its execution timeout."""
+
+
+def execute_test(test_code: str, module_under_test, timeout: float | None = None) -> TestExecution:
+    """Executes a test function from a string without interpreting ``xfail`` markers.
 
     Args:
         test_code: A string containing the Python code for the test.
@@ -166,7 +183,7 @@ def run_test(test_code: str, module_under_test, timeout: float | None = None):
             ``stopping.maximum_test_execution_timeout``, values <= 0 disable the limit.
 
     Returns:
-        A tuple (bool, str) for (pass/fail, message).
+        The raw execution outcome.
     """
     # Provide the tested module under its real name for introspection if needed
     _ensure_module_package_on_path(module_under_test)
@@ -180,24 +197,47 @@ def run_test(test_code: str, module_under_test, timeout: float | None = None):
             break
 
     if not function_name:
-        return False, "Could not find function name in test code."
-
-    is_xfail, is_strict = _find_xfail_marker(test_code, function_name)
+        return TestExecution("", None, "Could not find function name in test code.")
 
     # Clean up code indentation before execution
     cleaned_code = textwrap.dedent(test_code.strip())
 
-    def _exec_and_call() -> None:
-        # Executing the generated test code is the core purpose of this validator.
-        exec(cleaned_code, scope)  # noqa: S102
-        scope[function_name]()  # Call the test function
-
     try:
         with time_limit(resolve_timeout(timeout)):
-            raised, message = _call_and_capture(_exec_and_call)
+            # Executing the generated test code is the core purpose of this validator.
+            exec(cleaned_code, scope)  # noqa: S102
+            scope[function_name]()  # Call the test function
     except TestExecutionTimeoutError as e:
+        return TestExecution(function_name, e, f"TimeoutError: {e}", timed_out=True)
+    except AssertionError as e:
+        return TestExecution(function_name, e, f"AssertionError: {e}\n{traceback.format_exc()}")
+    except BaseException as e:  # noqa: BLE001
+        # Catch all exceptions including pytest.fail (which raises Failed, a BaseException)
+        return TestExecution(function_name, e, f"Exception: {e}\n{traceback.format_exc()}")
+    return TestExecution(function_name, None, "Test passed.")
+
+
+def run_test(test_code: str, module_under_test, timeout: float | None = None):
+    """Executes a test function from a string and returns pass/fail.
+
+    Args:
+        test_code: A string containing the Python code for the test.
+        module_under_test: The module that is being tested.
+        timeout: Maximum execution time in seconds; *None* uses the configured
+            ``stopping.maximum_test_execution_timeout``, values <= 0 disable the limit.
+
+    Returns:
+        A tuple (bool, str) for (pass/fail, message).
+    """
+    execution = execute_test(test_code, module_under_test, timeout)
+    if not execution.function_name:
+        return False, execution.message
+    if execution.timed_out:
         # A timeout is a hard failure regardless of any xfail marker.
-        return False, f"TimeoutError: {e}"
+        return False, execution.message
+
+    raised = execution.error is not None
+    is_xfail, is_strict = _find_xfail_marker(test_code, execution.function_name)
 
     # Map the raw outcome to the real pytest result, honouring xfail markers so
     # the caller's notion of pass/fail matches what pytest would report.
@@ -211,4 +251,4 @@ def run_test(test_code: str, module_under_test, timeout: float | None = None):
         # Non-strict xfail that passes is only a warning, not a failure.
         return True, "Test passed (xpass)."
 
-    return (False, message) if raised else (True, message)
+    return (False, execution.message) if raised else (True, execution.message)

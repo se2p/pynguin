@@ -778,9 +778,11 @@ def refine_generated_tests(
         )
         _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
 
+        # Only re-measure when the run already measured a mutation score (the
+        # mutation-based assertion generators) or a score was explicitly requested.
         should_run_mutation = (
             config.configuration.test_case_output.assertion_generation
-            != config.AssertionGenerator.NONE
+            in {config.AssertionGenerator.MUTATION_ANALYSIS, config.AssertionGenerator.LLM}
             or RuntimeVariable.MutationScore
             in config.configuration.statistics_output.output_variables
             or RuntimeVariable.PostRefinementMutationScore

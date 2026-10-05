@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import enum
 import logging
 import sys
 import textwrap
@@ -35,9 +36,10 @@ from pynguin.assertion.mutation_analysis.operators import (
 )
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.refinement.validator import (
+    TestExecution,
     call_test_functions,
     collect_test_functions,
-    run_test,
+    execute_test,
 )
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
@@ -542,32 +544,101 @@ def get_surviving_mutants(
     return survivors
 
 
-def _evaluate_single_mutant(
+class _MutantOutcome(enum.Enum):
+    """The result of running the refined suite against one mutant."""
+
+    KILLED = enum.auto()
+    SURVIVED = enum.auto()
+    TIMED_OUT = enum.auto()
+    UNCHECKED = enum.auto()
+    """The time budget ran out before every test was run against the mutant."""
+
+
+def _outcome_signature(execution: TestExecution) -> str | None:
+    """Return the type of exception a test raised, or *None* if it completed.
+
+    ``xfail`` markers are deliberately ignored: like the assertion generator, a
+    mutant is killed when a test raises differently than on the original module.
+    """
+    if execution.error is None:
+        return None
+    error_type = type(execution.error)
+    return f"{error_type.__module__}.{error_type.__qualname__}"
+
+
+def _evaluate_single_mutant(  # noqa: PLR0917
     test_sources: list[str],
+    original_signatures: list[str | None],
     module_under_test: types.ModuleType,
     mutant_module: types.ModuleType,
     module_provider: ModuleProvider,
     budget_exceeded: Callable[[], bool],
-) -> tuple[bool, bool]:
+) -> _MutantOutcome:
     """Evaluate a single mutant against test sources.
 
+    Mirrors the assertion generator's mutation analysis: a mutant that times out
+    on any test counts as timed out, otherwise it is killed if any test raises
+    differently than on the original module.  A mutant the time budget interrupts
+    before every test ran is not counted at all.
+
     Returns:
-        Tuple of (is_killed, is_timed_out).
+        The outcome for the mutant.
     """
     module_name = module_under_test.__name__
     module_provider.clear_mutated_modules()
     module_provider.add_mutated_version(module_name, mutant_module)
     mutant_killed = False
     with module_provider.mutated_modules_installed():
-        for test_source in test_sources:
-            passed, message = run_test(test_source, module_under_test)
-            if message.startswith("TimeoutError:"):
-                return False, True
-            if not passed:
+        for idx, (test_source, original) in enumerate(
+            zip(test_sources, original_signatures, strict=True)
+        ):
+            execution = execute_test(test_source, module_under_test)
+            if execution.timed_out:
+                return _MutantOutcome.TIMED_OUT
+            if _outcome_signature(execution) != original:
                 mutant_killed = True
-            if budget_exceeded():
-                break
-    return mutant_killed, False
+            if idx < len(test_sources) - 1 and budget_exceeded():
+                return _MutantOutcome.UNCHECKED
+    return _MutantOutcome.KILLED if mutant_killed else _MutantOutcome.SURVIVED
+
+
+def _checked_mutant_outcomes(
+    controller: MutationController,
+    test_sources: list[str],
+    module_under_test: types.ModuleType,
+    budget_exceeded: Callable[[], bool],
+) -> list[_MutantOutcome]:
+    """Run the test sources against each mutant until the time budget runs out.
+
+    Returns:
+        The outcome of every fully checked mutant.
+    """
+    # How each test behaves on the original module; a mutant is killed when a
+    # test behaves differently (e.g., an xfail test raising another exception).
+    original_signatures = [
+        _outcome_signature(execute_test(source, module_under_test)) for source in test_sources
+    ]
+    module_provider = ModuleProvider()
+    outcomes: list[_MutantOutcome] = []
+    for mutant_module, _ in controller.create_mutants():
+        if budget_exceeded():
+            break
+        if mutant_module is None:
+            continue
+        outcome = _evaluate_single_mutant(
+            test_sources,
+            original_signatures,
+            module_under_test,
+            mutant_module,
+            module_provider,
+            budget_exceeded,
+        )
+        if outcome is _MutantOutcome.UNCHECKED:
+            # Like the assertion generator, drop a mutant the budget interrupted
+            # instead of scoring it as a survivor.
+            break
+        outcomes.append(outcome)
+    return outcomes
 
 
 def evaluate_refined_suite_mutations(
@@ -627,31 +698,19 @@ def evaluate_refined_suite_mutations(
     def budget_exceeded() -> bool:
         return max_time >= 0 and time.monotonic() - start_time >= max_time
 
-    module_provider = ModuleProvider()
-    num_checked = 0
-    killed_mutants = 0
-    timeout_mutants = 0
-
-    for mutant_module, _ in controller.create_mutants():
-        if budget_exceeded():
-            _LOGGER.info(
-                "Post-refinement mutation budget of %ss exceeded; checked %i of %i mutant(s).",
-                max_time,
-                num_checked,
-                num_created,
-            )
-            break
-        if mutant_module is None:
-            continue
-
-        num_checked += 1
-        killed, timed_out = _evaluate_single_mutant(
-            test_sources, module_under_test, mutant_module, module_provider, budget_exceeded
+    outcomes = _checked_mutant_outcomes(
+        controller, test_sources, module_under_test, budget_exceeded
+    )
+    if budget_exceeded():
+        _LOGGER.info(
+            "Post-refinement mutation budget of %ss exceeded; checked %i of %i mutant(s).",
+            max_time,
+            len(outcomes),
+            num_created,
         )
-        if timed_out:
-            timeout_mutants += 1
-        elif killed:
-            killed_mutants += 1
+    num_checked = len(outcomes)
+    killed_mutants = outcomes.count(_MutantOutcome.KILLED)
+    timeout_mutants = outcomes.count(_MutantOutcome.TIMED_OUT)
 
     metrics = MutationMetrics(
         num_created_mutants=num_checked,

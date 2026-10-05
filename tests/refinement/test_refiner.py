@@ -613,7 +613,13 @@ def test_refine_generated_tests_evaluates_and_tracks_post_refinement_mutation(
     assert tracked[RuntimeVariable.NumberOfCheckedMutants] == 5
 
 
-def test_refine_generated_tests_disabled_mutation_skips_evaluation(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "assertion_generation",
+    [config.AssertionGenerator.NONE, config.AssertionGenerator.SIMPLE],
+)
+def test_refine_generated_tests_disabled_mutation_skips_evaluation(
+    tmp_path, monkeypatch, assertion_generation
+):
     test_file = tmp_path / "test_mod.py"
     test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
 
@@ -660,12 +666,12 @@ def test_refine_generated_tests_disabled_mutation_skips_evaluation(tmp_path, mon
         lambda *_a, **_k: eval_called.append(True) or {},
     )
 
-    # Disable assertion generation and ensure neither MutationScore nor
-    # PostRefinementMutationScore is in output_variables
+    # Use an assertion generator without mutation analysis and ensure neither
+    # MutationScore nor PostRefinementMutationScore is in output_variables
     monkeypatch.setattr(
         config.configuration.test_case_output,
         "assertion_generation",
-        config.AssertionGenerator.NONE,
+        assertion_generation,
     )
     monkeypatch.setattr(
         config.configuration.statistics_output,
