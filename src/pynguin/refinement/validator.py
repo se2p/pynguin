@@ -94,7 +94,9 @@ def _call_and_capture(func) -> tuple[bool, str]:
     return False, "Test passed."
 
 
-def call_test_functions(scope: dict, tests: list[tuple[str, bool, bool]]) -> None:
+def call_test_functions(
+    scope: dict, tests: list[tuple[str, bool, bool]], timeout: float | None = None
+) -> None:
     """Call each test function of *scope* individually, honouring ``xfail`` markers.
 
     Each test runs on its own, so an ``xfail`` test that raises as expected neither
@@ -102,9 +104,15 @@ def call_test_functions(scope: dict, tests: list[tuple[str, bool, bool]]) -> Non
     raised: an exception from a regular test, or an ``AssertionError`` when a
     ``xfail(strict=True)`` test passes (pytest's ``XPASS(strict)``).
 
+    Each test gets its own time limit, so a module of tests that are each fast enough
+    does not time out as a whole.  Callers must therefore not run this under an
+    enclosing :func:`time_limit` (``SIGALRM`` timers do not nest).
+
     Args:
         scope: The globals the test code was executed in.
         tests: The tests to call, as returned by :func:`collect_test_functions`.
+        timeout: Time limit per test in seconds; *None* uses the configured
+            ``stopping.maximum_test_execution_timeout``.
 
     Raises:
         AssertionError: If a strict ``xfail`` test unexpectedly passes.
@@ -113,10 +121,11 @@ def call_test_functions(scope: dict, tests: list[tuple[str, bool, bool]]) -> Non
         func = scope.get(name)
         if not callable(func):
             continue
-        if not is_xfail:
-            func()
-        elif not _call_and_capture(func)[0] and is_strict:
-            raise AssertionError(XPASS_STRICT_MESSAGE)
+        with time_limit(resolve_timeout(timeout)):
+            if not is_xfail:
+                func()
+            elif not _call_and_capture(func)[0] and is_strict:
+                raise AssertionError(XPASS_STRICT_MESSAGE)
 
 
 def _ensure_module_package_on_path(module_under_test) -> str | None:

@@ -1233,6 +1233,10 @@ class TestRefiner:
 
         module_name = self.module_under_test.__name__
         original_code = _join_module(preamble, refined_tests)
+        if not passes_on_module(original_code, self.module_under_test):
+            # Every mutant would count as killed, leaving nothing to strengthen.
+            _LOGGER.warning("Skipping module mutation strengthening: the suite fails on the SUT.")
+            return preamble, refined_tests, {}
         state = _StrengtheningState(
             preamble=preamble,
             tests=list(refined_tests),

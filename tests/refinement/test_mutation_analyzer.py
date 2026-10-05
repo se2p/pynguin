@@ -12,6 +12,7 @@ import ast
 import types
 from pathlib import Path
 
+import pynguin.configuration as config
 from pynguin.refinement.mutation_analyzer import (
     AssertionTracker,
     _assertion_removal_lines,  # noqa: PLC2701
@@ -132,6 +133,17 @@ def test_passes_on_module_timeout_is_not_a_pass(monkeypatch):
     monkeypatch.setattr("pynguin.refinement.mutation_analyzer.call_test_functions", time_out)
     module = _make_module("fakemod", value=1)
     assert not passes_on_module("def test_x():\n    pass\n", module)
+
+
+def test_passes_on_module_limits_each_test_not_the_whole_module(monkeypatch):
+    # Three tests of 0.3 s each pass a 0.5 s limit one by one, not as a module.
+    monkeypatch.setattr(config.configuration.stopping, "maximum_test_execution_timeout", 0.5)
+    module = _make_module("fakemod", value=1)
+    code = "import time\n" + "".join(
+        f"def test_{i}():\n    time.sleep(0.3)\n    assert fakemod.value == 1\n" for i in range(3)
+    )
+    assert passes_on_module(code, module)
+    assert not passes_on_module(code.replace("0.3", "0.7"), module)
 
 
 def test_killed_set_reports_killed_indices():

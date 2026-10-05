@@ -137,9 +137,10 @@ def _measure_coverage_pynguin(
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
-                if test_funcs:
-                    call_test_functions(scope, test_funcs)
-                elif func_name and func_name in scope and callable(scope[func_name]):
+            if test_funcs:
+                call_test_functions(scope, test_funcs)  # per-test time limits
+            elif func_name and func_name in scope and callable(scope[func_name]):
+                with time_limit(resolve_timeout(None)):
                     scope[func_name]()
         except BaseException as exc:  # noqa: BLE001
             # Catch BaseException because Pynguin's
@@ -254,9 +255,10 @@ def _measure_coverage_settrace(
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
-                if test_funcs:
-                    call_test_functions(scope, test_funcs)
-                elif func_name and func_name in scope and callable(scope[func_name]):
+            if test_funcs:
+                call_test_functions(scope, test_funcs)  # per-test time limits
+            elif func_name and func_name in scope and callable(scope[func_name]):
+                with time_limit(resolve_timeout(None)):
                     scope[func_name]()
         finally:
             sys.settrace(old_trace)

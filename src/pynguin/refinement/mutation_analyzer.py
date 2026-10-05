@@ -107,9 +107,10 @@ def _execute_against(
         compiled = compile(ast.parse(cleaned), "<test>", "exec")
         with time_limit(resolve_timeout(None)):
             exec(compiled, test_globals)  # noqa: S102
-            # Run every test function on its own, honouring xfail markers, so an
-            # expected failure does not count as a kill or hide the other tests.
-            call_test_functions(test_globals, collect_test_functions(cleaned))
+        # Run every test function on its own (and under its own time limit),
+        # honouring xfail markers, so an expected failure does not count as a kill
+        # or hide the other tests.
+        call_test_functions(test_globals, collect_test_functions(cleaned))
 
         return False
     except TestExecutionTimeoutError:

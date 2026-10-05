@@ -224,6 +224,29 @@ def test_strengthen_module_mutations_rejects_module_failing_on_clean_sut(refiner
     assert stats["mutants_killed_total"] == 0
 
 
+@pytest.mark.parametrize(
+    "broken_test",
+    [
+        pytest.param(
+            "@pytest.mark.xfail(strict=True)\ndef test_stale():\n    module_0.inc(1)",
+            id="stale-strict-xfail",
+        ),
+        pytest.param(
+            "def test_math():\n    assert math.isfinite(module_0.inc(1))", id="missing-import"
+        ),
+    ],
+)
+def test_strengthen_module_mutations_skips_suite_failing_on_clean_sut(refiner, broken_test):
+    # A failing suite would "kill" every mutant, so there is nothing to strengthen.
+    preamble = "import pytest\n" + _PREAMBLE
+    tests = [_EXISTING_TEST, broken_test]
+
+    result = refiner.strengthen_module_mutations(preamble, tests, max_iterations=1)
+
+    assert result == (preamble, tests, {})
+    refiner.llm_client.generate_from_prompt.assert_not_called()
+
+
 def test_gate1_strips_the_failing_assertion_not_the_first_one(refiner):
     strengthened = _PREAMBLE + _EXISTING_TEST + "\n    assert result > 0\n    assert result == 5\n"
 
@@ -289,6 +312,10 @@ def test_refine_generated_tests_dispatches_full_module_strengthening(tmp_path, m
         patch("pynguin.refinement.refiner._import_module_under_test", return_value=mock_mod),
         patch("pynguin.refinement.refiner._process_module") as mock_process_module,
         patch.object(TestRefiner, "strengthen_module_mutations") as mock_strengthen_mod,
+        patch(
+            "pynguin.refinement.refiner._finalize_refined_suite",
+            side_effect=lambda preamble, tests, _module: (preamble, [*tests, "# sanitized"]),
+        ),
     ):
         outcome = refiner_module._TestOutcome(
             func_text="def test_0():\n    assert sample_module.f(1) == 2\n",
@@ -309,4 +336,6 @@ def test_refine_generated_tests_dispatches_full_module_strengthening(tmp_path, m
         stats = refiner_module.refine_generated_tests(test_file, "sample_module")
 
         mock_strengthen_mod.assert_called_once()
+        # Strengthening runs on the sanitized suite.
+        assert mock_strengthen_mod.call_args.kwargs["refined_tests"][-1] == "# sanitized"
         assert stats["tests_refined"] == 1

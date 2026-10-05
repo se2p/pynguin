@@ -735,6 +735,11 @@ def refine_generated_tests(
             and module_under_test is not None
         ):
             _LOGGER.info("Running module-level mutation strengthening...")
+            # Strengthening needs a suite that passes on the clean SUT: a single broken
+            # test would "kill" every mutant and leave nothing to strengthen.
+            preamble, refined_tests = _finalize_refined_suite(
+                preamble, refined_tests, module_under_test
+            )
             preamble, refined_tests, mod_mut_stats = refiner.strengthen_module_mutations(
                 preamble=preamble,
                 refined_tests=refined_tests,
