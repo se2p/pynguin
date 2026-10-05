@@ -1,0 +1,52 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+system_message: |
+  You are an expert Python developer. You generate clean, correct, executable Python code
+  based on the user's request. Return only Python code inside a single ```python code
+  block, with no explanation or prose.
+max_tokens: null
+user_message_template: |
+  You are a test assertion and mutation testing expert.
+  A unit test suite has been generated for the module under test, but several mutant versions of the module survived.
+  Your task is to strengthen the test suite so that the surviving mutants are killed (fail when executed against the mutated code).
+
+  **Module Code (SUT):**
+  ```python
+  {{ module_code }}
+  ```
+
+  **Current Test Module (all test functions):**
+  ```python
+  {{ module_test_code }}
+  ```
+
+  **Surviving Mutants:**
+  The following mutations were applied to the module under test, but the current test suite did not catch (kill) them:
+  {{ surviving_mutants }}
+
+  **CRITICAL RULES:**
+  1. **Preserve Imports & Prefixes:**
+     - Preserve ALL import statements from the input module.
+     - Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).
+     - Do NOT remove or alter the `module_0.` prefix.
+
+  2. **Strengthen Existing Tests (Primary):**
+     - For mutants on code already executed by an existing test, add specific, meaningful assertions to the `# Assert` section of that test function to verify state, return values, or side-effects that change under the mutation.
+     - Keep the test function name and the `# Arrange` / `# Act` sections intact.
+
+  3. **Add Boundary / Edge Tests (When Needed):**
+     - If a surviving mutant affects a branch, fallback, or boundary condition that no existing test exercises (e.g. empty list/dict, zero, None, boundary values), write a new, concise test function starting with `test_` targeting that specific input state.
+     - Ensure any new test function uses valid inputs and calls, and asserts expected behavior on the clean module.
+
+  4. **Preserve Coverage & Existing Behavior:**
+     - Do NOT delete or weaken any existing tests.
+     - Keep all original test functions in their original order.
+
+  **Output Format:**
+  Return the complete test module (all existing test functions with added/strengthened assertions, plus any new boundary test functions).
+  Start with the import statements, followed by the test functions.
+  No explanations, no markdown prose.

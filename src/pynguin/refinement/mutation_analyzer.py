@@ -27,6 +27,7 @@ from pynguin.assertion.mutation_analysis.operators import (
     RelationalOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.refinement.validator import call_test_functions, collect_test_functions
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
 
 if TYPE_CHECKING:
@@ -81,15 +82,15 @@ class AssertionTracker:
         return list(new_assertions)
 
 
-def _run_test_against_mutant(
+def _execute_against(
     test_code: str,
     mutant_module: types.ModuleType,
     module_name: str,
-) -> bool:
+) -> bool | None:
     """Execute *test_code* with *mutant_module* in place of the real module.
 
-    Returns ``True`` if the mutant was **killed** (test raised an exception),
-    ``False`` if the mutant **survived** (test passed).
+    Returns ``True`` if the test raised an exception, ``False`` if it passed, and
+    ``None`` if it timed out.
     """
     test_globals: dict[str, Any] = {
         "__builtins__": __builtins__,
@@ -106,25 +107,45 @@ def _run_test_against_mutant(
         compiled = compile(ast.parse(cleaned), "<test>", "exec")
         with time_limit(resolve_timeout(None)):
             exec(compiled, test_globals)  # noqa: S102
+        # Run every test function on its own (and under its own time limit),
+        # honouring xfail markers, so an expected failure does not count as a kill
+        # or hide the other tests.
+        call_test_functions(test_globals, collect_test_functions(cleaned))
 
-            # Find and call the test function
-            for name, obj in test_globals.items():
-                if callable(obj) and name.startswith("test_"):
-                    obj()
-                    break
-
-        return False  # Test passed → mutant survived
-    except TestExecutionTimeoutError:
-        # The mutant made the test run away rather than fail; we cannot claim a kill.
         return False
+    except TestExecutionTimeoutError:
+        return None
     except BaseException:  # noqa: BLE001
-        return True  # Any exception → mutant killed (incl. pytest.fail)
+        return True  # Any exception, incl. pytest.fail
     finally:
         # Restore the original module (or remove if it wasn't there)
         if old_module is None:
             sys.modules.pop(module_name, None)
         else:
             sys.modules[module_name] = old_module
+
+
+def _run_test_against_mutant(
+    test_code: str,
+    mutant_module: types.ModuleType,
+    module_name: str,
+) -> bool:
+    """Execute *test_code* with *mutant_module* in place of the real module.
+
+    Returns ``True`` if the mutant was **killed** (test raised an exception),
+    ``False`` if the mutant **survived** (test passed, or ran away into a timeout,
+    in which case we cannot claim a kill).
+    """
+    return _execute_against(test_code, mutant_module, module_name) is True
+
+
+def passes_on_module(test_code: str, module_under_test: types.ModuleType) -> bool:
+    """Return whether every test in *test_code* passes on the unmutated module.
+
+    Kills only mean something for code that passes on the clean module: code that
+    raises there "kills" every mutant.
+    """
+    return _execute_against(test_code, module_under_test, module_under_test.__name__) is False
 
 
 def _remove_assertion_by_index(tree: ast.Module, target_idx: int) -> ast.Module:
@@ -149,7 +170,7 @@ def _remove_assertion_by_index(tree: ast.Module, target_idx: int) -> ast.Module:
     return new_tree
 
 
-def _killed_set(
+def killed_set(
     test_code: str,
     mutants: list[tuple[types.ModuleType, Any]],
     module_name: str,
@@ -186,7 +207,7 @@ def _vacuous_stats(
     return stats
 
 
-def _create_mutants(
+def create_mutants(
     module_under_test: types.ModuleType,
     max_mutants: int,
 ) -> tuple[list[tuple[types.ModuleType, Any]], str | None]:
@@ -308,12 +329,12 @@ def _evaluate_inferred(
     other_tests_in_suite: list[str] | None,
 ) -> _AssertionAnalysis:
     """Run per-assertion mutation analysis and return the aggregated result."""
-    baseline_killed = _killed_set(refined_test, mutants, module_name)
+    baseline_killed = killed_set(refined_test, mutants, module_name)
 
     suite_baseline_killed: set[int] = set()
     if other_tests_in_suite:
         for other_test in other_tests_in_suite:
-            suite_baseline_killed |= _killed_set(other_test, mutants, module_name)
+            suite_baseline_killed |= killed_set(other_test, mutants, module_name)
 
     assertions_to_remove: list[int] = []
     per_test_contributions: dict[int, int] = {}
@@ -321,7 +342,7 @@ def _evaluate_inferred(
 
     for assert_idx in inferred_indices:
         without_tree = _remove_assertion_by_index(refined_tree, assert_idx)
-        without_killed = _killed_set(ast.unparse(without_tree), mutants, module_name)
+        without_killed = killed_set(ast.unparse(without_tree), mutants, module_name)
 
         additional_kills = baseline_killed - without_killed
         per_test_contributions[assert_idx] = len(additional_kills)
@@ -384,13 +405,47 @@ def filter_vacuous_assertions(
     if not module_under_test or not hasattr(module_under_test, "__file__"):
         return refined_test, _vacuous_stats(len(inferred), error="module source not available")
 
-    mutants, mutant_error = _create_mutants(module_under_test, max_mutants)
+    mutants, mutant_error = create_mutants(module_under_test, max_mutants)
     if mutant_error is not None:
         return refined_test, _vacuous_stats(len(inferred), error=mutant_error)
     if not mutants:
         return refined_test, _vacuous_stats(len(inferred))
 
-    module_name = module_under_test.__name__
+    return filter_vacuous_assertions_with_mutants(
+        original_test,
+        refined_test,
+        mutants,
+        module_under_test.__name__,
+        other_tests_in_suite=other_tests_in_suite,
+    )
+
+
+def filter_vacuous_assertions_with_mutants(
+    original_test: str,
+    refined_test: str,
+    mutants: list[tuple[types.ModuleType, Any]],
+    module_name: str,
+    *,
+    other_tests_in_suite: list[str] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Filter vacuous assertions against an already generated mutant set.
+
+    Same criterion as :func:`filter_vacuous_assertions`, but the caller supplies
+    the mutants (e.g. the surviving mutants a strengthening prompt targeted).
+
+    Args:
+        original_test: The test before the assertions were added.
+        refined_test: The test with the added assertions.
+        mutants: The mutants to analyse against.
+        module_name: Name of the module under test.
+        other_tests_in_suite: Optional other tests for suite-level metrics.
+
+    Returns:
+        Tuple of ``(filtered_test_code, statistics_dict)``.
+    """
+    inferred = AssertionTracker(original_test, refined_test).inferred_assertions
+    if not inferred:
+        return refined_test, _vacuous_stats(0, mutants_generated=len(mutants))
 
     # Step 3: Map inferred assertions to their indices in the refined test.
     try:
@@ -457,18 +512,18 @@ def get_surviving_mutants(
     """
     if not module_under_test or not hasattr(module_under_test, "__file__"):
         return []
-    mutants, mutant_error = _create_mutants(module_under_test, max_mutants)
+    mutants, mutant_error = create_mutants(module_under_test, max_mutants)
     if mutant_error is not None or not mutants:
         return []
 
     module_name = module_under_test.__name__
-    killed_indices = _killed_set(test_code, mutants, module_name)
+    killed_indices = killed_set(test_code, mutants, module_name)
 
     survivors = []
     for idx, mutant in enumerate(mutants):
         mutant_module, _mutations = mutant
         # Mutants that failed to build (``mutant_module is None``) are not real
-        # survivors; ``_killed_set`` skips them, so exclude them explicitly here.
+        # survivors; ``killed_set`` skips them, so exclude them explicitly here.
         if mutant_module is not None and idx not in killed_indices:
             survivors.append(mutant)
     return survivors

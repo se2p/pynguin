@@ -7,13 +7,16 @@
 """Test refinement pipeline orchestrator."""
 
 import ast
+import dataclasses
 import inspect
+import logging
 import re
 from pathlib import Path
 from typing import Any
 
 import pynguin.configuration as config
 from pynguin.large_language_model.prompts import (
+    ModuleMutationStrengthenPrompt,
     ModuleReadabilityRefinementPrompt,
     ModuleRefinementPrompt,
     ModuleSemanticAssertionsPrompt,
@@ -28,11 +31,17 @@ from pynguin.refinement.coverage_checker import check_coverage_preservation
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX, LLMClient
 from pynguin.refinement.mutation_analyzer import (
     AssertionTracker,
+    create_mutants,
     filter_vacuous_assertions,
+    filter_vacuous_assertions_with_mutants,
     get_surviving_mutants,
+    killed_set,
+    passes_on_module,
 )
 from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.refinement.validator import run_test
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _restore_import_block(llm_code: str, original_code: str) -> str:
@@ -278,6 +287,152 @@ def _classify_error(error_msg: str) -> str:
     if "TypeError" in error_msg:
         return "Type Error"
     return "Unknown Error"
+
+
+#: How often Gate 1 may strip a failing LLM assertion from one strengthened test.
+_MAX_ASSERTION_STRIPS = 5
+
+
+def _format_surviving_mutants(survivors: list[tuple[Any, Any]]) -> str:
+    """Render surviving mutants as a numbered list for a strengthening prompt."""
+    formatted = []
+    for idx, (_mutant_module, mutations) in enumerate(survivors, 1):
+        details = [
+            f"Line {getattr(m.node, 'lineno', 'unknown')}: Mutated "
+            f"'{(_safe_unparse(m.node) or 'unknown').strip()}' to "
+            f"'{(_safe_unparse(m.replacement_node) or 'unknown').strip()}' "
+            f"(operator: {m.operator.__name__})"
+            for m in mutations
+        ]
+        formatted.append(f"{idx}. " + " | ".join(details))
+    return "\n".join(formatted)
+
+
+def _with_preamble(preamble: str, func_src: str) -> tuple[str, int]:
+    """Join *preamble* and one test function into runnable code.
+
+    The result is already stripped, so ``run_test`` executes it unchanged and the
+    line numbers of its tracebacks refer to this exact code.
+
+    Returns:
+        The code and the index of the function's first line in it.
+    """
+    head = preamble.strip()
+    if not head:
+        return func_src.strip(), 0
+    prefix = head + "\n\n\n"
+    return prefix + func_src.strip(), prefix.count("\n")
+
+
+def _join_module(preamble: str, tests: list[str]) -> str:
+    """Assemble a test module from its preamble and test functions."""
+    return preamble.rstrip("\n") + "\n\n\n" + "\n\n\n".join(tests)
+
+
+def _top_level_functions(code: str) -> list[tuple[str, str]] | None:
+    """Return ``(name, source)`` of each top-level test function in *code*.
+
+    The source is sliced from *code* (decorators included) instead of being
+    unparsed, so comments such as the AAA markers survive.
+
+    Returns:
+        The functions in source order, or ``None`` if *code* cannot be parsed.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    lines = code.split("\n")
+    functions = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test"):
+            start = min((d.lineno for d in node.decorator_list), default=node.lineno)
+            end = node.end_lineno or node.lineno
+            functions.append((node.name, "\n".join(lines[start - 1 : end])))
+    return functions
+
+
+def _function_name(func_src: str) -> str | None:
+    """Return the name of the test function defined in *func_src*."""
+    functions = _top_level_functions(func_src)
+    return functions[0][0] if functions else None
+
+
+def _bound_name(alias: ast.alias) -> str:
+    return alias.asname or alias.name.split(".")[0]
+
+
+def _new_imports(code: str, preamble: str) -> list[tuple[set[str], str]]:
+    """Return the top-level imports of *code* that only bind names *preamble* lacks.
+
+    Imports that rebind a name of the preamble (e.g. a different ``module_0``) are
+    ignored, so the preamble's own imports always stay authoritative.
+
+    Returns:
+        ``(bound_names, import_source)`` for each new import, in source order.
+    """
+    try:
+        tree = ast.parse(code)
+        preamble_tree = ast.parse(preamble)
+    except SyntaxError:
+        return []
+    bound = {
+        _bound_name(alias)
+        for node in preamble_tree.body
+        if isinstance(node, ast.Import | ast.ImportFrom)
+        for alias in node.names
+    }
+    new_imports = []
+    for node in tree.body:
+        if not isinstance(node, ast.Import | ast.ImportFrom):
+            continue
+        names = {_bound_name(alias) for alias in node.names}
+        if names.isdisjoint(bound):
+            bound |= names
+            new_imports.append((names, ast.unparse(node)))
+    return new_imports
+
+
+def _used_names(func_src: str) -> set[str]:
+    """Return the names *func_src* reads (``np`` for ``np.array(...)``)."""
+    try:
+        tree = ast.parse(func_src)
+    except SyntaxError:
+        return set()
+    return {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+
+def _preamble_for(
+    preamble: str, new_imports: list[tuple[set[str], str]], func_srcs: list[str]
+) -> str:
+    """Extend *preamble* by the new imports that *func_srcs* actually use.
+
+    Adding only used imports keeps an unusable import the LLM made up (e.g. of a
+    package that is not installed) from breaking the tests that do not need it.
+    """
+    used = set().union(*(_used_names(src) for src in func_srcs))
+    return "\n".join([
+        preamble.rstrip("\n"),
+        *(source for names, source in new_imports if not names.isdisjoint(used)),
+    ])
+
+
+@dataclasses.dataclass
+class _StrengtheningState:
+    """Mutable state of one module-level mutation-strengthening run."""
+
+    preamble: str
+    tests: list[str]
+    original_code: str
+    module_source: str
+    mutants: list[tuple[Any, Any]]
+    killed: set[int]
+    inferred: int = 0
+    removed: int = 0
+
+    @property
+    def code(self) -> str:
+        return _join_module(self.preamble, self.tests)
 
 
 class TestRefiner:
@@ -652,7 +807,10 @@ class TestRefiner:
             mutation_stats = {"error": str(e)}
 
         ref_config = config.configuration.llm_refinement
-        if ref_config.enable_mutation_strengthening:
+        if (
+            ref_config.enable_mutation_strengthening
+            and ref_config.mutation_granularity == config.MutationStrengtheningGranularity.PER_TEST
+        ):
             current_code = self._run_mutation_strengthening_loop(
                 current_code=current_code,
                 original_code=original_code,
@@ -724,7 +882,11 @@ class TestRefiner:
                 mutation_stats = {"error": str(e)}
 
             ref_config = config.configuration.llm_refinement
-            if ref_config.enable_mutation_strengthening:
+            if (
+                ref_config.enable_mutation_strengthening
+                and ref_config.mutation_granularity
+                == config.MutationStrengtheningGranularity.PER_TEST
+            ):
                 current_code = self._run_mutation_strengthening_loop(
                     current_code=current_code,
                     original_code=original_code,
@@ -736,7 +898,7 @@ class TestRefiner:
         except Exception as e:  # noqa: BLE001
             return {"success": False, "error": f"Pipeline exception: {e!s}", "iterations": 0}
 
-    def _run_mutation_strengthening_loop(  # noqa: C901
+    def _run_mutation_strengthening_loop(
         self,
         current_code: str,
         original_code: str,
@@ -764,32 +926,9 @@ class TestRefiner:
             if not survivors:
                 break  # No surviving mutants! Perfect.
 
-            # 2. Format surviving mutants for the prompt
-            formatted_mutants = []
-            for idx, (_mutant_module, mutations) in enumerate(survivors, 1):
-                mut_details = []
-                for m in mutations:
-                    mut_op = m.operator.__name__
-                    try:
-                        original_source = ast.unparse(m.node).strip()
-                        mutated_source = ast.unparse(m.replacement_node).strip()
-                    except Exception:  # noqa: BLE001
-                        original_source = "unknown"
-                        mutated_source = "unknown"
-                    lineno = getattr(m.node, "lineno", "unknown")
-                    mut_details.append(
-                        f"Line {lineno}: Mutated '{original_source}' to "
-                        f"'{mutated_source}' (operator: {mut_op})"
-                    )
-                formatted_mutants.append(f"{idx}. " + " | ".join(mut_details))
-
-            survivors_str = "\n".join(formatted_mutants)
-
-            # Retrieve SUT module source code
-            try:
-                module_source = inspect.getsource(self.module_under_test)
-            except Exception:  # noqa: BLE001
-                module_source = "Source code unavailable."
+            # 2. Format surviving mutants and retrieve the SUT source for the prompt
+            survivors_str = _format_surviving_mutants(survivors)
+            module_source = self._sut_source() or "Source code unavailable."
 
             # 3. Create the MutationStrengthenPrompt
             prompt_obj = MutationStrengthenPrompt(
@@ -823,6 +962,314 @@ class TestRefiner:
                 pass  # Ignore failures, continue with previous best current_code
 
         return current_code
+
+    def _sut_source(self) -> str | None:
+        """Return the source of the module under test, or ``None`` if unavailable."""
+        try:
+            return inspect.getsource(self.module_under_test)
+        except (OSError, TypeError):
+            return None
+
+    def _strip_failing_assertions(
+        self, preamble: str, func_src: str, orig_src: str, error_msg: str
+    ) -> str | None:
+        """Strip failing LLM assertions from a strengthened test until it passes.
+
+        Stripping works on the code that was executed (preamble + function), so the
+        line numbers in *error_msg* point at the assertion that actually failed.
+
+        Returns:
+            The passing function source, or ``None`` if it cannot be made to pass.
+        """
+        original, _ = _with_preamble(preamble, orig_src)
+        current, offset = _with_preamble(preamble, func_src)
+        for _ in range(_MAX_ASSERTION_STRIPS):
+            stripped, _removed = _remove_failing_inferred_assertion(current, original, error_msg)
+            if stripped is None or stripped == current:
+                return None
+            current = stripped
+            passed, error_msg = run_test(current, self.module_under_test)
+            if passed:
+                return "\n".join(current.split("\n")[offset:])
+            if "AssertionError" not in error_msg:
+                return None
+        return None
+
+    def _validate_strengthened_test(
+        self, preamble: str, func_src: str, orig_src: str | None
+    ) -> str | None:
+        """Gate 1 for one function: run it on the clean SUT.
+
+        A failing new test (*orig_src* is ``None``) is discarded; a strengthened
+        existing test has its failing LLM assertions stripped.
+
+        Returns:
+            The accepted function source, or ``None`` if it must not be used.
+        """
+        code, _ = _with_preamble(preamble, func_src)
+        passed, msg = run_test(code, self.module_under_test)
+        if passed:
+            return func_src
+        if orig_src is None:
+            _LOGGER.warning("Discarded new test because it failed on clean SUT: %s", msg)
+            return None
+        if "AssertionError" in msg:
+            return self._strip_failing_assertions(preamble, func_src, orig_src, msg)
+        return None
+
+    def _validate_and_filter_strengthened_functions(
+        self,
+        strengthened_module: str,
+        preamble: str,
+        existing_tests: list[str],
+    ) -> tuple[str, list[str]] | None:
+        """Validate the functions of a strengthened module on the clean SUT (Gate 1).
+
+        - Existing tests: failing assertions are stripped with
+          ``_remove_failing_inferred_assertion``; if the test still fails, the
+          pre-strengthening version is kept.
+        - New tests: discarded entirely if they fail on the clean SUT.
+
+        Existing tests keep their order; new tests are appended. Imports the LLM
+        added for names the preamble does not bind are added to the preamble if an
+        accepted test uses them; each test is validated with only the imports it uses.
+
+        Args:
+            strengthened_module: Python code of the strengthened module.
+            preamble: Shared preamble (imports, setup).
+            existing_tests: List of existing test function source codes.
+
+        Returns:
+            ``(preamble, tests)`` of the candidate module, or ``None`` if the
+            strengthened module cannot be parsed.
+        """
+        functions = _top_level_functions(strengthened_module)
+        if functions is None:
+            return None
+        new_imports = _new_imports(strengthened_module, preamble)
+
+        def validate(func_src: str, orig_src: str | None) -> str | None:
+            test_preamble = _preamble_for(preamble, new_imports, [func_src])
+            return self._validate_strengthened_test(test_preamble, func_src, orig_src)
+
+        existing_names = [_function_name(src) for src in existing_tests]
+        strengthened: dict[str, str] = {}
+        for func_name, func_src in functions:
+            strengthened.setdefault(func_name, func_src)  # first definition wins
+
+        tests = []
+        for name, orig_src in zip(existing_names, existing_tests, strict=True):
+            new_src = strengthened.get(name) if name else None
+            accepted = (
+                validate(new_src, orig_src)
+                if new_src is not None and new_src.strip() != orig_src.strip()
+                else None
+            )
+            tests.append(accepted or orig_src)
+
+        known = set(existing_names)
+        for name, new_src in strengthened.items():
+            if name in known:
+                continue
+            accepted = validate(new_src, None)
+            if accepted is not None:
+                _LOGGER.info("Accepted new boundary test %s from LLM", name)
+                tests.append(accepted)
+        changed = [src for src in tests if src not in existing_tests]
+        return _preamble_for(preamble, new_imports, changed), tests
+
+    def _prune_vacuous(
+        self,
+        state: _StrengtheningState,
+        candidate: tuple[str, list[str]],
+        targets: list[tuple[Any, Any]],
+    ) -> tuple[list[str], int, int]:
+        """Drop LLM additions that kill none of the *targets* (the surviving mutants).
+
+        Assertions added to a test that do not increase that test's kills are
+        removed; new tests that kill none of the mutants are dropped.
+
+        Returns:
+            ``(tests, inferred_assertions, removed_assertions)``.
+        """
+        preamble, tests = candidate
+        module_name = self.module_under_test.__name__
+        before = {_function_name(src): src for src in state.tests}
+        pruned: list[str] = []
+        inferred = removed = 0
+        for func_src in tests:
+            orig_src = before.get(_function_name(func_src))
+            if orig_src is not None and orig_src.strip() == func_src.strip():
+                pruned.append(func_src)
+                continue
+            code, offset = _with_preamble(preamble, func_src)
+            if orig_src is None and not killed_set(code, targets, module_name):
+                _LOGGER.info("Dropped new test: it kills none of the targeted mutants")
+                continue
+            original = (
+                _with_preamble(preamble, orig_src)[0] if orig_src is not None else preamble.strip()
+            )
+            filtered, stats = filter_vacuous_assertions_with_mutants(
+                original, code, targets, module_name
+            )
+            inferred += int(stats.get("inferred_assertions", 0))
+            removed += int(stats.get("assertions_removed", 0))
+            pruned.append("\n".join(filtered.split("\n")[offset:]))
+        return pruned, inferred, removed
+
+    def _coverage_preserved(self, state: _StrengtheningState, code: str) -> bool:
+        """Gate 2: the candidate must not cover less than the unstrengthened module."""
+        passed, _ = check_coverage_preservation(
+            original_test=state.original_code,
+            refined_test=code,
+            module_under_test=self.module_under_test,
+            tolerance=0.0,
+            subject_properties=self.subject_properties,
+        )
+        return passed
+
+    def _strengthen_chunk(self, state: _StrengtheningState, chunk: list[tuple[Any, Any]]) -> bool:
+        """Prompt for one chunk of surviving mutants and apply the three gates.
+
+        Returns:
+            Whether the strengthened tests were accepted into *state*.
+        """
+        current_code = state.code
+        strengthened = self.llm_client.generate_from_prompt(
+            ModuleMutationStrengthenPrompt(
+                module_code=state.module_source,
+                module_test_code=current_code,
+                surviving_mutants=_format_surviving_mutants(chunk),
+            )
+        )
+        if not strengthened or strengthened.startswith(LLM_ERROR_PREFIX):
+            return False
+
+        # Gate 1: SUT validation on clean code
+        candidate = self._validate_and_filter_strengthened_functions(
+            strengthened, state.preamble, state.tests
+        )
+        if candidate is None:
+            _LOGGER.warning("Module mutation strengthening response is unparseable.")
+            return False
+        preamble, tests = candidate
+        candidate_code = _join_module(preamble, tests)
+
+        # Gate 1 runs the changed tests one by one; the assembled module must pass on
+        # the clean SUT too, otherwise it would "kill" every mutant below.
+        if not passes_on_module(candidate_code, self.module_under_test):
+            _LOGGER.info("Rejected strengthened module: it fails on the clean SUT.")
+            return False
+
+        # Gate 3: the candidate must kill every mutant killed before plus new ones.
+        # Checked over all mutants, so weakening an existing test cannot go unnoticed.
+        module_name = self.module_under_test.__name__
+        old_kills = state.killed
+        new_kills = killed_set(candidate_code, state.mutants, module_name)
+        if not old_kills < new_kills:
+            _LOGGER.info(
+                "Rejected strengthened module: it loses %d and adds %d killed mutants.",
+                len(old_kills - new_kills),
+                len(new_kills - old_kills),
+            )
+            return False
+        targets = [m for idx, m in enumerate(state.mutants) if idx not in old_kills]
+        pruned, inferred, removed = self._prune_vacuous(state, candidate, targets)
+        pruned_code = _join_module(preamble, pruned)
+        if killed_set(pruned_code, state.mutants, module_name) != new_kills:
+            pruned, pruned_code, removed = tests, candidate_code, 0
+
+        # Gate 2: coverage preservation (removed assertions may have called the SUT)
+        if not self._coverage_preserved(state, pruned_code):
+            if pruned == tests or not self._coverage_preserved(state, candidate_code):
+                _LOGGER.warning("Coverage dropped for strengthened module; rejecting chunk.")
+                return False
+            pruned, removed = tests, 0
+
+        state.preamble, state.tests, state.killed = preamble, pruned, new_kills
+        state.inferred += inferred
+        state.removed += removed
+        _LOGGER.info(
+            "Strengthened module kills %d additional of %d targeted mutants",
+            len(new_kills - old_kills),
+            len(chunk),
+        )
+        return True
+
+    def strengthen_module_mutations(
+        self,
+        preamble: str,
+        refined_tests: list[str],
+        *,
+        max_iterations: int = 3,
+        max_mutants_per_prompt: int = 15,
+        max_surviving_mutants: int = 50,
+    ) -> tuple[str, list[str], dict[str, Any]]:
+        """Strengthen assertions across the test module using surviving mutants.
+
+        Implements the 3-gate validation pipeline per chunk of surviving mutants:
+        - Gate 1: SUT execution on clean code. Failing assertions on existing tests are
+          stripped via _remove_failing_inferred_assertion; failing new tests are discarded.
+        - Gate 3: Mutant verification. The candidate must pass on the clean SUT, keep
+          every kill and kill additional mutants; added assertions and new tests that
+          kill no surviving mutant are pruned.
+        - Gate 2: Coverage preservation (ensures coverage does not drop).
+
+        Args:
+            preamble: Shared module preamble (imports + setup).
+            refined_tests: List of refined test function source codes.
+            max_iterations: Maximum number of mutation strengthening iterations.
+            max_mutants_per_prompt: Batching limit for surviving mutants per request.
+            max_surviving_mutants: Maximum number of mutants to generate and evaluate.
+
+        Returns:
+            Tuple of (preamble, updated_refined_tests, mutation_stats).
+        """
+        if not self.module_under_test or not hasattr(self.module_under_test, "__file__"):
+            return preamble, refined_tests, {}
+        mutants, error = create_mutants(self.module_under_test, max_surviving_mutants)
+        if error is not None or not mutants:
+            return preamble, refined_tests, {}
+
+        module_name = self.module_under_test.__name__
+        original_code = _join_module(preamble, refined_tests)
+        if not passes_on_module(original_code, self.module_under_test):
+            # Every mutant would count as killed, leaving nothing to strengthen.
+            _LOGGER.warning("Skipping module mutation strengthening: the suite fails on the SUT.")
+            return preamble, refined_tests, {}
+        state = _StrengtheningState(
+            preamble=preamble,
+            tests=list(refined_tests),
+            original_code=original_code,
+            module_source=self._sut_source()
+            or self.build_module_sut_context()
+            or "Source code unavailable.",
+            mutants=mutants,
+            killed=killed_set(original_code, mutants, module_name),
+        )
+        initial_kills = state.killed
+        for iteration in range(max_iterations):
+            survivors = [m for idx, m in enumerate(mutants) if idx not in state.killed]
+            if not survivors:
+                break
+            _LOGGER.info(
+                "Found %d surviving mutants in module (iteration %d/%d)",
+                len(survivors),
+                iteration + 1,
+                max_iterations,
+            )
+            for start in range(0, len(survivors), max_mutants_per_prompt):
+                self._strengthen_chunk(state, survivors[start : start + max_mutants_per_prompt])
+
+        mutation_stats = {
+            "inferred_assertions": state.inferred,
+            "mutants_generated": len(mutants),
+            # Only the kills strengthening added; the per-test stages count the rest.
+            "mutants_killed_total": len(state.killed - initial_kills),
+            "assertions_kept": state.inferred - state.removed,
+            "assertions_removed": state.removed,
+        }
+        return state.preamble, state.tests, mutation_stats
 
     def _apply_aaa_markers(self, current_code: str) -> str:
         """Insert AAA markers (best-effort), keeping them only if the test still passes."""

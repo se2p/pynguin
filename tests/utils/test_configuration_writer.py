@@ -258,6 +258,9 @@ max_dependencies = 10
 max_usage_examples = 3
 enable_mutation_strengthening = false
 max_mutation_iterations = 3
+mutation_granularity = "full_module"
+max_mutants_per_prompt = 15
+max_surviving_mutants = 50
 refinement_granularity = "combined"
 
 [local_search]
@@ -412,6 +415,8 @@ def expected_txt(tmp_path):
  'save_original=True, save_refined=True, enable_dependency_context=False, '
  'enable_usage_examples=False, max_dependencies=10, max_usage_examples=3, '
  'enable_mutation_strengthening=False, max_mutation_iterations=3, '
+ 'mutation_granularity=<MutationStrengtheningGranularity.FULL_MODULE: '
+ "'full_module'>, max_mutants_per_prompt=15, max_surviving_mutants=50, "
  "refinement_granularity=<RefinementGranularity.COMBINED: 'combined'>), "
  'ignore_modules=[], ignore_methods=[], '
  "element_visibility=<ElementVisibility.PUBLIC: 'PUBLIC'>, subprocess=False, "
@@ -520,14 +525,20 @@ False
 False
 --llm_refinement.max_dependencies
 10
+--llm_refinement.max_mutants_per_prompt
+15
 --llm_refinement.max_mutation_iterations
 3
 --llm_refinement.max_repair_iterations
 2
+--llm_refinement.max_surviving_mutants
+50
 --llm_refinement.max_tests
 None
 --llm_refinement.max_usage_examples
 3
+--llm_refinement.mutation_granularity
+FULL_MODULE
 --llm_refinement.refinement_granularity
 COMBINED
 --llm_refinement.request_timeout

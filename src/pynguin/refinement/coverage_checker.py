@@ -44,6 +44,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
+from pynguin.refinement.validator import call_test_functions, collect_test_functions
 from pynguin.utils.timeout import resolve_timeout, time_limit
 
 if TYPE_CHECKING:
@@ -117,6 +118,7 @@ def _measure_coverage_pynguin(
 
     cleaned = textwrap.dedent(test_code.strip())
     func_name = _find_test_function_name(cleaned)
+    test_funcs = collect_test_functions(cleaned)
     compiled = compile(cleaned, "<test>", "exec")
 
     # Enable tracer, execute, then disable.
@@ -135,7 +137,10 @@ def _measure_coverage_pynguin(
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
-                if func_name and func_name in scope and callable(scope[func_name]):
+            if test_funcs:
+                call_test_functions(scope, test_funcs)  # per-test time limits
+            elif func_name and func_name in scope and callable(scope[func_name]):
+                with time_limit(resolve_timeout(None)):
                     scope[func_name]()
         except BaseException as exc:  # noqa: BLE001
             # Catch BaseException because Pynguin's
@@ -241,6 +246,7 @@ def _measure_coverage_settrace(
     }
     cleaned = textwrap.dedent(test_code.strip())
     func_name = _find_test_function_name(cleaned)
+    test_funcs = collect_test_functions(cleaned)
 
     try:
         compiled = compile(cleaned, "<test>", "exec")
@@ -249,7 +255,10 @@ def _measure_coverage_settrace(
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
-                if func_name and func_name in scope and callable(scope[func_name]):
+            if test_funcs:
+                call_test_functions(scope, test_funcs)  # per-test time limits
+            elif func_name and func_name in scope and callable(scope[func_name]):
+                with time_limit(resolve_timeout(None)):
                     scope[func_name]()
         finally:
             sys.settrace(old_trace)

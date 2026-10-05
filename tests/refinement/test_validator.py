@@ -20,6 +20,8 @@ import pynguin.configuration as config
 from pynguin.refinement.validator import (
     TestExecutionTimeoutError,
     _ensure_module_package_on_path,  # noqa: PLC2701
+    call_test_functions,
+    collect_test_functions,
     resolve_timeout,
     run_test,
     time_limit,
@@ -217,3 +219,55 @@ def test_ensure_module_package_on_path_adds_package_root(tmp_path):
     finally:
         if added in sys.path:
             sys.path.remove(added)
+
+
+_XFAIL_MODULE = (
+    "import pytest\n\n"
+    "@pytest.mark.xfail(strict=True)\n"
+    "def test_strict():\n    raise ValueError\n\n"
+    "@pytest.mark.xfail\n"
+    "def test_lenient():\n    pass\n\n"
+    "def helper():\n    pass\n\n"
+    "def test_plain():\n    pass\n"
+)
+
+
+def test_collect_test_functions_reports_xfail_markers_in_order():
+    assert collect_test_functions(_XFAIL_MODULE) == [
+        ("test_strict", True, True),
+        ("test_lenient", True, False),
+        ("test_plain", False, False),
+    ]
+
+
+def test_collect_test_functions_unparseable_code():
+    assert collect_test_functions("def broken(:") == []
+
+
+def test_call_test_functions_runs_all_tests_and_honours_xfail():
+    calls = []
+
+    def raising():
+        raise ValueError
+
+    scope = {
+        "test_strict": raising,
+        "test_lenient": lambda: None,
+        "test_plain": lambda: calls.append("plain"),
+    }
+    call_test_functions(scope, collect_test_functions(_XFAIL_MODULE))
+    assert calls == ["plain"]
+
+
+def test_call_test_functions_raises_on_strict_xpass():
+    scope = {"test_x": lambda: None}
+    with pytest.raises(AssertionError, match="XPASS"):
+        call_test_functions(scope, [("test_x", True, True)])
+
+
+def test_call_test_functions_propagates_regular_failure():
+    def failing():
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError, match="boom"):
+        call_test_functions({"test_x": failing}, [("test_x", False, False)])

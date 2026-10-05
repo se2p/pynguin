@@ -28,9 +28,10 @@ and repairs tests that break. Enabled with `llm_refinement.enabled=True`.
 
 ## Refinement granularity
 
-`refinement_granularity` (enum `configuration.RefinementGranularity`) controls **only** the
-readability and semantic-assertion stages. Repair and mutation-strengthening are always
-per-test. Let `T` = number of tests.
+`refinement_granularity` (enum `configuration.RefinementGranularity`) controls the
+readability and semantic-assertion stages. Mutation strengthening is controlled by
+`mutation_granularity` (enum `configuration.MutationStrengtheningGranularity`, default: `full_module`).
+Repair stays per-broken-test. Let `T` = number of tests.
 
 | Mode | Readability + assertions | Requests (those stages) | Path |
 | --- | --- | --- | --- |
@@ -40,6 +41,11 @@ per-test. Let `T` = number of tests.
 
 `combined` is the most token-efficient and highest-variance mode; `per_test` is the most
 robust and is the automatic **fallback**.
+
+### Mutation strengthening granularity (`mutation_granularity`)
+
+- `full_module` (**default**): Detects surviving mutants across the whole suite, batches them (up to `max_mutants_per_prompt`, default 15), and prompts the LLM to strengthen existing tests or add new boundary tests using `ModuleMutationStrengthenPrompt`. Employs a 3-gate validation pipeline per chunk: clean SUT execution with assertion stripping (failing new tests are discarded; LLM-added imports are only kept if an accepted test uses them), mutant verification (the assembled module must pass on the clean SUT, keep every mutant it killed before and kill additional ones; added assertions and new tests that kill no surviving mutant are pruned), and a coverage preservation check. Test functions in a module are run one by one with pytest's `xfail` semantics (`validator.call_test_functions`), so an expected failure neither counts as a kill nor hides later tests; each test has its own time limit (`maximum_test_execution_timeout`). It runs on the sanitized suite (`_finalize_refined_suite`) and is skipped if that suite still fails on the clean SUT, since every mutant would then count as killed.
+- `per_test`: Legacy loop prompting up to 10 surviving mutants per test function.
 
 ### Module path (`_process_module`)
 
@@ -79,13 +85,12 @@ or parse failure falls the entire module back to per-test.
 - **Repair stays per-broken-test.** `validator.run_test` runs one function at a time;
   `_run_repair_loop` calls the LLM only on failing tests (assertion failures are stripped
   locally, no LLM). Never batch repair.
-- **Mutation-strengthening stays per-test** (survivor detection is inherently per-test).
-- Module-level responses must preserve the total number and order of tests, imports, and
-  `module_0.` call prefixes — otherwise missing tests fall back to per-test.
+- **Mutation-strengthening supports full_module (default) and per_test.**
+- Module-level responses must preserve imports and `module_0.` call prefixes.
 
 ## Prompts
 
 Per-test: `ReadabilityRefinementPrompt`, `SemanticAssertionsPrompt`, `RepairPrompt`,
 `MutationStrengthenPrompt`. Module-level: `ModuleReadabilityRefinementPrompt`,
-`ModuleSemanticAssertionsPrompt`, `ModuleRefinementPrompt` (see
+`ModuleSemanticAssertionsPrompt`, `ModuleRefinementPrompt`, `ModuleMutationStrengthenPrompt` (see
 `../large_language_model/prompts/AGENTS.md`).

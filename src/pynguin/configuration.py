@@ -143,6 +143,16 @@ class RefinementGranularity(str, enum.Enum):
     """Per-test readability and assertion prompts (previous behavior, most robust)."""
 
 
+class MutationStrengtheningGranularity(str, enum.Enum):
+    """Granularity of mutation-driven assertion strengthening."""
+
+    FULL_MODULE = "full_module"
+    """Module-level prompt batching surviving mutants into a full-module request (default)."""
+
+    PER_TEST = "per_test"
+    """Per-test mutation strengthening loop (legacy behavior)."""
+
+
 class LLMMode(str, enum.Enum):
     """The execution mode for LLM queries in search algorithms."""
 
@@ -1315,13 +1325,27 @@ class LLMRefinementConfiguration:
     max_mutation_iterations: int = 3
     """Maximum iterations for mutation-driven assertion strengthening."""
 
+    mutation_granularity: MutationStrengtheningGranularity = (
+        MutationStrengtheningGranularity.FULL_MODULE
+    )
+    """Granularity of mutation-driven assertion strengthening (full_module or per_test).
+    Defaults to full_module."""
+
+    max_mutants_per_prompt: int = 15
+    """Maximum number of surviving mutants to include in a single prompt batch.
+    Surviving mutants beyond this limit are chunked into multiple module-level requests."""
+
+    max_surviving_mutants: int = 50
+    """Maximum number of mutants to generate and evaluate during module-level mutation
+    strengthening."""
+
     refinement_granularity: RefinementGranularity = RefinementGranularity.COMBINED
     """Whether readability refinement and semantic-assertion generation are done with a
     single combined module-level prompt (``combined``, default; most token-efficient,
     highest-variance), two separate module-level prompts (``module_separate``), or one
-    prompt per test (``per_test``; previous behavior, most robust). Repair and
-    mutation-strengthening are always per-test regardless of this setting. Any truncated
-    or unparseable module-level response falls back automatically to the per-test path."""
+    prompt per test (``per_test``; previous behavior, most robust). Repair is always
+    per-broken-test. Any truncated or unparseable module-level response falls back
+    automatically to the per-test path."""
 
 
 @dataclasses.dataclass
