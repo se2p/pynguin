@@ -7,12 +7,23 @@
 """Tests for the new request-hash based LLMCache."""
 
 import json
+import pathlib
 
+import multiprocess as mp
 import pytest
 
 import pynguin.configuration as config
 from pynguin.large_language_model.cache import LLMCache
 from pynguin.large_language_model.request import RenderedRequest
+
+
+def _race_writer(cache_dir: pathlib.Path, index: int) -> None:
+    cache = LLMCache(cache_dir=cache_dir)
+    request = RenderedRequest(
+        messages=[{"role": "user", "content": "race"}], model="gpt-test", temperature=0.5
+    )
+    for _ in range(20):
+        cache.set(request, f"response-from-writer-{index}")
 
 
 @pytest.fixture
@@ -97,6 +108,29 @@ def test_cache_key_varies_with_enable_thinking(temp_cache_dir):
     cache.set(req1, "response1")
     assert cache.get(req1) == "response1"
     assert cache.get(req2) is None  # should miss: thinking changes response content
+
+
+def test_cache_set_is_safe_under_concurrent_writers(temp_cache_dir):
+    request = RenderedRequest(
+        messages=[{"role": "user", "content": "race"}], model="gpt-test", temperature=0.5
+    )
+    cache = LLMCache(cache_dir=temp_cache_dir)
+    cache_file = cache._get_cache_file(request)
+
+    processes = [
+        mp.Process(target=_race_writer, args=(temp_cache_dir, index)) for index in range(4)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
+
+    # Every real writer must have exited cleanly, and the winning write must be a
+    # complete, parseable JSON document -- never a partial write from a race.
+    assert all(process.exitcode == 0 for process in processes)
+    data = json.loads(cache_file.read_text(encoding="utf-8"))
+    assert data["response"].startswith("response-from-writer-")
+    assert not list(temp_cache_dir.glob("*.json.tmp.*"))
 
 
 def test_cache_clear(temp_cache_dir):

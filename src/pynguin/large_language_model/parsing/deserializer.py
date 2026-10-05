@@ -139,6 +139,30 @@ def _dotted_chain(node: cst.BaseExpression) -> list[str] | None:
     return None
 
 
+# Context managers that only redirect output or replace attributes.
+# Dropping them does not change exception handling or control flow.
+_TRANSPARENT_CONTEXT_MANAGERS = frozenset({"redirect_stdout", "redirect_stderr", "patch"})
+
+
+def _is_transparent_context_manager(item: cst.WithItem) -> bool:
+    """Whether a ``with`` item is a context manager that can be dropped safely.
+
+    Args:
+        item: The ``with`` item to inspect.
+
+    Returns:
+        ``True`` for calls of ``redirect_stdout``, ``redirect_stderr``, ``patch``
+        and ``patch.object``/``patch.dict``/``patch.multiple``, however they are
+        qualified; ``False`` for everything else.
+    """
+    if not isinstance(item.item, cst.Call):
+        return False
+    chain = _dotted_chain(item.item.func)
+    if chain is None:
+        return False
+    return chain[-1] in _TRANSPARENT_CONTEXT_MANAGERS or (len(chain) > 1 and chain[-2] == "patch")
+
+
 def _build_chain(parts: list[str]) -> cst.BaseExpression:
     """Build a ``Name``/``Attribute`` chain from root-first *parts*.
 
@@ -307,6 +331,52 @@ def _target_names(node: cst.BaseExpression) -> set[str]:
     if isinstance(node, cst.StarredElement):
         return _target_names(node.value)
     return set()
+
+
+class _OutermostCallCollector(cst.CSTVisitor):
+    """Collects the outermost calls of an expression, in evaluation order.
+
+    Calls nested in another call's arguments stay part of that call. Calls inside
+    lambdas and comprehensions are skipped, since they depend on names bound
+    there.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[cst.Call] = []
+
+    @staticmethod
+    def collect(node: cst.CSTNode) -> list[cst.Call]:
+        """Returns the outermost calls in node.
+
+        Args:
+            node: The node to search.
+
+        Returns:
+            The outermost calls, left to right.
+        """
+        collector = _OutermostCallCollector()
+        node.visit(collector)
+        return collector.calls
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        self.calls.append(node)
+        return False
+
+    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
+        return False
+
+    def visit_ListComp(self, node: cst.ListComp) -> bool:  # noqa: N802
+        return False
+
+    def visit_SetComp(self, node: cst.SetComp) -> bool:  # noqa: N802
+        return False
+
+    def visit_DictComp(self, node: cst.DictComp) -> bool:  # noqa: N802
+        return False
+
+    def visit_GeneratorExp(self, node: cst.GeneratorExp) -> bool:  # noqa: N802
+        return False
 
 
 def _params_names(params: cst.Parameters) -> list[str]:
@@ -1567,7 +1637,10 @@ class CstStatementDeserializer:
                 return node, None, None, accessible, not resolved
             return None
         if isinstance(small, cst.Expr):
-            if isinstance(small.value, (cst.SimpleString, cst.FormattedString, cst.Ellipsis)):
+            if isinstance(
+                small.value,
+                (cst.SimpleString, cst.ConcatenatedString, cst.FormattedString, cst.Ellipsis),
+            ):
                 return None
             _, accessible, resolved = self._infer_rhs(small.value, bound_types, imported_bindings)
             node = cst.SimpleStatementLine(body=[small])
@@ -1760,7 +1833,11 @@ class CstStatementDeserializer:
     ) -> None:
         if isinstance(small, cst.Assert):
             if self._create_assertions:
-                counts[self._handle_assert(small, state)] += 1
+                disposition = self._handle_assert(small, state)
+                counts[disposition] += 1
+                if disposition is not Disposition.ASSERTION_DROPPED:
+                    return
+            self._keep_calls_of_assert(small, state)
             return
 
         if isinstance(small, cst.Import | cst.ImportFrom):
@@ -1771,6 +1848,80 @@ class CstStatementDeserializer:
             return
 
         counts[self._handle_ordinary_statement(small, state)] += 1
+
+    def _keep_calls_of_assert(
+        self,
+        small: cst.Assert,
+        state: _FunctionDeserializationState,
+    ) -> None:
+        """Keeps the calls of an assert that is not kept itself, as plain statements.
+
+        LLM-written tests often call the code under test only inside an assert,
+        e.g. ``assert parse(text) is True``. Dropping the whole assert would drop
+        the call and the coverage it achieves; Assert itself is not needed
+        for that.
+
+        The kept calls are not counted: the assert has already been given its
+        one disposition.
+
+        Args:
+            small: The Assert whose outermost calls should be kept.
+            state: The mutable per-function deserialization state.
+        """
+        for call in _OutermostCallCollector.collect(small.test):
+            self._handle_ordinary_statement(cst.Expr(value=call), state)
+
+    def _keep_body_of_with(self, line: cst.With, state: _FunctionDeserializationState) -> None:
+        """Keeps the statements of an unwrapped ``with`` block's body.
+
+        The kept statements are not counted: the ``with`` block has already been
+        given its one disposition.
+
+        Args:
+            line: The ``with`` block whose body should be kept.
+            state: The mutable per-function deserialization state.
+        """
+        uncounted: collections.Counter[Disposition] = collections.Counter()
+        if isinstance(line.body, cst.IndentedBlock):
+            for inner in line.body.body:
+                self._process_line(inner, state, uncounted)
+        else:
+            for small in line.body.body:
+                self._process_small_statement(small, state, uncounted)
+
+    def _process_line(
+        self,
+        line: cst.BaseStatement,
+        state: _FunctionDeserializationState,
+        counts: collections.Counter[Disposition],
+    ) -> None:
+        """Deserializes one statement line of a test function body.
+
+        A ``with`` block that cannot be admitted because it references unknown
+        names is unwrapped if all its context managers only redirect output or
+        replace attributes (``redirect_stdout``, ``redirect_stderr``, ``patch``):
+        the context managers are dropped and the body is processed statement by
+        statement, so calls to the code under test inside it are kept. Blocks
+        with any other context manager, e.g. ``pytest.raises``, are dropped
+        whole, since running their body unguarded would change what it does.
+
+        Args:
+            line: The statement to deserialize.
+            state: The mutable per-function deserialization state.
+            counts: The disposition counts to update.
+        """
+        if isinstance(line, cst.BaseCompoundStatement):
+            disposition = self._handle_compound_statement(line, state)
+            counts[disposition] += 1
+            if (
+                disposition is Disposition.DROPPED_UNKNOWN_NAMES
+                and isinstance(line, cst.With)
+                and all(_is_transparent_context_manager(item) for item in line.items)
+            ):
+                self._keep_body_of_with(line, state)
+        elif isinstance(line, cst.SimpleStatementLine):
+            for small in line.body:
+                self._process_small_statement(small, state, counts)
 
     def deserialize_function(
         self,
@@ -1817,11 +1968,7 @@ class CstStatementDeserializer:
         counts: collections.Counter[Disposition] = collections.Counter()
 
         for line in normalized.body:
-            if isinstance(line, cst.BaseCompoundStatement):
-                counts[self._handle_compound_statement(line, state)] += 1
-            elif isinstance(line, cst.SimpleStatementLine):
-                for small in line.body:
-                    self._process_small_statement(small, state, counts)
+            self._process_line(line, state, counts)
 
         return FunctionDeserialization(state.testcase, counts)
 
