@@ -640,8 +640,10 @@ def test_write_with_seed_emits_patch_preamble_and_fixture(tmp_path: Path):
     content = out_file.read_text(encoding="utf-8")
     assert "import random as _pynguin_random" in content
     assert "__pynguin_patched__" in content
+    assert "_pynguin_restore_random" in content
     assert "_pynguin_seed_random" in content
     assert "_pynguin_random.seed(42)" in content
+    assert "_pynguin_random.Random.seed = _pynguin_orig_seed" in content
     assert "import pytest" in content
 
 
@@ -667,6 +669,65 @@ def test_write_with_seed_when_sut_exports_random_does_not_shadow_prelude(
     fixture_func = exec_ns["_pynguin_seed_random"]
     gen = getattr(fixture_func, "__wrapped__", fixture_func)()
     next(gen)
+    # Drain generator to trigger restore teardown
+    with pytest.raises(StopIteration):
+        next(gen)
+
+
+def test_seeded_exported_tests_restore_random_for_subsequent_tests(tmp_path: Path):
+    """Seed patch is restored so subsequent tests and tempfile work normally (#151)."""
+    module_name = "seeded_sut"
+    (tmp_path / f"{module_name}.py").write_text(
+        "import random\nsut_rng = random.Random()\ndef get_num():\n    return sut_rng.random()\n",
+        encoding="utf-8",
+    )
+    writer = TestSuiteWriter()
+    test_case = make_test_case(assign("num_0", "seeded_sut.get_num()"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(
+        suite,
+        module_name,
+        tmp_path,
+        project_path=str(tmp_path),
+        format_with_black=False,
+        seed=1337,
+    )
+    assert out_file.exists()
+
+    # Create a second test file that will be collected and executed after out_file
+    subsequent_test_file = tmp_path / "test_zz_subsequent.py"
+    subsequent_test_file.write_text(
+        "import random\n"
+        "import tempfile\n"
+        "\n"
+        "def test_external_random_not_fixed():\n"
+        "    # Instances initialized with default seed(None) must produce distinct values\n"
+        "    r1 = random.Random()\n"
+        "    r2 = random.Random()\n"
+        "    assert r1.random() != r2.random()\n"
+        "\n"
+        "def test_tempfile_mkdtemp_unique():\n"
+        "    d1 = tempfile.mkdtemp()\n"
+        "    d2 = tempfile.mkdtemp()\n"
+        "    assert d1 != d2\n",
+        encoding="utf-8",
+    )
+
+    child_env = {k: v for k, v in os.environ.items() if not k.startswith(("COV_CORE", "COVERAGE"))}
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pytest", "-v", str(tmp_path)],
+        cwd=str(tmp_path),
+        env=child_env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert result.returncode == 0, (
+        f"pytest failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
 
 
 # ---------------------------------------------------------------------------
