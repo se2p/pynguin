@@ -83,6 +83,7 @@ from pynguin.testcase.execution import (
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
     CannotInstrumentCompiledModuleError,
+    ConfigurationException,
 )
 from pynguin.utils.report import (
     get_coverage_report,
