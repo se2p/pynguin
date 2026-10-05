@@ -624,35 +624,45 @@ class TestSuiteWriter:
         """
         patch_source = (
             "import weakref as _pynguin_weakref\n"
-            "if not getattr(_pynguin_random.Random.seed, '__pynguin_patched__', False):\n"
-            "    _pynguin_orig_seed = _pynguin_random.Random.seed\n"
-            "    _pynguin_tracked = _pynguin_weakref.WeakSet()\n"
-            "    def _pynguin_deterministic_seed(self, x=None):\n"
-            "        if x is None:\n"
-            f"            x = {seed}\n"
-            "        elif type(x).__hash__ is object.__hash__:\n"
-            "            x = f'{type(x).__module__}.{type(x).__name__}'\n"
-            "        _pynguin_orig_seed(self, x)\n"
-            "        _pynguin_tracked.add(self)\n"
-            "    _pynguin_deterministic_seed.__pynguin_patched__ = True\n"
-            "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
-            "    _pynguin_random.Random.seed = _pynguin_deterministic_seed\n"
+            "_pynguin_orig_seed = getattr(\n"
+            "    _pynguin_random.Random.seed, '__pynguin_orig__', _pynguin_random.Random.seed\n"
+            ")\n"
+            "_pynguin_tracked = _pynguin_weakref.WeakSet()\n"
+            "def _pynguin_deterministic_seed(self, x=None):\n"
+            "    if x is None:\n"
+            f"        x = {seed}\n"
+            "    elif type(x).__hash__ is object.__hash__:\n"
+            "        x = f'{type(x).__module__}.{type(x).__name__}'\n"
+            "    _pynguin_orig_seed(self, x)\n"
+            "    _pynguin_tracked.add(self)\n"
+            "_pynguin_deterministic_seed.__pynguin_patched__ = True\n"
+            "_pynguin_deterministic_seed.__pynguin_orig__ = _pynguin_orig_seed\n"
+            "_pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
+            "_pynguin_random.Random.seed = _pynguin_deterministic_seed\n"
         )
         return list(cst.parse_module(patch_source).body)
 
     @staticmethod
-    def _create_seed_fixture(seed: int) -> cst.SimpleStatementLine | cst.BaseCompoundStatement:
-        """Return the autouse pytest fixture that reseeds before each test.
+    def _create_seed_fixture(
+        seed: int,
+    ) -> list[cst.SimpleStatementLine | cst.BaseCompoundStatement]:
+        """Return the autouse pytest fixtures that reseed before each test and restore seed after.
 
         Args:
             seed: The seed value to embed in the generated fixture.
 
         Returns:
-            The CST statement defining the autouse reseed fixture.
+            The CST statements defining the autouse restore and reseed fixtures.
         """
-        fixture_source = (
+        fixtures_source = (
+            "@pytest.fixture(scope='module', autouse=True)\n"
+            "def _pynguin_restore_random():\n"
+            "    yield\n"
+            "    _pynguin_random.Random.seed = _pynguin_orig_seed\n"
+            "\n"
             "@pytest.fixture(autouse=True)\n"
             "def _pynguin_seed_random():\n"
+            "    _pynguin_random.Random.seed = _pynguin_deterministic_seed\n"
             f"    _pynguin_random.seed({seed})\n"
             "    _pynguin_instances = getattr(\n"
             "        _pynguin_random.Random.seed, '__pynguin_instances__', None\n"
@@ -661,8 +671,9 @@ class TestSuiteWriter:
             "        for _inst in list(_pynguin_instances):\n"
             f"            _inst.seed({seed})\n"
             "    yield\n"
+            "    _pynguin_random.Random.seed = _pynguin_orig_seed\n"
         )
-        return cst.parse_statement(fixture_source)
+        return list(cst.parse_module(fixtures_source).body)
 
     def write(  # noqa: C901, PLR0915, PLR0914
         self,
@@ -837,7 +848,7 @@ class TestSuiteWriter:
                     cast("cst.SimpleStatementLine", cst.parse_statement("import asyncio\n"))
                 )
             patch_nodes = TestSuiteWriter._create_patch_nodes(seed)
-            fixture = TestSuiteWriter._create_seed_fixture(seed)
+            fixtures = TestSuiteWriter._create_seed_fixture(seed)
             module = cst.Module(
                 body=[
                     *preamble,
@@ -846,7 +857,7 @@ class TestSuiteWriter:
                     *exc_import_stmts,
                     *sut_import_stmts,
                     *assertion_import_stmts,
-                    fixture,
+                    *fixtures,
                     *functions,
                 ]
             )
