@@ -14,6 +14,7 @@ import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.timeout import TestExecutionTimeoutError
 from tests.testutils import import_module_safe
 
@@ -87,3 +88,50 @@ def test_create_mutants_timeout():
         assert len(mutants) == 1
         mutant_module, _ = mutants[0]
         assert mutant_module is None
+
+
+def test_setup_mutant_generator_first_order():
+    config.configuration.test_case_output = mock.MagicMock(
+        mutation_strategy=config.MutationStrategy.FIRST_ORDER_MUTANTS,
+        maximum_mutants=10,
+        maximum_mutation_time=-1,
+    )
+    mutator = ct.setup_mutant_generator()
+    assert isinstance(mutator, mu.FirstOrderMutator)
+
+
+def test_setup_mutant_generator_high_order():
+    config.configuration.test_case_output = mock.MagicMock(
+        mutation_strategy=config.MutationStrategy.FIRST_TO_LAST,
+        mutation_order=2,
+    )
+    mutator = ct.setup_mutant_generator()
+    assert isinstance(mutator, mu.HighOrderMutator)
+
+
+def test_setup_mutant_generator_invalid_strategy():
+    config.configuration.test_case_output = mock.MagicMock(
+        mutation_strategy="INVALID_STRATEGY", mutation_order=2
+    )
+    with pytest.raises(ConfigurationException, match=r"No suitable mutation strategy found."):
+        ct.setup_mutant_generator()
+
+
+def test_setup_mutant_generator_invalid_order():
+    config.configuration.test_case_output = mock.MagicMock(
+        mutation_strategy=config.MutationStrategy.FIRST_TO_LAST, mutation_order=0
+    )
+    with pytest.raises(ConfigurationException, match=r"Mutation order should be > 0."):
+        ct.setup_mutant_generator()
+
+
+def test_create_mutation_controller():
+    module, _ = import_module_safe("tests.fixtures.examples.triangle")
+    config.configuration.test_case_output = mock.MagicMock(
+        mutation_strategy=config.MutationStrategy.FIRST_ORDER_MUTANTS,
+        maximum_mutants=-1,
+        maximum_mutation_time=-1,
+    )
+    controller = ct.create_mutation_controller(module)
+    assert isinstance(controller, ct.MutationController)
+    assert controller._module == module

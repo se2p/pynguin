@@ -48,8 +48,6 @@ import multiprocess as mp
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
-import pynguin.assertion.mutation_analysis.mutators as mu
-import pynguin.assertion.mutation_analysis.strategies as ms
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomevisitor as cv
@@ -71,10 +69,7 @@ from pynguin.analyses.constants import (
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.assertion.mutation_analysis.controller import (
-    create_mutation_controller,
-    setup_mutant_generator,
-)
+from pynguin.assertion.mutation_analysis.controller import create_mutation_controller
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.islands.population_allocation import minimum_island_population_size
@@ -98,8 +93,6 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 
@@ -1579,18 +1572,6 @@ def _prepare_for_assertion_minimization(
     executor.set_instrument(False)
     executor.clear_observers()
     executor.clear_remote_observers()
-
-
-_strategies: dict[config.MutationStrategy, Callable[[int], ms.HOMStrategy]] = {
-    config.MutationStrategy.FIRST_TO_LAST: ms.FirstToLastHOMStrategy,
-    config.MutationStrategy.BETWEEN_OPERATORS: ms.BetweenOperatorsHOMStrategy,
-    config.MutationStrategy.RANDOM: ms.RandomHOMStrategy,
-    config.MutationStrategy.EACH_CHOICE: ms.EachChoiceHOMStrategy,
-}
-
-
-def _setup_mutant_generator() -> mu.Mutator:
-    return setup_mutant_generator()
 
 
 def _setup_mutation_analysis_assertion_generator(
