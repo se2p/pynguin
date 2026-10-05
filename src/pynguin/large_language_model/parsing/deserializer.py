@@ -139,6 +139,30 @@ def _dotted_chain(node: cst.BaseExpression) -> list[str] | None:
     return None
 
 
+# Context managers that only redirect output or replace attributes.
+# Dropping them does not change exception handling or control flow.
+_TRANSPARENT_CONTEXT_MANAGERS = frozenset({"redirect_stdout", "redirect_stderr", "patch"})
+
+
+def _is_transparent_context_manager(item: cst.WithItem) -> bool:
+    """Whether a ``with`` item is a context manager that can be dropped safely.
+
+    Args:
+        item: The ``with`` item to inspect.
+
+    Returns:
+        ``True`` for calls of ``redirect_stdout``, ``redirect_stderr``, ``patch``
+        and ``patch.object``/``patch.dict``/``patch.multiple``, however they are
+        qualified; ``False`` for everything else.
+    """
+    if not isinstance(item.item, cst.Call):
+        return False
+    chain = _dotted_chain(item.item.func)
+    if chain is None:
+        return False
+    return chain[-1] in _TRANSPARENT_CONTEXT_MANAGERS or (len(chain) > 1 and chain[-2] == "patch")
+
+
 def _build_chain(parts: list[str]) -> cst.BaseExpression:
     """Build a ``Name``/``Attribute`` chain from root-first *parts*.
 
@@ -1813,7 +1837,7 @@ class CstStatementDeserializer:
                 counts[disposition] += 1
                 if disposition is not Disposition.ASSERTION_DROPPED:
                     return
-            self._keep_calls_of_assert(small, state, counts)
+            self._keep_calls_of_assert(small, state)
             return
 
         if isinstance(small, cst.Import | cst.ImportFrom):
@@ -1829,22 +1853,41 @@ class CstStatementDeserializer:
         self,
         small: cst.Assert,
         state: _FunctionDeserializationState,
-        counts: collections.Counter[Disposition],
     ) -> None:
         """Keeps the calls of an assert that is not kept itself, as plain statements.
 
         LLM-written tests often call the code under test only inside an assert,
         e.g. ``assert parse(text) is True``. Dropping the whole assert would drop
-        the call and the coverage it achieves; The Assert itself is not needed
+        the call and the coverage it achieves; Assert itself is not needed
         for that.
+
+        The kept calls are not counted: the assert has already been given its
+        one disposition.
 
         Args:
             small: The Assert whose outermost calls should be kept.
             state: The mutable per-function deserialization state.
-            counts: The disposition counts to update.
         """
         for call in _OutermostCallCollector.collect(small.test):
-            counts[self._handle_ordinary_statement(cst.Expr(value=call), state)] += 1
+            self._handle_ordinary_statement(cst.Expr(value=call), state)
+
+    def _keep_body_of_with(self, line: cst.With, state: _FunctionDeserializationState) -> None:
+        """Keeps the statements of an unwrapped ``with`` block's body.
+
+        The kept statements are not counted: the ``with`` block has already been
+        given its one disposition.
+
+        Args:
+            line: The ``with`` block whose body should be kept.
+            state: The mutable per-function deserialization state.
+        """
+        uncounted: collections.Counter[Disposition] = collections.Counter()
+        if isinstance(line.body, cst.IndentedBlock):
+            for inner in line.body.body:
+                self._process_line(inner, state, uncounted)
+        else:
+            for small in line.body.body:
+                self._process_small_statement(small, state, uncounted)
 
     def _process_line(
         self,
@@ -1854,10 +1897,13 @@ class CstStatementDeserializer:
     ) -> None:
         """Deserializes one statement line of a test function body.
 
-        A ``with`` block that cannot be admitted because its context manager
-        uses unknown names (e.g. ``redirect_stdout``, ``patch``) is unwrapped: the
-        context manager is dropped and its body is processed statement by
-        statement, so calls to the code under test inside it are kept.
+        A ``with`` block that cannot be admitted because it references unknown
+        names is unwrapped if all its context managers only redirect output or
+        replace attributes (``redirect_stdout``, ``redirect_stderr``, ``patch``):
+        the context managers are dropped and the body is processed statement by
+        statement, so calls to the code under test inside it are kept. Blocks
+        with any other context manager, e.g. ``pytest.raises``, are dropped
+        whole, since running their body unguarded would change what it does.
 
         Args:
             line: The statement to deserialize.
@@ -1867,13 +1913,12 @@ class CstStatementDeserializer:
         if isinstance(line, cst.BaseCompoundStatement):
             disposition = self._handle_compound_statement(line, state)
             counts[disposition] += 1
-            if disposition is Disposition.DROPPED_UNKNOWN_NAMES and isinstance(line, cst.With):
-                if isinstance(line.body, cst.IndentedBlock):
-                    for inner in line.body.body:
-                        self._process_line(inner, state, counts)
-                else:
-                    for small in line.body.body:
-                        self._process_small_statement(small, state, counts)
+            if (
+                disposition is Disposition.DROPPED_UNKNOWN_NAMES
+                and isinstance(line, cst.With)
+                and all(_is_transparent_context_manager(item) for item in line.items)
+            ):
+                self._keep_body_of_with(line, state)
         elif isinstance(line, cst.SimpleStatementLine):
             for small in line.body:
                 self._process_small_statement(small, state, counts)

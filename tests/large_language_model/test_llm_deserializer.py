@@ -1550,7 +1550,7 @@ def test_call_inside_assert_is_kept_when_assertions_are_off(test_cluster):
 
     assert result.test_case.to_code() == "myfunc(1)\n"
     assert result.test_case.get_statement(0).accessible is func
-    assert result.counts == Counter({Disposition.ADMITTED: 1})
+    assert result.counts == Counter()
 
 
 def test_calls_of_a_dropped_assert_are_kept(test_cluster):
@@ -1561,8 +1561,17 @@ def test_calls_of_a_dropped_assert_are_kept(test_cluster):
     result = _deserialize_function(code, test_cluster)
 
     assert result.test_case.to_code() == "myfunc(1)\n"
-    assert result.counts[Disposition.ASSERTION_DROPPED] == 1
-    assert result.counts[Disposition.ADMITTED] == 1
+    assert result.counts == Counter({Disposition.ASSERTION_DROPPED: 1})
+
+
+def test_dropped_assert_counts_one_disposition(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = "def test_foo():\n    assert myfunc(1) == unknown_expected\n"
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert sum(result.counts.values()) == 1
 
 
 def test_calls_inside_comprehensions_of_an_assert_are_not_kept(test_cluster):
@@ -1575,26 +1584,94 @@ def test_calls_inside_comprehensions_of_an_assert_are_not_kept(test_cluster):
     assert result.test_case.size() == 0
 
 
-def test_with_block_with_unknown_context_manager_is_unwrapped(test_cluster):
+def test_with_block_with_unknown_output_redirection_is_unwrapped(test_cluster):
     func = _make_function("myfunc", int)
     test_cluster.accessible_objects_under_test = [func]
-    code = "def test_foo():\n    with unknown_manager():\n        myfunc(1)\n        myfunc(2)\n"
+    code = (
+        "def test_foo():\n    with redirect_stdout(buffer):\n        myfunc(1)\n        myfunc(2)\n"
+    )
 
     result = _deserialize_function(code, test_cluster)
 
     assert result.test_case.to_code() == "myfunc(1)\nmyfunc(2)\n"
-    assert result.counts[Disposition.DROPPED_UNKNOWN_NAMES] == 1
-    assert result.counts[Disposition.ADMITTED] == 2
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
 
 
-def test_single_line_with_block_with_unknown_context_manager_is_unwrapped(test_cluster):
+def test_single_line_with_block_with_unknown_patch_is_unwrapped(test_cluster):
     func = _make_function("myfunc", int)
     test_cluster.accessible_objects_under_test = [func]
-    code = "def test_foo():\n    with unknown_manager(): myfunc(1)\n"
+    code = 'def test_foo():\n    with patch("os.getcwd"): myfunc(1)\n'
 
     result = _deserialize_function(code, test_cluster)
 
     assert result.test_case.to_code() == "myfunc(1)\n"
+
+
+def test_with_block_with_qualified_patch_object_is_unwrapped(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = (
+        "def test_foo():\n"
+        '    with mock.patch.object(target, "attr"), redirect_stderr(buffer):\n'
+        "        myfunc(1)\n"
+    )
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "myfunc(1)\n"
+
+
+def test_pytest_raises_body_is_not_hoisted_out_of_its_guard(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = (
+        "def test_foo():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        myfunc(-1)\n"
+        "        unknown_helper()\n"
+        "    myfunc(3)\n"
+    )
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "myfunc(3)\n"
+
+
+@pytest.mark.parametrize(
+    "context_manager",
+    [
+        "pytest.raises(ValueError, match=unknown_pattern)",
+        "raises(ValueError)",
+        "contextlib.suppress(ValueError)",
+        "self.assertRaises(ValueError)",
+        "unknown_manager()",
+    ],
+)
+def test_with_block_with_other_unknown_context_manager_is_not_unwrapped(
+    test_cluster, context_manager
+):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = f"def test_foo():\n    with {context_manager}:\n        myfunc(-1)\n    myfunc(3)\n"
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.to_code() == "myfunc(3)\n"
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1, Disposition.ADMITTED: 1})
+
+
+def test_with_block_mixing_patch_and_other_context_manager_is_not_unwrapped(test_cluster):
+    func = _make_function("myfunc", int)
+    test_cluster.accessible_objects_under_test = [func]
+    code = (
+        "def test_foo():\n"
+        '    with patch("os.getcwd"), pytest.raises(ValueError):\n'
+        "        myfunc(-1)\n"
+    )
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.test_case.size() == 0
 
 
 def test_docstring_is_not_admitted_as_a_statement(test_cluster):
