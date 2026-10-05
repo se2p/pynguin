@@ -109,6 +109,8 @@ class _ChannelSetup:
     llm_worker_process: mp.Process | None
     llm_worker_connection: mp_conn.Connection | None
     llm_status_queue: mp_managers.BaseProxy | None
+    llm_worker_sending_connection: mp_conn.Connection | None = None
+    """The LLM worker's end of its stats pipe; closed here once the worker started."""
 
 
 def _setup_channels(
@@ -116,8 +118,9 @@ def _setup_channels(
 ) -> _ChannelSetup:
     """Builds the shared Manager and migration/LLM-worker channels, if needed.
 
-    Starts the LLM worker process too, if enabled, since it must already be
-    running to receive status reports once islands start.
+    Also creates the LLM worker process, if enabled, but does not start it:
+    _start_llm_worker() does, once the caller holds the returned setup, so an
+    interruption can always stop the worker.
 
     Args:
         base_configuration: The configuration the run started from.
@@ -166,8 +169,6 @@ def _setup_channels(
         args=(worker_task, worker_sending_connection, test_cluster),
         name="PynguinLLMWorker",
     )
-    llm_worker_process.start()
-    worker_sending_connection.close()
     return _ChannelSetup(
         manager,
         migration_channels,
@@ -175,7 +176,23 @@ def _setup_channels(
         llm_worker_process,
         llm_worker_connection,
         status_queue,
+        worker_sending_connection,
     )
+
+
+def _start_llm_worker(setup: _ChannelSetup) -> None:
+    """Starts the LLM worker process, if enabled.
+
+    It must already be running to receive status reports once islands start.
+
+    Args:
+        setup: The channel setup returned by _setup_channels().
+    """
+    if setup.llm_worker_process is None or setup.llm_worker_sending_connection is None:
+        return
+    setup.llm_worker_process.start()
+    setup.llm_worker_sending_connection.close()
+    setup.llm_worker_sending_connection = None
 
 
 def _shutdown_llm_worker(setup: _ChannelSetup) -> None:
@@ -216,6 +233,7 @@ def run_pynguin_with_islands(base_configuration: config.Configuration) -> Return
     processes_and_connections: list[tuple[mp.Process, mp_conn.Connection]] = []
     try:
         channels = _setup_channels(base_configuration, test_cluster)
+        _start_llm_worker(channels)
         # The islands start searching right after they are started, so their
         # CoverageTimeline time stamps are relative to about this moment.
         stat.set_sequence_start_time(time.time_ns())
@@ -265,8 +283,9 @@ def _start_islands(
 ) -> None:
     """Starts one process per island configuration.
 
-    Each started process is appended to processes_and_connections right away, so
-    that an interruption during start-up still stops the islands already running.
+    Each process is appended to processes_and_connections before it is started:
+    a started island can log and be seen as running at once, so an interruption
+    right after its start must already find it there to stop it.
 
     Args:
         island_configs: One configuration per island.
@@ -288,9 +307,9 @@ def _start_islands(
             args=(task, sending_connection, setup_result),
             name=f"PynguinIsland-{island_id}",
         )
+        processes_and_connections.append((process, receiving_connection))
         process.start()
         sending_connection.close()
-        processes_and_connections.append((process, receiving_connection))
 
 
 def _raise_keyboard_interrupt(_signum: int, _frame: types.FrameType | None) -> None:
@@ -332,16 +351,20 @@ def _stop_child_processes(
     waiting for them: the LLM worker waits for status reports on a Manager queue
     in a helper thread, and can only exit once that queue is gone.
 
+    Processes are tracked before they are started, so an interruption during
+    start-up can pass processes that were never started; those are skipped.
+
     Args:
         processes: The island and LLM-worker processes to stop.
         manager: The Manager owning the channels, if any.
     """
-    for process in processes:
+    started = [process for process in processes if process.pid is not None]
+    for process in started:
         if process.is_alive():
             process.terminate()
     if manager is not None:
         manager.shutdown()
-    for process in processes:
+    for process in started:
         _join_or_kill(process)
 
 

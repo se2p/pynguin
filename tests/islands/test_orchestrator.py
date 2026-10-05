@@ -307,6 +307,58 @@ def test_stop_child_processes_shuts_down_the_manager_before_waiting():
     assert events == ["terminate", "manager shutdown", "join"]
 
 
+def test_stop_child_processes_skips_processes_that_were_never_started():
+    process = MagicMock()
+    process.pid = None
+    manager = MagicMock()
+
+    orchestrator._stop_child_processes([process], manager)
+
+    process.terminate.assert_not_called()
+    process.join.assert_not_called()
+    manager.shutdown.assert_called_once()
+
+
+def test_start_islands_tracks_each_island_before_starting_it(tmp_path, monkeypatch):
+    processes_and_connections = []
+    tracked_at_start = []
+
+    def _fake_process(**_kwargs):
+        process = MagicMock()
+        process.start.side_effect = lambda: tracked_at_start.append(
+            any(tracked is process for tracked, _ in processes_and_connections)
+        )
+        return process
+
+    context = MagicMock()
+    context.Process.side_effect = _fake_process
+    monkeypatch.setattr(orchestrator.mp, "get_context", lambda _method: context)
+    channels = orchestrator._ChannelSetup(None, {}, {}, None, None, None)
+
+    orchestrator._start_islands(
+        orchestrator._fan_out_island_configs(_base_configuration(tmp_path)),
+        channels,
+        (MagicMock(), MagicMock(), MagicMock()),
+        processes_and_connections,
+    )
+
+    assert tracked_at_start == [True, True]
+
+
+def test_start_llm_worker_starts_the_worker_and_closes_its_pipe_end():
+    worker_process = MagicMock()
+    sending_connection = MagicMock()
+    channels = orchestrator._ChannelSetup(
+        None, {}, {}, worker_process, MagicMock(), MagicMock(), sending_connection
+    )
+
+    orchestrator._start_llm_worker(channels)
+
+    worker_process.start.assert_called_once()
+    sending_connection.close.assert_called_once()
+    assert channels.llm_worker_sending_connection is None
+
+
 def _send_result(sending_connection):
     sending_connection.send("result")
 
@@ -428,11 +480,19 @@ def test_sigterm_to_the_orchestrator_stops_all_island_and_worker_processes(tmp_p
             env=environment,
             start_new_session=True,
         )
+    started_messages = (
+        "Island 0 process started",
+        "Island 1 process started",
+        "LLM worker process started",
+    )
     try:
         deadline = time.time() + 60
-        while "Island 1 process started" not in log_path.read_text() and time.time() < deadline:
+        while (
+            not all(message in log_path.read_text() for message in started_messages)
+            and time.time() < deadline
+        ):
             time.sleep(0.5)
-        assert "Island 1 process started" in log_path.read_text()
+        assert all(message in log_path.read_text() for message in started_messages)
 
         run.send_signal(signal.SIGTERM)
         run.wait(timeout=30)
