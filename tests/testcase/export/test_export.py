@@ -44,6 +44,7 @@ from pynguin.utils.naming import get_module_alias
 from tests.testcase._builders import assign, int_stmt, make_test_case, stmt
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
 
@@ -1315,3 +1316,316 @@ def test_write_all_noop_tests_falls_back_to_test_empty(tmp_path: Path):
     assert "pass" in content
     assert "Docstring only" not in content
     assert "# Importing this module achieves coverage." in content
+
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): external imports from suite and test cases (#315)
+# ---------------------------------------------------------------------------
+
+
+def _write_with_external_imports(
+    tmp_path: Path,
+    test_case: tc.TestCase,
+    suite_imports: Sequence[str] = (),
+) -> str:
+    """Export *test_case* with the given suite-level external imports.
+
+    Args:
+        tmp_path: The output directory.
+        test_case: The test case to export.
+        suite_imports: The import sources registered on the suite.
+
+    Returns:
+        The content of the exported file.
+    """
+    suite = tsc.TestSuiteChromosome()
+    suite.external_imports.update(suite_imports)
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+    out_file = TestSuiteWriter().write(
+        suite, "tests.fixtures.accessibles.accessible", tmp_path, format_with_black=False
+    )
+    return out_file.read_text(encoding="utf-8")
+
+
+def test_write_emits_suite_level_external_imports(tmp_path: Path):
+    """External imports registered on the suite are emitted at the top of test_*.py."""
+    content = _write_with_external_imports(
+        tmp_path, make_test_case(stmt("x = deque([1])")), ["from collections import deque"]
+    )
+
+    assert "from collections import deque\n" in content
+
+
+def test_write_emits_testcase_external_imports(tmp_path: Path):
+    """External imports registered on test cases are emitted at the top of test_*.py."""
+    test_case = make_test_case(stmt("x = sqrt(4)"))
+    test_case.external_imports.add("from math import sqrt")
+
+    content = _write_with_external_imports(tmp_path, test_case)
+
+    assert "from math import sqrt\n" in content
+
+
+def test_write_hoists_imports_from_test_bodies(tmp_path: Path):
+    """An import a test contains is also emitted at module level."""
+    test_case = make_test_case(stmt("from math import sqrt"), stmt("x = sqrt(4)"))
+
+    content = _write_with_external_imports(tmp_path, test_case)
+
+    assert "\nfrom math import sqrt\n" in content
+    assert "    x = sqrt(4)\n" in content
+
+
+def test_write_skips_unused_external_imports(tmp_path: Path):
+    """External imports whose names no exported test reads are not emitted."""
+    content = _write_with_external_imports(
+        tmp_path,
+        make_test_case(stmt("x = deque([1])")),
+        [
+            "import json",
+            "from unittest.mock import patch, MagicMock",
+            "from collections import deque, OrderedDict",
+            "from os import *",
+        ],
+    )
+
+    assert "from collections import deque\n" in content
+    assert "OrderedDict" not in content
+    assert "json" not in content
+    assert "patch" not in content
+    assert "from os import" not in content
+
+
+def test_write_external_imports_first_binding_wins(tmp_path: Path):
+    """Two imports binding the same name do not shadow each other at module level."""
+    test_case = make_test_case(
+        stmt("from datetime import datetime"), stmt("x = datetime(2020, 1, 1)")
+    )
+
+    content = _write_with_external_imports(tmp_path, test_case, ["import datetime"])
+
+    assert "\nfrom datetime import datetime\n" in content
+    assert "\nimport datetime\n" not in content
+
+
+def test_write_external_imports_do_not_rebind_writer_names(tmp_path: Path):
+    """External imports never rebind names the writer itself binds, such as pytest."""
+    content = _write_with_external_imports(
+        tmp_path,
+        make_test_case(stmt("x = pytest.approx(1.0)")),
+        ["import pytest", "from os import sys"],
+    )
+
+    assert "from os import sys" not in content
+
+
+def test_write_keeps_sibling_plain_submodule_imports(tmp_path: Path):
+    """Plain ``import a.b`` and ``import a.c`` both bind ``a`` and are both kept."""
+    content = _write_with_external_imports(
+        tmp_path,
+        make_test_case(stmt("x = xml.dom.Node"), stmt("y = xml.sax.SAXException")),
+        ["import xml.dom", "import xml.sax"],
+    )
+
+    assert "import xml.dom\n" in content
+    assert "import xml.sax\n" in content
+
+
+def test_external_imports_resolve_in_namespace_preventing_xfail(tmp_path: Path):
+    """External imports execute in dry-run namespace so external types do not xfail."""
+    content = _write_with_external_imports(
+        tmp_path, make_test_case(stmt("x = deque([1, 2])")), ["from collections import deque"]
+    )
+
+    assert "@pytest.mark.xfail" not in content
+    assert "from collections import deque\n" in content
+    assert "x = deque([1, 2])" in content
+
+
+def test_write_filters_sut_imports_from_external_imports(tmp_path: Path):
+    """SUT imports in external_imports are not duplicated in top-level external imports."""
+    content = _write_with_external_imports(
+        tmp_path,
+        make_test_case(stmt("x = OrderedDict()"), stmt("y = SomeType")),
+        [
+            "import tests.fixtures.accessibles.accessible",
+            "from tests.fixtures.accessibles.accessible import SomeType",
+            "from collections import OrderedDict",
+        ],
+    )
+
+    assert "from collections import OrderedDict\n" in content
+    # Ensure SUT import is only present via the standard sut_import_stmts
+    assert content.count("from tests.fixtures.accessibles.accessible import") == 1
+
+
+def test_write_ignores_unresolvable_external_imports(tmp_path: Path):
+    """Unresolvable external imports are skipped to avoid syntax/import errors on export."""
+    content = _write_with_external_imports(
+        tmp_path,
+        make_test_case(stmt("x = Counter()"), stmt("y = FakeType")),
+        ["from nonexistent_module_xyz import FakeType", "from collections import Counter"],
+    )
+
+    assert "from collections import Counter\n" in content
+    assert "nonexistent_module_xyz" not in content
+
+
+def test_write_does_not_hoist_imports_shadowing_builtins(tmp_path: Path):
+    """An import binding a builtin name stays local to the test that contains it."""
+    shadowing = make_test_case(stmt("from math import pow"), stmt("x = pow(2.0, 2.0)"))
+    builtin_user = make_test_case(stmt("y = pow(2, 10, 7)"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(shadowing))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(builtin_user))
+
+    content = (
+        TestSuiteWriter()
+        .write(suite, "tests.fixtures.accessibles.accessible", tmp_path, format_with_black=False)
+        .read_text(encoding="utf-8")
+    )
+
+    assert "\nfrom math import pow\n" not in content
+    assert "    from math import pow\n" in content
+    assert "@pytest.mark.xfail" not in content
+
+
+@pytest.mark.parametrize(
+    ("statement", "source"),
+    [
+        ("x = asyncio.iscoroutine(1)", "import asyncio"),
+        ("x = MagicMock()", "from unittest.mock import MagicMock"),
+    ],
+)
+def test_write_hoists_on_demand_writer_names_when_writer_does_not_bind_them(
+    tmp_path: Path, statement: str, source: str
+):
+    """The on-demand writer names are hoisted when the writer does not bind them."""
+    content = _write_with_external_imports(tmp_path, make_test_case(stmt(statement)), [source])
+
+    assert f"\n{source}\n" in content
+    assert "@pytest.mark.xfail" not in content
+
+
+def test_dry_run_does_not_bind_asyncio_without_coroutines(tmp_path: Path):
+    """The dry run binds asyncio only when the written file imports it."""
+    content = _write_with_external_imports(
+        tmp_path, make_test_case(stmt("x = asyncio.iscoroutine(1)"))
+    )
+
+    assert "import asyncio" not in content
+    assert "@pytest.mark.xfail" in content
+
+
+def _write_and_run_exception_clash_suite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, external_import: str
+) -> str:
+    """Export a suite whose external import binds the name of a raised exception.
+
+    Args:
+        tmp_path: The directory holding the SUT and the exported file.
+        monkeypatch: The monkeypatch fixture.
+        external_import: The suite-level import binding ``JSONDecodeError``.
+
+    Returns:
+        The content of the exported file, after asserting that it passes.
+    """
+    module_name = "clash_sut"
+    (tmp_path / f"{module_name}.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "clash_errors.py").write_text(
+        "class JSONDecodeError(Exception):\n    pass\n", encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    raising = make_test_case(stmt("import json"), stmt("x = json.loads('{')"))
+    reading = make_test_case(stmt("y = JSONDecodeError('m', '', 0)"))
+    suite = tsc.TestSuiteChromosome()
+    suite.external_imports.add(external_import)
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(raising))
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(reading))
+
+    out_file = TestSuiteWriter(no_xfail=True).write(
+        suite, module_name, tmp_path, project_path=str(tmp_path), format_with_black=False
+    )
+    child_env = {k: v for k, v in os.environ.items() if not k.startswith(("COV_CORE", "COVERAGE"))}
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pytest", "-p", "no:randomly", "-q", str(out_file)],
+        cwd=str(tmp_path),
+        env=child_env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    content = out_file.read_text(encoding="utf-8")
+    assert result.returncode == 0, f"{content}\nSTDOUT:\n{result.stdout}"
+    return content
+
+
+def test_write_aliases_exception_rebound_by_external_import(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """An exception whose name an external import binds otherwise gets an alias."""
+    content = _write_and_run_exception_clash_suite(
+        tmp_path, monkeypatch, "from clash_errors import JSONDecodeError"
+    )
+
+    assert "\nfrom json.decoder import JSONDecodeError as json_decoder_JSONDecodeError\n" in (
+        content
+    )
+    assert "pytest.raises(json_decoder_JSONDecodeError)" in content
+    assert "\nfrom clash_errors import JSONDecodeError\n" in content
+
+
+def test_write_skips_exception_import_bound_by_external_import(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """An exception the external imports already bind is not imported twice."""
+    content = _write_and_run_exception_clash_suite(
+        tmp_path, monkeypatch, "from json import JSONDecodeError"
+    )
+
+    assert "from json.decoder import" not in content
+    assert "\nfrom json import JSONDecodeError\n" in content
+    assert "pytest.raises(JSONDecodeError)" in content
+
+
+@pytest.mark.parametrize(
+    "module_source",
+    [
+        "import sys\nsys.exit(3)\n",
+        "import time\ntime.sleep(2)\n",
+    ],
+    ids=["system_exit", "hang"],
+)
+def test_external_import_execution_is_guarded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, module_source: str
+):
+    """An import that exits or hangs is dropped instead of aborting the export."""
+    (tmp_path / "bad_import_mod.py").write_text(module_source + "thing = 1\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(export, "_STATEMENT_EXECUTION_TIMEOUT", 0.5)
+    monkeypatch.delitem(sys.modules, "bad_import_mod", raising=False)
+
+    result = export._parse_external_import_statements(
+        ["from bad_import_mod import thing", "from collections import deque"],
+        "tests.fixtures.accessibles.accessible",
+        used_names={"thing", "deque"},
+        sut_import_stmts=[],
+        taken_names=set(),
+    )
+
+    assert [ext.name for ext in result] == ["deque"]
+
+
+def test_external_imports_do_not_rebind_taken_names():
+    """Names the writer binds, such as isinstance module aliases, are never rebound."""
+    result = export._parse_external_import_statements(
+        ["import collections as module_0", "from collections import deque"],
+        "tests.fixtures.accessibles.accessible",
+        used_names={"module_0", "deque"},
+        sut_import_stmts=[],
+        taken_names={"module_0"},
+    )
+
+    assert [ext.name for ext in result] == ["deque"]

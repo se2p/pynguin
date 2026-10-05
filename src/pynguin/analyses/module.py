@@ -39,6 +39,8 @@ from types import (
 )
 from typing import Any
 
+import libcst as cst
+
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
@@ -644,6 +646,19 @@ class TestCluster(abc.ABC):  # noqa: PLR0904
 
     @property
     @abc.abstractmethod
+    def external_imports(self) -> OrderedSet[str]:
+        """Provides the registered external imports."""
+
+    @abc.abstractmethod
+    def register_external_import(self, import_stmt: str | cst.SimpleStatementLine) -> None:
+        """Register an external import statement.
+
+        Args:
+            import_stmt: The import statement as code string or CST node.
+        """
+
+    @property
+    @abc.abstractmethod
     def function_data_for_accessibles(
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
@@ -860,6 +875,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
         # Whether the SUT or any of its transitive imports uses Python's random module.
         self.sut_uses_random: bool = False
+        self.__external_imports: OrderedSet[str] = OrderedSet()
 
     def _setup_generator_selection(self) -> GeneratorProvider:
         if (
@@ -1021,6 +1037,20 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             objs.update(mod_set)
         objs.update(self.__callables)
         return objs
+
+    @property
+    def external_imports(self) -> OrderedSet[str]:  # noqa: D102
+        return self.__external_imports
+
+    def register_external_import(  # noqa: D102
+        self, import_stmt: str | cst.SimpleStatementLine
+    ) -> None:
+        if isinstance(import_stmt, str):
+            stmt_str = import_stmt.strip()
+        else:
+            stmt_str = cst.Module(body=[import_stmt]).code.strip()
+        if stmt_str:
+            self.__external_imports.add(stmt_str)
 
     @property
     def function_data_for_accessibles(  # noqa: D102
@@ -1195,6 +1225,15 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     def log_cluster_statistics(self) -> None:  # noqa: D102
         self.__delegate.log_cluster_statistics()
+
+    @property
+    def external_imports(self) -> OrderedSet[str]:  # noqa: D102
+        return self.__delegate.external_imports
+
+    def register_external_import(  # noqa: D102
+        self, import_stmt: str | cst.SimpleStatementLine
+    ) -> None:
+        self.__delegate.register_external_import(import_stmt)
 
     def add_generator(self, generator: GenericAccessibleObject) -> None:  # noqa: D102
         self.__delegate.add_generator(generator)

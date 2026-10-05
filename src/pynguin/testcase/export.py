@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import contextlib
 import importlib
 import logging
@@ -17,20 +18,22 @@ import sys
 import threading
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 import libcst as cst
 
 from pynguin.assertion.assertion import FloatAssertion, IsInstanceAssertion
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.testcase.execution import OutputSuppressionContext, suppress_logging
+from pynguin.utils.cst_imports import RelativeImportNormalizer, dotted_chain, imported_local_names
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.fs_isolation import FilesystemIsolation
 from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
-from pynguin.utils.naming import canonical_module_name, get_module_alias
+from pynguin.utils.naming import canonical_module_name, get_module_alias, get_package_anchor
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
@@ -165,7 +168,8 @@ class _ReferencedNameCollector(cst.CSTVisitor):
     """Collects every bare name a CST node references.
 
     Attribute members (``bar`` in ``foo.bar``) and call keywords (``x`` in
-    ``f(x=1)``) are member or parameter names, not references, and are skipped.
+    ``f(x=1)``) are member or parameter names, not references, and are skipped,
+    as are import statements, which bind names rather than read them.
     The result over-approximates the names a test reads (assignment targets are
     included), which is safe: it only decides which SUT names get imported.
     """
@@ -182,6 +186,12 @@ class _ReferencedNameCollector(cst.CSTVisitor):
 
     def visit_Arg(self, node: cst.Arg) -> bool:  # noqa: N802
         node.value.visit(self)
+        return False
+
+    def visit_Import(self, node: cst.Import) -> bool:  # noqa: N802
+        return False
+
+    def visit_ImportFrom(self, node: cst.ImportFrom) -> bool:  # noqa: N802
         return False
 
 
@@ -361,6 +371,252 @@ def _build_sut_import_statements(
     return stmts
 
 
+def _is_sut_import(node: cst.Import | cst.ImportFrom, sut_modules: set[str]) -> bool:
+    """Check whether an import statement imports the SUT module or a submodule thereof."""
+    if isinstance(node, cst.Import):
+        for alias in node.names:
+            chain = dotted_chain(alias.name)
+            if chain:
+                name = ".".join(chain)
+                if name in sut_modules or any(name.startswith(s + ".") for s in sut_modules):
+                    return True
+    elif isinstance(node, cst.ImportFrom) and node.module is not None:
+        chain = dotted_chain(node.module)
+        if chain:
+            name = ".".join(chain)
+            if name in sut_modules or any(name.startswith(s + ".") for s in sut_modules):
+                return True
+    return False
+
+
+# Builtin names. A hoisted external import binding one of them (``from math import
+# pow``) would shadow the builtin for every test in the file, not just the one that
+# imported it, so such names are never hoisted.
+_BUILTIN_NAMES = frozenset(dir(builtins))
+
+# Prefix of the private names the writer's seed patch binds at module level.
+_WRITER_PRIVATE_PREFIX = "_pynguin_"
+
+
+def _bound_names_of(stmts: Sequence[cst.CSTNode]) -> set[str]:
+    """Collect the module-level names bound by import and assignment statements.
+
+    Args:
+        stmts: The statements to inspect.
+
+    Returns:
+        The set of bound names.
+    """
+    names: set[str] = set()
+    for stmt in stmts:
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            continue
+        for small in stmt.body:
+            if isinstance(small, cst.Import | cst.ImportFrom):
+                names.update(imported_local_names(small))
+            elif isinstance(small, cst.Assign):
+                names.update(
+                    target.target.value
+                    for target in small.targets
+                    if isinstance(target.target, cst.Name)
+                )
+    return names
+
+
+def _split_import_aliases(
+    parsed: cst.SimpleStatementLine,
+    sut_modules: set[str],
+    rel_normalizer: RelativeImportNormalizer | None,
+) -> list[cst.Import | cst.ImportFrom]:
+    """Split an import line into one non-SUT import node per imported name.
+
+    Star imports are dropped, since the names they bind cannot be known.
+
+    Args:
+        parsed: The parsed import line.
+        sut_modules: The names of the module under test.
+        rel_normalizer: Optional normalizer for relative imports.
+
+    Returns:
+        One single-name import node per kept alias.
+    """
+    if rel_normalizer is not None:
+        norm_node = parsed.visit(rel_normalizer)
+        assert isinstance(norm_node, cst.SimpleStatementLine)
+        parsed = norm_node
+
+    result: list[cst.Import | cst.ImportFrom] = []
+    for small in parsed.body:
+        if not isinstance(small, cst.Import | cst.ImportFrom):
+            continue
+        if isinstance(small.names, cst.ImportStar) or _is_sut_import(small, sut_modules):
+            continue
+        result.extend(
+            small.with_changes(names=[alias.with_changes(comma=cst.MaybeSentinel.DEFAULT)])
+            for alias in small.names
+        )
+    return result
+
+
+class _ExternalImport(NamedTuple):
+    """A single-name external import hoisted to module level."""
+
+    line: cst.SimpleStatementLine
+    """The import statement."""
+
+    name: str
+    """The name the import binds."""
+
+    value: object
+    """The object the import binds the name to."""
+
+
+def _execute_import(code: str, name: str, tracer: object | None) -> tuple[bool, object]:
+    """Execute the import statement *code* like the dry run executes a statement.
+
+    The import runs under the same guards as the dry run (watchdog timeout, output
+    suppression, filesystem isolation, disabled tracing, and every
+    ``BaseException`` caught), so an import that hangs or calls ``sys.exit()``
+    cannot abort the export.
+
+    Args:
+        code: The import statement.
+        name: The name the import binds.
+        tracer: Optional instrumentation tracer to disable during execution.
+
+    Returns:
+        Whether the import succeeded, and the object it bound *name* to.
+    """
+    namespace: dict = {}
+    finished, exc_type = _exec_statement_guarded(code, namespace, tracer)
+    if not finished or exc_type is not None or name not in namespace:
+        _LOGGER.debug("Skipping invalid external import %s: %s", code, exc_type or "timeout")
+        return False, None
+    return True, namespace[name]
+
+
+def _plain_import_roots(
+    stmts: Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement],
+) -> set[str]:
+    """Collect the root names bound by plain ``import a.b`` statements.
+
+    Plain ``import a.b`` / ``import a.c`` both bind ``a`` and may coexist.
+
+    Args:
+        stmts: The statements to inspect.
+
+    Returns:
+        The set of root names.
+    """
+    return {
+        name
+        for stmt in stmts
+        if isinstance(stmt, cst.SimpleStatementLine)
+        for small in stmt.body
+        if isinstance(small, cst.Import)
+        for alias in small.names
+        if alias.asname is None
+        for name in imported_local_names(small.with_changes(names=[alias]))
+    }
+
+
+def _parse_external_import_statements(
+    import_sources: Iterable[str],
+    module_name: str,
+    *,
+    used_names: set[str],
+    sut_import_stmts: Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement],
+    taken_names: set[str],
+    tracer: object | None = None,
+) -> list[_ExternalImport]:
+    """Select the external imports the rendered tests need at module level.
+
+    An imported name is kept only if the rendered tests read it, it is not already
+    bound by the SUT imports, the writer itself (*taken_names*) or as a builtin, and
+    no earlier source already bound it (so the first source wins). Imports of the
+    module under test, star imports and imports that fail to execute are dropped.
+
+    Args:
+        import_sources: Import statement code strings, highest priority first.
+        module_name: Name of the module under test.
+        used_names: The names the rendered tests read.
+        sut_import_stmts: The SUT import statements of the rendered file.
+        taken_names: Further module-level names the writer binds, which an external
+            import must not rebind.
+        tracer: Optional instrumentation tracer to disable while executing imports.
+
+    Returns:
+        List of unique, normalized single-name imports.
+    """
+    sut_modules = {module_name, canonical_module_name(module_name)}
+    anchor = get_package_anchor(module_name)
+    rel_normalizer = RelativeImportNormalizer(anchor) if anchor else None
+
+    bound: set[str] = _bound_names_of(sut_import_stmts) | taken_names
+    plain_roots = _plain_import_roots(sut_import_stmts)
+    seen: set[str] = set()
+    result: list[_ExternalImport] = []
+
+    for raw_src in import_sources:
+        src = raw_src.strip()
+        if not src:
+            continue
+        try:
+            parsed = cst.parse_statement(src)
+        except cst.ParserSyntaxError:
+            continue
+        if not isinstance(parsed, cst.SimpleStatementLine):
+            continue
+
+        for node in _split_import_aliases(parsed, sut_modules, rel_normalizer):
+            (name,) = imported_local_names(node)
+            is_plain = (
+                isinstance(node, cst.Import)
+                and cast("cst.ImportAlias", cast("Sequence", node.names)[0]).asname is None
+            )
+            if (
+                name not in used_names
+                or name in _BUILTIN_NAMES
+                or name.startswith(_WRITER_PRIVATE_PREFIX)
+                or (name in bound and not (is_plain and name in plain_roots))
+            ):
+                continue
+            line = cst.SimpleStatementLine(body=[node])
+            code_str = cst.Module(body=[line]).code.strip()
+            if code_str in seen:
+                continue
+            ok, value = _execute_import(code_str, name, tracer)
+            if not ok:
+                continue
+            seen.add(code_str)
+            bound.add(name)
+            if is_plain:
+                plain_roots.add(name)
+            result.append(_ExternalImport(line, name, value))
+
+    return result
+
+
+def _exception_name(exc_type: type[BaseException], external_bindings: Mapping[str, object]) -> str:
+    """The name under which ``pytest.raises(...)`` references an exception type.
+
+    Exception types are imported by their bare name, unless a hoisted external
+    import already binds that name to another object; then the exception type is
+    imported under a module-qualified alias, so neither binding replaces the other.
+
+    Args:
+        exc_type: The exception type.
+        external_bindings: The objects the hoisted external imports bind, by name.
+
+    Returns:
+        The name to reference the exception type by.
+    """
+    name = exc_type.__name__
+    if exc_type.__module__ == "builtins" or external_bindings.get(name, exc_type) is exc_type:
+        return name
+    return f"{exc_type.__module__.replace('.', '_')}_{name}"
+
+
 def _is_expected_exception(stmt: Statement, exc_type: type[BaseException]) -> bool:
     """Check whether ``exc_type`` is declared as expected by the statement's callable.
 
@@ -419,6 +675,66 @@ def _has_executable_cst_statements(
     return any(_is_executable_cst_statement(stmt) for stmt in body)
 
 
+def _uses_coroutines(tc: TestCase) -> bool:
+    """Whether the test case calls a coroutine, which its rendering runs via asyncio."""
+    return any(
+        isinstance(stmt.accessible, GenericCallableAccessibleObject)
+        and stmt.accessible.is_coroutine
+        for stmt in tc.statements()
+    )
+
+
+def _uses_mocks(tc: TestCase) -> bool:
+    """Whether the test case uses mocks, whose rendering references ``MagicMock``."""
+    return any(stmt.mock_info is not None for stmt in tc.statements())
+
+
+def _setup_dry_run_namespace(
+    sut_import_stmts: Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement],
+    *,
+    external_import_stmts: (
+        Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement] | None
+    ) = None,
+    module_aliases: dict[str, str] | None = None,
+    needs_asyncio: bool = False,
+    needs_magicmock: bool = False,
+) -> dict:
+    import pytest  # noqa: PLC0415
+
+    # Bind exactly what the rendered file binds: ``asyncio`` and ``MagicMock`` are
+    # only imported there on demand, so a test reading them otherwise must fail here.
+    namespace: dict = {
+        "__builtins__": __builtins__,
+        "pytest": pytest,
+    }
+    if needs_asyncio:
+        namespace["asyncio"] = asyncio
+    # Mirror the rendered test's SUT imports and definitions so dry-run re-execution
+    # and test execution after export use the exact same namespace bindings.
+    for stmt_node in sut_import_stmts:
+        with contextlib.suppress(Exception):
+            exec(cst.Module(body=[stmt_node]).code, namespace)  # noqa: S102
+
+    if external_import_stmts:
+        for stmt_node in external_import_stmts:
+            with contextlib.suppress(Exception):
+                exec(cst.Module(body=[stmt_node]).code, namespace)  # noqa: S102
+
+    if needs_magicmock:
+        with contextlib.suppress(Exception):
+            from unittest.mock import MagicMock  # noqa: PLC0415
+
+            namespace["MagicMock"] = MagicMock
+
+    if module_aliases:
+        for mod, alias in module_aliases.items():
+            if alias not in namespace:
+                with contextlib.suppress(Exception):
+                    namespace[alias] = sys.modules.get(mod) or importlib.import_module(mod)
+
+    return namespace
+
+
 class TestSuiteWriter:
     """Writes a suite of test cases as a single pytest-compatible Python file."""
 
@@ -445,6 +761,11 @@ class TestSuiteWriter:
         sut_import_stmts: (
             Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement] | None
         ) = None,
+        external_import_stmts: (
+            Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement] | None
+        ) = None,
+        needs_asyncio: bool | None = None,
+        needs_magicmock: bool | None = None,
     ) -> list[type[BaseException] | None]:
         """Execute each statement individually; return per-statement exception types.
 
@@ -456,6 +777,11 @@ class TestSuiteWriter:
             module_aliases: Optional mapping from module names to their assigned aliases
                 in the generated test suite.
             sut_import_stmts: Optional pre-built CST import statements for the SUT.
+            external_import_stmts: Optional pre-built CST import statements for external modules.
+            needs_asyncio: Whether the rendered file imports ``asyncio``; defaults to
+                whether this test case awaits a coroutine.
+            needs_magicmock: Whether the rendered file imports ``MagicMock``; defaults
+                to whether this test case uses mocks.
 
         Returns:
             A list with one entry per statement: the exception type raised by that
@@ -470,39 +796,19 @@ class TestSuiteWriter:
         except Exception:  # noqa: BLE001
             return [None] * tc.size()
 
-        import pytest  # noqa: PLC0415
-
-        namespace: dict = {
-            "__builtins__": __builtins__,
-            "pytest": pytest,
-            "asyncio": asyncio,
-        }
-        # Mirror the rendered test's SUT imports and definitions so dry-run re-execution
-        # and test execution after export use the exact same namespace bindings.
-        import_stmts = (
-            sut_import_stmts
-            if sut_import_stmts is not None
-            else _build_sut_import_statements(
+        if sut_import_stmts is None:
+            sut_import_stmts = _build_sut_import_statements(
                 module_name,
                 project_path,
                 _test_case_referenced_names(tc, module_aliases),
             )
+        namespace = _setup_dry_run_namespace(
+            sut_import_stmts,
+            external_import_stmts=external_import_stmts,
+            module_aliases=module_aliases,
+            needs_asyncio=_uses_coroutines(tc) if needs_asyncio is None else needs_asyncio,
+            needs_magicmock=_uses_mocks(tc) if needs_magicmock is None else needs_magicmock,
         )
-        for stmt_node in import_stmts:
-            with contextlib.suppress(Exception):
-                exec(cst.Module(body=[stmt_node]).code, namespace)  # noqa: S102
-
-        if any(stmt.mock_info is not None for stmt in tc.statements()):
-            with contextlib.suppress(Exception):
-                from unittest.mock import MagicMock  # noqa: PLC0415
-
-                namespace["MagicMock"] = MagicMock
-
-        if module_aliases:
-            for mod, alias in module_aliases.items():
-                if alias not in namespace:
-                    with contextlib.suppress(Exception):
-                        namespace[alias] = sys.modules.get(mod) or importlib.import_module(mod)
 
         results: list[type[BaseException] | None] = []
 
@@ -529,6 +835,7 @@ class TestSuiteWriter:
         tc: TestCase,
         exc_types: list[type[BaseException] | None],
         module_aliases: dict[str, str] | None = None,
+        external_bindings: Mapping[str, object] | None = None,
     ) -> tuple[cst.FunctionDef, set[type[BaseException]]]:
         """Build a test function, handling expected and unexpected failures.
 
@@ -545,6 +852,8 @@ class TestSuiteWriter:
             exc_types: Per-statement exception types (parallel to tc.statements()).
             module_aliases: Optional mapping from module names to their assigned aliases
                 in the generated test suite.
+            external_bindings: The objects the hoisted external imports bind, by name;
+                an exception type whose name they bind otherwise is aliased.
 
         Returns:
             A tuple of the CST function definition for this test case and the
@@ -568,7 +877,13 @@ class TestSuiteWriter:
                                     value=cst.Name("pytest"),
                                     attr=cst.Name("raises"),
                                 ),
-                                args=[cst.Arg(value=cst.Name(exc_type.__name__))],
+                                args=[
+                                    cst.Arg(
+                                        value=cst.Name(
+                                            _exception_name(exc_type, external_bindings or {})
+                                        )
+                                    )
+                                ],
                             )
                         )
                     ],
@@ -611,6 +926,83 @@ class TestSuiteWriter:
             ),
             used_exc_types,
         )
+
+    def _build_test_functions(
+        self,
+        test_cases: Sequence[TestCase],
+        module_name: str,
+        project_path: str | None,
+        subject_properties: SubjectProperties | None,
+        *,
+        module_aliases: dict[str, str],
+        sut_import_stmts: Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement],
+        external_import_stmts: Sequence[cst.SimpleStatementLine | cst.BaseCompoundStatement],
+        external_bindings: Mapping[str, object],
+        needs_asyncio: bool,
+        needs_magicmock: bool,
+    ) -> tuple[
+        list[cst.SimpleStatementLine | cst.BaseCompoundStatement],
+        set[type[BaseException]],
+        bool,
+    ]:
+        """Dry-run and render one test function per test case.
+
+        Test cases that render without any executable statement are skipped.
+
+        Args:
+            test_cases: The test cases to render.
+            module_name: The module under test.
+            project_path: Optional path prepended to ``sys.path``.
+            subject_properties: Optional subject properties used to disable tracing.
+            module_aliases: The mapping from module names to their aliases.
+            sut_import_stmts: The SUT import statements of the rendered file.
+            external_import_stmts: The external import statements of the rendered file.
+            external_bindings: The objects the external imports bind, by name.
+            needs_asyncio: Whether the rendered file imports ``asyncio``.
+            needs_magicmock: Whether the rendered file imports ``MagicMock``.
+
+        Returns:
+            The test functions, the exception types referenced by
+            ``pytest.raises(...)``, and whether the functions need ``pytest``.
+        """
+        functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+        needs_pytest = False
+        used_exc_types: set[type[BaseException]] = set()
+
+        for tc in test_cases:
+            exc_types = self._per_statement_exceptions(
+                tc,
+                module_name,
+                project_path,
+                subject_properties,
+                module_aliases=module_aliases,
+                sut_import_stmts=sut_import_stmts,
+                external_import_stmts=external_import_stmts,
+                needs_asyncio=needs_asyncio,
+                needs_magicmock=needs_magicmock,
+            )
+            func, func_used_exc_types = self._build_test_function(
+                len(functions),
+                tc,
+                exc_types,
+                module_aliases=module_aliases,
+                external_bindings=external_bindings,
+            )
+            if not _has_executable_cst_statements(func.body.body):
+                continue
+            if any(e is not None for e in exc_types) or any(
+                isinstance(a, FloatAssertion) for stmt in tc.statements() for a in stmt.assertions
+            ):
+                needs_pytest = True
+            used_exc_types.update(func_used_exc_types)
+            functions.append(func)
+            if not needs_pytest:
+                visitor = _PytestReferenceVisitor()
+                func.visit(visitor)
+                if visitor.has_pytest:
+                    needs_pytest = True
+
+        return functions, used_exc_types, needs_pytest
 
     @staticmethod
     def _create_patch_nodes(seed: int) -> list[cst.SimpleStatementLine | cst.BaseCompoundStatement]:
@@ -744,59 +1136,82 @@ class TestSuiteWriter:
             used_aliases.add(candidate)
             isinstance_module_aliases[mod] = candidate
 
+        # Drop test cases that render without any executable statement up front,
+        # so import-only or docstring-only tests do not leak their imports or
+        # names into the file header.
+        test_cases = [
+            individual.test_case
+            for individual in suite.test_case_chromosomes
+            if _has_executable_cst_statements(
+                self._build_test_function(
+                    0,
+                    individual.test_case,
+                    [None] * individual.test_case.size(),
+                    module_aliases=isinstance_module_aliases,
+                )[0].body.body
+            )
+        ]
+
         # Import only the SUT names the rendered tests reference. The same list is
         # bound in the dry-run namespace, so both resolve exactly the same names.
         used_names: set[str] = set()
-        for individual in suite.test_case_chromosomes:
-            individual.test_case.remove_unused_variables()
-            used_names |= _test_case_referenced_names(
-                individual.test_case, isinstance_module_aliases
-            )
+        for test_case in test_cases:
+            test_case.remove_unused_variables()
+            used_names |= _test_case_referenced_names(test_case, isinstance_module_aliases)
         sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = list(
             _build_sut_import_statements(module_name, project_path, used_names)
         )
 
-        functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
-        needs_pytest = False
-        needs_asyncio = False
-        needs_magicmock = False
-        used_exc_types: set[type[BaseException]] = set()
+        # The writer imports asyncio and MagicMock only on demand; the dry run binds
+        # them under the same conditions, and external imports may bind them otherwise.
+        needs_asyncio = any(_uses_coroutines(test_case) for test_case in test_cases)
+        needs_magicmock = any(_uses_mocks(test_case) for test_case in test_cases)
 
-        # Build one test function per test case chromosome in the suite
-        for individual in suite.test_case_chromosomes:
-            tc = individual.test_case
-            exc_types = self._per_statement_exceptions(
-                tc,
-                module_name,
-                project_path,
-                subject_properties,
-                module_aliases=isinstance_module_aliases,
-                sut_import_stmts=sut_import_stmts,
-            )
-            func, func_used_exc_types = self._build_test_function(
-                len(functions), tc, exc_types, module_aliases=isinstance_module_aliases
-            )
-            if not _has_executable_cst_statements(func.body.body):
-                continue
-            if any(
-                isinstance(stmt.accessible, GenericCallableAccessibleObject)
-                and stmt.accessible.is_coroutine
-                for stmt in tc.statements()
-            ):
-                needs_asyncio = True
-            if any(stmt.mock_info is not None for stmt in tc.statements()):
-                needs_magicmock = True
-            if any(e is not None for e in exc_types) or any(
-                isinstance(a, FloatAssertion) for stmt in tc.statements() for a in stmt.assertions
-            ):
-                needs_pytest = True
-            used_exc_types.update(func_used_exc_types)
-            functions.append(func)
-            if not needs_pytest:
-                visitor = _PytestReferenceVisitor()
-                func.visit(visitor)
-                if visitor.has_pytest:
-                    needs_pytest = True
+        # Hoist the external (non-SUT) imports the tests read to module level, so a
+        # name stays resolvable even if minimization dropped the test's own import.
+        # Imports a test itself contains win over those registered for the suite.
+        external_import_sources: OrderedSet[str] = OrderedSet()
+        for test_case in test_cases:
+            for stmt in test_case.statements():
+                if isinstance(stmt.node, cst.SimpleStatementLine) and any(
+                    isinstance(small, cst.Import | cst.ImportFrom) for small in stmt.node.body
+                ):
+                    external_import_sources.add(cst.Module(body=[stmt.node]).code.strip())
+        for test_case in test_cases:
+            external_import_sources.update(test_case.external_imports)
+        external_import_sources.update(suite.external_imports)
+
+        tracer = subject_properties.instrumentation_tracer if subject_properties else None
+        taken_names: set[str] = {"pytest", *isinstance_module_aliases.values()}
+        if needs_asyncio:
+            taken_names.add("asyncio")
+        if needs_magicmock:
+            taken_names.add("MagicMock")
+
+        external_imports = _parse_external_import_statements(
+            external_import_sources,
+            module_name,
+            used_names=used_names,
+            sut_import_stmts=sut_import_stmts,
+            taken_names=taken_names,
+            tracer=tracer,
+        )
+        external_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [
+            ext.line for ext in external_imports
+        ]
+        external_bindings = {ext.name: ext.value for ext in external_imports}
+        functions, used_exc_types, needs_pytest = self._build_test_functions(
+            test_cases,
+            module_name,
+            project_path,
+            subject_properties,
+            module_aliases=isinstance_module_aliases,
+            sut_import_stmts=sut_import_stmts,
+            external_import_stmts=external_import_stmts,
+            external_bindings=external_bindings,
+            needs_asyncio=needs_asyncio,
+            needs_magicmock=needs_magicmock,
+        )
 
         # An empty suite still imports the SUT below, so coverage-by-import keeps
         # working; mark the file so the emitted import gets a coverage comment and
@@ -809,12 +1224,22 @@ class TestSuiteWriter:
 
         # Build exception imports for non-builtin exception types that are still
         # referenced by a pytest.raises(...) call (exceptions handled via the
-        # xfail marker are emitted bare and need no import).
+        # xfail marker are emitted bare and need no import). A type a hoisted
+        # external import already binds needs no import either.
         exc_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         by_module: dict[str, list[str]] = {}
         for exc_type in used_exc_types:
-            if exc_type.__module__ != "builtins":
-                by_module.setdefault(exc_type.__module__, []).append(exc_type.__name__)
+            if (
+                exc_type.__module__ == "builtins"
+                or external_bindings.get(exc_type.__name__) is exc_type
+            ):
+                continue
+            exc_name = _exception_name(exc_type, external_bindings)
+            by_module.setdefault(exc_type.__module__, []).append(
+                exc_type.__name__
+                if exc_name == exc_type.__name__
+                else f"{exc_type.__name__} as {exc_name}"
+            )
         for mod in sorted(by_module):
             names = ", ".join(sorted(set(by_module[mod])))
             exc_import_stmts.append(cst.parse_statement(f"from {mod} import {names}\n"))
@@ -856,6 +1281,7 @@ class TestSuiteWriter:
                     *patch_nodes,
                     *exc_import_stmts,
                     *sut_import_stmts,
+                    *external_import_stmts,
                     *assertion_import_stmts,
                     *fixtures,
                     *functions,
@@ -877,6 +1303,7 @@ class TestSuiteWriter:
                     *preamble,
                     *import_stmts,
                     *exc_import_stmts,
+                    *external_import_stmts,
                     *assertion_import_stmts,
                     *functions,
                 ]

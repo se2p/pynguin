@@ -71,7 +71,7 @@ def _is_protected_statement(statement: tc.Statement, protected: set[str]) -> boo
         True if the statement must not be removed.
     """
     return (
-        (statement.bound_variable is not None and statement.bound_variable in protected)
+        bool(statement.bound_names() & protected)
         or statement.is_raw_assertion
         or any(not isinstance(a, ExceptionAssertion) for a in statement.assertions)
         or statement.modifies_any_variable(protected)
@@ -112,8 +112,7 @@ def _add_backward_dependencies(test_case: tc.TestCase, protected: set[str]) -> N
     while changed:
         changed = False
         for statement in statements:
-            bv = statement.bound_variable
-            if bv is not None and bv in protected:
+            if bool(statement.bound_names() & protected):
                 for used in statement.used_variables():
                     if used not in protected:
                         protected.add(used)

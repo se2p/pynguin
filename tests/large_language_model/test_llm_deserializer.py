@@ -1681,3 +1681,32 @@ def test_docstring_is_not_admitted_as_a_statement(test_cluster):
 
     assert result.test_case.to_code() == "x = 1\n"
     assert result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE] == 1
+
+
+def test_external_imports_registered_on_cluster_and_testcases(monkeypatch):
+    module_name = "tests.fixtures.examples.submodule_package.target"
+    monkeypatch.setattr(config.configuration, "module_name", module_name)
+    parsed = parse_module(module_name)
+    cluster = analyse_module(parsed)
+
+    code = """
+from collections import deque
+import tests.fixtures.examples.submodule_package.target as target
+
+def test_func():
+    from math import sqrt
+    q = deque([1, 2, 3])
+    r = sqrt(4)
+"""
+    result = deserialize_code_to_testcases(code, cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    tc = result.test_cases[0]
+
+    # Function-level import registered on testcase
+    assert "from math import sqrt" in tc.external_imports
+
+    # Module-level and aggregated imports registered on cluster and result
+    assert "from collections import deque" in cluster.external_imports
+    assert "from collections import deque" in result.external_imports
+    assert "from math import sqrt" in result.external_imports
