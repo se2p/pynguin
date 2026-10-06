@@ -667,6 +667,40 @@ def _track_statistics(stats: dict[str, Any]) -> None:
         stat.track_output_variable(RuntimeVariable.NumberOfCreatedMutants, created)
 
 
+def _should_evaluate_post_refinement_mutations() -> bool:
+    return (
+        config.configuration.test_case_output.assertion_generation
+        in {config.AssertionGenerator.MUTATION_ANALYSIS, config.AssertionGenerator.LLM}
+        or RuntimeVariable.MutationScore in config.configuration.statistics_output.output_variables
+        or RuntimeVariable.PostRefinementMutationScore
+        in config.configuration.statistics_output.output_variables
+    )
+
+
+def _maybe_evaluate_post_refinement_mutations(
+    preamble: str,
+    refined_tests: list[str],
+    module_under_test: types.ModuleType | None,
+    stats: dict[str, Any],
+) -> None:
+    if not (
+        stats.get("tests_refined", 0) > 0
+        and refined_tests
+        and _should_evaluate_post_refinement_mutations()
+    ):
+        return
+    try:
+        _LOGGER.info("Evaluating mutation score of the refined test suite")
+        post_mutation_stats = evaluate_refined_suite_mutations(
+            preamble=preamble,
+            refined_tests=refined_tests,
+            module_under_test=module_under_test,
+        )
+        stats.update(post_mutation_stats)
+    except Exception as ex:
+        _LOGGER.exception("Failed to evaluate refined test suite mutations: %s", ex)
+
+
 def refine_generated_tests(
     test_file_path: Path,
     module_name: str,
@@ -777,28 +811,7 @@ def refine_generated_tests(
             preamble, refined_tests, module_under_test
         )
         _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
-
-        # Only re-measure when the run already measured a mutation score (the
-        # mutation-based assertion generators) or a score was explicitly requested.
-        should_run_mutation = (
-            config.configuration.test_case_output.assertion_generation
-            in {config.AssertionGenerator.MUTATION_ANALYSIS, config.AssertionGenerator.LLM}
-            or RuntimeVariable.MutationScore
-            in config.configuration.statistics_output.output_variables
-            or RuntimeVariable.PostRefinementMutationScore
-            in config.configuration.statistics_output.output_variables
-        )
-        if stats.get("tests_refined", 0) > 0 and refined_tests and should_run_mutation:
-            try:
-                _LOGGER.info("Evaluating mutation score of the refined test suite")
-                post_mutation_stats = evaluate_refined_suite_mutations(
-                    preamble=preamble,
-                    refined_tests=refined_tests,
-                    module_under_test=module_under_test,
-                )
-                stats.update(post_mutation_stats)
-            except Exception as ex:
-                _LOGGER.exception("Failed to evaluate refined test suite mutations: %s", ex)
+        _maybe_evaluate_post_refinement_mutations(preamble, refined_tests, module_under_test, stats)
 
         _LOGGER.info("Refinement complete: %s", stats)
         _attach_usage(stats, refiner, start_wall)
