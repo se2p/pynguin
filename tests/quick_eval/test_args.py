@@ -41,6 +41,9 @@ def _clear_llm_env(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
 
+_FULL_REFINEMENT_EXTRAS = ("--llm-refinement.enable-mutation-strengthening",)
+
+
 def _pairs(args: list[str]) -> dict[str, str]:
     """Collapse a flat ``[flag, value, ...]`` list into a ``{flag: value}`` mapping."""
     return {args[i]: args[i + 1] for i in range(0, len(args) - 1, 2)}
@@ -94,6 +97,12 @@ def test_full_mode_drops_llm_assertion_generation_in_coverage_only():
     assert default["--llm-refinement.enabled"] == "True"
     assert "--llm-refinement.enabled" not in coverage_only
 
+    # The refinement extra (mutation strengthening) is part of full mode and is
+    # dropped together with refinement.
+    for flag in _FULL_REFINEMENT_EXTRAS:
+        assert default[flag] == "True"
+        assert flag not in coverage_only
+
     # The coverage-driving LLM calls stay on.
     for flag in (
         "--large-language-model.call-llm-for-uncovered-targets",
@@ -101,3 +110,10 @@ def test_full_mode_drops_llm_assertion_generation_in_coverage_only():
         "--large-language-model.hybrid-initial-population",
     ):
         assert flag in coverage_only
+
+
+def test_min_mode_keeps_refinement_extras_off():
+    # Min mode mirrors the paper's deployed config: plain refinement only.
+    default = _pairs(_llm_cli_args(LLM_MODE_MIN))
+    for flag in _FULL_REFINEMENT_EXTRAS:
+        assert flag not in default
