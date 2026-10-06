@@ -94,7 +94,7 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
         const=LLM_MODE_FULL,
         help="Full LLM mode: enable every combinable LLM feature (LLMOSA, pre-search "
         "seeding, uncovered-target + stall-detection calls, in-search LLM assertions, "
-        "and post-search refinement)",
+        "and post-search refinement with mutation strengthening)",
     )
     llm_group.add_argument(
         "--min-llm",
