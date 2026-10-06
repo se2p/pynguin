@@ -36,6 +36,7 @@ def test_testcasegenerationprompt_build_prompt():
     assert "Exercise error paths: only wrap calls in `with pytest.raises(...)`" in user_prompt
     assert "suppresses, or logs" in user_prompt
     assert "without `pytest.raises`" in user_prompt
+    assert "make_dataclass" in user_prompt
 
 
 def test_testcasegenerationprompt_render():

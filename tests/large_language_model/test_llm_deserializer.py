@@ -1801,3 +1801,20 @@ def test_del_unknown():
     result = _deserialize_function(code, test_cluster)
     assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
     assert result.test_case.size() == 0
+
+
+def test_make_dataclass_inside_function_is_admitted(test_cluster):
+    code = (
+        "def test_foo():\n"
+        "    from dataclasses import make_dataclass\n"
+        "    Cls = make_dataclass('Cls', [('x', int)])\n"
+        "    instance = Cls(x=42)\n"
+    )
+
+    result = _deserialize_function(code, test_cluster)
+
+    assert result.counts.get(Disposition.DROPPED_UNKNOWN_NAMES, 0) == 0
+    assert result.counts[Disposition.ADMITTED_IMPORT] == 1
+    assert result.counts[Disposition.ADMITTED_UNRESOLVED_CALL] == 2
+    assert "make_dataclass" in result.test_case.to_code()
+    assert "Cls(x=42)" in result.test_case.to_code()

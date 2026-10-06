@@ -21,9 +21,10 @@ user_message_template: |
     suppresses, or logs the exception internally (handling it without re-raising), invoke
     the callable directly without `pytest.raises`.
   - When testing class properties, descriptors, or callables that require a dummy class,
-    do not define nested `class` statements. Instead, create classes dynamically using
-    `type('ClassName', (), {'attr': value})` or `cls = type('ClassName', (), {})` followed
-    by attribute assignment. Keep tests flat.
+    do not define module-level or nested `class` statements. Instead, create classes
+    dynamically inside the test function using `type('ClassName', (), {'attr': value})`,
+    or for dataclasses use `from dataclasses import make_dataclass; Cls = make_dataclass('Cls', [('field', type)])`.
+    Keep tests flat and self-contained.
   {% if visibility_instructions -%}
   - {{ visibility_instructions }}
   {% endif %}
