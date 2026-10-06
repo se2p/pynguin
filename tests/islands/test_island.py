@@ -92,6 +92,24 @@ def test_covered_goals_compare_equal_across_islands_sharing_the_orchestrator_set
     assert set(result_a.covered_goals) == set(result_b.covered_goals)
 
 
+def test_island_reports_its_iterations_and_search_time(tmp_path):
+    task = _island_task(0, tmp_path)
+    generator.set_configuration(task.configuration)
+    setup_result = generator._setup_and_check()
+    receiving_connection, sending_connection = mp.Pipe(duplex=False)
+    process = mp.get_context("fork").Process(
+        target=island_main, args=(task, sending_connection, setup_result)
+    )
+    process.start()
+    sending_connection.close()
+
+    result = receiving_connection.recv()
+    process.join(timeout=30)
+    assert result.return_code == ReturnCode.OK
+    assert result.algorithm_iterations > 0
+    assert result.search_time_ns > 0
+
+
 def _migration_channel(island_id: int) -> MigrationChannel:
     return MigrationChannel(island_id, {0: queue.Queue(), 1: queue.Queue()})
 

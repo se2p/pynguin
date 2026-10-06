@@ -91,6 +91,12 @@ class IslandResult:
     for migration logging.
     """
 
+    algorithm_iterations: int = 0
+    """The number of generations the island's search ran (AlgorithmIterations)."""
+
+    search_time_ns: int = 0
+    """The wall-clock time of the island's search in nanoseconds (SearchTime)."""
+
 
 def _build_algorithm(
     task: IslandTask,
@@ -187,6 +193,7 @@ def island_main(
                 for target in algorithm.archive.covered_goals
             ]
             migration_stats = migration_extension.stats if migration_extension is not None else None
+            tracked = dict(stat.statistics_tracker.variables_generator)
             sending_connection.send(
                 IslandResult(
                     task.island_id,
@@ -195,6 +202,8 @@ def island_main(
                     covered_goals,
                     stat.get_sequence_samples(RuntimeVariable.CoverageTimeline),
                     migration_stats,
+                    algorithm_iterations=tracked.get(RuntimeVariable.AlgorithmIterations, 0),
+                    search_time_ns=tracked.get(RuntimeVariable.SearchTime, 0),
                 )
             )
             _LOGGER.info("Island %d completed with %d test cases", task.island_id, len(test_cases))

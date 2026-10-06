@@ -88,10 +88,24 @@ def test_fan_out_island_configs_gives_distinct_seeds_and_ids(tmp_path):
     island_configs = orchestrator._fan_out_island_configs(base_configuration)
 
     assert len(island_configs) == 3
-    assert [c.seeding.seed for c in island_configs] == [42, 43, 44]
+    assert [c.seeding.seed for c in island_configs] == [126, 127, 128]
     assert [c.island.island_id for c in island_configs] == [0, 1, 2]
     assert base_configuration.seeding.seed == 42
     assert base_configuration.island.island_id == -1
+
+
+def test_fan_out_island_configs_gives_disjoint_seeds_for_consecutive_base_seeds(tmp_path):
+    base_configuration = _base_configuration(tmp_path)
+    base_configuration.island.num_islands = 8
+    island_seeds = []
+    for base_seed in range(10):
+        base_configuration.seeding.seed = base_seed
+        island_seeds.extend(
+            c.seeding.seed for c in orchestrator._fan_out_island_configs(base_configuration)
+        )
+
+    assert len(island_seeds) == 80
+    assert len(set(island_seeds)) == 80
 
 
 def test_fan_out_island_configs_full_per_island_keeps_base_population(tmp_path):
@@ -532,6 +546,27 @@ def test_report_coverage_timeline_adds_the_best_coverage_so_far_across_islands()
         (3_000_000_000, 0.6),
         (4_000_000_000, 0.9),
     ]
+
+
+def test_report_search_effort_sums_iterations_and_takes_the_longest_search_time():
+    results = [
+        IslandResult(0, [], ReturnCode.OK, algorithm_iterations=40, search_time_ns=5_000),
+        IslandResult(1, [], ReturnCode.OK, algorithm_iterations=35, search_time_ns=7_000),
+    ]
+
+    orchestrator._report_search_effort(results)
+
+    tracked = dict(stat.statistics_tracker.variables_generator)
+    assert tracked[RuntimeVariable.AlgorithmIterations] == 75
+    assert tracked[RuntimeVariable.SearchTime] == 7_000
+
+
+def test_report_search_effort_tracks_zero_without_island_results():
+    orchestrator._report_search_effort([])
+
+    tracked = dict(stat.statistics_tracker.variables_generator)
+    assert tracked[RuntimeVariable.AlgorithmIterations] == 0
+    assert tracked[RuntimeVariable.SearchTime] == 0
 
 
 def test_report_migration_stats_tracks_totals_across_islands():

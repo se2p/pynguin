@@ -71,9 +71,12 @@ def _fan_out_island_configs(
 ) -> list[config.Configuration]:
     """Create an independent configuration for each island.
 
-    Each island gets its own seed and island ID. For
-    worker-enabled runs, the island configuration uses DYNAMOSA while the
-    base configuration remains LLDYNAMOSA.
+    Each island gets its own island ID and the seed
+    ``base_seed * num_islands + island_id``. Runs with consecutive base seeds, e.g.
+    the repetitions of an experiment, thus use disjoint blocks of island seeds, so
+    no two of their islands start from the same random state. For worker-enabled
+    runs, the island configuration uses DYNAMOSA while the base configuration
+    remains LLDYNAMOSA.
 
     Args:
         base_configuration: Configuration used as the template for each island.
@@ -88,7 +91,7 @@ def _fan_out_island_configs(
     island_configs = []
     for island_id in range(num_islands):
         island_config = copy.deepcopy(base_configuration)
-        island_config.seeding.seed = base_seed + island_id
+        island_config.seeding.seed = base_seed * num_islands + island_id
         island_config.island.island_id = island_id
         if base_configuration.llm_worker.enabled:
             island_config.algorithm = config.Algorithm.DYNAMOSA
@@ -270,6 +273,7 @@ def run_pynguin_with_islands(base_configuration: config.Configuration) -> Return
         _restore_sigterm_handler(previous_sigterm_handler)
 
     _report_coverage_timeline(results)
+    _report_search_effort(results)
     _report_migration_stats(results)
 
     return assemble_final_suite(results, executor, test_cluster, constant_provider)
@@ -416,6 +420,26 @@ def _report_coverage_timeline(results: list[IslandResult]) -> None:
         [(time_stamp / 1_000_000_000, coverage) for time_stamp, coverage in merged_timeline],
     )
     stat.add_sequence_samples(RuntimeVariable.CoverageTimeline, merged_timeline)
+
+
+def _report_search_effort(results: list[IslandResult]) -> None:
+    """Tracks the island search's generations and wall-clock time as output variables.
+
+    AlgorithmIterations is the number of generations all islands ran together.
+    SearchTime is the longest island search time, since the islands search
+    concurrently.
+
+    Args:
+        results: One IslandResult per island.
+    """
+    stat.track_output_variable(
+        RuntimeVariable.AlgorithmIterations,
+        sum(result.algorithm_iterations for result in results),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.SearchTime,
+        max((result.search_time_ns for result in results), default=0),
+    )
 
 
 def _report_migration_stats(results: list[IslandResult]) -> None:
