@@ -35,7 +35,8 @@ user_message_template: |
      - Do NOT remove or alter the `module_0.` prefix.
 
   2. **Strengthen Existing Tests (Primary):**
-     - For mutants on code already executed by an existing test, add specific, meaningful assertions to the `# Assert` section of that test function to verify state, return values, or side-effects that change under the mutation.
+     - For mutants on code already executed by an existing test, add specific, meaningful assertions to the `# Assert` section of that test function directly targeting the mutated expressions (e.g. return values, updated attributes, boundary conditions) using precise equality assertions (e.g. `assert result == <expected_value>`) rather than coarse type checks.
+     - If the method under test modifies object attributes, collections, or internal state, verify that modified state explicitly (e.g. `assert obj.attribute == expected_value`).
      - Keep the test function name and the `# Arrange` / `# Act` sections intact.
 
   3. **Add Boundary / Edge Tests (When Needed):**

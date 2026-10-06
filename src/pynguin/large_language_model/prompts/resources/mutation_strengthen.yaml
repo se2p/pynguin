@@ -33,7 +33,8 @@ user_message_template: |
 
   **Your Task:**
   Analyze the surviving mutants and the focal method '{{ focal_method }}'.
-  Add specific, meaningful assertions to the # Assert section of the test function(s) that would fail under the mutated operator/replacement.
+  Add specific, meaningful assertions to the # Assert section of the test function(s) that directly target the mutated expressions (e.g. return values, updated attributes, boundary conditions) using precise equality assertions (e.g. `assert result == <expected_value>`) rather than coarse type checks.
+  If the method under test modifies object attributes, collections, or internal state, verify that modified state explicitly (e.g. `assert obj.attribute == expected_value`).
   Note that some mutants may be equivalent and thus undetectable, but add assertions for all detectable cases.
   Do NOT change function names, variable names, or the Arrange section of the tests.
   Do NOT weaken coverage.

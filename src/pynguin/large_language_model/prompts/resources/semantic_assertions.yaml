@@ -54,41 +54,24 @@ user_message_template: |
      - Add proper assertions for the return value
      - Verify the method completes successfully
 
-  3. **Generate Appropriate Assertions Based on Return Type:**
+  3. **Prefer Concrete Value Equality Over Type Checks:**
+     - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs/documentation/behavior.
+     - Discourage vacuous or coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless the exact value is truly non-deterministic (e.g., random timestamps or UUIDs).
+     - For collection returns (`list`, `dict`, `set`), assert exact contents or key-value mappings rather than only checking `len(result) > 0` or `isinstance(...)`.
+     - For boolean returns, assert `assert result is True` or `assert result is False` rather than just `isinstance(result, bool)`.
 
-     **IMPORTANT: Be conservative with assertions.
-     Only assert what you can confidently verify
-     from the documentation.**
+  4. **Verify Object State & Side Effects:**
+     - If the method under test modifies object attributes or internal state, assert the state of those attributes after calling the method (e.g., `assert obj.attribute == expected_value`).
+     - If the method updates collections, registries, or class variables, verify the updated entries.
+     - Do not leave state-modifying calls unverified even if they return `None`.
 
-     **For STRING returns:**
-     ```python
-     assert isinstance(result, str), "Should return a string"
-     assert len(result) > 0
-     ```
-
-     **For INTEGER/FLOAT returns:**
-     ```python
-     assert isinstance(result, int), "Should return an integer"
-     ```
-
-     **For BOOLEAN returns:**
-     ```python
-     assert isinstance(result, bool), "Should return a boolean"
-     ```
-
-     **For DICT/LIST returns:**
-     ```python
-     assert isinstance(result, dict)
-     assert len(result) > 0
-     ```
-
-  4. **For the focal method '{{ focal_method }}':**
+  5. **For the focal method '{{ focal_method }}':**
      - Look at each call to this method in the test
      - Determine if it's a positive or negative test based on inputs
-     - For positive tests: Store result and add assertions
+     - For positive tests: Store result and add assertions (or verify modified object state)
      - For negative tests: Wrap in pytest.raises()
 
-  5. **Preserve ALL existing code and AAA Structure:**
+  6. **Preserve ALL existing code and AAA Structure:**
      - Keep the # Arrange section unchanged
      - Keep the # Act section unchanged (unless converting try/except to pytest.raises)
      - Keep variable names unchanged
@@ -124,8 +107,7 @@ user_message_template: |
       result = module_0.triangle(side_a, side_b, side_c)
 
       # Assert
-      assert isinstance(result, str)
-      assert len(result) > 0
+      assert result == "Equilateral"
   ```
 
   **Example Transformation for NEGATIVE Test:**
