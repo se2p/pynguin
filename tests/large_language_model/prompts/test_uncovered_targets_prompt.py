@@ -122,3 +122,11 @@ def test_build_prompt_clarifies_pytest_raises_usage(module_info):
     assert "Only wrap calls in `with pytest.raises(...)`" in result
     assert "suppresses, or logs" in result
     assert "without `pytest.raises`" in result
+
+
+def test_build_prompt_includes_make_dataclass_instruction(module_info):
+    callables = [make_generic_function("foo")]
+    prompt = UncoveredTargetsPrompt(callables, module_info["code"], module_info["path"])
+    result = prompt.build_prompt()
+
+    assert "make_dataclass" in result
