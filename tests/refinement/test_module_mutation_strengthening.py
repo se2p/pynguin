@@ -53,7 +53,8 @@ def sut(tmp_path, monkeypatch):
 
 @pytest.fixture
 def refiner(sut):
-    test_refiner = TestRefiner(module_under_test=sut)
+    with patch("pynguin.refinement.pipeline.LLMClient"):
+        test_refiner = TestRefiner(module_under_test=sut)
     test_refiner.llm_client = MagicMock()
     return test_refiner
 
@@ -309,6 +310,7 @@ def test_refine_generated_tests_dispatches_full_module_strengthening(tmp_path, m
     mock_mod.__file__ = str(tmp_path / "sample_module.py")
 
     with (
+        patch("pynguin.refinement.pipeline.LLMClient"),
         patch("pynguin.refinement.refiner._import_module_under_test", return_value=mock_mod),
         patch("pynguin.refinement.refiner._process_module") as mock_process_module,
         patch.object(TestRefiner, "strengthen_module_mutations") as mock_strengthen_mod,
