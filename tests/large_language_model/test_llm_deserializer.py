@@ -1710,3 +1710,94 @@ def test_func():
     assert "from collections import deque" in cluster.external_imports
     assert "from collections import deque" in result.external_imports
     assert "from math import sqrt" in result.external_imports
+
+
+# ---------------------------------------------------------------------------
+# Subscript assignment and del statement support
+# ---------------------------------------------------------------------------
+
+
+def test_subscript_assignment_admitted_and_executable(test_cluster):
+    code = """
+def test_dict():
+    d = {}
+    d["key"] = "value"
+    assert d["key"] == "value"
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.ADMITTED] == 2
+    assert result.counts[Disposition.ASSERTION_KEPT_RAW] == 1
+    source = result.test_case.to_code()
+    assert 'd["key"] = "value"' in source
+    assert 'assert d["key"] == "value"' in source
+
+    exec_globals: dict = {}
+    exec(source, exec_globals)  # noqa: S102
+    assert exec_globals["d"] == {"key": "value"}
+
+
+def test_subscript_assignment_with_variable_key_renamed(test_cluster):
+    code = """
+def test_subscript_rename():
+    d = {}
+    d = {"a": 1}
+    k = "b"
+    d[k] = 2
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.ADMITTED] == 4
+    source = result.test_case.to_code()
+    assert "var_0[k] = 2" in source
+
+    exec_globals: dict = {}
+    exec(source, exec_globals)  # noqa: S102
+    assert exec_globals["var_0"] == {"a": 1, "b": 2}
+
+
+def test_subscript_assignment_drops_unknown_names(test_cluster):
+    code_unknown_container = """
+def test_unknown_container():
+    unknown["k"] = 1
+"""
+    result = _deserialize_function(code_unknown_container, test_cluster)
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
+    assert result.test_case.size() == 0
+
+    code_unknown_key = """
+def test_unknown_key():
+    d = {}
+    d[unknown_k] = 1
+"""
+    result_key = _deserialize_function(code_unknown_key, test_cluster)
+    assert result_key.counts == Counter({
+        Disposition.ADMITTED: 1,
+        Disposition.DROPPED_UNKNOWN_NAMES: 1,
+    })
+    assert result_key.test_case.size() == 1
+
+
+def test_del_subscript_and_attribute_admitted_and_executable(test_cluster):
+    code = """
+def test_del():
+    d = {"a": 1, "b": 2}
+    k = "a"
+    del d[k]
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts[Disposition.ADMITTED] == 3
+    source = result.test_case.to_code()
+    assert "del d[k]" in source
+
+    exec_globals: dict = {}
+    exec(source, exec_globals)  # noqa: S102
+    assert exec_globals["d"] == {"b": 2}
+
+
+def test_del_drops_unknown_names(test_cluster):
+    code = """
+def test_del_unknown():
+    del unknown["a"]
+"""
+    result = _deserialize_function(code, test_cluster)
+    assert result.counts == Counter({Disposition.DROPPED_UNKNOWN_NAMES: 1})
+    assert result.test_case.size() == 0

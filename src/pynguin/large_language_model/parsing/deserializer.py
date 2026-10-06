@@ -217,6 +217,21 @@ class _RootNameCollector(cst.CSTVisitor):
             return False
         return True
 
+    def visit_Subscript(self, node: cst.Subscript) -> bool:  # noqa: N802
+        if self._in_target > 0:
+            # In a subscript assignment target (e.g. ``d[k] = v``), both the
+            # container (``d``) and any index/slice expressions (``k``) are
+            # variable reads, not variable bindings. Temporarily reset
+            # ``_in_target`` while visiting its subnodes.
+            saved = self._in_target
+            self._in_target = 0
+            node.value.visit(self)
+            for el in node.slice:
+                el.visit(self)
+            self._in_target = saved
+            return False
+        return True
+
     def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
         if self._in_target == 0:
             self.names.add(node.value)
@@ -1411,19 +1426,26 @@ class CstStatementDeserializer:
                 )
                 node = cst.SimpleStatementLine(body=[small])
                 return node, target.value, bound_type, accessible, not resolved
-            if isinstance(target, cst.Attribute):
-                # An attribute-target assignment (e.g. ``mock.return_value = x``)
-                # mutates an existing object rather than binding a new variable;
-                # keep it as a raw statement with no bound variable. Its receiver
-                # root is checked against the scope by the caller (attribute-chain
-                # roots are collected as reads), so a mutation of an undefined
-                # object is still dropped.
+            if isinstance(target, cst.Attribute | cst.Subscript):
+                # An attribute or subscript assignment (e.g. ``mock.return_value = x``
+                # or ``cookie['path'] = '/home'``) mutates an existing object rather
+                # than binding a new variable; keep it as a raw statement with no
+                # bound variable. Its receiver root and any index variables are
+                # checked against the scope by the caller (attribute roots and
+                # subscript targets are collected as reads), so a mutation on an
+                # undefined object is still dropped.
                 _, accessible, resolved = self._infer_rhs(
                     small.value, bound_types, imported_bindings
                 )
                 node = cst.SimpleStatementLine(body=[small])
                 return node, None, None, accessible, not resolved
             return None
+        if isinstance(small, cst.Del):
+            # A deletion statement (e.g. ``del d[k]`` or ``del obj.attr``) mutates
+            # an existing container/object in-place and binds no new variable.
+            # Its referenced names are checked against the scope by the caller.
+            node = cst.SimpleStatementLine(body=[small])
+            return node, None, None, None, False
         if isinstance(small, cst.Expr):
             if isinstance(
                 small.value,
