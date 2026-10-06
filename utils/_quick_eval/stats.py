@@ -35,6 +35,10 @@ class ModuleResult:
     # mutation_score is unmeasurable and reported as None rather than a phantom 1.0.
     mutation_checked: int | None = None
     mutation_timed_out: int | None = None
+    pre_refinement_mutation_score: float | None = None
+    pre_refinement_mutation_killed: int | None = None
+    post_refinement_mutation_score: float | None = None
+    post_refinement_mutation_killed: int | None = None
     llm_calls: int | None = None
     llm_input_tokens: int | None = None
     llm_output_tokens: int | None = None
@@ -79,6 +83,10 @@ _STAT_SPECS: tuple[_StatSpec, ...] = (
     _StatSpec("mutation_total", ("NumberOfCreatedMutants",), int),
     _StatSpec("mutation_checked", ("NumberOfCheckedMutants",), int),
     _StatSpec("mutation_timed_out", ("NumberOfTimedOutMutants",), int),
+    _StatSpec("pre_refinement_mutation_score", ("PreRefinementMutationScore",), float),
+    _StatSpec("pre_refinement_mutation_killed", ("PreRefinementKilledMutants",), int),
+    _StatSpec("post_refinement_mutation_score", ("PostRefinementMutationScore",), float),
+    _StatSpec("post_refinement_mutation_killed", ("PostRefinementKilledMutants",), int),
     _StatSpec("llm_calls", ("TotalLLMCalls",), int),
     _StatSpec("llm_input_tokens", ("TotalLLMInputTokens",), int),
     _StatSpec("llm_output_tokens", ("TotalLLMOutputTokens",), int),

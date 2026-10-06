@@ -529,32 +529,6 @@ def test_setup_and_check_no_subprocess():
         assert cluster == test_cluster_mock
 
 
-def test_setup_mutant_generator_invalid_strategy():
-    """Test the _setup_mutant_generator function with an invalid strategy to cover lines 654-655."""
-    # Configure an invalid mutation strategy
-    config.configuration = MagicMock(
-        test_case_output=MagicMock(mutation_strategy="INVALID_STRATEGY", mutation_order=2)
-    )
-
-    # Call the function and expect a ConfigurationException
-    with pytest.raises(gen.ConfigurationException, match=r"No suitable mutation strategy found."):
-        gen._setup_mutant_generator()
-
-
-def test_setup_mutant_generator_invalid_order():
-    """Test the _setup_mutant_generator function with an invalid order to cover line 638."""
-    # Configure a valid strategy but invalid order
-    config.configuration = MagicMock(
-        test_case_output=MagicMock(
-            mutation_strategy=config.MutationStrategy.FIRST_TO_LAST, mutation_order=0
-        )
-    )
-
-    # Call the function and expect a ConfigurationException
-    with pytest.raises(gen.ConfigurationException, match=r"Mutation order should be > 0."):
-        gen._setup_mutant_generator()
-
-
 @pytest.mark.parametrize("algorithm", [config.Algorithm.DYNAMOSA, config.Algorithm.LLDYNAMOSA])
 def test_verify_config(tmp_path, algorithm):
     configuration = config.Configuration(

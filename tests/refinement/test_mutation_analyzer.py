@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import ast
+import importlib
 import types
 from pathlib import Path
 
@@ -24,11 +25,13 @@ from pynguin.refinement.mutation_analyzer import (
     _run_test_against_mutant,  # noqa: PLC2701
     _vacuous_stats,  # noqa: PLC2701
     create_mutants,
+    evaluate_refined_suite_mutations,
     filter_vacuous_assertions,
     get_surviving_mutants,
     killed_set,
     passes_on_module,
 )
+from pynguin.refinement.validator import TestExecution
 from pynguin.utils.timeout import TestExecutionTimeoutError
 
 
@@ -350,3 +353,162 @@ def test_get_surviving_mutants_excludes_failed_builds(monkeypatch):
     )
     survivors = get_surviving_mutants("def test_x(): pass", module)
     assert survivors == [("mutant_module", "mutations")]
+
+
+def test_evaluate_refined_suite_mutations_empty_or_none():
+    res = evaluate_refined_suite_mutations("", [], None)
+    assert res["post_refinement_mutation_score"] is None
+    assert res["post_refinement_killed_mutants"] == 0
+
+    module = types.ModuleType("test_mod")
+    res2 = evaluate_refined_suite_mutations("", [], module)
+    assert res2["post_refinement_mutation_score"] is None
+
+
+def test_evaluate_refined_suite_mutations_creation_failure(monkeypatch):
+    module = types.ModuleType("test_mod")
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: (_ for _ in ()).throw(RuntimeError("AST error")),
+    )
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] is None
+    assert res["post_refinement_checked_mutants"] == 0
+
+
+def test_evaluate_refined_suite_mutations_zero_mutants(monkeypatch):
+    class _MockController:
+        def mutant_count(self):
+            return 0
+
+    module = types.ModuleType("test_mod")
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: _MockController(),
+    )
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] == 1.0
+    assert res["post_refinement_created_mutants"] == 0
+
+
+def _mock_controller(monkeypatch, *mutants):
+    class _MockController:
+        def mutant_count(self):
+            return len(mutants)
+
+        def create_mutants(self):
+            for mutant in mutants:
+                yield mutant, []
+
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.create_mutation_controller",
+        lambda _m: _MockController(),
+    )
+
+
+def _mock_execute_test(monkeypatch, outcomes):
+    """Make ``execute_test`` return the given outcomes, baseline runs first."""
+    remaining = list(outcomes)
+
+    def _execute(_source, _mod):
+        return remaining.pop(0)
+
+    monkeypatch.setattr("pynguin.refinement.mutation_analyzer.execute_test", _execute)
+
+
+_PASSED = TestExecution("test_1", None, "Test passed.")
+_FAILED = TestExecution("test_1", AssertionError(), "AssertionError")
+
+
+def test_evaluate_refined_suite_mutations_happy_path(monkeypatch):
+    module = types.ModuleType("test_mod")
+    _mock_controller(monkeypatch, types.ModuleType("test_mod"), types.ModuleType("test_mod"))
+    # Baseline passes, first mutant killed, second mutant survives
+    _mock_execute_test(monkeypatch, [_PASSED, _FAILED, _PASSED])
+
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] == 0.5
+    assert res["post_refinement_killed_mutants"] == 1
+    assert res["post_refinement_checked_mutants"] == 2
+    assert res["post_refinement_timed_out_mutants"] == 0
+
+
+def test_evaluate_refined_suite_mutations_timeout(monkeypatch):
+    module = types.ModuleType("test_mod")
+    _mock_controller(monkeypatch, types.ModuleType("test_mod"))
+    timed_out = TestExecution(
+        "test_1", TestExecutionTimeoutError(), "TimeoutError: timed out", timed_out=True
+    )
+    _mock_execute_test(monkeypatch, [_PASSED, timed_out])
+
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_mutation_score"] is None  # all checked mutants timed out
+    assert res["post_refinement_killed_mutants"] == 0
+    assert res["post_refinement_checked_mutants"] == 1
+    assert res["post_refinement_timed_out_mutants"] == 1
+
+
+def test_evaluate_refined_suite_mutations_kills_on_different_exception(monkeypatch):
+    module = types.ModuleType("test_mod")
+    _mock_controller(monkeypatch, types.ModuleType("test_mod"), types.ModuleType("test_mod"))
+    # An (xfail) test raising ValueError on the original: the same exception on a
+    # mutant kills nothing, another exception type kills it.
+    _mock_execute_test(
+        monkeypatch,
+        [
+            TestExecution("test_1", ValueError("pos"), "Exception"),
+            TestExecution("test_1", ValueError("other message"), "Exception"),
+            TestExecution("test_1", TypeError("nonpos"), "Exception"),
+        ],
+    )
+
+    res = evaluate_refined_suite_mutations("import test_mod", ["def test_1(): pass"], module)
+    assert res["post_refinement_killed_mutants"] == 1
+    assert res["post_refinement_checked_mutants"] == 2
+    assert res["post_refinement_mutation_score"] == 0.5
+
+
+def test_evaluate_refined_suite_mutations_xfail_test_kills_mutants(tmp_path, monkeypatch):
+    package = tmp_path / "xfail_pkg"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "exc.py").write_text(
+        "def f(x):\n"
+        "    if x > 0:\n"
+        "        raise ValueError('pos')\n"
+        "    raise TypeError('nonpos')\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    module = importlib.import_module("xfail_pkg.exc")
+    preamble = "import pytest\nimport xfail_pkg.exc as module_0\n"
+    xfail_test = "@pytest.mark.xfail(strict=True)\ndef test_case_0():\n    module_0.f(1)\n"
+    raises_test = "def test_case_0():\n    with pytest.raises(ValueError):\n        module_0.f(1)\n"
+
+    xfail_res = evaluate_refined_suite_mutations(preamble, [xfail_test], module, maximum_time=-1)
+    raises_res = evaluate_refined_suite_mutations(preamble, [raises_test], module, maximum_time=-1)
+    assert xfail_res["post_refinement_killed_mutants"] > 0
+    assert xfail_res == raises_res
+
+
+def test_evaluate_refined_suite_mutations_drops_mutant_interrupted_by_budget(monkeypatch):
+    module = types.ModuleType("test_mod")
+    _mock_controller(monkeypatch, types.ModuleType("test_mod"))
+    # Baseline for both tests; the mutant survives the first test, then the budget
+    # runs out before the second test (which would kill it) is run.
+    _mock_execute_test(monkeypatch, [_PASSED, _PASSED, _PASSED])
+    clock = iter([0.0, 0.0, 10.0])
+    monkeypatch.setattr(
+        "pynguin.refinement.mutation_analyzer.time.monotonic", lambda: next(clock, 10.0)
+    )
+
+    res = evaluate_refined_suite_mutations(
+        "import test_mod",
+        ["def test_1(): pass", "def test_2(): pass"],
+        module,
+        maximum_time=1,
+    )
+    assert res["post_refinement_checked_mutants"] == 0
+    assert res["post_refinement_killed_mutants"] == 0
+    assert res["post_refinement_mutation_score"] is None
+    assert res["post_refinement_created_mutants"] == 1

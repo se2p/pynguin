@@ -14,6 +14,7 @@ import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
 from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class _FakeResult:
@@ -360,3 +361,19 @@ def test_budget_exceeded_while_running_a_mutant_discards_it(monkeypatch):
     assert len(results[0]) == 3
     # The remaining tests of the second mutant are not executed.
     assert executed == [(1, 0), (1, 1), (1, 2), (2, 0)]
+
+
+def test_report_mutation_summary_tracks_pre_refinement_variables(monkeypatch):
+    tracked = {}
+    monkeypatch.setattr(ag.stat, "track_output_variable", tracked.__setitem__)
+    gen = ag.MutationAnalysisAssertionGenerator.__new__(ag.MutationAnalysisAssertionGenerator)
+    gen._testing = False
+    info = ag._MutantInfo(mut_num=1, killed_by=[0], timed_out_by=[])
+    summary = ag._MutationSummary([info])
+    gen._MutationAnalysisAssertionGenerator__report_mutation_summary(summary, num_created=1)
+
+    assert tracked[RuntimeVariable.MutationScore] == 1.0
+    assert tracked[RuntimeVariable.PreRefinementMutationScore] == 1.0
+    assert tracked[RuntimeVariable.PreRefinementKilledMutants] == 1
+    assert tracked[RuntimeVariable.PreRefinementCheckedMutants] == 1
+    assert tracked[RuntimeVariable.PreRefinementTimedOutMutants] == 0

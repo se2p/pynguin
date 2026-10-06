@@ -23,7 +23,6 @@ import datetime
 import enum
 import importlib
 import importlib.machinery
-import inspect
 import json
 import logging
 import math
@@ -49,9 +48,6 @@ import multiprocess as mp
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
-import pynguin.assertion.mutation_analysis.mutators as mu
-import pynguin.assertion.mutation_analysis.operators as mo
-import pynguin.assertion.mutation_analysis.strategies as ms
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomevisitor as cv
@@ -73,8 +69,7 @@ from pynguin.analyses.constants import (
     collect_static_constants,
 )
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.assertion.mutation_analysis.controller import MutationController
-from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.assertion.mutation_analysis.controller import create_mutation_controller
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.islands.population_allocation import minimum_island_population_size
@@ -99,10 +94,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 
 if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
@@ -1583,46 +1575,6 @@ def _prepare_for_assertion_minimization(
     executor.clear_remote_observers()
 
 
-_strategies: dict[config.MutationStrategy, Callable[[int], ms.HOMStrategy]] = {
-    config.MutationStrategy.FIRST_TO_LAST: ms.FirstToLastHOMStrategy,
-    config.MutationStrategy.BETWEEN_OPERATORS: ms.BetweenOperatorsHOMStrategy,
-    config.MutationStrategy.RANDOM: ms.RandomHOMStrategy,
-    config.MutationStrategy.EACH_CHOICE: ms.EachChoiceHOMStrategy,
-}
-
-
-def _setup_mutant_generator() -> mu.Mutator:
-    operators: list[type[MutationOperator]] = [
-        *mo.standard_operators,
-        *mo.experimental_operators,
-    ]
-
-    output = config.configuration.test_case_output
-    mutation_strategy = output.mutation_strategy
-
-    if mutation_strategy == config.MutationStrategy.FIRST_ORDER_MUTANTS:
-        # Reorder (interleave + defer timeout-prone operators) whenever a bound on
-        # the mutation-analysis phase is active, so truncation stays fair.
-        reorder = output.maximum_mutants >= 0 or output.maximum_mutation_time >= 0
-        return mu.FirstOrderMutator(
-            operators,
-            maximum_mutants=output.maximum_mutants,
-            sampling_seed=config.configuration.seeding.seed,
-            reorder=reorder,
-        )
-
-    order = config.configuration.test_case_output.mutation_order
-
-    if order <= 0:
-        raise ConfigurationException("Mutation order should be > 0.")
-
-    if mutation_strategy in _strategies:
-        hom_strategy = _strategies[mutation_strategy](order)
-        return mu.HighOrderMutator(operators, hom_strategy=hom_strategy)
-
-    raise ConfigurationException("No suitable mutation strategy found.")
-
-
 def _setup_mutation_analysis_assertion_generator(
     executor: TestCaseExecutor,
     *,
@@ -1630,18 +1582,13 @@ def _setup_mutation_analysis_assertion_generator(
     maximum_time: float | None = None,
 ) -> ag.MutationAnalysisAssertionGenerator:
     _LOGGER.info("Setup mutation generator")
-    mutant_generator = _setup_mutant_generator()
 
     _LOGGER.info("Import module %s", config.configuration.module_name)
     with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
         module = importlib.import_module(config.configuration.module_name)
 
-    _LOGGER.info("Build AST for %s", module.__name__)
-    module_source_code = inspect.getsource(module)
-    module_ast = ParentNodeTransformer.create_ast(module_source_code)
-
     _LOGGER.info("Mutate module %s", module.__name__)
-    mutation_controller = MutationController(mutant_generator, module_ast, module)
+    mutation_controller = create_mutation_controller(module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
