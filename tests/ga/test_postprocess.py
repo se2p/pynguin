@@ -134,6 +134,25 @@ def test_is_protected_statement_protects_field_and_subscript_assignments_and_met
     assert not pp._is_protected_statement(pure_read, {"handler"})
 
 
+def test_is_protected_statement_protects_import_statements():
+    """Import statements whose bound names are in protected are recognized as protected."""
+    import_stmt = stmt("from pymonet.monad_try import Try")
+    assert pp._is_protected_statement(import_stmt, {"Try"})
+    assert not pp._is_protected_statement(import_stmt, {"other"})
+
+
+def test_backward_dependencies_protect_import_statements():
+    """A raw assertion using an imported name transitively protects the import statement."""
+    import_stmt = stmt("from pymonet.monad_try import Try")
+    setup = stmt("result = Try(1)")
+    raw_assert = stmt("assert isinstance(result, Try)")
+    test_case = make_test_case(import_stmt, setup, raw_assert)
+
+    result = pp.get_assertion_protected_variables(test_case)
+    assert "Try" in result
+    assert pp._is_protected_statement(import_stmt, result)
+
+
 def test_is_protected_statement_ignores_exception_assertions():
     raising = stmt("var_0(1.5)")
     raising.assertions.append(ExceptionAssertion("builtins", "TypeError"))

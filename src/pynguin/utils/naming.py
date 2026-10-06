@@ -124,3 +124,28 @@ def canonical_module_name(name: str) -> str:
         return spec.name
 
     return name
+
+
+def get_package_anchor(module_name: str) -> str:
+    """Derive the package anchor string for resolving relative imports.
+
+    Args:
+        module_name: The fully qualified module name under test.
+
+    Returns:
+        The package anchor string to use for resolving relative imports.
+    """
+    if not module_name:
+        return ""
+    try:
+        spec = importlib.util.find_spec(module_name)
+    except (ImportError, ValueError, AttributeError):
+        spec = None
+    if spec is not None:
+        if spec.submodule_search_locations is not None:
+            return module_name
+        if spec.parent:
+            return spec.parent
+    if "." in module_name:
+        return module_name.rpartition(".")[0]
+    return module_name

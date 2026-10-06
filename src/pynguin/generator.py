@@ -1308,6 +1308,7 @@ def finalize_generation_result(  # noqa: C901, PLR0917
                 generation_result,
                 sut_uses_random=test_cluster.sut_uses_random,
                 subject_properties=executor.subject_properties,
+                test_cluster=test_cluster,
             )
 
             # Apply LLM-based test refinement if enabled
@@ -1759,6 +1760,7 @@ def _export_chromosome(
     *,
     sut_uses_random: bool = False,
     subject_properties: SubjectProperties | None = None,
+    test_cluster: ModuleTestCluster | None = None,
 ) -> Path:
     """Export the given chromosome.
 
@@ -1771,15 +1773,20 @@ def _export_chromosome(
             detection (otherwise the tracer's thread-identity guard aborts the
             exporter's re-execution and pollutes the suite with bogus
             ``pytest.raises(TracingAbortedException)`` wrappers).
+        test_cluster: Optional test cluster supplying registered external imports.
 
     Returns:
         The name of the target file
     """
     output_dir = Path(config.configuration.test_case_output.output_path).resolve()
 
+    generation_result = cast("tsc.TestSuiteChromosome", chromosome)
+    if test_cluster is not None and hasattr(test_cluster, "external_imports"):
+        generation_result.external_imports.update(test_cluster.external_imports)
+
     writer = export.TestSuiteWriter(no_xfail=config.configuration.test_case_output.no_xfail)
     target_file = writer.write(
-        cast("tsc.TestSuiteChromosome", chromosome),
+        generation_result,
         config.configuration.module_name,
         output_dir,
         project_path=config.configuration.project_path,

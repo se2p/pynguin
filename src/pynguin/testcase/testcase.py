@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Literal
 import libcst as cst
 
 from pynguin.assertion.assertion import ExceptionAssertion, ReferenceAssertion
-from pynguin.utils import randomness
+from pynguin.utils import cst_imports, randomness
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
@@ -77,6 +78,12 @@ class _NameCollector(cst.CSTTransformer):
             self._is_in_target = old_in_target
             return False
         return True
+
+    def visit_Import(self, node: cst.Import) -> bool:  # noqa: N802
+        return False
+
+    def visit_ImportFrom(self, node: cst.ImportFrom) -> bool:  # noqa: N802
+        return False
 
     def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
         """Collect the name if it is not a target.
@@ -261,6 +268,31 @@ class Statement:
     _used_vars: frozenset[str] | None = dataclasses.field(
         default=None, init=False, repr=False, compare=False
     )
+    _bound_names: frozenset[str] | None = dataclasses.field(
+        default=None, init=False, repr=False, compare=False
+    )
+
+    def bound_names(self) -> frozenset[str]:
+        """Return (and cache) the set of variable names bound by this statement.
+
+        This includes the assigned variable name (``bound_variable``) as well as
+        any local names bound by ``import`` or compound statement headers.
+
+        Returns:
+            The frozenset of variable names bound by this statement.
+        """
+        if self._bound_names is None:
+            names: set[str] = set()
+            if self.bound_variable is not None:
+                names.add(self.bound_variable)
+            if isinstance(self.node, cst.SimpleStatementLine):
+                for small in self.node.body:
+                    if isinstance(small, (cst.Import, cst.ImportFrom)):
+                        names.update(cst_imports.imported_local_names(small))
+            elif isinstance(self.node, cst.BaseCompoundStatement):
+                names.update(cst_imports.LeakedBindingCollector.collect(self.node))
+            self._bound_names = frozenset(names)
+        return self._bound_names
 
     def has_only_exception_assertion(self) -> bool:
         """Does this statement only have an exception assertion?
@@ -404,6 +436,7 @@ class TestCase:  # noqa: PLR0904
         self._var_counter: int = 0
         self._type_registry: dict[type, list[str]] = {}
         self._code_cache: str | None = None
+        self.external_imports: OrderedSet[str] = OrderedSet()
 
     # ------------------------------------------------------------------
     # Statement management
@@ -492,10 +525,7 @@ class TestCase:  # noqa: PLR0904
         """
         closure = {index}
         # Names bound by statements currently in the closure.
-        tainted_names: set[str] = set()
-        root_var = self._statements[index].bound_variable
-        if root_var is not None:
-            tainted_names.add(root_var)
+        tainted_names: set[str] = set(self._statements[index].bound_names())
 
         changed = True
         while changed:
@@ -506,8 +536,7 @@ class TestCase:  # noqa: PLR0904
                 stmt = self._statements[i]
                 if stmt.used_variables() & tainted_names:
                     closure.add(i)
-                    if stmt.bound_variable is not None and stmt.bound_variable not in tainted_names:
-                        tainted_names.add(stmt.bound_variable)
+                    tainted_names.update(stmt.bound_names())
                     changed = True
         return closure
 
@@ -598,6 +627,7 @@ class TestCase:  # noqa: PLR0904
                     mock_info=stmt.mock_info.clone() if stmt.mock_info is not None else None,
                 )
             )
+        self.external_imports.update(other.external_imports)
 
     def _resolve_head_references(
         self,
@@ -788,11 +818,13 @@ class TestCase:  # noqa: PLR0904
                 mock_info=stmt.mock_info.clone() if stmt.mock_info is not None else None,
             )
             s._used_vars = stmt._used_vars  # noqa: SLF001 # propagate cached set; nodes are immutable
+            s._bound_names = stmt._bound_names  # noqa: SLF001
             cloned.append(s)
         tc._statements = cloned
         tc._var_counter = self._var_counter
         tc._rebuild_registry()
         tc._code_cache = self._code_cache
+        tc.external_imports = OrderedSet(self.external_imports)
         return tc
 
     def __eq__(self, other: object) -> bool:
@@ -830,9 +862,9 @@ class TestCase:  # noqa: PLR0904
         while changed:
             changed = False
             for statement in self._statements:
-                if (
-                    statement.bound_variable is not None and statement.bound_variable in protected
-                ) or statement.modifies_any_variable(protected):
+                if bool(statement.bound_names() & protected) or statement.modifies_any_variable(
+                    protected
+                ):
                     for used in statement.used_variables():
                         if used not in protected:
                             protected.add(used)

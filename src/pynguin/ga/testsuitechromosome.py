@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosome as chrom
+from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
@@ -41,11 +42,13 @@ class TestSuiteChromosome(chrom.Chromosome):
                 None | (cf.ChromosomeFactory[tcc.TestCaseChromosome])  # noqa: RUF036
             ) = test_case_chromosome_factory
             self.test_case_chromosomes: list[tcc.TestCaseChromosome] = []
+            self.external_imports: OrderedSet[str] = OrderedSet()
         else:
             self.test_case_chromosomes = [
                 chromosome.clone() for chromosome in orig.test_case_chromosomes
             ]
             self.test_case_chromosome_factory = orig.test_case_chromosome_factory
+            self.external_imports = OrderedSet(orig.external_imports)
 
     def add_test_case_chromosome(self, test: tcc.TestCaseChromosome) -> None:
         """Adds a test case chromosome to the test suite.
@@ -54,6 +57,8 @@ class TestSuiteChromosome(chrom.Chromosome):
             test: the test case to be added
         """
         self.test_case_chromosomes.append(test)
+        if hasattr(test.test_case, "external_imports"):
+            self.external_imports.update(test.test_case.external_imports)
         self.changed = True
 
     def delete_test_case_chromosome(self, test: tcc.TestCaseChromosome) -> None:
@@ -75,6 +80,9 @@ class TestSuiteChromosome(chrom.Chromosome):
             tests: A list of test case chromosomes to add
         """
         self.test_case_chromosomes.extend(tests)
+        for test in tests:
+            if hasattr(test.test_case, "external_imports"):
+                self.external_imports.update(test.test_case.external_imports)
         if tests:
             self.changed = True
 

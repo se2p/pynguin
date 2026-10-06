@@ -33,12 +33,19 @@ import pynguin.testcase.testcase as tc
 from pynguin import configuration as config
 from pynguin.analyses.module import is_name_visible_under_configured_element_visibility
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
+from pynguin.utils.cst_imports import LeakedBindingCollector as _LeakedBindingCollector
+from pynguin.utils.cst_imports import RelativeImportNormalizer
+from pynguin.utils.cst_imports import build_chain as _build_chain
+from pynguin.utils.cst_imports import dotted_chain as _dotted_chain
+from pynguin.utils.cst_imports import imported_local_names as _imported_local_names
+from pynguin.utils.cst_imports import target_names as _target_names
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericFunction,
     GenericMethod,
 )
-from pynguin.utils.naming import get_module_alias
+from pynguin.utils.naming import get_module_alias, get_package_anchor
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_assertable
 
 if TYPE_CHECKING:
@@ -109,34 +116,13 @@ class DeserializationResult:
     import_names_repaired: int = 0
     #: Distinct ``from m import name`` names dropped because they do not exist.
     import_names_dropped: int = 0
+    #: External (non-SUT) imports extracted from the source.
+    external_imports: OrderedSet[str] = dataclasses.field(default_factory=OrderedSet)
 
 
 # ---------------------------------------------------------------------------
 # Small, self-contained CST helpers
 # ---------------------------------------------------------------------------
-
-
-def _dotted_chain(node: cst.BaseExpression) -> list[str] | None:
-    """Return the root-first component list of a pure ``Name``/``Attribute`` chain.
-
-    Args:
-        node: The expression to inspect.
-
-    Returns:
-        The list of components (e.g. ``["foo", "bar"]`` for ``foo.bar``), or
-        ``None`` if *node* is not a pure attribute chain rooted in a ``Name``
-        (e.g. it contains a call or subscript).
-    """
-    parts: list[str] = []
-    cur: cst.BaseExpression = node
-    while isinstance(cur, cst.Attribute):
-        parts.append(cur.attr.value)
-        cur = cur.value
-    if isinstance(cur, cst.Name):
-        parts.append(cur.value)
-        parts.reverse()
-        return parts
-    return None
 
 
 # Context managers that only redirect output or replace attributes.
@@ -161,21 +147,6 @@ def _is_transparent_context_manager(item: cst.WithItem) -> bool:
     if chain is None:
         return False
     return chain[-1] in _TRANSPARENT_CONTEXT_MANAGERS or (len(chain) > 1 and chain[-2] == "patch")
-
-
-def _build_chain(parts: list[str]) -> cst.BaseExpression:
-    """Build a ``Name``/``Attribute`` chain from root-first *parts*.
-
-    Args:
-        parts: The root-first component list.
-
-    Returns:
-        The corresponding CST expression.
-    """
-    node: cst.BaseExpression = cst.Name(parts[0])
-    for part in parts[1:]:
-        node = cst.Attribute(value=node, attr=cst.Name(part))
-    return node
 
 
 def _try_literal(node: cst.BaseExpression) -> tuple[type, Any] | None:
@@ -322,17 +293,6 @@ def _all_params(params: cst.Parameters) -> list[cst.Param]:
     return result
 
 
-def _target_names(node: cst.BaseExpression) -> set[str]:
-    """Return the bare names bound by an assignment or ``for`` target."""
-    if isinstance(node, cst.Name):
-        return {node.value}
-    if isinstance(node, cst.Tuple | cst.List):
-        return {name for element in node.elements for name in _target_names(element.value)}
-    if isinstance(node, cst.StarredElement):
-        return _target_names(node.value)
-    return set()
-
-
 class _OutermostCallCollector(cst.CSTVisitor):
     """Collects the outermost calls of an expression, in evaluation order.
 
@@ -463,89 +423,6 @@ class _BlockBindingCollector(cst.CSTVisitor):
         return True
 
 
-class _LeakedBindingCollector(cst.CSTVisitor):
-    """Collects the names a compound statement *leaks* into the enclosing scope.
-
-    Where :class:`_BlockBindingCollector` reports *every* name bound anywhere
-    inside a block, this collector reports only the names that Python actually
-    leaks out to the surrounding function scope once a ``for``/``with``/``if``/
-    ``while``/``try`` block has executed:
-
-    * ``with ... as`` targets,
-    * ``for`` loop targets,
-    * in-block assignments (``=``/``:=``/augmented/annotated), and
-    * the *names* of nested ``def``/``class`` definitions.
-
-    The names that stay block-local -- comprehension targets, ``lambda``
-    parameters, and everything internal to a nested ``def``/``class`` body --
-    are deliberately *not* collected, so a sibling block cannot wrongly resolve
-    a reference against a name that does not exist at that point at runtime.
-    """
-
-    def __init__(self) -> None:
-        self.bound: set[str] = set()
-
-    @staticmethod
-    def collect(node: cst.CSTNode) -> set[str]:
-        """Collect the names leaked into the enclosing scope by *node*."""
-        collector = _LeakedBindingCollector()
-        node.visit(collector)
-        return collector.bound
-
-    def _add_targets(self, node: cst.BaseExpression) -> None:
-        self.bound.update(_target_names(node))
-
-    def visit_AssignTarget(self, node: cst.AssignTarget) -> bool:  # noqa: N802
-        self._add_targets(node.target)
-        return True
-
-    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
-        self._add_targets(node.target)
-        return True
-
-    def visit_AugAssign(self, node: cst.AugAssign) -> bool:  # noqa: N802
-        self._add_targets(node.target)
-        return True
-
-    def visit_NamedExpr(self, node: cst.NamedExpr) -> bool:  # noqa: N802
-        self._add_targets(node.target)
-        return True
-
-    def visit_For(self, node: cst.For) -> bool:  # noqa: N802
-        self._add_targets(node.target)
-        return True
-
-    def visit_WithItem(self, node: cst.WithItem) -> bool:  # noqa: N802
-        # ``with ... as target`` leaks ``target``; an ``except ... as`` handler
-        # (which uses a separate node) is deliberately not visited here because
-        # Python deletes that binding at the end of the handler.
-        if node.asname is not None:
-            if isinstance(node.asname.name, cst.Name):
-                self.bound.add(node.asname.name.value)
-            else:
-                self._add_targets(node.asname.name)
-        return True
-
-    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
-        # The def *name* leaks into the enclosing scope; its parameters and body
-        # stay local, so do not descend into it.
-        self.bound.add(node.name.value)
-        return False
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        # The class *name* leaks; its body stays local, so do not descend.
-        self.bound.add(node.name.value)
-        return False
-
-    def visit_Lambda(self, node: cst.Lambda) -> bool:  # noqa: N802
-        # ``lambda`` parameters stay local to the lambda; do not descend.
-        return False
-
-    def visit_CompFor(self, node: cst.CompFor) -> bool:  # noqa: N802
-        # Comprehensions have their own scope, so their targets never leak.
-        return False
-
-
 class _LocalRenamer(cst.CSTTransformer):
     """Renames bare ``Name`` leaves according to a mapping."""
 
@@ -561,31 +438,6 @@ class _LocalRenamer(cst.CSTTransformer):
             if new is not None and new != updated_node.value
             else updated_node
         )
-
-
-def _imported_local_names(node: cst.Import | cst.ImportFrom) -> list[str]:
-    """Return the local (bound) names introduced by an import statement.
-
-    Args:
-        node: The import statement.
-
-    Returns:
-        The list of local names bound by the import.
-    """
-    names = node.names
-    if isinstance(names, cst.ImportStar):
-        return []
-    result = []
-    for alias in names:
-        if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
-            result.append(alias.asname.name.value)
-        elif isinstance(alias.name, cst.Name):
-            result.append(alias.name.value)
-        elif isinstance(alias.name, cst.Attribute):
-            chain = _dotted_chain(alias.name)
-            if chain:
-                result.append(chain[0])
-    return result
 
 
 def _restrict_import_to_names(
@@ -622,70 +474,6 @@ class ImportedBinding:
 
     module: str
     symbol: str | None = None
-
-
-def get_package_anchor(module_name: str) -> str:
-    """Return the package anchor for resolving relative imports within module_name.
-
-    Args:
-        module_name: The fully qualified module name under test.
-
-    Returns:
-        The package anchor string to use for resolving relative imports.
-    """
-    if not module_name:
-        return ""
-    try:
-        spec = importlib.util.find_spec(module_name)
-    except (ImportError, ValueError, AttributeError):
-        spec = None
-    if spec is not None:
-        if spec.submodule_search_locations is not None:
-            return module_name
-        if spec.parent:
-            return spec.parent
-    if "." in module_name:
-        return module_name.rpartition(".")[0]
-    return module_name
-
-
-class RelativeImportNormalizer(cst.CSTTransformer):
-    """Normalizes relative ``ImportFrom`` statements to absolute imports."""
-
-    def __init__(self, package_anchor: str) -> None:  # noqa: D107
-        self._package_anchor = package_anchor
-
-    def leave_ImportFrom(  # noqa: N802
-        self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
-    ) -> cst.ImportFrom:
-        """Rewrite relative ImportFrom nodes to absolute ImportFrom nodes."""
-        if not updated_node.relative or not self._package_anchor:
-            return updated_node
-
-        level_dots = "." * len(updated_node.relative)
-        if updated_node.module is not None:
-            dotted = _dotted_chain(updated_node.module)
-            if dotted is None:
-                return updated_node
-            rel_name = level_dots + ".".join(dotted)
-        else:
-            rel_name = level_dots
-
-        try:
-            abs_name = importlib.util.resolve_name(rel_name, self._package_anchor)
-        except (ValueError, ImportError):
-            logger.debug(
-                "Could not resolve relative import %s with anchor %s",
-                rel_name,
-                self._package_anchor,
-            )
-            return updated_node
-
-        abs_chain = abs_name.split(".")
-        return updated_node.with_changes(
-            relative=(),
-            module=_build_chain(abs_chain),
-        )
 
 
 def _resolve_from_import_module(node: cst.ImportFrom) -> str | None:
@@ -1843,7 +1631,12 @@ class CstStatementDeserializer:
         if isinstance(small, cst.Import | cst.ImportFrom):
             state.known.update(_imported_local_names(small))
             state.imported_bindings.update(_extract_imported_bindings(small))
-            state.testcase.add_statement(tc.Statement(node=cst.SimpleStatementLine(body=[small])))
+            stmt_line = cst.SimpleStatementLine(body=[small])
+            import_code = cst.Module(body=[stmt_line]).code.strip()
+            state.testcase.external_imports.add(import_code)
+            if hasattr(self._test_cluster, "register_external_import"):
+                self._test_cluster.register_external_import(import_code)
+            state.testcase.add_statement(tc.Statement(node=stmt_line))
             counts[Disposition.ADMITTED_IMPORT] += 1
             return
 
@@ -2010,6 +1803,36 @@ def _parse_module_level_imports(
     return lines
 
 
+def _register_module_level_imports(
+    module_level_imports: Sequence[cst.SimpleStatementLine],
+    test_cluster: TestCluster,
+) -> None:
+    if not hasattr(test_cluster, "register_external_import"):
+        return
+    normalizer = _SutReferenceNormalizer(
+        config.configuration.module_name,
+        get_module_alias(config.configuration.module_name),
+    )
+    for imp in module_level_imports:
+        norm = imp.visit(normalizer)
+        if isinstance(norm, cst.SimpleStatementLine) and norm.body:
+            test_cluster.register_external_import(norm)
+
+
+def _collect_deserialized_external_imports(
+    test_cases: Sequence[tc.TestCase],
+    test_cluster: TestCluster,
+) -> OrderedSet[str]:
+    all_external_imports: OrderedSet[str] = OrderedSet()
+    for tc_ in test_cases:
+        all_external_imports.update(tc_.external_imports)
+    if hasattr(test_cluster, "external_imports") and isinstance(
+        test_cluster.external_imports, (OrderedSet, set, list)
+    ):
+        all_external_imports.update(test_cluster.external_imports)
+    return all_external_imports
+
+
 def deserialize_code_to_testcases(
     test_file_contents: str,
     test_cluster: TestCluster,
@@ -2052,6 +1875,7 @@ def deserialize_code_to_testcases(
     module_level_imports = _parse_module_level_imports(
         rewritten.module_imports, module_name=config.configuration.module_name
     )
+    _register_module_level_imports(module_level_imports, test_cluster)
 
     deserializer = CstStatementDeserializer(test_cluster, create_assertions=create_assertions)
     test_cases: list[tc.TestCase] = []
@@ -2081,10 +1905,12 @@ def deserialize_code_to_testcases(
                 _format_counts(function_result.counts),
             )
 
+    all_external_imports = _collect_deserialized_external_imports(test_cases, test_cluster)
     return DeserializationResult(
         test_cases,
         ParseStatus.OK,
         counts,
         import_names_repaired=deserializer.import_names_repaired,
         import_names_dropped=deserializer.import_names_dropped,
+        external_imports=all_external_imports,
     )
