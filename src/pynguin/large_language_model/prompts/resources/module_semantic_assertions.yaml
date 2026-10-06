@@ -41,10 +41,9 @@ user_message_template: |
      - For POSITIVE tests: remove try/except, store the result and assert on it.
 
   3. **Prefer Concrete Value Equality Over Type Checks:**
-     - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs, documentation, or behavior.
-     - Discourage vacuous or coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless the exact value is truly non-deterministic (e.g. random timestamps or UUIDs).
-     - For collection returns (`list`, `dict`, `set`), assert exact contents or key-value mappings rather than only checking `len(result) > 0`.
-     - For boolean returns, assert `assert result is True` or `assert result is False` rather than just `isinstance(result, bool)`.
+     - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs, documentation, or behavior over coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless the value is non-deterministic.
+     - For collection returns (`list`, `dict`, `set`) prefer assertions on exact contents or key-value mappings over coarse checks such as `len(result) > 0` if deterministic.
+     - For boolean returns, prefer `assert result is True` or `assert result is False` over `isinstance(result, bool)`.
 
   4. **Verify Object State & Side Effects:**
      - If the method under test modifies object attributes or internal state, assert the state of those attributes after calling the method (e.g. `assert obj.attribute == expected_value`).

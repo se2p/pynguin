@@ -41,8 +41,7 @@ user_message_template: |
   1. Decide from the inputs whether each test is POSITIVE or NEGATIVE.
      - NEGATIVE: wrap the call in `with pytest.raises(Exception):`.
      - POSITIVE: remove try/except, store the result and add assertions.
-       - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs, documentation, or behavior.
-       - Discourage coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless non-deterministic.
+       - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs, documentation, or behavior over coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless non-deterministic.
        - If the method modifies object attributes, collections, or internal state, verify that modified state explicitly (e.g. `assert obj.attribute == expected_value`).
   2. Only add/modify assertions in the `# Assert` section; do not weaken existing checks.
 

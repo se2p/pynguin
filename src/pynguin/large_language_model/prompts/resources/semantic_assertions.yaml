@@ -55,9 +55,8 @@ user_message_template: |
      - Verify the method completes successfully
 
   3. **Prefer Concrete Value Equality Over Type Checks:**
-     - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs/documentation/behavior.
-     - Discourage vacuous or coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless the exact value is truly non-deterministic (e.g., random timestamps or UUIDs).
-     - For collection returns (`list`, `dict`, `set`), assert exact contents or key-value mappings rather than only checking `len(result) > 0` or `isinstance(...)`.
+     - Prefer concrete value equality (`assert result == <expected_value>`) over coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless the exact value is non-deterministic.
+     - For collection returns (`list`, `dict`, `set`), prfer assertions on exact contents or key-value mappings over checking `len(result) > 0` or `isinstance(...)`.
      - For boolean returns, assert `assert result is True` or `assert result is False` rather than just `isinstance(result, bool)`.
 
   4. **Verify Object State & Side Effects:**
