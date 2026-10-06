@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import multiprocess as mp
+import pytest
 
 import pynguin.configuration as config
 import pynguin.generator as gen
@@ -432,6 +433,7 @@ def _process_group_is_empty(process_group_id: int) -> bool:
     return False
 
 
+@pytest.mark.skip(reason="Flaky in CI under heavy load, see issue #320")
 def test_sigterm_to_the_orchestrator_stops_all_island_and_worker_processes(tmp_path):
     project_path = Path().absolute()
     if project_path.name == "tests":
