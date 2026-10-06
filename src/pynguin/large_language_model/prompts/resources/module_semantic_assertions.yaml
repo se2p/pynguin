@@ -40,11 +40,17 @@ user_message_template: |
      - For NEGATIVE tests: wrap the call in `with pytest.raises(Exception):`.
      - For POSITIVE tests: remove try/except, store the result and assert on it.
 
-  3. **Generate conservative assertions based on the return type** — only assert what you
-     can confidently verify from the documentation (e.g. `isinstance(result, str)` and
-     `len(result) > 0` for string returns, `isinstance(result, bool)` for booleans).
+  3. **Prefer Concrete Value Equality Over Type Checks:**
+     - Prefer concrete value equality (`assert result == <expected_value>`) whenever the expected output is deterministic or can be inferred from inputs, documentation, or behavior over coarse checks (like `isinstance(result, str)` or `len(result) > 0`) unless the value is non-deterministic.
+     - For collection returns (`list`, `dict`, `set`) prefer assertions on exact contents or key-value mappings over coarse checks such as `len(result) > 0` if deterministic.
+     - For boolean returns, prefer `assert result is True` or `assert result is False` over `isinstance(result, bool)`.
 
-  4. **Preserve ALL existing code and AAA structure:**
+  4. **Verify Object State & Side Effects:**
+     - If the method under test modifies object attributes or internal state, assert the state of those attributes after calling the method (e.g. `assert obj.attribute == expected_value`).
+     - If the method updates collections, registries, or class variables, verify the updated entries.
+     - Do not leave state-modifying calls unverified even if they return `None`.
+
+  5. **Preserve ALL existing code and AAA structure:**
      - Keep the test function name and signature unchanged.
      - Keep the `# Arrange` section unchanged.
      - Keep the `# Act` section unchanged (unless converting try/except to pytest.raises).
