@@ -45,7 +45,13 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
-from pynguin.refinement.validator import call_test_functions, collect_test_functions
+from pynguin.refinement.validator import (
+    call_test_functions,
+    collect_test_functions,
+    find_test_function_name,
+    preserved_random_seed,
+    reseed_random,
+)
 from pynguin.utils.timeout import resolve_timeout, time_limit
 
 if TYPE_CHECKING:
@@ -119,7 +125,7 @@ def _measure_coverage_pynguin(
     }
 
     cleaned = textwrap.dedent(test_code.strip())
-    func_name = _find_test_function_name(cleaned)
+    func_name = find_test_function_name(cleaned)
     test_funcs = collect_test_functions(cleaned)
     compiled = compile(cleaned, "<test>", "exec")
 
@@ -135,13 +141,14 @@ def _measure_coverage_pynguin(
     tracer.tracer._current_thread_identifier = (  # noqa: SLF001
         threading.current_thread().ident
     )
-    with tracer.temporarily_enable():
+    with tracer.temporarily_enable(), preserved_random_seed():
         try:
             with time_limit(resolve_timeout(None)):
                 exec(compiled, scope)  # noqa: S102
             if test_funcs:
                 call_test_functions(scope, test_funcs)  # per-test time limits
             elif func_name and func_name in scope and callable(scope[func_name]):
+                reseed_random(scope)
                 with time_limit(resolve_timeout(None)):
                     scope[func_name]()
         except BaseException as exc:  # noqa: BLE001
@@ -187,15 +194,6 @@ def _executable_lines(source: str) -> set[int]:
                 continue
             lines.add(node.lineno)
     return lines
-
-
-def _find_test_function_name(cleaned: str) -> str:
-    """Return the name of the first ``def`` in *cleaned*, or an empty string."""
-    for line in cleaned.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("def "):
-            return stripped.split("(")[0].removeprefix("def ")
-    return ""
 
 
 def _load_sut_source(
@@ -266,7 +264,7 @@ def _trace_sut_lines(
         "pytest": pytest,
     }
     cleaned = textwrap.dedent(test_code.strip())
-    func_name = _find_test_function_name(cleaned)
+    func_name = find_test_function_name(cleaned)
     test_funcs = collect_test_functions(cleaned)
 
     old_module = sys.modules.get(module_under_test.__name__)
@@ -275,13 +273,15 @@ def _trace_sut_lines(
     try:
         compiled = compile(cleaned, "<test>", "exec")
         sys.settrace(tracer)
-        with time_limit(resolve_timeout(None)):
-            exec(compiled, scope)  # noqa: S102
-        if test_funcs:
-            call_test_functions(scope, test_funcs)  # per-test time limits
-        elif func_name and func_name in scope and callable(scope[func_name]):
+        with preserved_random_seed():
             with time_limit(resolve_timeout(None)):
-                scope[func_name]()
+                exec(compiled, scope)  # noqa: S102
+            if test_funcs:
+                call_test_functions(scope, test_funcs)  # per-test time limits
+            elif func_name and func_name in scope and callable(scope[func_name]):
+                reseed_random(scope)
+                with time_limit(resolve_timeout(None)):
+                    scope[func_name]()
     except BaseException as exc:  # noqa: BLE001
         # Executing generated test code may raise anything; degrade gracefully.
         return executed_lines, exc

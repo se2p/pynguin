@@ -41,6 +41,7 @@ from pynguin.refinement.validator import (
     call_test_functions,
     collect_test_functions,
     execute_test,
+    preserved_random_seed,
 )
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
@@ -165,12 +166,13 @@ def _execute_against(
     try:
         cleaned = textwrap.dedent(test_code.strip())
         compiled = compile(ast.parse(cleaned), "<test>", "exec")
-        with time_limit(resolve_timeout(None)):
-            exec(compiled, test_globals)  # noqa: S102
-        # Run every test function on its own (and under its own time limit),
-        # honouring xfail markers, so an expected failure does not count as a kill
-        # or hide the other tests.
-        call_test_functions(test_globals, collect_test_functions(cleaned))
+        with preserved_random_seed():
+            with time_limit(resolve_timeout(None)):
+                exec(compiled, test_globals)  # noqa: S102
+            # Run every test function on its own (and under its own time limit),
+            # honouring xfail markers, so an expected failure does not count as a
+            # kill or hide the other tests.
+            call_test_functions(test_globals, collect_test_functions(cleaned))
 
         return False
     except TestExecutionTimeoutError:

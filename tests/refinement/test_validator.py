@@ -9,23 +9,30 @@
 from __future__ import annotations
 
 import math
+import random
 import sys
 import threading
 import time
 import types
 
+import libcst as cst
 import pytest
 
 import pynguin.configuration as config
+from pynguin.generator import _patch_random  # noqa: PLC2701
 from pynguin.refinement.validator import (
     TestExecutionTimeoutError,
     _ensure_module_package_on_path,  # noqa: PLC2701
     call_test_functions,
     collect_test_functions,
+    find_test_function_name,
+    preserved_random_seed,
     resolve_timeout,
     run_test,
     time_limit,
 )
+from pynguin.testcase.export import TestSuiteWriter
+from pynguin.utils import randomness
 
 
 def test_run_test_passing():
@@ -271,3 +278,108 @@ def test_call_test_functions_propagates_regular_failure():
 
     with pytest.raises(ValueError, match="boom"):
         call_test_functions({"test_x": failing}, [("test_x", False, False)])
+
+
+def _seed_preamble(seed: int) -> str:
+    """The deterministic-seed preamble the exporter writes for SUTs using ``random``."""
+    body = TestSuiteWriter._create_patch_nodes(seed) + TestSuiteWriter._create_seed_fixture(seed)
+    return "import pytest\nimport random as _pynguin_random\n" + cst.Module(body=body).code
+
+
+def _value_under_seed(seed: int) -> int:
+    rng = random.Random(seed)  # noqa: S311
+    return rng.randint(1, 10**9)
+
+
+def test_find_test_function_name_skips_seed_preamble():
+    code = f"{_seed_preamble(42)}\ndef test_case_0():\n    assert True\n"
+    assert find_test_function_name(code) == "test_case_0"
+
+
+def test_find_test_function_name_prefers_last_test():
+    code = "def test_1():\n    pass\ndef helper():\n    pass\ndef test_2():\n    pass\n"
+    assert find_test_function_name(code) == "test_2"
+
+
+def test_find_test_function_name_falls_back_to_last_function():
+    code = "def _helper():\n    pass\ndef renamed():\n    pass\n"
+    assert find_test_function_name(code) == "renamed"
+
+
+def test_find_test_function_name_ignores_nested_defs():
+    code = "def _helper():\n    def test_inner():\n        pass\ndef check():\n    pass\n"
+    assert find_test_function_name(code) == "check"
+
+
+def test_find_test_function_name_syntax_error():
+    code = "def _helper(:\n    pass\ndef test_ok():\n    pass\n    def test_nested(): pass\n"
+    assert find_test_function_name(code) == "test_ok"
+
+
+def test_find_test_function_name_none():
+    assert not find_test_function_name("x = 1\n")
+
+
+def test_run_test_reseeds_like_autouse_fixture():
+    """A seed-dependent assertion passes, as under pytest, whatever the random state."""
+    code = (
+        f"{_seed_preamble(42)}\n"
+        "def test_case_0():\n"
+        f"    assert random.randint(1, 10**9) == {_value_under_seed(42)}\n"
+    )
+    random.seed(7)
+    assert run_test(code, random) == (True, "Test passed.")
+    assert run_test(code, random) == (True, "Test passed.")
+
+
+def test_run_test_reverts_seed_patch():
+    original_seed = random.Random.seed
+    code = f"{_seed_preamble(42)}\ndef test_case_0():\n    assert True\n"
+    assert run_test(code, random)[0]
+    assert random.Random.seed is original_seed
+
+
+def test_run_test_reverts_seed_patch_on_failure():
+    original_seed = random.Random.seed
+    code = f"{_seed_preamble(42)}\ndef test_case_0():\n    assert False\n"
+    assert not run_test(code, random)[0]
+    assert random.Random.seed is original_seed
+
+
+def test_call_test_functions_reseeds_before_each_test():
+    expected = _value_under_seed(42)
+    code = (
+        f"{_seed_preamble(42)}\n"
+        "def test_a():\n"
+        f"    assert random.randint(1, 10**9) == {expected}\n"
+        "def test_b():\n"
+        "    rng = random.Random()\n"
+        f"    assert random.randint(1, 10**9) == {expected}\n"
+        "    assert rng.randint(1, 10**9) == "
+        f"{_value_under_seed(42)}\n"
+    )
+    original_seed = random.Random.seed
+    scope: dict = {"random": random}
+    with preserved_random_seed():
+        exec(code, scope)  # noqa: S102
+        call_test_functions(scope, collect_test_functions(code))
+    assert random.Random.seed is original_seed
+
+
+def test_run_test_reseeds_sut_instances_tracked_by_pynguin(monkeypatch):
+    """A SUT-level ``Random()`` created under Pynguin's own patch is reseeded too."""
+    monkeypatch.setattr(config.configuration.seeding, "seed", 42)
+    with preserved_random_seed():
+        _patch_random()
+        sut = types.ModuleType("sut_with_rng")
+        sut.rng = random.Random()  # noqa: S311
+        sut.rng.random()  # state advanced, as by test generation
+        rng_state = randomness.RNG.getstate()
+        code = (
+            f"{_seed_preamble(42)}\n"
+            "def test_case_0():\n"
+            f"    assert sut_with_rng.rng.randint(1, 10**9) == {_value_under_seed(42)}\n"
+        )
+        assert run_test(code, sut) == (True, "Test passed.")
+        assert run_test(code, sut) == (True, "Test passed.")
+        assert randomness.RNG.getstate() == rng_state

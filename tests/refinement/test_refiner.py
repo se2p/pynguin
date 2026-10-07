@@ -9,8 +9,12 @@
 from __future__ import annotations
 
 import ast
+import importlib
+import random
+import sys
 import types
 
+import libcst as cst
 import pytest
 
 import pynguin.configuration as config
@@ -32,6 +36,7 @@ from pynguin.refinement.refiner import (
     _track_statistics,  # noqa: PLC2701
     refine_generated_tests,
 )
+from pynguin.testcase.export import TestSuiteWriter
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -688,3 +693,69 @@ def test_refine_generated_tests_disabled_mutation_skips_evaluation(
 
     assert eval_called == []
     assert "post_refinement_mutation_score" not in stats
+
+
+def test_refine_generated_tests_with_deterministic_seed_preamble(tmp_path, monkeypatch):
+    """Seed-preamble suites survive refinement, seed-dependent assertions included (#330)."""
+    (tmp_path / "seeded_dice.py").write_text(
+        "import random\n\ndef roll():\n    return random.randint(1, 10**9)\n", encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, "seeded_dice", raising=False)
+    sut = importlib.import_module("seeded_dice")
+    seed_patch = TestSuiteWriter._create_patch_nodes(42) + TestSuiteWriter._create_seed_fixture(42)
+    expected = random.Random(42).randint(1, 10**9)  # noqa: S311
+    seed_file_content = (
+        "import pytest\n"
+        "import random as _pynguin_random\n"
+        "import seeded_dice as module_0\n"
+        f"{cst.Module(body=seed_patch).code}\n\n"
+        "def test_seeded():\n"
+        f"    assert module_0.roll() == {expected}\n"
+    )
+    test_file = tmp_path / "test_seed.py"
+    test_file.write_text(seed_file_content, encoding="utf-8")
+    random.seed(7)
+
+    class _FakeClient:
+        def reset_usage(self):
+            return None
+
+        def get_usage(self):
+            return {"calls": 1, "input_tokens": 1, "output_tokens": 1}
+
+    class _FakeRefiner:
+        def __init__(self, **_kwargs):
+            self.llm_client = _FakeClient()
+
+    def _fake_process(_refiner, _preamble, func, _max_iterations):
+        return _TestOutcome(
+            func_text=ast.unparse(func),
+            processed=True,
+            refined=True,
+            iterations=1,
+            readability_original=0.1,
+            readability_refined=0.3,
+        )
+
+    monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: sut)
+    monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
+    monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    # Do NOT mock run_test: test that real validator execution validates the test properly!
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "refinement_granularity",
+        config.RefinementGranularity.PER_TEST,
+    )
+
+    stats = refine_generated_tests(
+        test_file_path=test_file,
+        module_name="seeded_dice",
+        max_tests=None,
+    )
+
+    refined = (tmp_path / "test_seed_refined.py").read_text(encoding="utf-8")
+    assert "_pynguin_deterministic_seed" in refined
+    assert "def test_seeded():" in refined
+    assert stats["tests_processed"] == 1
+    assert stats["tests_refined"] == 1

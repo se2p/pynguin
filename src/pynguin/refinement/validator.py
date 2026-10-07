@@ -6,18 +6,86 @@
 #
 """In-process test execution validator."""
 
+from __future__ import annotations
+
 import ast
+import random
 import sys
 import textwrap
 import traceback
+from contextlib import contextmanager
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
+from pynguin.utils import randomness
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 #: Message prefix used when a ``@pytest.mark.xfail(strict=True)`` test unexpectedly
 #: passes (pytest reports this as ``XPASS(strict)``, which is a *failure*).
 XPASS_STRICT_MESSAGE = "XPASS(strict): test is marked xfail(strict=True) but passed."
+
+
+#: Name of the ``random.Random.seed`` replacement that the exported deterministic-seed
+#: preamble defines (see ``TestSuiteWriter._create_patch_nodes``).
+_DETERMINISTIC_SEED_FUNCTION = "_pynguin_deterministic_seed"
+
+
+@contextmanager
+def preserved_random_seed() -> Iterator[None]:
+    """Undo a deterministic-seed preamble's patch of ``random.Random.seed`` on exit.
+
+    Executing an exported test module installs its seed replacement on
+    ``random.Random`` globally.  Under pytest, the module-scoped autouse fixture
+    removes it again; when we ``exec`` the module in-process, nothing does, so the
+    patch would leak into Pynguin's own process.
+
+    Yields:
+        Nothing; the patch is reverted when the block is left.
+    """
+    original_seed = random.Random.seed
+    try:
+        yield
+    finally:
+        random.Random.seed = original_seed  # type: ignore[method-assign]
+
+
+def reseed_random(scope: dict) -> None:
+    """Reseed ``random`` like the exported autouse ``_pynguin_seed_random`` fixture.
+
+    Exported tests of SUTs that use ``random`` assert values observed under a fixed
+    seed; pytest reseeds before every test through an autouse fixture.  Calling the
+    test function directly skips that fixture, so we reseed here.  Does nothing if
+    *scope* has no deterministic-seed preamble.
+
+    Under pytest, the preamble patches ``random.Random.seed`` before the SUT is
+    imported, so it tracks the SUT's module-level ``Random`` instances as well.  In
+    Pynguin's process the SUT was imported earlier, under Pynguin's own patch (see
+    ``generator._patch_random``), which the preamble wraps; we therefore reseed the
+    instances tracked by that patch too, except Pynguin's own ``randomness.RNG``.
+
+    Args:
+        scope: The globals the test code was executed in.
+    """
+    deterministic_seed = scope.get(_DETERMINISTIC_SEED_FUNCTION)
+    if not callable(deterministic_seed):
+        return
+    outer_seed = getattr(deterministic_seed, "__pynguin_orig__", None)
+    tracked = [
+        *getattr(deterministic_seed, "__pynguin_instances__", ()),
+        *getattr(outer_seed, "__pynguin_instances__", ()),
+    ]
+    random.Random.seed = deterministic_seed  # type: ignore[method-assign]
+    # The replacement seeds a new ``Random`` with the exported seed.  Copying that
+    # state is what the fixture's ``seed(<seed>)`` calls do, without having to know
+    # the seed value here.
+    seeded_state = random.Random().getstate()  # noqa: S311
+    random.setstate(seeded_state)
+    for instance in tracked:
+        if instance is not randomness.RNG:
+            instance.setstate(seeded_state)
 
 
 def _xfail_marker_of(node: ast.FunctionDef) -> tuple[bool, bool]:
@@ -109,6 +177,9 @@ def call_test_functions(
     does not time out as a whole.  Callers must therefore not run this under an
     enclosing :func:`time_limit` (``SIGALRM`` timers do not nest).
 
+    Like pytest's autouse fixture, :func:`reseed_random` runs before each test, so
+    callers should run this inside :func:`preserved_random_seed`.
+
     Args:
         scope: The globals the test code was executed in.
         tests: The tests to call, as returned by :func:`collect_test_functions`.
@@ -122,6 +193,7 @@ def call_test_functions(
         func = scope.get(name)
         if not callable(func):
             continue
+        reseed_random(scope)
         with time_limit(resolve_timeout(timeout)):
             if not is_xfail:
                 func()
@@ -173,6 +245,35 @@ class TestExecution(NamedTuple):
     """Whether the test exceeded its execution timeout."""
 
 
+def find_test_function_name(test_code: str) -> str:
+    """Return the name of the test function to execute in *test_code*.
+
+    The code is a module preamble followed by one test function.  The preamble can
+    define helpers of its own, such as the deterministic-seed replacement
+    ``_pynguin_deterministic_seed`` or autouse fixtures, so the last top-level
+    ``test_*`` function wins; without one, the last top-level function does.
+
+    Args:
+        test_code: The test source (preamble + one test function).
+
+    Returns:
+        The function name, or ``""`` if the code defines no top-level function.
+    """
+    try:
+        tree = ast.parse(textwrap.dedent(test_code.strip()))
+    except SyntaxError:
+        # Best effort for unparsable code: scan for top-level ``def`` lines.
+        names = [
+            line.removeprefix("def ").split("(")[0].strip()
+            for line in textwrap.dedent(test_code.strip()).splitlines()
+            if line.startswith("def ")
+        ]
+    else:
+        names = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
+    test_names = [name for name in names if name.startswith("test_")]
+    return (test_names or names or [""])[-1]
+
+
 def execute_test(test_code: str, module_under_test, timeout: float | None = None) -> TestExecution:
     """Executes a test function from a string without interpreting ``xfail`` markers.
 
@@ -189,13 +290,7 @@ def execute_test(test_code: str, module_under_test, timeout: float | None = None
     _ensure_module_package_on_path(module_under_test)
     scope = {module_under_test.__name__: module_under_test}
 
-    # Extract the function name
-    function_name = ""
-    for line in test_code.split("\n"):
-        if line.startswith("def "):
-            function_name = line.split("def ")[1].split("(")[0]
-            break
-
+    function_name = find_test_function_name(test_code)
     if not function_name:
         return TestExecution("", None, "Could not find function name in test code.")
 
@@ -203,9 +298,10 @@ def execute_test(test_code: str, module_under_test, timeout: float | None = None
     cleaned_code = textwrap.dedent(test_code.strip())
 
     try:
-        with time_limit(resolve_timeout(timeout)):
+        with preserved_random_seed(), time_limit(resolve_timeout(timeout)):
             # Executing the generated test code is the core purpose of this validator.
             exec(cleaned_code, scope)  # noqa: S102
+            reseed_random(scope)
             scope[function_name]()  # Call the test function
     except TestExecutionTimeoutError as e:
         return TestExecution(function_name, e, f"TimeoutError: {e}", timed_out=True)
