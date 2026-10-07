@@ -14,6 +14,7 @@ import types
 from pathlib import Path
 
 import pynguin.configuration as config
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.refinement.mutation_analyzer import (
     AssertionTracker,
     _assertion_removal_lines,  # noqa: PLC2701
@@ -30,7 +31,7 @@ from pynguin.refinement.mutation_analyzer import (
     get_surviving_mutants,
     killed_set,
     passes_on_module,
-    prioritize_mutants,
+    rank_mutations,
 )
 from pynguin.refinement.validator import TestExecution
 from pynguin.utils.timeout import TestExecutionTimeoutError
@@ -515,49 +516,28 @@ def test_evaluate_refined_suite_mutations_drops_mutant_interrupted_by_budget(mon
     assert res["post_refinement_created_mutants"] == 1
 
 
-def _make_dummy_mutant(line_number: int, ident: str):
-    mod = types.ModuleType(f"mod_{ident}")
+def _mutations_on_line(line_number: int):
     node = ast.Constant(value=1)
     node.lineno = line_number
-    mutation = types.SimpleNamespace(node=node)
-    return (mod, [mutation])
+    return [types.SimpleNamespace(node=node)]
 
 
-def test_prioritize_mutants_one_per_line_then_remaining():
-    # Lines 10 (2 mutants), 20 (2 mutants), 30 (1 mutant)
-    m10_a = _make_dummy_mutant(10, "10a")
-    m10_b = _make_dummy_mutant(10, "10b")
-    m20_a = _make_dummy_mutant(20, "20a")
-    m20_b = _make_dummy_mutant(20, "20b")
-    m30_a = _make_dummy_mutant(30, "30a")
-    m_uncov = _make_dummy_mutant(99, "uncov")
-
-    all_mutants = [m10_a, m10_b, m20_a, m20_b, m30_a, m_uncov]
-    covered = {10, 20}
-
-    # Cap at 2: exactly one per covered line (line 10 and line 20)
-    selected = prioritize_mutants(all_mutants, covered, max_mutants=2)
-    assert selected == [m10_a, m20_a]
-
-    # Cap at 3: one per covered line (2 items), then fill up with remaining covered (m10_b)
-    selected = prioritize_mutants(all_mutants, covered, max_mutants=3)
-    assert selected == [m10_a, m20_a, m10_b]
-
-    # Cap at 4: both 10s and both 20s
-    selected = prioritize_mutants(all_mutants, covered, max_mutants=4)
-    assert selected == [m10_a, m20_a, m10_b, m20_b]
-
-    # Cap at 5: all 4 covered mutants + 1 uncovered mutant
-    selected = prioritize_mutants(all_mutants, covered, max_mutants=5)
-    assert selected == [m10_a, m20_a, m10_b, m20_b, m30_a]
+def test_rank_mutations_one_per_line_then_remaining_then_uncovered():
+    # Lines 10 (2 mutations), 20 (2 mutations), 30 and 99 uncovered.
+    lines = [10, 10, 20, 20, 30, 99]
+    all_mutations = [_mutations_on_line(line) for line in lines]
+    assert rank_mutations(all_mutations, {10, 20}) == [0, 2, 1, 3, 4, 5]
 
 
-def test_prioritize_mutants_no_coverage_returns_ast_order():
-    m1 = _make_dummy_mutant(1, "1")
-    m2 = _make_dummy_mutant(2, "2")
-    all_mutants = [m1, m2]
-    assert prioritize_mutants(all_mutants, None, max_mutants=1) == [m1]
-    assert prioritize_mutants(all_mutants, set(), max_mutants=1) == [m1]
+def test_rank_mutations_without_line_counts_as_uncovered():
+    all_mutations = [[types.SimpleNamespace(node=ast.Add())], _mutations_on_line(5)]
+    assert rank_mutations(all_mutations, {5}) == [1, 0]
+
+
+def test_rank_mutations_no_coverage_returns_ast_order():
+    all_mutations = [_mutations_on_line(1), _mutations_on_line(2)]
+    assert rank_mutations(all_mutations, None) == [0, 1]
+    assert rank_mutations(all_mutations, set()) == [0, 1]
 
 
 def test_create_mutants_with_covered_lines(tmp_path):
@@ -575,6 +555,53 @@ def test_create_mutants_with_covered_lines(tmp_path):
     assert len(mutants) == 1
     # The selected mutant must be on line 5
     assert mutants[0][1][0].node.lineno == 5
+
+
+def test_create_mutants_with_covered_lines_builds_only_selected(tmp_path, monkeypatch):
+    source = "def f1(x):\n    return x + 1 + 2 + 3\n\ndef f2(x):\n    return x + 10\n"
+    mod_file = tmp_path / "lazy_funcs.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("lazy_funcs", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    built = []
+    original = MutationController.create_mutant
+
+    def _counting_create_mutant(self, mutant_ast):
+        built.append(mutant_ast)
+        return original(self, mutant_ast)
+
+    monkeypatch.setattr(MutationController, "create_mutant", _counting_create_mutant)
+    mutants, error = create_mutants(module, max_mutants=2, covered_lines={5})
+    assert error is None
+    assert len(mutants) == 2
+    assert len(built) == 2
+    assert mutants[0][1][0].node.lineno == 5
+
+
+def test_create_mutants_with_covered_lines_replaces_unbuildable(tmp_path, monkeypatch):
+    source = "def f1(x):\n    return x + 1\n\ndef f2(x):\n    return x + 10\n"
+    mod_file = tmp_path / "flaky_funcs.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("flaky_funcs", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    original = MutationController.create_mutant
+    calls = []
+
+    def _fail_first(self, mutant_ast):
+        calls.append(mutant_ast)
+        if len(calls) == 1:
+            raise ValueError("boom")
+        return original(self, mutant_ast)
+
+    monkeypatch.setattr(MutationController, "create_mutant", _fail_first)
+    mutants, error = create_mutants(module, max_mutants=1, covered_lines={5})
+    assert error is None
+    assert len(mutants) == 1
+    assert len(calls) == 2
 
 
 def test_filter_vacuous_assertions_preserves_late_function_assertion(tmp_path):

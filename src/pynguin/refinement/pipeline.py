@@ -802,7 +802,6 @@ class TestRefiner:
                 refined_test=current_code,
                 module_under_test=self.module_under_test,
                 max_mutants=10,
-                subject_properties=self.subject_properties,
             )
         except Exception as e:  # noqa: BLE001
             mutation_stats = {"error": str(e)}
@@ -878,7 +877,6 @@ class TestRefiner:
                     refined_test=current_code,
                     module_under_test=self.module_under_test,
                     max_mutants=10,
-                    subject_properties=self.subject_properties,
                 )
             except Exception as e:  # noqa: BLE001
                 mutation_stats = {"error": str(e)}
@@ -924,7 +922,6 @@ class TestRefiner:
                 test_code=current_code,
                 module_under_test=self.module_under_test,
                 max_mutants=10,
-                subject_properties=self.subject_properties,
             )
             if not survivors:
                 break  # No surviving mutants! Perfect.

@@ -25,7 +25,7 @@ from pynguin.utils.timeout import TestExecutionTimeoutError
 
 if TYPE_CHECKING:
     import types
-    from collections.abc import Generator
+    from collections.abc import Collection, Generator
     from types import ModuleType
 
     from pynguin.assertion.mutation_analysis.operators.base import (
@@ -193,21 +193,51 @@ class MutationController:
             all the mutations operators applied.
         """
         for mutations, mutant_ast in self._mutant_generator.mutate(self._module_ast, self._module):
-            assert isinstance(mutant_ast, ast.Module)
+            yield self._try_create_mutant(mutant_ast), mutations
 
-            try:
-                mutant_module = self.create_mutant(mutant_ast)
-            except Exception as exception:  # noqa: BLE001
-                _LOGGER.debug("Error creating mutant: %s", exception)
-                mutant_module = None
-            except SystemExit as exception:
-                _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
-                mutant_module = None
-            except TestExecutionTimeoutError as exception:
-                _LOGGER.warning("Caught timeout during mutant creation/execution: %s", exception)
-                mutant_module = None
+    def create_selected_mutants(
+        self, indices: Collection[int]
+    ) -> dict[int, tuple[ModuleType | None, list[Mutation]]]:
+        """Creates only the mutants at the given positions of the mutation order.
 
-            yield mutant_module, mutations
+        Mutations that are not selected are enumerated but never compiled or
+        executed, which keeps this cheap for large modules.
+
+        Args:
+            indices: Positions in the order produced by ``mutations()``.
+
+        Returns:
+            A mapping from each selected position to the tuple that
+            ``create_mutants()`` would yield for it.
+        """
+        selected: dict[int, tuple[ModuleType | None, list[Mutation]]] = {}
+        for index, (mutations, mutant_ast) in enumerate(
+            self._mutant_generator.mutate(self._module_ast, self._module)
+        ):
+            if index in indices:
+                selected[index] = (self._try_create_mutant(mutant_ast), mutations)
+        return selected
+
+    def mutations(self) -> Generator[list[Mutation]]:
+        """Enumerates the mutations without creating any mutant module.
+
+        Yields:
+            The mutations applied for each mutant, in ``create_mutants()`` order.
+        """
+        for mutations, _ in self._mutant_generator.mutate(self._module_ast, self._module):
+            yield mutations
+
+    def _try_create_mutant(self, mutant_ast: ast.AST) -> ModuleType | None:
+        assert isinstance(mutant_ast, ast.Module)
+        try:
+            return self.create_mutant(mutant_ast)
+        except Exception as exception:  # noqa: BLE001
+            _LOGGER.debug("Error creating mutant: %s", exception)
+        except SystemExit as exception:
+            _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
+        except TestExecutionTimeoutError as exception:
+            _LOGGER.warning("Caught timeout during mutant creation/execution: %s", exception)
+        return None
 
     def mutant_count(self) -> int:
         """Calculates the number of mutants that can be created.

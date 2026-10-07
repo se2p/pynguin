@@ -47,72 +47,53 @@ from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, ti
 
 if TYPE_CHECKING:
     import types
-    from collections.abc import Callable
-
-    from pynguin.instrumentation.tracer import SubjectProperties
+    from collections.abc import Callable, Sequence
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def prioritize_mutants(
-    all_mutants: list[tuple[types.ModuleType | None, Any]],
+def _mutation_line(mutations: list[Any]) -> int | None:
+    if mutations and hasattr(mutations[0], "node"):
+        return getattr(mutations[0].node, "lineno", None)
+    return None
+
+
+def rank_mutations(
+    all_mutations: Sequence[list[Any]],
     covered_lines: set[int] | None,
-    max_mutants: int,
-) -> list[tuple[types.ModuleType, Any]]:
-    """Prioritize mutants based on test line coverage.
+) -> list[int]:
+    """Order mutation indices by how likely the test can observe them.
 
-    Selection strategy:
-    1. If ``covered_lines`` is empty or None, return the first ``max_mutants`` in AST order.
-    2. Otherwise, select at most one mutant per covered line (in AST order).
-    3. If more mutants are needed, fill up with remaining mutants on covered lines.
-    4. If still needed, fill up with uncovered line mutants.
+    Ranking:
+    1. If ``covered_lines`` is empty or None, AST order.
+    2. Otherwise, the first mutation of each covered line (in AST order),
+    3. then the remaining mutations on covered lines,
+    4. then the mutations on uncovered lines.
+
+    Args:
+        all_mutations: The mutations of each mutant, in AST order.
+        covered_lines: SUT line numbers executed by the test.
+
+    Returns:
+        A permutation of ``range(len(all_mutations))``.
     """
-    valid_mutants: list[tuple[types.ModuleType, Any]] = [
-        (item[0], item[1]) for item in all_mutants if item[0] is not None
-    ]
-    if not covered_lines or max_mutants <= 0:
-        return valid_mutants[:max_mutants]
+    if not covered_lines:
+        return list(range(len(all_mutations)))
 
-    covered_mutants: list[tuple[int, tuple[types.ModuleType, Any]]] = []
-    uncovered_mutants: list[tuple[types.ModuleType, Any]] = []
-
-    for mutant_module, mutations in valid_mutants:
-        line: int | None = None
-        if mutations and hasattr(mutations[0], "node"):
-            line = getattr(mutations[0].node, "lineno", None)
-
-        if line is not None and line in covered_lines:
-            covered_mutants.append((line, (mutant_module, mutations)))
+    first_per_line: list[int] = []
+    remaining_covered: list[int] = []
+    uncovered: list[int] = []
+    seen_lines: set[int] = set()
+    for index, mutations in enumerate(all_mutations):
+        line = _mutation_line(mutations)
+        if line is None or line not in covered_lines:
+            uncovered.append(index)
+        elif line in seen_lines:
+            remaining_covered.append(index)
         else:
-            uncovered_mutants.append((mutant_module, mutations))
-
-    # Group covered mutants by line preserving AST order
-    covered_by_line: dict[int, list[tuple[types.ModuleType, Any]]] = {}
-    for line, mutant_tuple in covered_mutants:
-        covered_by_line.setdefault(line, []).append(mutant_tuple)
-
-    # Phase 1: One mutant per covered line
-    selected: list[tuple[types.ModuleType, Any]] = []
-    remaining_covered: list[tuple[types.ModuleType, Any]] = []
-    for items in covered_by_line.values():
-        selected.append(items[0])
-        remaining_covered.extend(items[1:])
-
-    if len(selected) >= max_mutants:
-        return selected[:max_mutants]
-
-    # Phase 2: Remaining mutants on covered lines
-    needed = max_mutants - len(selected)
-    selected.extend(remaining_covered[:needed])
-
-    if len(selected) >= max_mutants:
-        return selected[:max_mutants]
-
-    # Phase 3: Fill up with uncovered mutants
-    needed = max_mutants - len(selected)
-    selected.extend(uncovered_mutants[:needed])
-
-    return selected[:max_mutants]
+            seen_lines.add(line)
+            first_per_line.append(index)
+    return first_per_line + remaining_covered + uncovered
 
 
 class AssertionTracker:
@@ -286,6 +267,31 @@ def _vacuous_stats(
     return stats
 
 
+def _create_ranked_mutants(
+    controller: MutationController,
+    covered_lines: set[int],
+    max_mutants: int,
+) -> list[tuple[types.ModuleType, Any]]:
+    """Build up to *max_mutants* mutants in :func:`rank_mutations` order.
+
+    Ranking only needs the cheap mutation descriptors, so mutant modules are
+    built for the selected mutations alone; one that fails to build is replaced
+    by the next in rank.
+    """
+    ranking = rank_mutations(list(controller.mutations()), covered_lines)
+    mutants: list[tuple[types.ModuleType, Any]] = []
+    position = 0
+    while len(mutants) < max_mutants and position < len(ranking):
+        batch = ranking[position : position + max_mutants - len(mutants)]
+        position += len(batch)
+        built = controller.create_selected_mutants(set(batch))
+        for index in batch:
+            mutant_module, mutations = built[index]
+            if mutant_module is not None:
+                mutants.append((mutant_module, mutations))
+    return mutants
+
+
 def create_mutants(
     module_under_test: types.ModuleType,
     max_mutants: int,
@@ -328,8 +334,8 @@ def create_mutants(
     # MutationController.create_mutants() deterministically re-derives the mutant
     # set from the AST, so a fresh controller with the same operators/AST
     # reproduces the set used during Pynguin's assertion-generation phase.
+    mutants: list[tuple[types.ModuleType, Any]] = []
     if not covered_lines:
-        mutants: list[tuple[types.ModuleType, Any]] = []
         for mutant_module, mutations in controller.create_mutants():
             if len(mutants) >= max_mutants:
                 break
@@ -337,9 +343,7 @@ def create_mutants(
                 mutants.append((mutant_module, mutations))
         return mutants, None
 
-    all_mutants = list(controller.create_mutants())
-    selected = prioritize_mutants(all_mutants, covered_lines, max_mutants)
-    return selected, None
+    return _create_ranked_mutants(controller, covered_lines, max_mutants), None
 
 
 def _index_all_assertions(tree: ast.Module) -> list[str]:
@@ -460,7 +464,6 @@ def filter_vacuous_assertions(
     max_mutants: int = 10,
     other_tests_in_suite: list[str] | None = None,
     *,
-    subject_properties: SubjectProperties | None = None,
     covered_lines: set[int] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Filter vacuous assertions using per-assertion mutation analysis.
@@ -482,7 +485,6 @@ def filter_vacuous_assertions(
         max_mutants: Maximum mutants to generate (default: 10).
         other_tests_in_suite: Optional list of other test code strings in the suite
             for computing suite-level redundancy metrics.
-        subject_properties: Optional SubjectProperties for native instrumentation coverage.
         covered_lines: Optional pre-computed covered lines in the SUT.
 
     Returns:
@@ -501,9 +503,9 @@ def filter_vacuous_assertions(
 
     if covered_lines is None:
         try:
-            covered_lines = get_covered_lines(
-                refined_test, module_under_test, subject_properties
-            ) | get_covered_lines(original_test, module_under_test, subject_properties)
+            covered_lines = get_covered_lines(refined_test, module_under_test) | (
+                get_covered_lines(original_test, module_under_test)
+            )
         except Exception:  # noqa: BLE001
             covered_lines = None
 
@@ -609,7 +611,6 @@ def get_surviving_mutants(
     module_under_test: types.ModuleType | None,
     max_mutants: int = 10,
     *,
-    subject_properties: SubjectProperties | None = None,
     covered_lines: set[int] | None = None,
 ) -> list[tuple[types.ModuleType, Any]]:
     """Return the list of mutants that survived (were not killed by) the test code.
@@ -622,7 +623,7 @@ def get_surviving_mutants(
 
     if covered_lines is None:
         try:
-            covered_lines = get_covered_lines(test_code, module_under_test, subject_properties)
+            covered_lines = get_covered_lines(test_code, module_under_test)
         except Exception:  # noqa: BLE001
             covered_lines = None
 

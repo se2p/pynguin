@@ -8,13 +8,17 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
+import sys
 import types
 from pathlib import Path
 
 import pytest
 
 import pynguin.configuration as config
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.refinement.coverage_checker import (
     CoverageResult,
     _executable_lines,  # noqa: PLC2701
@@ -256,38 +260,33 @@ def test_get_covered_lines_syntax_error(sut_module):
     assert lines == set()
 
 
-def test_get_covered_lines_pynguin():
-    class _DummyTrace:
-        def __init__(self):
-            self.covered_line_ids: list[int] = [0, 1]
-
-    class _DummyCtx:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            return False
-
-    class _DummyTracer:
-        def __init__(self):
-            self.tracer = types.SimpleNamespace(_current_thread_identifier=None)
-
-        def init_trace(self):
-            return None
-
-        def temporarily_enable(self):
-            return _DummyCtx()
-
-        def get_trace(self):
-            return _DummyTrace()
-
-    module = types.ModuleType("dummy_cov_mod")
-    module.identity = lambda x: x
-    subject_properties = types.SimpleNamespace(
-        instrumentation_tracer=_DummyTracer(),
-        lineids_to_linenos=lambda _ids: [42, 43],
+def test_get_covered_lines_ignores_non_sut_frames(sut_module):
+    code = (
+        "import textwrap\n"
+        "def test_x():\n"
+        "    textwrap.dedent('  a')\n"
+        "    assert cov_sut_mod.add(1, 2) == 3\n"
     )
+    assert get_covered_lines(code, sut_module) == {2, 3}
 
-    code = "def test_x():\n    assert dummy_cov_mod.identity(1) == 1\n"
-    lines = get_covered_lines(code, module, subject_properties=subject_properties)
-    assert lines == {42, 43}
+
+def test_get_covered_lines_on_branch_instrumented_module():
+    # Regression: with the default BRANCH metric Pynguin's tracer records no line
+    # numbers, so covered lines must still come from the real executed lines.
+    module_name = "tests.fixtures.linecoverage.plus"
+    sys.modules.pop(module_name, None)
+    subject_properties = SubjectProperties()
+    with install_import_hook(
+        module_name, subject_properties, coverage_metrics={config.CoverageMetric.BRANCH}
+    ):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+        # The generator disables the tracer before running the refinement.
+        subject_properties.instrumentation_tracer.disable()
+        code = (
+            f"import {module_name} as plus\n"
+            "def test_x():\n"
+            "    assert plus.Plus().plus_three(1) == 4\n"
+        )
+        assert get_covered_lines(code, module) == {13, 14}
+    sys.modules.pop(module_name, None)
