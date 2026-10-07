@@ -20,8 +20,10 @@ import pynguin.configuration as config
 from pynguin.refinement.validator import (
     TestExecutionTimeoutError,
     _ensure_module_package_on_path,  # noqa: PLC2701
+    _extract_target_function_name,  # noqa: PLC2701
     call_test_functions,
     collect_test_functions,
+    execute_test,
     resolve_timeout,
     run_test,
     time_limit,
@@ -271,3 +273,62 @@ def test_call_test_functions_propagates_regular_failure():
 
     with pytest.raises(ValueError, match="boom"):
         call_test_functions({"test_x": failing}, [("test_x", False, False)])
+
+
+_PREAMBLE_WITH_DETERMINISTIC_SEED = (
+    "import pytest\n"
+    "import random as _pynguin_random\n"
+    "import weakref as _pynguin_weakref\n"
+    "_pynguin_orig_seed = getattr(\n"
+    "    _pynguin_random.Random.seed, '__pynguin_orig__', _pynguin_random.Random.seed\n"
+    ")\n"
+    "_pynguin_tracked = _pynguin_weakref.WeakSet()\n"
+    "def _pynguin_deterministic_seed(self, x=None):\n"
+    "    if x is None:\n"
+    "        x = 42\n"
+    "    _pynguin_orig_seed(self, x)\n"
+    "    _pynguin_tracked.add(self)\n"
+    "_pynguin_deterministic_seed.__pynguin_patched__ = True\n"
+    "_pynguin_deterministic_seed.__pynguin_orig__ = _pynguin_orig_seed\n"
+    "_pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
+    "_pynguin_random.Random.seed = _pynguin_deterministic_seed\n\n"
+    "@pytest.fixture(autouse=True)\n"
+    "def _pynguin_seed_random():\n"
+    "    yield\n"
+)
+
+
+def test_extract_target_function_name_with_seed_preamble():
+    code = f"{_PREAMBLE_WITH_DETERMINISTIC_SEED}\ndef test_case_0():\n    assert True\n"
+    assert _extract_target_function_name(code) == "test_case_0"
+
+
+def test_extract_target_function_name_multiple_tests():
+    code = "def test_1():\n    pass\ndef helper():\n    pass\ndef test_2():\n    pass\n"
+    assert _extract_target_function_name(code) == "test_2"
+
+
+def test_extract_target_function_name_fallback_no_test_prefix():
+    code = "def helper():\n    pass\n"
+    assert _extract_target_function_name(code) == "helper"
+
+
+def test_extract_target_function_name_syntax_error():
+    code = "def _helper(:\ndef test_ok():\n    pass\n"
+    assert _extract_target_function_name(code) == "test_ok"
+
+
+def test_run_test_with_deterministic_seed_preamble_passes():
+    """Ensure run_test executes the test function instead of seed helper (issue #330)."""
+    code = f"{_PREAMBLE_WITH_DETERMINISTIC_SEED}\ndef test_math():\n    assert math.sqrt(16) == 4\n"
+    passed, message = run_test(code, math)
+    assert passed is True
+    assert message == "Test passed."
+
+
+def test_execute_test_explicit_function_name():
+    code = "def test_first():\n    assert True\ndef test_second():\n    assert False\n"
+    execution = execute_test(code, math, function_name="test_first")
+    assert execution.function_name == "test_first"
+    assert execution.error is None
+    assert execution.message == "Test passed."

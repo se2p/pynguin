@@ -173,7 +173,60 @@ class TestExecution(NamedTuple):
     """Whether the test exceeded its execution timeout."""
 
 
-def execute_test(test_code: str, module_under_test, timeout: float | None = None) -> TestExecution:
+def _extract_target_function_name(test_code: str) -> str:
+    """Extract the name of the test function to execute from test source code.
+
+    When test code is prefixed with a module preamble (which may define fixtures or
+    deterministic seed helpers such as ``_pynguin_deterministic_seed``), this prefers
+    top-level functions whose name starts with ``test``. If multiple test functions are
+    present, the last one is chosen (since ``preamble + func_text`` places the target
+    test function at the end).
+    """
+    cleaned_code = textwrap.dedent(test_code.strip())
+    try:
+        tree = ast.parse(cleaned_code)
+        test_funcs = [
+            node.name
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name.startswith("test")
+        ]
+        if test_funcs:
+            return test_funcs[-1]
+        all_funcs = [
+            node.name
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        if all_funcs:
+            return all_funcs[-1]
+    except SyntaxError:
+        pass
+
+    # Line-based fallback (e.g. invalid syntax)
+    test_lines = []
+    other_lines = []
+    for line in test_code.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("def "):
+            func_name = stripped.split("def ")[1].split("(")[0].strip()
+            if func_name.startswith("test"):
+                test_lines.append(func_name)
+            else:
+                other_lines.append(func_name)
+    if test_lines:
+        return test_lines[-1]
+    if other_lines:
+        return other_lines[-1]
+    return ""
+
+
+def execute_test(
+    test_code: str,
+    module_under_test,
+    timeout: float | None = None,
+    function_name: str | None = None,
+) -> TestExecution:
     """Executes a test function from a string without interpreting ``xfail`` markers.
 
     Args:
@@ -181,6 +234,8 @@ def execute_test(test_code: str, module_under_test, timeout: float | None = None
         module_under_test: The module that is being tested.
         timeout: Maximum execution time in seconds; *None* uses the configured
             ``stopping.maximum_test_execution_timeout``, values <= 0 disable the limit.
+        function_name: Optional explicit name of the function to execute. If omitted,
+            the target function name is discovered from the code.
 
     Returns:
         The raw execution outcome.
@@ -189,14 +244,10 @@ def execute_test(test_code: str, module_under_test, timeout: float | None = None
     _ensure_module_package_on_path(module_under_test)
     scope = {module_under_test.__name__: module_under_test}
 
-    # Extract the function name
-    function_name = ""
-    for line in test_code.split("\n"):
-        if line.startswith("def "):
-            function_name = line.split("def ")[1].split("(")[0]
-            break
+    # Extract or validate the function name
+    target_function_name = function_name or _extract_target_function_name(test_code)
 
-    if not function_name:
+    if not target_function_name:
         return TestExecution("", None, "Could not find function name in test code.")
 
     # Clean up code indentation before execution
@@ -206,18 +257,25 @@ def execute_test(test_code: str, module_under_test, timeout: float | None = None
         with time_limit(resolve_timeout(timeout)):
             # Executing the generated test code is the core purpose of this validator.
             exec(cleaned_code, scope)  # noqa: S102
-            scope[function_name]()  # Call the test function
+            scope[target_function_name]()  # Call the test function
     except TestExecutionTimeoutError as e:
-        return TestExecution(function_name, e, f"TimeoutError: {e}", timed_out=True)
+        return TestExecution(target_function_name, e, f"TimeoutError: {e}", timed_out=True)
     except AssertionError as e:
-        return TestExecution(function_name, e, f"AssertionError: {e}\n{traceback.format_exc()}")
+        return TestExecution(
+            target_function_name, e, f"AssertionError: {e}\n{traceback.format_exc()}"
+        )
     except BaseException as e:  # noqa: BLE001
         # Catch all exceptions including pytest.fail (which raises Failed, a BaseException)
-        return TestExecution(function_name, e, f"Exception: {e}\n{traceback.format_exc()}")
-    return TestExecution(function_name, None, "Test passed.")
+        return TestExecution(target_function_name, e, f"Exception: {e}\n{traceback.format_exc()}")
+    return TestExecution(target_function_name, None, "Test passed.")
 
 
-def run_test(test_code: str, module_under_test, timeout: float | None = None):
+def run_test(
+    test_code: str,
+    module_under_test,
+    timeout: float | None = None,
+    function_name: str | None = None,
+):
     """Executes a test function from a string and returns pass/fail.
 
     Args:
@@ -225,11 +283,12 @@ def run_test(test_code: str, module_under_test, timeout: float | None = None):
         module_under_test: The module that is being tested.
         timeout: Maximum execution time in seconds; *None* uses the configured
             ``stopping.maximum_test_execution_timeout``, values <= 0 disable the limit.
+        function_name: Optional explicit name of the function to execute.
 
     Returns:
         A tuple (bool, str) for (pass/fail, message).
     """
-    execution = execute_test(test_code, module_under_test, timeout)
+    execution = execute_test(test_code, module_under_test, timeout, function_name=function_name)
     if not execution.function_name:
         return False, execution.message
     if execution.timed_out:
