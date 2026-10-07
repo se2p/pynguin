@@ -238,6 +238,12 @@ def test_strip_redundant_pass_statements_keeps_one_pass_in_placeholder_only_bloc
     assert cleaned == "def test_x():\n    x = 1\n    if x:\n        pass\n    assert x\n"
 
 
+def test_strip_redundant_pass_statements_keeps_statements_sharing_the_line():
+    code = "def test_x():\n    pass; assert x == 2\n    pass  # placeholder\n    y = 1\n"
+    cleaned = strip_redundant_pass_statements(code)
+    assert cleaned == "def test_x():\n    pass; assert x == 2\n    y = 1\n"
+
+
 def test_strip_redundant_pass_statements_keeps_pass_in_empty_function():
     code = "def test_x():\n    pass\n"
     cleaned = strip_redundant_pass_statements(code)

@@ -12,6 +12,7 @@ import ast
 import copy
 import enum
 import logging
+import re
 import sys
 import textwrap
 import time
@@ -386,6 +387,10 @@ def _assertion_removal_lines(tree: ast.Module, remove_set: set[int]) -> tuple[se
     return all_lines, start_lines
 
 
+# A line holding nothing but ``pass`` (and possibly a comment), e.g. not ``pass; x()``.
+_PASS_ONLY_LINE = re.compile(r"pass\s*(#.*)?")
+
+
 def strip_redundant_pass_statements(code: str) -> str:
     """Remove redundant ``pass`` statements from *code*.
 
@@ -428,7 +433,7 @@ def strip_redundant_pass_statements(code: str) -> str:
     cleaned_lines = [
         line
         for idx, line in enumerate(lines, 1)
-        if idx not in redundant_lines or not line.strip().startswith("pass")
+        if idx not in redundant_lines or not _PASS_ONLY_LINE.fullmatch(line.strip())
     ]
     candidate = "\n".join(cleaned_lines)
     try:

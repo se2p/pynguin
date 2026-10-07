@@ -1090,6 +1090,99 @@ def test_restore_original_assertions_targets_test_function_and_keeps_comments():
     )
 
 
+def test_restore_original_assertions_keeps_interleaved_order():
+    orig = (
+        "def test_case_0():\n"
+        "    int_0 = 5\n"
+        "    foo_0 = module_0.Foo(int_0)\n"
+        "    assert foo_0.x == 5\n"
+        "    var_0 = foo_0.inc()\n"
+        "    assert foo_0.x == 6\n"
+    )
+    ref = (
+        "def test_inc_increments_x():\n"
+        "    foo = module_0.Foo(5)\n"
+        "    # Increment once\n"
+        "    foo.inc()\n"
+        "    pass\n"
+    )
+    assert _restore_original_assertions(orig, ref) == (
+        "def test_inc_increments_x():\n"
+        "    foo = module_0.Foo(5)\n"
+        "    assert foo.x == 5\n"
+        "    # Increment once\n"
+        "    foo.inc()\n"
+        "    assert foo.x == 6\n"
+    )
+
+
+def test_restore_original_assertions_rebinds_dropped_result():
+    orig = (
+        "def test_case_0():\n"
+        "    foo_0 = module_0.Foo()\n"
+        "    var_0 = foo_0.double(2)\n"
+        "    assert var_0 == 4\n"
+    )
+    ref = "def test_double():\n    foo = module_0.Foo()\n    foo.double(2)\n"
+    assert _restore_original_assertions(orig, ref) == (
+        "def test_double():\n"
+        "    foo = module_0.Foo()\n"
+        "    var_0 = foo.double(2)\n"
+        "    assert var_0 == 4\n"
+    )
+
+
+def test_restore_original_assertions_rebinds_under_a_free_name():
+    orig = "def test_case_0():\n    var_0 = module_0.f()\n    assert var_0 == 1\n"
+    ref = "def test_f():\n    var_0 = 3\n    module_0.f()\n    assert var_0 == 3\n"
+    restored = _restore_original_assertions(orig, ref)
+    assert restored is not None
+    assert "var_0_1 = module_0.f()\n    assert var_0_1 == 1" in restored
+
+
+def test_restore_original_assertions_restores_asserts_in_with_blocks():
+    orig = (
+        "def test_case_0():\n"
+        "    with module_0.ctx():\n"
+        "        foo_0 = module_0.Foo()\n"
+        "        assert foo_0.x == 0\n"
+    )
+    ref = "def test_ctx():\n    with module_0.ctx():\n        foo = module_0.Foo()\n"
+    assert _restore_original_assertions(orig, ref) == (
+        "def test_ctx():\n"
+        "    with module_0.ctx():\n"
+        "        foo = module_0.Foo()\n"
+        "        assert foo.x == 0\n"
+    )
+
+
+def test_restore_original_assertions_skips_unrestorable_asserts():
+    orig = (
+        "def test_case_0():\n"
+        "    list_0 = [1]\n"
+        "    foo_0 = module_0.Foo()\n"
+        "    bar_0 = module_0.Bar()\n"
+        "    assert foo_0.x == 0\n"
+        "    assert bar_0.y == 1\n"
+        "    assert list_0 == [1]\n"
+        "    if foo_0.x:\n"
+        "        assert foo_0.y == 2\n"
+        "    with pytest.raises(ValueError):\n"
+        "        foo_0.fail()\n"
+        "        assert foo_0.z == 3\n"
+    )
+    ref = "def test_foo():\n    foo = module_0.Foo()\n"
+    assert _restore_original_assertions(orig, ref) == (
+        "def test_foo():\n    foo = module_0.Foo()\n    assert foo.x == 0\n"
+    )
+
+
+def test_restore_original_assertions_returns_none_when_nothing_restorable():
+    orig = "def test_case_0():\n    bar_0 = module_0.Bar()\n    assert bar_0.y == 1\n"
+    ref = "def test_foo():\n    foo = module_0.Foo()\n"
+    assert _restore_original_assertions(orig, ref) is None
+
+
 def test_restore_original_assertions_returns_none_when_no_orig_asserts():
     orig = "def test_0():\n    x = 1\n"
     ref = "def test_0():\n    x = 1\n"
