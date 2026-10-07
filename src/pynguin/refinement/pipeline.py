@@ -7,6 +7,8 @@
 """Test refinement pipeline orchestrator."""
 
 import ast
+import contextlib
+import copy
 import dataclasses
 import inspect
 import logging
@@ -37,6 +39,7 @@ from pynguin.refinement.mutation_analyzer import (
     get_surviving_mutants,
     killed_set,
     passes_on_module,
+    strip_redundant_pass_statements,
 )
 from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.refinement.validator import run_test
@@ -222,6 +225,112 @@ def _strip_xfail_decorator(current_code: str) -> str | None:
                 new_lines = [*lines[:start], *lines[end:]]
                 return "\n".join(new_lines)
     return None
+
+
+def _extract_assigned_vars(func: ast.FunctionDef) -> list[tuple[str, str]]:
+    """Extract list of (variable_name, value_expr_str) from simple assignments in *func*."""
+    assigns: list[tuple[str, str]] = []
+    for stmt in func.body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and len(stmt.targets) == 1
+            and isinstance(stmt.targets[0], ast.Name)
+        ):
+            with contextlib.suppress(Exception):
+                assigns.append((stmt.targets[0].id, ast.unparse(stmt.value)))
+    return assigns
+
+
+def _build_variable_rename_map(
+    orig_func: ast.FunctionDef, ref_func: ast.FunctionDef
+) -> dict[str, str]:
+    """Map variable names from an original test function to a refined test function.
+
+    Aligns assignment statements whose right-hand side expressions match (when unparsed).
+    """
+    orig_assigns = _extract_assigned_vars(orig_func)
+    ref_assigns = _extract_assigned_vars(ref_func)
+
+    rename_map: dict[str, str] = {}
+    used_ref: set[int] = set()
+
+    for orig_var, orig_val in orig_assigns:
+        for ref_idx, (ref_var, ref_val) in enumerate(ref_assigns):
+            if ref_idx not in used_ref and orig_val == ref_val:
+                rename_map[orig_var] = ref_var
+                used_ref.add(ref_idx)
+                break
+
+    return rename_map
+
+
+def _adapt_assertions(
+    orig_asserts: list[ast.Assert], rename_map: dict[str, str]
+) -> list[ast.Assert]:
+    """Copy and rename variables in assertions according to *rename_map*."""
+
+    class _VariableRenamer(ast.NodeTransformer):
+        def visit_Name(self, node: ast.Name) -> ast.Name:  # noqa: N802
+            if isinstance(node.ctx, ast.Load) and node.id in rename_map:
+                return ast.copy_location(ast.Name(id=rename_map[node.id], ctx=node.ctx), node)
+            return node
+
+    new_assert_stmts: list[ast.Assert] = []
+    for stmt in orig_asserts:
+        copied = copy.deepcopy(stmt)
+        if rename_map:
+            _VariableRenamer().visit(copied)
+        ast.fix_missing_locations(copied)
+        new_assert_stmts.append(copied)
+    return new_assert_stmts
+
+
+def _restore_original_assertions(original_code: str, refined_code: str) -> str | None:
+    """Re-insert assertions from *original_code* into *refined_code*.
+
+    Variables in the original assertions are renamed according to the refined test's
+    variable assignments where applicable.  The adapted assertions are appended to the
+    refined test function body, and any redundant ``pass`` statements are removed.
+
+    Returns:
+        The updated refined code with restored assertions, or ``None`` if restoration
+        could not be performed.
+    """
+    try:
+        orig_tree = ast.parse(original_code)
+        ref_tree = ast.parse(refined_code)
+    except SyntaxError:
+        return None
+
+    orig_func = next((n for n in orig_tree.body if isinstance(n, ast.FunctionDef)), None)
+    ref_func = next((n for n in ref_tree.body if isinstance(n, ast.FunctionDef)), None)
+    if orig_func is None or ref_func is None:
+        return None
+
+    orig_asserts = [stmt for stmt in orig_func.body if isinstance(stmt, ast.Assert)]
+    if not orig_asserts:
+        return None
+
+    rename_map = _build_variable_rename_map(orig_func, ref_func)
+    new_assert_stmts = _adapt_assertions(orig_asserts, rename_map)
+
+    # Insert assertions before any trailing return statement, or at the end of the body
+    insert_pos = len(ref_func.body)
+    if ref_func.body and isinstance(ref_func.body[-1], ast.Return):
+        insert_pos = len(ref_func.body) - 1
+
+    ref_func.body[insert_pos:insert_pos] = new_assert_stmts
+
+    # Remove redundant Pass nodes that might now coexist with the restored asserts
+    if len(ref_func.body) > 1:
+        ref_func.body = [stmt for stmt in ref_func.body if not isinstance(stmt, ast.Pass)]
+
+    ast.fix_missing_locations(ref_tree)
+    try:
+        updated = ast.unparse(ref_tree)
+        return strip_redundant_pass_statements(updated)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _expr_calls_pytest(node: ast.expr, names: frozenset[str]) -> bool:
@@ -1299,6 +1408,19 @@ class TestRefiner:
     ) -> dict:
         """Run the coverage check and AAA insertion after a passing test."""
         if _has_meaningful_check(original_code) and not _has_meaningful_check(current_code):
+            # Attempt to re-insert the original assertions (mapped to refined variable
+            # names where possible) instead of throwing away the entire refinement.
+            restored = _restore_original_assertions(original_code, current_code)
+            if restored is not None and _has_meaningful_check(restored):
+                passed, _ = run_test(restored, self.module_under_test)
+                if passed:
+                    _LOGGER.info(
+                        "Restored original assertions into refined test whose "
+                        "assertions were filtered."
+                    )
+                    current_code = restored
+
+        if _has_meaningful_check(original_code) and not _has_meaningful_check(current_code):
             return {
                 "success": False,
                 "error": "Refinement removed all assertions (vacuous test); reverting to original.",
@@ -1322,6 +1444,7 @@ class TestRefiner:
             }
 
         current_code = self._apply_aaa_markers(current_code)
+        current_code = strip_redundant_pass_statements(current_code)
 
         return {
             "success": True,

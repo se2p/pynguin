@@ -32,6 +32,7 @@ from pynguin.refinement.mutation_analyzer import (
     killed_set,
     passes_on_module,
     rank_mutations,
+    strip_redundant_pass_statements,
 )
 from pynguin.refinement.validator import TestExecution
 from pynguin.utils.timeout import TestExecutionTimeoutError
@@ -198,12 +199,58 @@ def test_assertion_removal_lines_handles_multiline_assert():
     assert all_lines == {2, 3, 4}
 
 
-def test_build_filtered_test_replaces_removed_assert_with_pass():
+def test_strip_redundant_pass_statements_removes_pass_when_other_stmts_exist():
+    code = (
+        "def test_x():\n"
+        "    # Arrange\n"
+        "    var = 1\n"
+        "    # Act\n"
+        "    pass\n"
+        "    pass\n"
+        "    assert var == 1\n"
+    )
+    cleaned = strip_redundant_pass_statements(code)
+    assert "pass" not in cleaned
+    assert "# Arrange" in cleaned
+    assert "assert var == 1" in cleaned
+    ast.parse(cleaned)
+
+
+def test_strip_redundant_pass_statements_keeps_pass_in_otherwise_empty_block():
+    code = (
+        "def test_x():\n"
+        "    try:\n"
+        "        var = 1\n"
+        "    except Exception:\n"
+        "        pass\n"
+        "    assert var == 1\n"
+    )
+    cleaned = strip_redundant_pass_statements(code)
+    assert "except Exception:\n        pass" in cleaned
+    ast.parse(cleaned)
+
+
+def test_strip_redundant_pass_statements_keeps_pass_in_empty_function():
+    code = "def test_x():\n    pass\n"
+    cleaned = strip_redundant_pass_statements(code)
+    assert cleaned.strip() == "def test_x():\n    pass"
+
+
+def test_build_filtered_test_strips_redundant_pass():
     refined = "def test_x():\n    assert (\n        a == 1\n    )\n    assert b == 2\n"
     tree = ast.parse(refined)
     filtered = _build_filtered_test(refined, tree, [0])
-    assert "pass" in filtered
+    # The removed assert is replaced by pass during intermediate build, but since
+    # assert b == 2 remains, redundant pass is stripped.
+    assert "pass" not in filtered
     assert "assert b == 2" in filtered
+
+
+def test_build_filtered_test_keeps_pass_if_body_would_be_empty():
+    refined = "def test_x():\n    assert a == 1\n"
+    tree = ast.parse(refined)
+    filtered = _build_filtered_test(refined, tree, [0])
+    assert "pass" in filtered
 
 
 def test_evaluate_inferred_reports_per_test_and_suite_level(monkeypatch):
@@ -313,7 +360,9 @@ def test_filter_vacuous_assertions_removes_non_contributing_assertion(monkeypatc
         module_under_test=module,
         other_tests_in_suite=["def test_y():\n    assert True\n"],
     )
-    assert "pass" in filtered
+    assert "pass" not in filtered
+    assert "assert a == 1" in filtered
+    assert "assert b == 2" not in filtered
     assert stats["assertions_removed"] == 1
     assert stats["assertions_kept"] == 0
     assert stats["avg_per_test_contribution"] == 0.0

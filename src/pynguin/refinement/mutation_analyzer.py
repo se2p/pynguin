@@ -386,6 +386,55 @@ def _assertion_removal_lines(tree: ast.Module, remove_set: set[int]) -> tuple[se
     return all_lines, start_lines
 
 
+def strip_redundant_pass_statements(code: str) -> str:
+    """Remove redundant ``pass`` statements from *code*.
+
+    A ``pass`` statement is redundant if the statement block containing it
+    (function body, loop, if/else branch, try/except/finally, with block) has
+    at least one other statement.  A ``pass`` that is the sole statement in a
+    block is preserved so that the syntax remains valid.
+
+    Comments and existing formatting are preserved by removing the redundant
+    lines textually rather than unparsing.
+
+    Args:
+        code: Source code containing potentially redundant ``pass`` statements.
+
+    Returns:
+        The cleaned source code without redundant ``pass`` statements.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+
+    redundant_lines: set[int] = set()
+
+    for node in ast.walk(tree):
+        for field in ("body", "orelse", "finalbody"):
+            stmts = getattr(node, field, None)
+            if isinstance(stmts, list) and len(stmts) > 1:
+                for stmt in stmts:
+                    if isinstance(stmt, ast.Pass):
+                        redundant_lines.add(stmt.lineno)
+
+    if not redundant_lines:
+        return code
+
+    lines = code.split("\n")
+    cleaned_lines = [
+        line
+        for idx, line in enumerate(lines, 1)
+        if idx not in redundant_lines or not line.strip().startswith("pass")
+    ]
+    candidate = "\n".join(cleaned_lines)
+    try:
+        ast.parse(candidate)
+        return candidate
+    except SyntaxError:
+        return code
+
+
 def _build_filtered_test(
     refined_test: str, tree: ast.Module, assertions_to_remove: list[int]
 ) -> str:
@@ -399,7 +448,8 @@ def _build_filtered_test(
             indent = len(line) - len(line.lstrip())
             result_lines.append(" " * indent + "pass")
         # else: a continuation line of a multi-line assert -> drop it
-    return "\n".join(result_lines)
+    filtered = "\n".join(result_lines)
+    return strip_redundant_pass_statements(filtered)
 
 
 class _AssertionAnalysis(NamedTuple):

@@ -21,7 +21,10 @@ import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 from pynguin.configuration import MutationStrengtheningGranularity, RefinementGranularity
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
-from pynguin.refinement.mutation_analyzer import evaluate_refined_suite_mutations
+from pynguin.refinement.mutation_analyzer import (
+    evaluate_refined_suite_mutations,
+    strip_redundant_pass_statements,
+)
 from pynguin.refinement.pipeline import TestRefiner, _strip_xfail_decorator
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
 from pynguin.refinement.validator import run_test
@@ -540,7 +543,7 @@ def _finalize_refined_suite(
         if sanitized is None:
             _LOGGER.warning("Dropping refined test that could not run green:\n%s", func_text)
             continue
-        kept.append(sanitized)
+        kept.append(strip_redundant_pass_statements(sanitized))
     return preamble, kept
 
 

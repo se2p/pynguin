@@ -22,6 +22,7 @@ from pynguin.refinement.pipeline import (
     _classify_error,  # noqa: PLC2701
     _has_meaningful_check,  # noqa: PLC2701
     _remove_failing_inferred_assertion,  # noqa: PLC2701
+    _restore_original_assertions,  # noqa: PLC2701
     _strip_xfail_decorator,  # noqa: PLC2701
 )
 
@@ -1030,9 +1031,95 @@ def test_has_meaningful_check_false(code: str):
     assert _has_meaningful_check(code) is False
 
 
-def test_finalize_rejects_vacuous_refined_test(refiner: TestRefiner):
-    """A refined test that lost its only assertion must not be exported."""
-    original = "import module_0\n\ndef test_case_0():\n    assert module_0.add(1, 2) == 3\n"
+def test_restore_original_assertions_renames_variables():
+    orig = "import module_0\ndef test_0():\n    var_0 = module_0.add(1, 2)\n    assert var_0 == 3\n"
+    ref = (
+        "import module_0\ndef test_add_returns_sum():\n    result = module_0.add(1, 2)\n    pass\n"
+    )
+    restored = _restore_original_assertions(orig, ref)
+    assert restored is not None
+    assert "assert result == 3" in restored
+    assert "pass" not in restored
+
+
+def test_restore_original_assertions_returns_none_when_no_orig_asserts():
+    orig = "def test_0():\n    x = 1\n"
+    ref = "def test_0():\n    x = 1\n"
+    assert _restore_original_assertions(orig, ref) is None
+
+
+def test_finalize_restores_original_assertions_when_all_filtered(refiner: TestRefiner):
+    """When refinement filtered assertions, original assertions are restored if valid."""
+    original = (
+        "import module_0\n\n"
+        "def test_case_0():\n"
+        "    var_0 = module_0.add(1, 2)\n"
+        "    assert var_0 == 3\n"
+    )
+    vacuous = (
+        "import module_0\n\n"
+        "def test_add_positive_integers():\n"
+        "    result = module_0.add(1, 2)\n"
+        "    pass\n"
+    )
+
+    with (
+        patch("pynguin.refinement.pipeline.run_test", return_value=(True, "Test passed.")),
+        patch(
+            "pynguin.refinement.pipeline.check_coverage_preservation",
+            return_value=(True, {"status": "passed"}),
+        ),
+    ):
+        result = refiner._finalize_on_pass(
+            original_code=original,
+            current_code=vacuous,
+            repair_iterations=0,
+            mutation_stats={},
+        )
+
+    assert result["success"] is True
+    assert "test_add_positive_integers" in result["final_code"]
+    assert "assert result == 3" in result["final_code"]
+    assert "pass" not in result["final_code"]
+
+
+def test_finalize_rejects_when_restored_assertions_fail_validation(refiner: TestRefiner):
+    """When restored assertions fail validation, finalize reverts to original (success=False)."""
+    original = (
+        "import module_0\n\n"
+        "def test_case_0():\n"
+        "    var_0 = module_0.add(1, 2)\n"
+        "    assert var_0 == 3\n"
+    )
+    vacuous = (
+        "import module_0\n\n"
+        "def test_add_positive_integers():\n"
+        "    result = module_0.add(1, 2)\n"
+        "    pass\n"
+    )
+
+    # run_test fails on the restored code
+    with patch("pynguin.refinement.pipeline.run_test", return_value=(False, "AssertionError")):
+        result = refiner._finalize_on_pass(
+            original_code=original,
+            current_code=vacuous,
+            repair_iterations=0,
+            mutation_stats={},
+        )
+
+    assert result["success"] is False
+    assert "vacuous" in result["error"].lower()
+
+
+def test_finalize_rejects_vacuous_refined_test_when_original_had_no_checks(refiner: TestRefiner):
+    """When original test had a check (e.g. pytest.raises) that couldn't be restored as asserts."""
+    original = (
+        "import pytest\n"
+        "import module_0\n\n"
+        "def test_case_0():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        module_0.add(1, 2)\n"
+    )
     vacuous = "import module_0\n\ndef test_case_0():\n    module_0.add(1, 2)\n    pass\n"
 
     result = refiner._finalize_on_pass(
