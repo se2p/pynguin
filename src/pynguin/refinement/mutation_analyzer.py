@@ -392,7 +392,8 @@ def strip_redundant_pass_statements(code: str) -> str:
     A ``pass`` statement is redundant if the statement block containing it
     (function body, loop, if/else branch, try/except/finally, with block) has
     at least one other statement.  A ``pass`` that is the sole statement in a
-    block is preserved so that the syntax remains valid.
+    block is preserved so that the syntax remains valid; if a block consists only of
+    ``pass`` statements, the first one is kept.
 
     Comments and existing formatting are preserved by removing the redundant
     lines textually rather than unparsing.
@@ -414,9 +415,11 @@ def strip_redundant_pass_statements(code: str) -> str:
         for field in ("body", "orelse", "finalbody"):
             stmts = getattr(node, field, None)
             if isinstance(stmts, list) and len(stmts) > 1:
-                for stmt in stmts:
-                    if isinstance(stmt, ast.Pass):
-                        redundant_lines.add(stmt.lineno)
+                passes = [stmt for stmt in stmts if isinstance(stmt, ast.Pass)]
+                if len(passes) == len(stmts):
+                    # Only placeholders: keep one so that the block stays non-empty.
+                    passes = passes[1:]
+                redundant_lines.update(stmt.lineno for stmt in passes)
 
     if not redundant_lines:
         return code

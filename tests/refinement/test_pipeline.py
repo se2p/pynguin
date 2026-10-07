@@ -1042,6 +1042,54 @@ def test_restore_original_assertions_renames_variables():
     assert "pass" not in restored
 
 
+def test_restore_original_assertions_renames_chained_variables():
+    orig = (
+        "def test_0():\n"
+        "    int_0 = 5\n"
+        "    foo_0 = module_0.Foo(int_0)\n"
+        "    var_0 = foo_0.double()\n"
+        "    assert var_0 == 10\n"
+        "    assert foo_0.x == 5\n"
+    )
+    ref = (
+        "def test_double_returns_twice_the_value():\n"
+        "    value = 5\n"
+        "    foo = module_0.Foo(value)\n"
+        "    result = foo.double()\n"
+        "    pass\n"
+    )
+    restored = _restore_original_assertions(orig, ref)
+    assert restored is not None
+    assert "assert result == 10" in restored
+    assert "assert foo.x == 5" in restored
+    assert "_0" not in restored.replace("module_0", "")
+
+
+def test_restore_original_assertions_targets_test_function_and_keeps_comments():
+    orig = "def test_0():\n    var_0 = module_0.add(1, 2)\n    assert var_0 == 3\n"
+    ref = (
+        "def _helper():\n"
+        "    return 1\n"
+        "\n"
+        "\n"
+        "def test_add_returns_sum():\n"
+        "    # Add two small numbers\n"
+        "    result = module_0.add(1, 2)  # call under test\n"
+        "    pass\n"
+    )
+    restored = _restore_original_assertions(orig, ref)
+    assert restored == (
+        "def _helper():\n"
+        "    return 1\n"
+        "\n"
+        "\n"
+        "def test_add_returns_sum():\n"
+        "    # Add two small numbers\n"
+        "    result = module_0.add(1, 2)  # call under test\n"
+        "    assert result == 3\n"
+    )
+
+
 def test_restore_original_assertions_returns_none_when_no_orig_asserts():
     orig = "def test_0():\n    x = 1\n"
     ref = "def test_0():\n    x = 1\n"

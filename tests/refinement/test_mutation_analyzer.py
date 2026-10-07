@@ -230,6 +230,14 @@ def test_strip_redundant_pass_statements_keeps_pass_in_otherwise_empty_block():
     ast.parse(cleaned)
 
 
+def test_strip_redundant_pass_statements_keeps_one_pass_in_placeholder_only_block():
+    code = (
+        "def test_x():\n    x = 1\n    if x:\n        pass\n        pass\n    assert x\n    pass\n"
+    )
+    cleaned = strip_redundant_pass_statements(code)
+    assert cleaned == "def test_x():\n    x = 1\n    if x:\n        pass\n    assert x\n"
+
+
 def test_strip_redundant_pass_statements_keeps_pass_in_empty_function():
     code = "def test_x():\n    pass\n"
     cleaned = strip_redundant_pass_statements(code)

@@ -241,6 +241,29 @@ def _extract_assigned_vars(func: ast.FunctionDef) -> list[tuple[str, str]]:
     return assigns
 
 
+class _VariableRenamer(ast.NodeTransformer):
+    """Rename loaded variable names according to a rename map."""
+
+    def __init__(self, rename_map: dict[str, str]) -> None:
+        self._rename_map = rename_map
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:  # noqa: N802
+        if isinstance(node.ctx, ast.Load) and node.id in self._rename_map:
+            return ast.copy_location(ast.Name(id=self._rename_map[node.id], ctx=node.ctx), node)
+        return node
+
+
+def _rename_in_expression(expr: str, rename_map: dict[str, str]) -> str:
+    """Return *expr* with variables renamed according to *rename_map*."""
+    if not rename_map:
+        return expr
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError:
+        return expr
+    return ast.unparse(_VariableRenamer(rename_map).visit(tree))
+
+
 def _build_variable_rename_map(
     orig_func: ast.FunctionDef, ref_func: ast.FunctionDef
 ) -> dict[str, str]:
@@ -255,8 +278,11 @@ def _build_variable_rename_map(
     used_ref: set[int] = set()
 
     for orig_var, orig_val in orig_assigns:
+        # Apply the renames found so far, so that chained assignments such as
+        # ``foo_0 = module_0.Foo(int_0)`` match ``foo = module_0.Foo(value)``.
+        normalised_val = _rename_in_expression(orig_val, rename_map)
         for ref_idx, (ref_var, ref_val) in enumerate(ref_assigns):
-            if ref_idx not in used_ref and orig_val == ref_val:
+            if ref_idx not in used_ref and normalised_val == ref_val:
                 rename_map[orig_var] = ref_var
                 used_ref.add(ref_idx)
                 break
@@ -268,21 +294,24 @@ def _adapt_assertions(
     orig_asserts: list[ast.Assert], rename_map: dict[str, str]
 ) -> list[ast.Assert]:
     """Copy and rename variables in assertions according to *rename_map*."""
-
-    class _VariableRenamer(ast.NodeTransformer):
-        def visit_Name(self, node: ast.Name) -> ast.Name:  # noqa: N802
-            if isinstance(node.ctx, ast.Load) and node.id in rename_map:
-                return ast.copy_location(ast.Name(id=rename_map[node.id], ctx=node.ctx), node)
-            return node
-
     new_assert_stmts: list[ast.Assert] = []
     for stmt in orig_asserts:
         copied = copy.deepcopy(stmt)
         if rename_map:
-            _VariableRenamer().visit(copied)
+            _VariableRenamer(rename_map).visit(copied)
         ast.fix_missing_locations(copied)
         new_assert_stmts.append(copied)
     return new_assert_stmts
+
+
+def _find_test_function(tree: ast.Module) -> ast.FunctionDef | None:
+    """Return the test function of *tree*, skipping helper functions.
+
+    Prefers the first function whose name starts with ``test``; falls back to the last
+    top-level function, since helpers are usually defined before the test.
+    """
+    funcs = [n for n in tree.body if isinstance(n, ast.FunctionDef)]
+    return next((f for f in funcs if f.name.startswith("test")), funcs[-1] if funcs else None)
 
 
 def _restore_original_assertions(original_code: str, refined_code: str) -> str | None:
@@ -290,7 +319,8 @@ def _restore_original_assertions(original_code: str, refined_code: str) -> str |
 
     Variables in the original assertions are renamed according to the refined test's
     variable assignments where applicable.  The adapted assertions are appended to the
-    refined test function body, and any redundant ``pass`` statements are removed.
+    refined test function body (keeping its comments and formatting), and any
+    redundant ``pass`` statements are removed.
 
     Returns:
         The updated refined code with restored assertions, or ``None`` if restoration
@@ -302,8 +332,8 @@ def _restore_original_assertions(original_code: str, refined_code: str) -> str |
     except SyntaxError:
         return None
 
-    orig_func = next((n for n in orig_tree.body if isinstance(n, ast.FunctionDef)), None)
-    ref_func = next((n for n in ref_tree.body if isinstance(n, ast.FunctionDef)), None)
+    orig_func = _find_test_function(orig_tree)
+    ref_func = _find_test_function(ref_tree)
     if orig_func is None or ref_func is None:
         return None
 
@@ -314,23 +344,33 @@ def _restore_original_assertions(original_code: str, refined_code: str) -> str |
     rename_map = _build_variable_rename_map(orig_func, ref_func)
     new_assert_stmts = _adapt_assertions(orig_asserts, rename_map)
 
-    # Insert assertions before any trailing return statement, or at the end of the body
-    insert_pos = len(ref_func.body)
-    if ref_func.body and isinstance(ref_func.body[-1], ast.Return):
-        insert_pos = len(ref_func.body) - 1
-
-    ref_func.body[insert_pos:insert_pos] = new_assert_stmts
-
-    # Remove redundant Pass nodes that might now coexist with the restored asserts
-    if len(ref_func.body) > 1:
-        ref_func.body = [stmt for stmt in ref_func.body if not isinstance(stmt, ast.Pass)]
-
-    ast.fix_missing_locations(ref_tree)
-    try:
-        updated = ast.unparse(ref_tree)
-        return strip_redundant_pass_statements(updated)
-    except Exception:  # noqa: BLE001
+    body = ref_func.body
+    if not body or body[0].lineno == ref_func.lineno:
+        # Single-line function definitions cannot take additional lines.
         return None
+
+    # Insert the assertions textually, before a trailing return statement or after the
+    # last statement, so that the refined test keeps its comments and formatting.
+    indent = " " * body[0].col_offset
+    assert_lines = [
+        indent + line for stmt in new_assert_stmts for line in ast.unparse(stmt).splitlines()
+    ]
+    lines = refined_code.splitlines()
+    if isinstance(body[-1], ast.Return):
+        insert_at = body[-1].lineno - 1
+    else:
+        insert_at = body[-1].end_lineno or body[-1].lineno
+    lines[insert_at:insert_at] = assert_lines
+    updated = "\n".join(lines)
+    if refined_code.endswith("\n"):
+        updated += "\n"
+
+    try:
+        ast.parse(updated)
+    except SyntaxError:
+        return None
+    # The restored assertions make placeholder ``pass`` statements redundant.
+    return strip_redundant_pass_statements(updated)
 
 
 def _expr_calls_pytest(node: ast.expr, names: frozenset[str]) -> bool:
