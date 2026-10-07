@@ -23,6 +23,7 @@ from pynguin.refinement.coverage_checker import (
     _measure_coverage_pynguin,  # noqa: PLC2701
     _measure_coverage_settrace,  # noqa: PLC2701
     check_coverage_preservation,
+    get_covered_lines,
 )
 
 _SUT_SOURCE = """\
@@ -241,3 +242,52 @@ def test_measure_coverage_pynguin_uses_line_metric(monkeypatch):
     assert result.error is None
     assert result.metric == "line"
     assert result.coverage_value == pytest.approx(0.55)
+
+
+def test_get_covered_lines_settrace(sut_module):
+    code = "def test_x():\n    assert cov_sut_mod.add(1, 2) == 3\n"
+    lines = get_covered_lines(code, sut_module)
+    assert lines == {2, 3}  # add executes lines 2 and 3 in _SUT_SOURCE
+
+
+def test_get_covered_lines_syntax_error(sut_module):
+    code = "def broken(:\n"
+    lines = get_covered_lines(code, sut_module)
+    assert lines == set()
+
+
+def test_get_covered_lines_pynguin():
+    class _DummyTrace:
+        def __init__(self):
+            self.covered_line_ids: list[int] = [0, 1]
+
+    class _DummyCtx:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    class _DummyTracer:
+        def __init__(self):
+            self.tracer = types.SimpleNamespace(_current_thread_identifier=None)
+
+        def init_trace(self):
+            return None
+
+        def temporarily_enable(self):
+            return _DummyCtx()
+
+        def get_trace(self):
+            return _DummyTrace()
+
+    module = types.ModuleType("dummy_cov_mod")
+    module.identity = lambda x: x
+    subject_properties = types.SimpleNamespace(
+        instrumentation_tracer=_DummyTracer(),
+        lineids_to_linenos=lambda _ids: [42, 43],
+    )
+
+    code = "def test_x():\n    assert dummy_cov_mod.identity(1) == 1\n"
+    lines = get_covered_lines(code, module, subject_properties=subject_properties)
+    assert lines == {42, 43}

@@ -214,7 +214,7 @@ def _load_sut_source(
         return None, None, f"Could not read SUT source: {exc}"
 
 
-def _measure_coverage_settrace(
+def _measure_coverage_settrace(  # noqa: PLR0914
     test_code: str,
     module_under_test: types.ModuleType,
 ) -> CoverageResult:
@@ -236,7 +236,7 @@ def _measure_coverage_settrace(
 
     def _tracer(frame: types.FrameType, event: str, _arg: Any) -> Any:
         code_file = frame.f_code.co_filename
-        if code_file == sut_file_str and event == "line":
+        if (code_file == sut_file_str or Path(code_file).resolve() == sut_path) and event == "line":
             with lock:
                 executed_lines.add(frame.f_lineno)
         return _tracer
@@ -248,6 +248,8 @@ def _measure_coverage_settrace(
     func_name = _find_test_function_name(cleaned)
     test_funcs = collect_test_functions(cleaned)
 
+    old_module = sys.modules.get(module_under_test.__name__)
+    sys.modules[module_under_test.__name__] = module_under_test
     try:
         compiled = compile(cleaned, "<test>", "exec")
         old_trace = sys.gettrace()
@@ -267,6 +269,11 @@ def _measure_coverage_settrace(
         sys.settrace(None)
         if not executed_lines:
             return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")
+    finally:
+        if old_module is None:
+            sys.modules.pop(module_under_test.__name__, None)
+        else:
+            sys.modules[module_under_test.__name__] = old_module
 
     covered = executed_lines & total_executable
     pct = len(covered) / len(total_executable) if total_executable else 0.0
@@ -355,3 +362,138 @@ def check_coverage_preservation(
     details["status"] = "failed"
     details["reason"] = f"Coverage decreased by {abs(delta) * 100:.1f}%"
     return False, details
+
+
+def _get_covered_lines_pynguin(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties,
+) -> set[int]:
+    """Extract covered line numbers using Pynguin's instrumentation tracer."""
+    tracer = subject_properties.instrumentation_tracer
+    tracer.init_trace()
+
+    scope: dict[str, Any] = {
+        "__builtins__": __builtins__,
+        module_under_test.__name__: module_under_test,
+        "pytest": pytest,
+    }
+    cleaned = textwrap.dedent(test_code.strip())
+    func_name = _find_test_function_name(cleaned)
+    test_funcs = collect_test_functions(cleaned)
+    try:
+        compiled = compile(cleaned, "<test>", "exec")
+    except SyntaxError:
+        return set()
+
+    tracer.tracer._current_thread_identifier = (  # noqa: SLF001
+        threading.current_thread().ident
+    )
+    old_module = sys.modules.get(module_under_test.__name__)
+    sys.modules[module_under_test.__name__] = module_under_test
+    with tracer.temporarily_enable():
+        try:
+            with time_limit(resolve_timeout(None)):
+                exec(compiled, scope)  # noqa: S102
+            if test_funcs:
+                call_test_functions(scope, test_funcs)
+            elif func_name and func_name in scope and callable(scope[func_name]):
+                with time_limit(resolve_timeout(None)):
+                    scope[func_name]()
+        except BaseException:  # noqa: BLE001, S110
+            pass
+        finally:
+            if old_module is None:
+                sys.modules.pop(module_under_test.__name__, None)
+            else:
+                sys.modules[module_under_test.__name__] = old_module
+
+    trace = tracer.get_trace()
+    if not trace.covered_line_ids:
+        return set()
+    return set(subject_properties.lineids_to_linenos(trace.covered_line_ids))
+
+
+def _get_covered_lines_settrace(
+    test_code: str,
+    module_under_test: types.ModuleType,
+) -> set[int]:
+    """Fallback: extract covered line numbers via sys.settrace."""
+    sut_path, sut_source, error = _load_sut_source(module_under_test)
+    if error is not None or sut_path is None or sut_source is None:
+        return set()
+
+    total_executable = _executable_lines(sut_source)
+    if not total_executable:
+        return set()
+
+    sut_file_str = str(sut_path)
+    executed_lines: set[int] = set()
+    lock = threading.Lock()
+
+    def _tracer(frame: types.FrameType, event: str, _arg: Any) -> Any:
+        code_file = frame.f_code.co_filename
+        if (code_file == sut_file_str or Path(code_file).resolve() == sut_path) and event == "line":
+            with lock:
+                executed_lines.add(frame.f_lineno)
+        return _tracer
+
+    scope: dict[str, Any] = {
+        "__builtins__": __builtins__,
+        module_under_test.__name__: module_under_test,
+        "pytest": pytest,
+    }
+    cleaned = textwrap.dedent(test_code.strip())
+    func_name = _find_test_function_name(cleaned)
+    test_funcs = collect_test_functions(cleaned)
+
+    try:
+        compiled = compile(cleaned, "<test>", "exec")
+    except SyntaxError:
+        return set()
+
+    old_module = sys.modules.get(module_under_test.__name__)
+    sys.modules[module_under_test.__name__] = module_under_test
+    old_trace = sys.gettrace()
+    sys.settrace(_tracer)
+    try:
+        with time_limit(resolve_timeout(None)):
+            exec(compiled, scope)  # noqa: S102
+        if test_funcs:
+            call_test_functions(scope, test_funcs)
+        elif func_name and func_name in scope and callable(scope[func_name]):
+            with time_limit(resolve_timeout(None)):
+                scope[func_name]()
+    except BaseException:  # noqa: BLE001
+        sys.settrace(None)
+    finally:
+        sys.settrace(old_trace)
+        if old_module is None:
+            sys.modules.pop(module_under_test.__name__, None)
+        else:
+            sys.modules[module_under_test.__name__] = old_module
+
+    return executed_lines & total_executable
+
+
+def get_covered_lines(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties | None = None,
+) -> set[int]:
+    """Return the set of line numbers in the SUT module executed by *test_code*.
+
+    Uses native ``SubjectProperties`` instrumentation if available, or falls back
+    to ``sys.settrace`` line tracing.
+
+    Args:
+        test_code: The test code to execute.
+        module_under_test: The module being tested.
+        subject_properties: Optional SubjectProperties for Pynguin's native tracer.
+
+    Returns:
+        Set of line numbers covered in the SUT.
+    """
+    if subject_properties is not None:
+        return _get_covered_lines_pynguin(test_code, module_under_test, subject_properties)
+    return _get_covered_lines_settrace(test_code, module_under_test)

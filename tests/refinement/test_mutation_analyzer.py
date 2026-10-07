@@ -30,6 +30,7 @@ from pynguin.refinement.mutation_analyzer import (
     get_surviving_mutants,
     killed_set,
     passes_on_module,
+    prioritize_mutants,
 )
 from pynguin.refinement.validator import TestExecution
 from pynguin.utils.timeout import TestExecutionTimeoutError
@@ -512,3 +513,109 @@ def test_evaluate_refined_suite_mutations_drops_mutant_interrupted_by_budget(mon
     assert res["post_refinement_killed_mutants"] == 0
     assert res["post_refinement_mutation_score"] is None
     assert res["post_refinement_created_mutants"] == 1
+
+
+def _make_dummy_mutant(line_number: int, ident: str):
+    mod = types.ModuleType(f"mod_{ident}")
+    node = ast.Constant(value=1)
+    node.lineno = line_number
+    mutation = types.SimpleNamespace(node=node)
+    return (mod, [mutation])
+
+
+def test_prioritize_mutants_one_per_line_then_remaining():
+    # Lines 10 (2 mutants), 20 (2 mutants), 30 (1 mutant)
+    m10_a = _make_dummy_mutant(10, "10a")
+    m10_b = _make_dummy_mutant(10, "10b")
+    m20_a = _make_dummy_mutant(20, "20a")
+    m20_b = _make_dummy_mutant(20, "20b")
+    m30_a = _make_dummy_mutant(30, "30a")
+    m_uncov = _make_dummy_mutant(99, "uncov")
+
+    all_mutants = [m10_a, m10_b, m20_a, m20_b, m30_a, m_uncov]
+    covered = {10, 20}
+
+    # Cap at 2: exactly one per covered line (line 10 and line 20)
+    selected = prioritize_mutants(all_mutants, covered, max_mutants=2)
+    assert selected == [m10_a, m20_a]
+
+    # Cap at 3: one per covered line (2 items), then fill up with remaining covered (m10_b)
+    selected = prioritize_mutants(all_mutants, covered, max_mutants=3)
+    assert selected == [m10_a, m20_a, m10_b]
+
+    # Cap at 4: both 10s and both 20s
+    selected = prioritize_mutants(all_mutants, covered, max_mutants=4)
+    assert selected == [m10_a, m20_a, m10_b, m20_b]
+
+    # Cap at 5: all 4 covered mutants + 1 uncovered mutant
+    selected = prioritize_mutants(all_mutants, covered, max_mutants=5)
+    assert selected == [m10_a, m20_a, m10_b, m20_b, m30_a]
+
+
+def test_prioritize_mutants_no_coverage_returns_ast_order():
+    m1 = _make_dummy_mutant(1, "1")
+    m2 = _make_dummy_mutant(2, "2")
+    all_mutants = [m1, m2]
+    assert prioritize_mutants(all_mutants, None, max_mutants=1) == [m1]
+    assert prioritize_mutants(all_mutants, set(), max_mutants=1) == [m1]
+
+
+def test_create_mutants_with_covered_lines(tmp_path):
+    # Module with multiple lines and functions
+    source = "def f1(x):\n    return x + 1\n\ndef f2(x):\n    return x + 10\n"
+    mod_file = tmp_path / "two_funcs.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("two_funcs", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    # Covered line 5 (f2)
+    mutants, error = create_mutants(module, max_mutants=1, covered_lines={5})
+    assert error is None
+    assert len(mutants) == 1
+    # The selected mutant must be on line 5
+    assert mutants[0][1][0].node.lineno == 5
+
+
+def test_filter_vacuous_assertions_preserves_late_function_assertion(tmp_path):
+    """Integration test for Issue #326.
+
+    A module where function A has many mutants, and function B has mutants further down.
+    A test exercising function B must not have its valid assertion stripped.
+    """
+    source = (
+        "def f1(x):\n"
+        "    a = x + 1\n"
+        "    b = a + 2\n"
+        "    c = b + 3\n"
+        "    d = c + 4\n"
+        "    e = d + 5\n"
+        "    f = e + 6\n"
+        "    return f\n"
+        "\n"
+        "def f2(x):\n"
+        "    return x + 100\n"
+    )
+    mod_file = tmp_path / "issue326_mod.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("issue326_mod", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    original_test = "import issue326_mod\ndef test_f2():\n    val = issue326_mod.f2(0)\n"
+    # Refined test adds an assertion verifying f2(0) == 100
+    refined_test = (
+        "import issue326_mod\ndef test_f2():\n    val = issue326_mod.f2(0)\n    assert val == 100\n"
+    )
+
+    filtered, stats = filter_vacuous_assertions(
+        original_test=original_test,
+        refined_test=refined_test,
+        module_under_test=module,
+        max_mutants=5,  # Fewer than f1's mutants!
+    )
+
+    # The assertion should NOT be removed!
+    assert "assert val == 100" in filtered
+    assert stats["assertions_kept"] == 1
+    assert stats["assertions_removed"] == 0
