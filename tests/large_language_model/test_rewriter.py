@@ -842,3 +842,143 @@ def test_11():
     func_code = result.functions["test_11"]
     assert "class Calculator" not in func_code
     assert "Calculator = type('Calculator', (), {'add': var_0})" in func_code
+
+
+def test_fixup_result_salvages_mid_file_syntax_error(caplog):
+    """Test that a mid-file syntax error drops only that test and keeps subsequent tests."""
+    code = """def test_a():
+    assert 1
+
+def test_b():
+    f(1='a')
+
+def test_c():
+    assert 2
+"""
+    with caplog.at_level("INFO"):
+        res = rewriter.rewrite_tests(code)
+
+    assert "test_a" in res.functions
+    assert "test_b" not in res.functions
+    assert "test_c" in res.functions
+    assert any(
+        "Dropped 1 test(s) due to syntax error" in record.message for record in caplog.records
+    )
+
+
+def test_fixup_result_mid_file_decorated_function():
+    """Test that decorators on a malformed mid-file test are dropped together with it."""
+    code = """import pytest
+
+def test_first():
+    assert 1
+
+@pytest.mark.skip(reason="wip")
+@pytest.mark.parametrize("x", [1, 2])
+def test_malformed():
+    f(1='a')
+
+def test_subsequent():
+    assert 3
+"""
+    res = rewriter.rewrite_tests(code)
+    assert "test_first" in res.functions
+    assert "test_malformed" not in res.functions
+    assert "test_subsequent" in res.functions
+
+
+def test_fixup_result_mid_file_class():
+    """Test that a malformed class in the middle of a file is dropped without losing other tests."""
+    code = """def test_before():
+    assert 1
+
+class TestMalformed:
+    def test_bad(self):
+        f(1='a')
+
+def test_after():
+    assert 2
+"""
+    res = rewriter.rewrite_tests(code)
+    assert "test_before" in res.functions
+    assert not any("TestMalformed" in name for name in res.functions)
+    assert "test_after" in res.functions
+
+
+@pytest.mark.filterwarnings("ignore:invalid decimal literal:DeprecationWarning")
+def test_fixup_result_mid_file_invalid_statement():
+    """Test that an invalid top-level statement is dropped while keeping surrounding tests."""
+    code = """def test_first():
+    assert 1
+
+g.1invalid = 1
+
+def test_second():
+    assert 2
+"""
+    res = rewriter.rewrite_tests(code)
+    assert "test_first" in res.functions
+    assert "test_second" in res.functions
+
+
+def test_fixup_result_keyword_arg_syntax_error():
+    """Test bidict-style invalid keyword argument syntax drops only the enclosing test."""
+    code = """def test_valid_pre():
+    assert True
+
+def test_invalid_keyword():
+    bi = ConcreteBidict(1='a', 2='b')
+    assert len(bi) == 2
+
+def test_valid_post():
+    assert False is False
+"""
+    res = rewriter.rewrite_tests(code)
+    assert "test_valid_pre" in res.functions
+    assert "test_invalid_keyword" not in res.functions
+    assert "test_valid_post" in res.functions
+
+
+def test_fixup_result_multiline_string_with_col0_content():
+    """Test that multiline strings containing lines at column 0 are not split into chunks."""
+    code = '''def test_with_multiline():
+    s = """line1
+line2
+line3"""
+    assert s
+
+def test_bad():
+    f(1='a')
+
+def test_good():
+    assert 42
+'''
+    res = rewriter.rewrite_tests(code)
+    assert "test_with_multiline" in res.functions
+    assert "test_bad" not in res.functions
+    assert "test_good" in res.functions
+
+
+def test_fixup_result_multiple_mid_file_errors():
+    """Test that multiple malformed tests in different parts of a file are dropped."""
+    code = """def test_1():
+    assert 1
+
+def test_bad_1():
+    f(1='a')
+
+def test_2():
+    assert 2
+
+def test_bad_2():
+    g(2='b')
+
+def test_3():
+    assert 3
+"""
+    res = rewriter.rewrite_tests(code)
+    assert "test_1" in res.functions
+    assert "test_bad_1" not in res.functions
+    assert "test_2" in res.functions
+    assert "test_bad_2" not in res.functions
+    assert "test_3" in res.functions

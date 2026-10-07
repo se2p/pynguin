@@ -11,11 +11,15 @@ The logic is adapted from the CodaMosa repository with additional refactoring.
 https://github.com/microsoft/codamosa
 """
 
+from __future__ import annotations
+
 import ast
 import dataclasses
+import io
 import logging
 import re
 import sys
+import tokenize
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -1036,11 +1040,117 @@ def process_function_defs(
     return return_tests
 
 
-def fixup_result(result):
+_IGNORED_TOKENS = frozenset({
+    tokenize.COMMENT,
+    tokenize.NL,
+    tokenize.NEWLINE,
+    tokenize.ENDMARKER,
+})
+
+
+def _count_tests(code: str) -> int:
+    """Count test function/method definitions in source code.
+
+    Args:
+        code: the source code to count tests in.
+
+    Returns:
+        the number of test functions found.
+    """
+    return len(re.findall(r"^\s*(?:async\s+)?def\s+test\w*", code, re.MULTILINE))
+
+
+def _extract_statement_starts(code: str) -> list[int]:
+    """Extract line indices of top-level statement starts using tokenize.
+
+    Args:
+        code: python source code.
+
+    Returns:
+        list of 0-based line indices where top-level statements start.
+    """
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return []
+
+    statement_starts: list[int] = []
+    indent_level = 0
+    for tok in tokens:
+        if tok.type == tokenize.INDENT:
+            indent_level += 1
+        elif tok.type == tokenize.DEDENT:
+            indent_level -= 1
+        elif indent_level == 0 and tok.start[1] == 0 and tok.type not in _IGNORED_TOKENS:
+            line_idx = tok.start[0] - 1
+            if not statement_starts or statement_starts[-1] != line_idx:
+                statement_starts.append(line_idx)
+    return statement_starts
+
+
+def _merge_decorator_starts(lines: list[str], statement_starts: list[int]) -> list[int]:
+    """Merge decorators at column 0 with the decorated definition.
+
+    Args:
+        lines: lines of the source code.
+        statement_starts: list of line indices where top-level statements start.
+
+    Returns:
+        list of line indices where chunks start after grouping decorators.
+    """
+    merged_starts: list[int] = []
+    i = 0
+    num_starts = len(statement_starts)
+    while i < num_starts:
+        s = statement_starts[i]
+        if lines[s].strip().startswith("@"):
+            merged_starts.append(s)
+            while i < num_starts and lines[statement_starts[i]].strip().startswith("@"):
+                i += 1
+            if i < num_starts:
+                i += 1
+        else:
+            merged_starts.append(s)
+            i += 1
+
+    merged_starts[0] = 0
+    return merged_starts
+
+
+def _find_top_level_chunks(code: str) -> list[tuple[int, int]]:
+    """Partition code lines into top-level statement chunks [start, end).
+
+    Uses Python's tokenizer to handle multi-line strings, brackets, and indentation.
+    Decorators at column 0 are grouped with the decorated definition.
+
+    Args:
+        code: python source code.
+
+    Returns:
+        list of (start_line_idx, end_line_idx) tuples partitioning code lines.
+    """
+    lines = code.split("\n")
+    starts = _extract_statement_starts(code)
+    if not starts:
+        return [(0, len(lines))]
+
+    chunk_starts = _merge_decorator_starts(lines, starts)
+    chunks: list[tuple[int, int]] = []
+    for idx, s in enumerate(chunk_starts):
+        e = chunk_starts[idx + 1] if idx + 1 < len(chunk_starts) else len(lines)
+        chunks.append((s, e))
+    return chunks
+
+
+def fixup_result(result: str) -> str:
     """In case we aborted generation early (due to running out of tokens).
 
     Remove any lingering syntax errors that prevent parsing by the `ast` module.
     There may still be syntax errors when actually running the code.
+
+    Mid-file syntax errors drop only the enclosing top-level statement chunk
+    and keep subsequent tests intact. Truncation is preserved for syntax errors
+    in the final chunk.
 
     Args:
         result: some natural language source code.
@@ -1054,6 +1164,48 @@ def fixup_result(result):
     except SyntaxError as e:
         line_to_rm = e.lineno
         lines = result.split("\n")
-        if line_to_rm is None or line_to_rm >= len(lines):
+        if line_to_rm is None or line_to_rm < 1 or line_to_rm > len(lines):
+            dropped_code = lines[-1] if lines else ""
+            dropped_tests = _count_tests(dropped_code)
+            if dropped_tests:
+                logger.info("Dropped %d test(s) due to syntax error: %s", dropped_tests, e)
+            return fixup_result("\n".join(lines[:-1])) if len(lines) > 1 else ""
+
+        err_idx = line_to_rm - 1
+        chunks = _find_top_level_chunks(result)
+
+        chunk_idx: int | None = None
+        for i, (start, end) in enumerate(chunks):
+            if start <= err_idx < end:
+                chunk_idx = i
+                break
+
+        if chunk_idx is not None and chunk_idx < len(chunks) - 1:
+            start, end = chunks[chunk_idx]
+            dropped_chunk = "\n".join(lines[start:end])
+            dropped_tests = _count_tests(dropped_chunk)
+            logger.info(
+                "Dropped %d test(s) due to syntax error at line %d: %s",
+                dropped_tests,
+                line_to_rm,
+                e,
+            )
+            remaining_lines = lines[:start] + lines[end:]
+            return fixup_result("\n".join(remaining_lines))
+
+        # Error is in the final chunk (true token truncation)
+        dropped_code = (
+            "\n".join(lines[line_to_rm:])
+            if line_to_rm < len(lines)
+            else (lines[-1] if lines else "")
+        )
+        dropped_tests = _count_tests(dropped_code)
+        if dropped_tests:
+            logger.info(
+                "Dropped %d test(s) in final chunk due to syntax error: %s",
+                dropped_tests,
+                e,
+            )
+        if line_to_rm >= len(lines):
             return fixup_result("\n".join(lines[:-1]))
         return fixup_result("\n".join(lines[:line_to_rm]))
