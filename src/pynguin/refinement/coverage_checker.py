@@ -33,6 +33,7 @@ loop and mutation filtering succeed.
 from __future__ import annotations
 
 import ast
+import functools
 import sys
 import textwrap
 import threading
@@ -49,6 +50,7 @@ from pynguin.utils.timeout import resolve_timeout, time_limit
 
 if TYPE_CHECKING:
     import types
+    from collections.abc import Callable
 
     from pynguin.instrumentation.tracer import SubjectProperties
 
@@ -214,6 +216,84 @@ def _load_sut_source(
         return None, None, f"Could not read SUT source: {exc}"
 
 
+def _make_sut_line_tracer(
+    sut_path: Path, executed_lines: set[int]
+) -> Callable[[types.FrameType, str, Any], Any]:
+    """Build a ``sys.settrace`` function that adds executed SUT lines to *executed_lines*.
+
+    Only frames whose code lives in *sut_path* get a local tracer, so line events
+    in the test, pytest, or the standard library cost nothing beyond the call.
+    """
+    sut_file_str = str(sut_path)
+    lock = threading.Lock()
+
+    @functools.cache
+    def _is_sut(filename: str) -> bool:
+        if filename == sut_file_str:
+            return True
+        try:
+            return Path(filename).resolve() == sut_path
+        except (OSError, RuntimeError):
+            return False
+
+    def _tracer(frame: types.FrameType, event: str, _arg: Any) -> Any:
+        if not _is_sut(frame.f_code.co_filename):
+            return None
+        if event == "line":
+            with lock:
+                executed_lines.add(frame.f_lineno)
+        return _tracer
+
+    return _tracer
+
+
+def _trace_sut_lines(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    sut_path: Path,
+) -> tuple[set[int], BaseException | None]:
+    """Execute *test_code* and record the SUT lines it runs via ``sys.settrace``.
+
+    Returns:
+        ``(executed_lines, exception)`` where *exception* is whatever the test
+        raised (including a ``SyntaxError`` on compilation), or ``None``.
+    """
+    executed_lines: set[int] = set()
+    tracer = _make_sut_line_tracer(sut_path, executed_lines)
+
+    scope: dict[str, Any] = {
+        module_under_test.__name__: module_under_test,
+        "pytest": pytest,
+    }
+    cleaned = textwrap.dedent(test_code.strip())
+    func_name = _find_test_function_name(cleaned)
+    test_funcs = collect_test_functions(cleaned)
+
+    old_module = sys.modules.get(module_under_test.__name__)
+    sys.modules[module_under_test.__name__] = module_under_test
+    old_trace = sys.gettrace()
+    try:
+        compiled = compile(cleaned, "<test>", "exec")
+        sys.settrace(tracer)
+        with time_limit(resolve_timeout(None)):
+            exec(compiled, scope)  # noqa: S102
+        if test_funcs:
+            call_test_functions(scope, test_funcs)  # per-test time limits
+        elif func_name and func_name in scope and callable(scope[func_name]):
+            with time_limit(resolve_timeout(None)):
+                scope[func_name]()
+    except BaseException as exc:  # noqa: BLE001
+        # Executing generated test code may raise anything; degrade gracefully.
+        return executed_lines, exc
+    finally:
+        sys.settrace(old_trace)
+        if old_module is None:
+            sys.modules.pop(module_under_test.__name__, None)
+        else:
+            sys.modules[module_under_test.__name__] = old_module
+    return executed_lines, None
+
+
 def _measure_coverage_settrace(
     test_code: str,
     module_under_test: types.ModuleType,
@@ -230,46 +310,12 @@ def _measure_coverage_settrace(
     if not total_executable:
         return CoverageResult(error="No executable lines found in SUT", metric="line")
 
-    sut_file_str = str(sut_path)
-    executed_lines: set[int] = set()
-    lock = threading.Lock()
-
-    def _tracer(frame: types.FrameType, event: str, _arg: Any) -> Any:
-        code_file = frame.f_code.co_filename
-        if code_file == sut_file_str and event == "line":
-            with lock:
-                executed_lines.add(frame.f_lineno)
-        return _tracer
-
-    scope: dict[str, Any] = {
-        module_under_test.__name__: module_under_test,
-    }
-    cleaned = textwrap.dedent(test_code.strip())
-    func_name = _find_test_function_name(cleaned)
-    test_funcs = collect_test_functions(cleaned)
-
-    try:
-        compiled = compile(cleaned, "<test>", "exec")
-        old_trace = sys.gettrace()
-        sys.settrace(_tracer)
-        try:
-            with time_limit(resolve_timeout(None)):
-                exec(compiled, scope)  # noqa: S102
-            if test_funcs:
-                call_test_functions(scope, test_funcs)  # per-test time limits
-            elif func_name and func_name in scope and callable(scope[func_name]):
-                with time_limit(resolve_timeout(None)):
-                    scope[func_name]()
-        finally:
-            sys.settrace(old_trace)
-    except BaseException as exc:  # noqa: BLE001
-        # Executing generated test code may raise anything; degrade gracefully.
-        sys.settrace(None)
-        if not executed_lines:
-            return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")
+    executed_lines, exc = _trace_sut_lines(test_code, module_under_test, sut_path)
+    if exc is not None and not executed_lines:
+        return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")
 
     covered = executed_lines & total_executable
-    pct = len(covered) / len(total_executable) if total_executable else 0.0
+    pct = len(covered) / len(total_executable)
 
     return CoverageResult(coverage_value=pct, metric="line")
 
@@ -355,3 +401,27 @@ def check_coverage_preservation(
     details["status"] = "failed"
     details["reason"] = f"Coverage decreased by {abs(delta) * 100:.1f}%"
     return False, details
+
+
+def get_covered_lines(
+    test_code: str,
+    module_under_test: types.ModuleType,
+) -> set[int]:
+    """Return the executable SUT line numbers that *test_code* runs.
+
+    Always uses ``sys.settrace``: Pynguin's own tracer only records line numbers
+    when line-coverage instrumentation is active (not the case for the default
+    branch metric), and its trace includes the module's import-time lines.
+
+    Args:
+        test_code: The test code to execute.
+        module_under_test: The module being tested.
+
+    Returns:
+        Set of line numbers covered in the SUT, empty if they cannot be determined.
+    """
+    sut_path, sut_source, error = _load_sut_source(module_under_test)
+    if error is not None or sut_path is None or sut_source is None:
+        return set()
+    executed_lines, _ = _trace_sut_lines(test_code, module_under_test, sut_path)
+    return executed_lines & _executable_lines(sut_source)

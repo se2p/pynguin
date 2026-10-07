@@ -8,13 +8,17 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
+import sys
 import types
 from pathlib import Path
 
 import pytest
 
 import pynguin.configuration as config
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.refinement.coverage_checker import (
     CoverageResult,
     _executable_lines,  # noqa: PLC2701
@@ -23,6 +27,7 @@ from pynguin.refinement.coverage_checker import (
     _measure_coverage_pynguin,  # noqa: PLC2701
     _measure_coverage_settrace,  # noqa: PLC2701
     check_coverage_preservation,
+    get_covered_lines,
 )
 
 _SUT_SOURCE = """\
@@ -241,3 +246,47 @@ def test_measure_coverage_pynguin_uses_line_metric(monkeypatch):
     assert result.error is None
     assert result.metric == "line"
     assert result.coverage_value == pytest.approx(0.55)
+
+
+def test_get_covered_lines_settrace(sut_module):
+    code = "def test_x():\n    assert cov_sut_mod.add(1, 2) == 3\n"
+    lines = get_covered_lines(code, sut_module)
+    assert lines == {2, 3}  # add executes lines 2 and 3 in _SUT_SOURCE
+
+
+def test_get_covered_lines_syntax_error(sut_module):
+    code = "def broken(:\n"
+    lines = get_covered_lines(code, sut_module)
+    assert lines == set()
+
+
+def test_get_covered_lines_ignores_non_sut_frames(sut_module):
+    code = (
+        "import textwrap\n"
+        "def test_x():\n"
+        "    textwrap.dedent('  a')\n"
+        "    assert cov_sut_mod.add(1, 2) == 3\n"
+    )
+    assert get_covered_lines(code, sut_module) == {2, 3}
+
+
+def test_get_covered_lines_on_branch_instrumented_module():
+    # Regression: with the default BRANCH metric Pynguin's tracer records no line
+    # numbers, so covered lines must still come from the real executed lines.
+    module_name = "tests.fixtures.linecoverage.plus"
+    sys.modules.pop(module_name, None)
+    subject_properties = SubjectProperties()
+    with install_import_hook(
+        module_name, subject_properties, coverage_metrics={config.CoverageMetric.BRANCH}
+    ):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+        # The generator disables the tracer before running the refinement.
+        subject_properties.instrumentation_tracer.disable()
+        code = (
+            f"import {module_name} as plus\n"
+            "def test_x():\n"
+            "    assert plus.Plus().plus_three(1) == 4\n"
+        )
+        assert get_covered_lines(code, module) == {13, 14}
+    sys.modules.pop(module_name, None)

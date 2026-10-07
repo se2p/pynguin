@@ -14,6 +14,7 @@ import types
 from pathlib import Path
 
 import pynguin.configuration as config
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.refinement.mutation_analyzer import (
     AssertionTracker,
     _assertion_removal_lines,  # noqa: PLC2701
@@ -30,6 +31,7 @@ from pynguin.refinement.mutation_analyzer import (
     get_surviving_mutants,
     killed_set,
     passes_on_module,
+    rank_mutations,
 )
 from pynguin.refinement.validator import TestExecution
 from pynguin.utils.timeout import TestExecutionTimeoutError
@@ -512,3 +514,135 @@ def test_evaluate_refined_suite_mutations_drops_mutant_interrupted_by_budget(mon
     assert res["post_refinement_killed_mutants"] == 0
     assert res["post_refinement_mutation_score"] is None
     assert res["post_refinement_created_mutants"] == 1
+
+
+def _mutations_on_line(line_number: int):
+    node = ast.Constant(value=1)
+    node.lineno = line_number
+    return [types.SimpleNamespace(node=node)]
+
+
+def test_rank_mutations_one_per_line_then_remaining_then_uncovered():
+    # Lines 10 (2 mutations), 20 (2 mutations), 30 and 99 uncovered.
+    lines = [10, 10, 20, 20, 30, 99]
+    all_mutations = [_mutations_on_line(line) for line in lines]
+    assert rank_mutations(all_mutations, {10, 20}) == [0, 2, 1, 3, 4, 5]
+
+
+def test_rank_mutations_without_line_counts_as_uncovered():
+    all_mutations = [[types.SimpleNamespace(node=ast.Add())], _mutations_on_line(5)]
+    assert rank_mutations(all_mutations, {5}) == [1, 0]
+
+
+def test_rank_mutations_no_coverage_returns_ast_order():
+    all_mutations = [_mutations_on_line(1), _mutations_on_line(2)]
+    assert rank_mutations(all_mutations, None) == [0, 1]
+    assert rank_mutations(all_mutations, set()) == [0, 1]
+
+
+def test_create_mutants_with_covered_lines(tmp_path):
+    # Module with multiple lines and functions
+    source = "def f1(x):\n    return x + 1\n\ndef f2(x):\n    return x + 10\n"
+    mod_file = tmp_path / "two_funcs.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("two_funcs", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    # Covered line 5 (f2)
+    mutants, error = create_mutants(module, max_mutants=1, covered_lines={5})
+    assert error is None
+    assert len(mutants) == 1
+    # The selected mutant must be on line 5
+    assert mutants[0][1][0].node.lineno == 5
+
+
+def test_create_mutants_with_covered_lines_builds_only_selected(tmp_path, monkeypatch):
+    source = "def f1(x):\n    return x + 1 + 2 + 3\n\ndef f2(x):\n    return x + 10\n"
+    mod_file = tmp_path / "lazy_funcs.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("lazy_funcs", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    built = []
+    original = MutationController.create_mutant
+
+    def _counting_create_mutant(self, mutant_ast):
+        built.append(mutant_ast)
+        return original(self, mutant_ast)
+
+    monkeypatch.setattr(MutationController, "create_mutant", _counting_create_mutant)
+    mutants, error = create_mutants(module, max_mutants=2, covered_lines={5})
+    assert error is None
+    assert len(mutants) == 2
+    assert len(built) == 2
+    assert mutants[0][1][0].node.lineno == 5
+
+
+def test_create_mutants_with_covered_lines_replaces_unbuildable(tmp_path, monkeypatch):
+    source = "def f1(x):\n    return x + 1\n\ndef f2(x):\n    return x + 10\n"
+    mod_file = tmp_path / "flaky_funcs.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("flaky_funcs", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    original = MutationController.create_mutant
+    calls = []
+
+    def _fail_first(self, mutant_ast):
+        calls.append(mutant_ast)
+        if len(calls) == 1:
+            raise ValueError("boom")
+        return original(self, mutant_ast)
+
+    monkeypatch.setattr(MutationController, "create_mutant", _fail_first)
+    mutants, error = create_mutants(module, max_mutants=1, covered_lines={5})
+    assert error is None
+    assert len(mutants) == 1
+    assert len(calls) == 2
+
+
+def test_filter_vacuous_assertions_preserves_late_function_assertion(tmp_path):
+    """Integration test for Issue #326.
+
+    A module where function A has many mutants, and function B has mutants further down.
+    A test exercising function B must not have its valid assertion stripped.
+    """
+    source = (
+        "def f1(x):\n"
+        "    a = x + 1\n"
+        "    b = a + 2\n"
+        "    c = b + 3\n"
+        "    d = c + 4\n"
+        "    e = d + 5\n"
+        "    f = e + 6\n"
+        "    return f\n"
+        "\n"
+        "def f2(x):\n"
+        "    return x + 100\n"
+    )
+    mod_file = tmp_path / "issue326_mod.py"
+    mod_file.write_text(source, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("issue326_mod", mod_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    original_test = "import issue326_mod\ndef test_f2():\n    val = issue326_mod.f2(0)\n"
+    # Refined test adds an assertion verifying f2(0) == 100
+    refined_test = (
+        "import issue326_mod\ndef test_f2():\n    val = issue326_mod.f2(0)\n    assert val == 100\n"
+    )
+
+    filtered, stats = filter_vacuous_assertions(
+        original_test=original_test,
+        refined_test=refined_test,
+        module_under_test=module,
+        max_mutants=5,  # Fewer than f1's mutants!
+    )
+
+    # The assertion should NOT be removed!
+    assert "assert val == 100" in filtered
+    assert stats["assertions_kept"] == 1
+    assert stats["assertions_removed"] == 0
