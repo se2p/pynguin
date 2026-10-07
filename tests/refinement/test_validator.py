@@ -19,6 +19,7 @@ import libcst as cst
 import pytest
 
 import pynguin.configuration as config
+from pynguin.generator import _patch_random  # noqa: PLC2701
 from pynguin.refinement.validator import (
     TestExecutionTimeoutError,
     _ensure_module_package_on_path,  # noqa: PLC2701
@@ -31,6 +32,7 @@ from pynguin.refinement.validator import (
     time_limit,
 )
 from pynguin.testcase.export import TestSuiteWriter
+from pynguin.utils import randomness
 
 
 def test_run_test_passing():
@@ -362,3 +364,22 @@ def test_call_test_functions_reseeds_before_each_test():
         exec(code, scope)  # noqa: S102
         call_test_functions(scope, collect_test_functions(code))
     assert random.Random.seed is original_seed
+
+
+def test_run_test_reseeds_sut_instances_tracked_by_pynguin(monkeypatch):
+    """A SUT-level ``Random()`` created under Pynguin's own patch is reseeded too."""
+    monkeypatch.setattr(config.configuration.seeding, "seed", 42)
+    with preserved_random_seed():
+        _patch_random()
+        sut = types.ModuleType("sut_with_rng")
+        sut.rng = random.Random()  # noqa: S311
+        sut.rng.random()  # state advanced, as by test generation
+        rng_state = randomness.RNG.getstate()
+        code = (
+            f"{_seed_preamble(42)}\n"
+            "def test_case_0():\n"
+            f"    assert sut_with_rng.rng.randint(1, 10**9) == {_value_under_seed(42)}\n"
+        )
+        assert run_test(code, sut) == (True, "Test passed.")
+        assert run_test(code, sut) == (True, "Test passed.")
+        assert randomness.RNG.getstate() == rng_state

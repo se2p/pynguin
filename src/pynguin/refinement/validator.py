@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
+from pynguin.utils import randomness
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
 
 if TYPE_CHECKING:
@@ -59,13 +60,23 @@ def reseed_random(scope: dict) -> None:
     test function directly skips that fixture, so we reseed here.  Does nothing if
     *scope* has no deterministic-seed preamble.
 
+    Under pytest, the preamble patches ``random.Random.seed`` before the SUT is
+    imported, so it tracks the SUT's module-level ``Random`` instances as well.  In
+    Pynguin's process the SUT was imported earlier, under Pynguin's own patch (see
+    ``generator._patch_random``), which the preamble wraps; we therefore reseed the
+    instances tracked by that patch too, except Pynguin's own ``randomness.RNG``.
+
     Args:
         scope: The globals the test code was executed in.
     """
     deterministic_seed = scope.get(_DETERMINISTIC_SEED_FUNCTION)
     if not callable(deterministic_seed):
         return
-    tracked = list(getattr(deterministic_seed, "__pynguin_instances__", ()))
+    outer_seed = getattr(deterministic_seed, "__pynguin_orig__", None)
+    tracked = [
+        *getattr(deterministic_seed, "__pynguin_instances__", ()),
+        *getattr(outer_seed, "__pynguin_instances__", ()),
+    ]
     random.Random.seed = deterministic_seed  # type: ignore[method-assign]
     # The replacement seeds a new ``Random`` with the exported seed.  Copying that
     # state is what the fixture's ``seed(<seed>)`` calls do, without having to know
@@ -73,7 +84,8 @@ def reseed_random(scope: dict) -> None:
     seeded_state = random.Random().getstate()  # noqa: S311
     random.setstate(seeded_state)
     for instance in tracked:
-        instance.setstate(seeded_state)
+        if instance is not randomness.RNG:
+            instance.setstate(seeded_state)
 
 
 def _xfail_marker_of(node: ast.FunctionDef) -> tuple[bool, bool]:

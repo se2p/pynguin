@@ -91,7 +91,9 @@ or parse failure falls the entire module back to per-test.
   a deterministic-seed preamble whose autouse fixtures pytest runs but `exec` does not.
   Every exec site wraps execution in `validator.preserved_random_seed()` and calls
   `validator.reseed_random(scope)` before each test (`call_test_functions` does this), so
-  seed-dependent assertions hold and the `random.Random.seed` patch does not leak. The test
+  seed-dependent assertions hold and the `random.Random.seed` patch does not leak. Reseeding
+  also covers SUT-level `Random()` instances tracked by Pynguin's own patch (except
+  `randomness.RNG`), since the SUT was imported before the preamble ran. The test
   to call is `validator.find_test_function_name` (last top-level `test_*`), not the first
   `def`, which is the preamble's `_pynguin_deterministic_seed`.
 
