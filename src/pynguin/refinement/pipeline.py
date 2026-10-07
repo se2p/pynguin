@@ -7,6 +7,8 @@
 """Test refinement pipeline orchestrator."""
 
 import ast
+import builtins
+import copy
 import dataclasses
 import inspect
 import logging
@@ -37,6 +39,7 @@ from pynguin.refinement.mutation_analyzer import (
     get_surviving_mutants,
     killed_set,
     passes_on_module,
+    strip_redundant_pass_statements,
 )
 from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.refinement.validator import run_test
@@ -222,6 +225,310 @@ def _strip_xfail_decorator(current_code: str) -> str | None:
                 new_lines = [*lines[:start], *lines[end:]]
                 return "\n".join(new_lines)
     return None
+
+
+def _flatten_unconditional(stmts: list[ast.stmt]) -> list[ast.stmt]:
+    """Return the statements of *stmts* that always run, in execution order.
+
+    Statements inside ``with`` blocks run unconditionally and are included, except for
+    ``pytest.raises``/``pytest.warns`` blocks, which stop at the raising call.  The
+    compound statements themselves, and the bodies of ``if``/``for``/``while``/``try``
+    blocks, are left out.
+    """
+    flat: list[ast.stmt] = []
+    for stmt in stmts:
+        if isinstance(stmt, (ast.With, ast.AsyncWith)):
+            if not any(
+                _expr_calls_pytest(item.context_expr, frozenset({"raises", "warns"}))
+                for item in stmt.items
+            ):
+                flat.extend(_flatten_unconditional(stmt.body))
+        elif not hasattr(stmt, "body"):
+            flat.append(stmt)
+    return flat
+
+
+def _matchable_value(stmt: ast.stmt) -> tuple[str | None, ast.expr] | None:
+    """Return ``(target_name, value)`` for a statement that can anchor assertions.
+
+    Single-name assignments yield their target; expression statements yield ``None``.
+    """
+    if (
+        isinstance(stmt, ast.Assign)
+        and len(stmt.targets) == 1
+        and isinstance(stmt.targets[0], ast.Name)
+    ):
+        return stmt.targets[0].id, stmt.value
+    if isinstance(stmt, ast.Expr) and not isinstance(stmt.value, ast.Constant):
+        return None, stmt.value
+    return None
+
+
+def _literal_value(node: ast.expr) -> ast.expr | None:
+    """Return *node* if it is a literal (e.g. ``5``, ``-1.5``, ``'a'``, ``(1, 2)``)."""
+    try:
+        ast.literal_eval(node)
+    except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+        return None
+    return node
+
+
+def _is_immutable_literal(node: ast.expr) -> bool:
+    """Return whether the literal *node* evaluates to an immutable value."""
+    if isinstance(node, ast.Tuple):
+        return all(_is_immutable_literal(elt) for elt in node.elts)
+    return isinstance(node, (ast.Constant, ast.UnaryOp))
+
+
+class _VariableRenamer(ast.NodeTransformer):
+    """Rename loaded variable names, or replace them by literal expressions."""
+
+    def __init__(
+        self, rename_map: dict[str, str], literal_map: dict[str, ast.expr] | None = None
+    ) -> None:
+        self._rename_map = rename_map
+        self._literal_map = literal_map or {}
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:  # noqa: N802
+        if isinstance(node.ctx, ast.Load):
+            if node.id in self._rename_map:
+                return ast.copy_location(ast.Name(id=self._rename_map[node.id], ctx=node.ctx), node)
+            if node.id in self._literal_map:
+                return ast.copy_location(copy.deepcopy(self._literal_map[node.id]), node)
+        return node
+
+
+def _normalise(node: ast.expr, rename_map: dict[str, str], literal_map: dict[str, ast.expr]) -> str:
+    """Unparse *node* after applying renames and inlining literal variables."""
+    return ast.unparse(_VariableRenamer(rename_map, literal_map).visit(copy.deepcopy(node)))
+
+
+@dataclasses.dataclass
+class _Alignment:
+    """How an original test function lines up with its refined version."""
+
+    rename_map: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Original variables holding literals that the refined test inlined.
+    literal_map: dict[str, ast.expr] = dataclasses.field(default_factory=dict)
+    # Original statement -> matched refined statement.
+    anchors: dict[int, ast.stmt] = dataclasses.field(default_factory=dict)
+    # Original variable -> refined expression statement that dropped its result.
+    unbound: dict[str, ast.Expr] = dataclasses.field(default_factory=dict)
+
+
+def _align_statements(orig_stmts: list[ast.stmt], ref_stmts: list[ast.stmt]) -> _Alignment:
+    """Match the original statements to refined ones by their (normalised) values.
+
+    Original variables are renamed to the refined ones as they are matched, so that
+    chained statements such as ``foo_0 = module_0.Foo(int_0)`` match
+    ``foo = module_0.Foo(value)``.  Unmatched variables holding literals are inlined,
+    so that ``int_0 = 5; foo_0 = Foo(int_0)`` matches ``foo = Foo(5)``.  An assignment
+    may match a refined expression statement that dropped the unused result.
+    """
+    alignment = _Alignment()
+    ref_values = [_matchable_value(stmt) for stmt in ref_stmts]
+    ref_keys = [ast.unparse(value[1]) if value else None for value in ref_values]
+    used: set[int] = set()
+    last = -1
+
+    for orig_stmt in orig_stmts:
+        orig_value = _matchable_value(orig_stmt)
+        if orig_value is None:
+            continue
+        orig_var, value = orig_value
+        key = _normalise(value, alignment.rename_map, alignment.literal_map)
+        candidates = [idx for idx, ref_key in enumerate(ref_keys) if ref_key == key]
+        # Prefer the first match after the previous one, to keep the statement order.
+        match = next(
+            (idx for idx in candidates if idx > last and idx not in used),
+            next((idx for idx in candidates if idx not in used), None),
+        )
+        if match is None:
+            if orig_var is not None:
+                literal = _literal_value(ast.parse(key, mode="eval").body)
+                if literal is not None:
+                    alignment.literal_map[orig_var] = literal
+            continue
+        used.add(match)
+        last = max(last, match)
+        ref_stmt = ref_stmts[match]
+        alignment.anchors[id(orig_stmt)] = ref_stmt
+        ref_var = ref_values[match][0]  # type: ignore[index]
+        if orig_var is None:
+            continue
+        if ref_var is not None:
+            alignment.rename_map[orig_var] = ref_var
+        elif isinstance(ref_stmt, ast.Expr):
+            alignment.unbound[orig_var] = ref_stmt
+    return alignment
+
+
+def _bound_names(tree: ast.Module) -> set[str]:
+    """Return all names bound anywhere in *tree* (imports, definitions, stores)."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            names.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            names.update((alias.asname or alias.name).split(".")[0] for alias in node.names)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.arg):
+            names.add(node.arg)
+    return names
+
+
+def _loaded_names(node: ast.AST) -> set[str]:
+    """Return the names read by *node*."""
+    return {
+        sub.id
+        for sub in ast.walk(node)
+        if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load)
+    }
+
+
+def _find_test_function(tree: ast.Module) -> ast.FunctionDef | None:
+    """Return the test function of *tree*, skipping helper functions.
+
+    Prefers the first function whose name starts with ``test``; falls back to the last
+    top-level function, since helpers are usually defined before the test.
+    """
+    funcs = [n for n in tree.body if isinstance(n, ast.FunctionDef)]
+    return next((f for f in funcs if f.name.startswith("test")), funcs[-1] if funcs else None)
+
+
+def _plan_assertions(
+    orig_stmts: list[ast.stmt], alignment: _Alignment, ref_tree: ast.Module
+) -> tuple[list[tuple[ast.stmt | None, ast.Assert]], list[tuple[ast.Expr, str]]]:
+    """Adapt the original assertions to the refined test and find their anchors.
+
+    Returns:
+        The ``(anchor, assertion)`` pairs to insert (``None`` means at the end), and the
+        ``(statement, name)`` pairs of dropped results to re-bind.
+    """
+    # Re-bind dropped results under a name that is free in the refined code.
+    taken = _bound_names(ref_tree)
+    available = taken | set(dir(builtins))
+    rebind_names: dict[str, str] = {}
+    for orig_var in alignment.unbound:
+        name, suffix = orig_var, 0
+        while name in taken:
+            suffix += 1
+            name = f"{orig_var}_{suffix}"
+        taken.add(name)
+        rebind_names[orig_var] = name
+    renamer = _VariableRenamer(
+        {**alignment.rename_map, **rebind_names},
+        {name: node for name, node in alignment.literal_map.items() if _is_immutable_literal(node)},
+    )
+
+    insertions: list[tuple[ast.stmt | None, ast.Assert]] = []
+    rebinds: dict[str, tuple[ast.Expr, str]] = {}
+    anchor: ast.stmt | None = None
+    for stmt in orig_stmts:
+        if not isinstance(stmt, ast.Assert):
+            anchor = alignment.anchors.get(id(stmt), anchor)
+            continue
+        adapted = renamer.visit(copy.deepcopy(stmt))
+        loaded = _loaded_names(adapted)
+        needed = {var: name for var, name in rebind_names.items() if name in loaded}
+        if not loaded <= available | set(needed.values()):
+            continue
+        for orig_var, name in needed.items():
+            rebinds[orig_var] = (alignment.unbound[orig_var], name)
+        insertions.append((anchor, adapted))
+    return insertions, list(rebinds.values())
+
+
+def _insert_assertions(
+    refined_code: str,
+    body: list[ast.stmt],
+    insertions: list[tuple[ast.stmt | None, ast.Assert]],
+    rebinds: list[tuple[ast.Expr, str]],
+) -> str:
+    """Insert the planned assertions and re-binds textually into *refined_code*."""
+    lines = refined_code.splitlines()
+    # Re-binds only prefix a line, so the line numbers stay valid.
+    for expr_stmt, name in rebinds:
+        idx, col = expr_stmt.lineno - 1, expr_stmt.col_offset
+        lines[idx] = f"{lines[idx][:col]}{name} = {lines[idx][col:]}"
+
+    positioned: list[tuple[int, int, list[str]]] = []
+    for order, (anchor, assertion) in enumerate(insertions):
+        if anchor is None:
+            target = body[-1]
+            indent = body[0].col_offset
+            insert_at = (
+                target.lineno - 1
+                if isinstance(target, ast.Return)
+                else target.end_lineno or target.lineno
+            )
+        else:
+            indent = anchor.col_offset
+            insert_at = anchor.end_lineno or anchor.lineno
+        positioned.append((
+            insert_at,
+            order,
+            [" " * indent + line for line in ast.unparse(assertion).splitlines()],
+        ))
+    # Insert from the bottom up; assertions sharing a position keep their order.
+    for insert_at, _, text in sorted(positioned, reverse=True):
+        lines[insert_at:insert_at] = text
+    updated = "\n".join(lines)
+    if refined_code.endswith("\n"):
+        updated += "\n"
+    return updated
+
+
+def _restore_original_assertions(original_code: str, refined_code: str) -> str | None:
+    """Re-insert assertions from *original_code* into *refined_code*.
+
+    The original and refined statements are aligned (see ``_align_statements``) and
+    each original assertion is inserted right after the refined counterpart of the
+    closest statement preceding it, so that assertions about intermediate states
+    still hold.  Assertions without such an anchor go at the end of the test.
+    Variables are renamed to the refined ones, inlined literals are substituted, and a
+    result that the refined test dropped is re-bound when an assertion needs it.
+    Assertions that would read a name the refined test does not define are skipped,
+    as are assertions in conditional blocks (``if``, loops, ``try``) and in
+    ``pytest.raises`` blocks.  The insertion is textual, so the refined test keeps its
+    comments and formatting, and redundant ``pass`` statements are removed afterwards.
+
+    Returns:
+        The updated refined code with restored assertions, or ``None`` if no assertion
+        could be restored.
+    """
+    try:
+        orig_tree = ast.parse(original_code)
+        ref_tree = ast.parse(refined_code)
+    except SyntaxError:
+        return None
+
+    orig_func = _find_test_function(orig_tree)
+    ref_func = _find_test_function(ref_tree)
+    if orig_func is None or ref_func is None:
+        return None
+    body = ref_func.body
+    if not body or body[0].lineno == ref_func.lineno:
+        # Single-line function definitions cannot take additional lines.
+        return None
+
+    orig_stmts = _flatten_unconditional(orig_func.body)
+    ref_stmts = [
+        stmt for stmt in _flatten_unconditional(ref_func.body) if not isinstance(stmt, ast.Pass)
+    ]
+    alignment = _align_statements(orig_stmts, ref_stmts)
+    insertions, rebinds = _plan_assertions(orig_stmts, alignment, ref_tree)
+    if not insertions:
+        return None
+    updated = _insert_assertions(refined_code, body, insertions, rebinds)
+
+    try:
+        ast.parse(updated)
+    except SyntaxError:
+        return None
+    # The restored assertions make placeholder ``pass`` statements redundant.
+    return strip_redundant_pass_statements(updated)
 
 
 def _expr_calls_pytest(node: ast.expr, names: frozenset[str]) -> bool:
@@ -1299,6 +1606,19 @@ class TestRefiner:
     ) -> dict:
         """Run the coverage check and AAA insertion after a passing test."""
         if _has_meaningful_check(original_code) and not _has_meaningful_check(current_code):
+            # Attempt to re-insert the original assertions (mapped to refined variable
+            # names where possible) instead of throwing away the entire refinement.
+            restored = _restore_original_assertions(original_code, current_code)
+            if restored is not None:
+                passed, _ = run_test(restored, self.module_under_test)
+                if passed:
+                    _LOGGER.info(
+                        "Restored original assertions into refined test whose "
+                        "assertions were filtered."
+                    )
+                    current_code = restored
+
+        if _has_meaningful_check(original_code) and not _has_meaningful_check(current_code):
             return {
                 "success": False,
                 "error": "Refinement removed all assertions (vacuous test); reverting to original.",
@@ -1322,6 +1642,7 @@ class TestRefiner:
             }
 
         current_code = self._apply_aaa_markers(current_code)
+        current_code = strip_redundant_pass_statements(current_code)
 
         return {
             "success": True,
