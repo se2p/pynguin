@@ -42,3 +42,12 @@ def test_run_dir_with_output_dir_creates_parents(tmp_path):
     with _run_dir(str(target), "m") as run_dir:
         assert Path(run_dir) == target / "m"
         assert Path(run_dir).is_dir()
+
+
+def test_run_dir_with_relative_output_dir_resolves_to_absolute(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with _run_dir("rel_out", "some_mod") as run_dir:
+        path = Path(run_dir)
+        assert path.is_absolute()
+        assert path == (tmp_path / "rel_out" / "some_mod").resolve()
+        assert path.is_dir()

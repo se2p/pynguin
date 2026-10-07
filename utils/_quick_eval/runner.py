@@ -298,7 +298,7 @@ def _measure_generated_suite(
     the suite could not be measured or had failing tests. This is the independent,
     execution-based measurement (does the *exported* suite really cover the module?).
     """
-    out = Path(output_dir)
+    out = Path(output_dir).resolve()
     if not list(out.glob("test_*.py")):
         return None, None, "no generated tests"
     data_file = out / ".coverage"
@@ -405,9 +405,9 @@ def _run_dir(output_dir: str | None, module: str) -> Iterator[str]:
     """
     if output_dir is None:
         with tempfile.TemporaryDirectory(prefix="pynguin_eval_") as tmpdir:
-            yield tmpdir
+            yield str(Path(tmpdir).resolve())
     else:
-        run_dir = Path(output_dir) / module
+        run_dir = (Path(output_dir) / module).resolve()
         run_dir.mkdir(parents=True, exist_ok=True)
         yield str(run_dir)
 
@@ -610,6 +610,7 @@ def run_eval(
         ensure_llm_available(python_exe)
     install_sut_dependencies(tasks, python_exe)
     ensure_runner_tools(python_exe)
+    resolved_output_dir = str(Path(output_dir).resolve()) if output_dir is not None else None
     results: list[ModuleResult] = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as pool:
         futures = {
@@ -624,7 +625,7 @@ def run_eval(
                 no_assertions=no_assertions,
                 timeout=timeout,
                 extra_args=extra_args,
-                output_dir=output_dir,
+                output_dir=resolved_output_dir,
             ): task
             for task in tasks
         }
