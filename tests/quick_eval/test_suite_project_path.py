@@ -83,6 +83,21 @@ def test_suite_measures_project_copy_not_shadowing_copy(layout):
     assert coverage == pytest.approx(1.0)
 
 
+def test_suite_measures_with_relative_output_dir(layout, monkeypatch):
+    project, _, out = layout
+    (project / f"{_MODULE}.py").write_text(_PROJECT_COPY, encoding="utf-8")
+    monkeypatch.chdir(out.parent)
+    rel_out = out.name  # relative path from out.parent
+
+    coverage, tests, error = _measure_generated_suite(
+        sys.executable, rel_out, _MODULE, timeout=120, project_path=str(project)
+    )
+
+    assert error is None
+    assert tests == 1
+    assert coverage == pytest.approx(1.0)
+
+
 def test_suite_reports_error_when_measuring_copy_outside_project(layout):
     project, shadow, out = layout  # the module exists only in the shadowing location
 
