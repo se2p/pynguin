@@ -6,18 +6,74 @@
 #
 """In-process test execution validator."""
 
+from __future__ import annotations
+
 import ast
+import random
 import sys
 import textwrap
 import traceback
+from contextlib import contextmanager
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from pynguin.utils.timeout import TestExecutionTimeoutError, resolve_timeout, time_limit
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 #: Message prefix used when a ``@pytest.mark.xfail(strict=True)`` test unexpectedly
 #: passes (pytest reports this as ``XPASS(strict)``, which is a *failure*).
 XPASS_STRICT_MESSAGE = "XPASS(strict): test is marked xfail(strict=True) but passed."
+
+
+#: Name of the ``random.Random.seed`` replacement that the exported deterministic-seed
+#: preamble defines (see ``TestSuiteWriter._create_patch_nodes``).
+_DETERMINISTIC_SEED_FUNCTION = "_pynguin_deterministic_seed"
+
+
+@contextmanager
+def preserved_random_seed() -> Iterator[None]:
+    """Undo a deterministic-seed preamble's patch of ``random.Random.seed`` on exit.
+
+    Executing an exported test module installs its seed replacement on
+    ``random.Random`` globally.  Under pytest, the module-scoped autouse fixture
+    removes it again; when we ``exec`` the module in-process, nothing does, so the
+    patch would leak into Pynguin's own process.
+
+    Yields:
+        Nothing; the patch is reverted when the block is left.
+    """
+    original_seed = random.Random.seed
+    try:
+        yield
+    finally:
+        random.Random.seed = original_seed  # type: ignore[method-assign]
+
+
+def reseed_random(scope: dict) -> None:
+    """Reseed ``random`` like the exported autouse ``_pynguin_seed_random`` fixture.
+
+    Exported tests of SUTs that use ``random`` assert values observed under a fixed
+    seed; pytest reseeds before every test through an autouse fixture.  Calling the
+    test function directly skips that fixture, so we reseed here.  Does nothing if
+    *scope* has no deterministic-seed preamble.
+
+    Args:
+        scope: The globals the test code was executed in.
+    """
+    deterministic_seed = scope.get(_DETERMINISTIC_SEED_FUNCTION)
+    if not callable(deterministic_seed):
+        return
+    tracked = list(getattr(deterministic_seed, "__pynguin_instances__", ()))
+    random.Random.seed = deterministic_seed  # type: ignore[method-assign]
+    # The replacement seeds a new ``Random`` with the exported seed.  Copying that
+    # state is what the fixture's ``seed(<seed>)`` calls do, without having to know
+    # the seed value here.
+    seeded_state = random.Random().getstate()  # noqa: S311
+    random.setstate(seeded_state)
+    for instance in tracked:
+        instance.setstate(seeded_state)
 
 
 def _xfail_marker_of(node: ast.FunctionDef) -> tuple[bool, bool]:
@@ -109,6 +165,9 @@ def call_test_functions(
     does not time out as a whole.  Callers must therefore not run this under an
     enclosing :func:`time_limit` (``SIGALRM`` timers do not nest).
 
+    Like pytest's autouse fixture, :func:`reseed_random` runs before each test, so
+    callers should run this inside :func:`preserved_random_seed`.
+
     Args:
         scope: The globals the test code was executed in.
         tests: The tests to call, as returned by :func:`collect_test_functions`.
@@ -122,6 +181,7 @@ def call_test_functions(
         func = scope.get(name)
         if not callable(func):
             continue
+        reseed_random(scope)
         with time_limit(resolve_timeout(timeout)):
             if not is_xfail:
                 func()
@@ -173,60 +233,36 @@ class TestExecution(NamedTuple):
     """Whether the test exceeded its execution timeout."""
 
 
-def _extract_target_function_name(test_code: str) -> str:
-    """Extract the name of the test function to execute from test source code.
+def find_test_function_name(test_code: str) -> str:
+    """Return the name of the test function to execute in *test_code*.
 
-    When test code is prefixed with a module preamble (which may define fixtures or
-    deterministic seed helpers such as ``_pynguin_deterministic_seed``), this prefers
-    top-level functions whose name starts with ``test``. If multiple test functions are
-    present, the last one is chosen (since ``preamble + func_text`` places the target
-    test function at the end).
+    The code is a module preamble followed by one test function.  The preamble can
+    define helpers of its own, such as the deterministic-seed replacement
+    ``_pynguin_deterministic_seed`` or autouse fixtures, so the last top-level
+    ``test_*`` function wins; without one, the last top-level function does.
+
+    Args:
+        test_code: The test source (preamble + one test function).
+
+    Returns:
+        The function name, or ``""`` if the code defines no top-level function.
     """
-    cleaned_code = textwrap.dedent(test_code.strip())
     try:
-        tree = ast.parse(cleaned_code)
-        test_funcs = [
-            node.name
-            for node in tree.body
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name.startswith("test")
-        ]
-        if test_funcs:
-            return test_funcs[-1]
-        all_funcs = [
-            node.name
-            for node in tree.body
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        ]
-        if all_funcs:
-            return all_funcs[-1]
+        tree = ast.parse(textwrap.dedent(test_code.strip()))
     except SyntaxError:
-        pass
-
-    # Line-based fallback (e.g. invalid syntax)
-    test_lines = []
-    other_lines = []
-    for line in test_code.split("\n"):
-        stripped = line.strip()
-        if stripped.startswith("def "):
-            func_name = stripped.split("def ")[1].split("(")[0].strip()
-            if func_name.startswith("test"):
-                test_lines.append(func_name)
-            else:
-                other_lines.append(func_name)
-    if test_lines:
-        return test_lines[-1]
-    if other_lines:
-        return other_lines[-1]
-    return ""
+        # Best effort for unparsable code: scan for top-level ``def`` lines.
+        names = [
+            line.removeprefix("def ").split("(")[0].strip()
+            for line in textwrap.dedent(test_code.strip()).splitlines()
+            if line.startswith("def ")
+        ]
+    else:
+        names = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
+    test_names = [name for name in names if name.startswith("test_")]
+    return (test_names or names or [""])[-1]
 
 
-def execute_test(
-    test_code: str,
-    module_under_test,
-    timeout: float | None = None,
-    function_name: str | None = None,
-) -> TestExecution:
+def execute_test(test_code: str, module_under_test, timeout: float | None = None) -> TestExecution:
     """Executes a test function from a string without interpreting ``xfail`` markers.
 
     Args:
@@ -234,8 +270,6 @@ def execute_test(
         module_under_test: The module that is being tested.
         timeout: Maximum execution time in seconds; *None* uses the configured
             ``stopping.maximum_test_execution_timeout``, values <= 0 disable the limit.
-        function_name: Optional explicit name of the function to execute. If omitted,
-            the target function name is discovered from the code.
 
     Returns:
         The raw execution outcome.
@@ -244,38 +278,30 @@ def execute_test(
     _ensure_module_package_on_path(module_under_test)
     scope = {module_under_test.__name__: module_under_test}
 
-    # Extract or validate the function name
-    target_function_name = function_name or _extract_target_function_name(test_code)
-
-    if not target_function_name:
+    function_name = find_test_function_name(test_code)
+    if not function_name:
         return TestExecution("", None, "Could not find function name in test code.")
 
     # Clean up code indentation before execution
     cleaned_code = textwrap.dedent(test_code.strip())
 
     try:
-        with time_limit(resolve_timeout(timeout)):
+        with preserved_random_seed(), time_limit(resolve_timeout(timeout)):
             # Executing the generated test code is the core purpose of this validator.
             exec(cleaned_code, scope)  # noqa: S102
-            scope[target_function_name]()  # Call the test function
+            reseed_random(scope)
+            scope[function_name]()  # Call the test function
     except TestExecutionTimeoutError as e:
-        return TestExecution(target_function_name, e, f"TimeoutError: {e}", timed_out=True)
+        return TestExecution(function_name, e, f"TimeoutError: {e}", timed_out=True)
     except AssertionError as e:
-        return TestExecution(
-            target_function_name, e, f"AssertionError: {e}\n{traceback.format_exc()}"
-        )
+        return TestExecution(function_name, e, f"AssertionError: {e}\n{traceback.format_exc()}")
     except BaseException as e:  # noqa: BLE001
         # Catch all exceptions including pytest.fail (which raises Failed, a BaseException)
-        return TestExecution(target_function_name, e, f"Exception: {e}\n{traceback.format_exc()}")
-    return TestExecution(target_function_name, None, "Test passed.")
+        return TestExecution(function_name, e, f"Exception: {e}\n{traceback.format_exc()}")
+    return TestExecution(function_name, None, "Test passed.")
 
 
-def run_test(
-    test_code: str,
-    module_under_test,
-    timeout: float | None = None,
-    function_name: str | None = None,
-):
+def run_test(test_code: str, module_under_test, timeout: float | None = None):
     """Executes a test function from a string and returns pass/fail.
 
     Args:
@@ -283,12 +309,11 @@ def run_test(
         module_under_test: The module that is being tested.
         timeout: Maximum execution time in seconds; *None* uses the configured
             ``stopping.maximum_test_execution_timeout``, values <= 0 disable the limit.
-        function_name: Optional explicit name of the function to execute.
 
     Returns:
         A tuple (bool, str) for (pass/fail, message).
     """
-    execution = execute_test(test_code, module_under_test, timeout, function_name=function_name)
+    execution = execute_test(test_code, module_under_test, timeout)
     if not execution.function_name:
         return False, execution.message
     if execution.timed_out:

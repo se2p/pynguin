@@ -9,25 +9,28 @@
 from __future__ import annotations
 
 import math
+import random
 import sys
 import threading
 import time
 import types
 
+import libcst as cst
 import pytest
 
 import pynguin.configuration as config
 from pynguin.refinement.validator import (
     TestExecutionTimeoutError,
     _ensure_module_package_on_path,  # noqa: PLC2701
-    _extract_target_function_name,  # noqa: PLC2701
     call_test_functions,
     collect_test_functions,
-    execute_test,
+    find_test_function_name,
+    preserved_random_seed,
     resolve_timeout,
     run_test,
     time_limit,
 )
+from pynguin.testcase.export import TestSuiteWriter
 
 
 def test_run_test_passing():
@@ -275,60 +278,87 @@ def test_call_test_functions_propagates_regular_failure():
         call_test_functions({"test_x": failing}, [("test_x", False, False)])
 
 
-_PREAMBLE_WITH_DETERMINISTIC_SEED = (
-    "import pytest\n"
-    "import random as _pynguin_random\n"
-    "import weakref as _pynguin_weakref\n"
-    "_pynguin_orig_seed = getattr(\n"
-    "    _pynguin_random.Random.seed, '__pynguin_orig__', _pynguin_random.Random.seed\n"
-    ")\n"
-    "_pynguin_tracked = _pynguin_weakref.WeakSet()\n"
-    "def _pynguin_deterministic_seed(self, x=None):\n"
-    "    if x is None:\n"
-    "        x = 42\n"
-    "    _pynguin_orig_seed(self, x)\n"
-    "    _pynguin_tracked.add(self)\n"
-    "_pynguin_deterministic_seed.__pynguin_patched__ = True\n"
-    "_pynguin_deterministic_seed.__pynguin_orig__ = _pynguin_orig_seed\n"
-    "_pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
-    "_pynguin_random.Random.seed = _pynguin_deterministic_seed\n\n"
-    "@pytest.fixture(autouse=True)\n"
-    "def _pynguin_seed_random():\n"
-    "    yield\n"
-)
+def _seed_preamble(seed: int) -> str:
+    """The deterministic-seed preamble the exporter writes for SUTs using ``random``."""
+    body = TestSuiteWriter._create_patch_nodes(seed) + TestSuiteWriter._create_seed_fixture(seed)
+    return "import pytest\nimport random as _pynguin_random\n" + cst.Module(body=body).code
 
 
-def test_extract_target_function_name_with_seed_preamble():
-    code = f"{_PREAMBLE_WITH_DETERMINISTIC_SEED}\ndef test_case_0():\n    assert True\n"
-    assert _extract_target_function_name(code) == "test_case_0"
+def _value_under_seed(seed: int) -> int:
+    rng = random.Random(seed)  # noqa: S311
+    return rng.randint(1, 10**9)
 
 
-def test_extract_target_function_name_multiple_tests():
+def test_find_test_function_name_skips_seed_preamble():
+    code = f"{_seed_preamble(42)}\ndef test_case_0():\n    assert True\n"
+    assert find_test_function_name(code) == "test_case_0"
+
+
+def test_find_test_function_name_prefers_last_test():
     code = "def test_1():\n    pass\ndef helper():\n    pass\ndef test_2():\n    pass\n"
-    assert _extract_target_function_name(code) == "test_2"
+    assert find_test_function_name(code) == "test_2"
 
 
-def test_extract_target_function_name_fallback_no_test_prefix():
-    code = "def helper():\n    pass\n"
-    assert _extract_target_function_name(code) == "helper"
+def test_find_test_function_name_falls_back_to_last_function():
+    code = "def _helper():\n    pass\ndef renamed():\n    pass\n"
+    assert find_test_function_name(code) == "renamed"
 
 
-def test_extract_target_function_name_syntax_error():
-    code = "def _helper(:\ndef test_ok():\n    pass\n"
-    assert _extract_target_function_name(code) == "test_ok"
+def test_find_test_function_name_ignores_nested_defs():
+    code = "def _helper():\n    def test_inner():\n        pass\ndef check():\n    pass\n"
+    assert find_test_function_name(code) == "check"
 
 
-def test_run_test_with_deterministic_seed_preamble_passes():
-    """Ensure run_test executes the test function instead of seed helper (issue #330)."""
-    code = f"{_PREAMBLE_WITH_DETERMINISTIC_SEED}\ndef test_math():\n    assert math.sqrt(16) == 4\n"
-    passed, message = run_test(code, math)
-    assert passed is True
-    assert message == "Test passed."
+def test_find_test_function_name_syntax_error():
+    code = "def _helper(:\n    pass\ndef test_ok():\n    pass\n    def test_nested(): pass\n"
+    assert find_test_function_name(code) == "test_ok"
 
 
-def test_execute_test_explicit_function_name():
-    code = "def test_first():\n    assert True\ndef test_second():\n    assert False\n"
-    execution = execute_test(code, math, function_name="test_first")
-    assert execution.function_name == "test_first"
-    assert execution.error is None
-    assert execution.message == "Test passed."
+def test_find_test_function_name_none():
+    assert not find_test_function_name("x = 1\n")
+
+
+def test_run_test_reseeds_like_autouse_fixture():
+    """A seed-dependent assertion passes, as under pytest, whatever the random state."""
+    code = (
+        f"{_seed_preamble(42)}\n"
+        "def test_case_0():\n"
+        f"    assert random.randint(1, 10**9) == {_value_under_seed(42)}\n"
+    )
+    random.seed(7)
+    assert run_test(code, random) == (True, "Test passed.")
+    assert run_test(code, random) == (True, "Test passed.")
+
+
+def test_run_test_reverts_seed_patch():
+    original_seed = random.Random.seed
+    code = f"{_seed_preamble(42)}\ndef test_case_0():\n    assert True\n"
+    assert run_test(code, random)[0]
+    assert random.Random.seed is original_seed
+
+
+def test_run_test_reverts_seed_patch_on_failure():
+    original_seed = random.Random.seed
+    code = f"{_seed_preamble(42)}\ndef test_case_0():\n    assert False\n"
+    assert not run_test(code, random)[0]
+    assert random.Random.seed is original_seed
+
+
+def test_call_test_functions_reseeds_before_each_test():
+    expected = _value_under_seed(42)
+    code = (
+        f"{_seed_preamble(42)}\n"
+        "def test_a():\n"
+        f"    assert random.randint(1, 10**9) == {expected}\n"
+        "def test_b():\n"
+        "    rng = random.Random()\n"
+        f"    assert random.randint(1, 10**9) == {expected}\n"
+        "    assert rng.randint(1, 10**9) == "
+        f"{_value_under_seed(42)}\n"
+    )
+    original_seed = random.Random.seed
+    scope: dict = {"random": random}
+    with preserved_random_seed():
+        exec(code, scope)  # noqa: S102
+        call_test_functions(scope, collect_test_functions(code))
+    assert random.Random.seed is original_seed

@@ -22,7 +22,6 @@ from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.refinement.coverage_checker import (
     CoverageResult,
     _executable_lines,  # noqa: PLC2701
-    _find_test_function_name,  # noqa: PLC2701
     _load_sut_source,  # noqa: PLC2701
     _measure_coverage_pynguin,  # noqa: PLC2701
     _measure_coverage_settrace,  # noqa: PLC2701
@@ -102,15 +101,6 @@ def test_check_preservation_skips_on_measurement_error():
     # Measurement error -> treated as skipped (non-blocking) and passes.
     assert passed is True
     assert details["status"] == "skipped"
-
-
-def test_find_test_function_name_returns_first_def():
-    code = "\n\n# comment\ndef test_abc(x):\n    return x\n"
-    assert _find_test_function_name(code) == "test_abc"
-
-
-def test_find_test_function_name_returns_empty_when_missing():
-    assert not _find_test_function_name("x = 1\ny = 2\n")
 
 
 def test_load_sut_source_missing_file_returns_error(tmp_path):

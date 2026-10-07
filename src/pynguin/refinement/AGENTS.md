@@ -87,6 +87,13 @@ or parse failure falls the entire module back to per-test.
   locally, no LLM). Never batch repair.
 - **Mutation-strengthening supports full_module (default) and per_test.**
 - Module-level responses must preserve imports and `module_0.` call prefixes.
+- **In-process execution emulates the seed fixtures.** Suites of SUTs using `random` carry
+  a deterministic-seed preamble whose autouse fixtures pytest runs but `exec` does not.
+  Every exec site wraps execution in `validator.preserved_random_seed()` and calls
+  `validator.reseed_random(scope)` before each test (`call_test_functions` does this), so
+  seed-dependent assertions hold and the `random.Random.seed` patch does not leak. The test
+  to call is `validator.find_test_function_name` (last top-level `test_*`), not the first
+  `def`, which is the preamble's `_pynguin_deterministic_seed`.
 
 ## Prompts
 
