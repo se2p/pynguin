@@ -27,6 +27,7 @@ from pynguin.refinement.coverage_checker import (
     _measure_coverage_settrace,  # noqa: PLC2701
     check_coverage_preservation,
     get_covered_lines,
+    measure_suite_coverage,
 )
 
 _SUT_SOURCE = """\
@@ -280,3 +281,53 @@ def test_get_covered_lines_on_branch_instrumented_module():
         )
         assert get_covered_lines(code, module) == {13, 14}
     sys.modules.pop(module_name, None)
+
+
+def test_measure_suite_coverage_settrace_accumulates_across_failing_tests(sut_module):
+    code = (
+        "def test_1():\n"
+        "    assert cov_sut_mod.add(1, 2) == 3\n\n"
+        "def test_2():\n"
+        "    cov_sut_mod.unused(5)\n"
+        "    assert False\n"
+    )
+    result = measure_suite_coverage(code, sut_module)
+    assert result.error is None
+    assert result.metric == "line"
+    assert result.coverage_value > 0.0
+
+
+def test_measure_suite_coverage_pynguin_instrumented():
+    module_name = "tests.fixtures.linecoverage.plus"
+    sys.modules.pop(module_name, None)
+    subject_properties = SubjectProperties()
+    with install_import_hook(
+        module_name, subject_properties, coverage_metrics={config.CoverageMetric.BRANCH}
+    ):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+        subject_properties.instrumentation_tracer.disable()
+        code = (
+            f"import {module_name} as plus\n\n"
+            "def test_1():\n"
+            "    assert plus.Plus().plus_three(1) == 4\n\n"
+            "def test_2():\n"
+            "    assert plus.Plus().plus_four(1) == 5\n"
+        )
+        result = measure_suite_coverage(code, module, subject_properties)
+        assert result.error is None
+        assert result.coverage_value > 0.0
+    sys.modules.pop(module_name, None)
+
+
+def test_measure_suite_coverage_falls_back_when_pynguin_fails(sut_module, monkeypatch):
+    monkeypatch.setattr(
+        "pynguin.refinement.coverage_checker._measure_suite_coverage_pynguin",
+        lambda *_args, **_kwargs: CoverageResult(error="tracer boom"),
+    )
+    subject_properties = types.SimpleNamespace(instrumentation_tracer=object())
+    code = "def test_1():\n    assert cov_sut_mod.add(1, 2) == 3\n"
+    result = measure_suite_coverage(code, sut_module, subject_properties)
+    assert result.error is None
+    assert result.metric == "line"
+    assert result.coverage_value > 0.0

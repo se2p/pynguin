@@ -13,6 +13,7 @@ import importlib
 import random
 import sys
 import types
+from typing import Any
 
 import libcst as cst
 import pytest
@@ -20,6 +21,7 @@ import pytest
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 from pynguin.refinement import refiner as refiner_module
+from pynguin.refinement.coverage_checker import CoverageResult
 from pynguin.refinement.refiner import (
     _attach_usage,  # noqa: PLC2701
     _extract_function_text,  # noqa: PLC2701
@@ -238,6 +240,47 @@ def test_track_statistics_emits_all_runtime_variables(monkeypatch):
     assert RuntimeVariable.RefinementSuiteContributionMean in emitted
 
 
+def test_track_statistics_emits_post_refinement_and_aliased_headline_metrics(monkeypatch):
+    calls: list[tuple[RuntimeVariable, Any]] = []
+
+    def _record(variable, value):
+        calls.append((variable, value))
+
+    monkeypatch.setattr(refiner_module.stat, "track_output_variable", _record)
+    _track_statistics({
+        "post_refinement_coverage": 0.85,
+        "post_refinement_line_coverage": 0.90,
+        "post_refinement_branch_coverage": 0.80,
+        "post_refinement_assertions": 7,
+        "post_refinement_mutation_score": 0.75,
+        "post_refinement_killed_mutants": 3,
+        "post_refinement_checked_mutants": 4,
+        "post_refinement_timed_out_mutants": 1,
+        "post_refinement_created_mutants": 5,
+    })
+
+    recorded = dict(calls)
+    assert recorded[RuntimeVariable.PostRefinementCoverage] == 0.85
+    assert recorded[RuntimeVariable.PostRefinementAssertions] == 7
+    assert recorded[RuntimeVariable.PostRefinementMutationScore] == 0.75
+    assert recorded[RuntimeVariable.PostRefinementKilledMutants] == 3
+    assert recorded[RuntimeVariable.PostRefinementCheckedMutants] == 4
+    assert recorded[RuntimeVariable.PostRefinementTimedOutMutants] == 1
+
+    # Aliased headline metrics
+    assert recorded[RuntimeVariable.Coverage] == 0.85
+    assert recorded[RuntimeVariable.LineCoverage] == 0.90
+    assert recorded[RuntimeVariable.BranchCoverage] == 0.80
+    assert recorded[RuntimeVariable.FinalLineCoverage] == 0.90
+    assert recorded[RuntimeVariable.FinalBranchCoverage] == 0.80
+    assert recorded[RuntimeVariable.Assertions] == 7
+    assert recorded[RuntimeVariable.MutationScore] == 0.75
+    assert recorded[RuntimeVariable.NumberOfKilledMutants] == 3
+    assert recorded[RuntimeVariable.NumberOfCheckedMutants] == 4
+    assert recorded[RuntimeVariable.NumberOfTimedOutMutants] == 1
+    assert recorded[RuntimeVariable.NumberOfCreatedMutants] == 5
+
+
 def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkeypatch):
     test_file = tmp_path / "test_mod.py"
     test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
@@ -309,6 +352,75 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     assert stats["readability_delta"] == pytest.approx(0.6)
     assert stats["llm_calls"] == 2
     assert stats["mutation_inferred_total"] == 1
+    assert stats["post_refinement_assertions"] == 1
+
+
+def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp_path, monkeypatch):
+    test_file = tmp_path / "test_mod.py"
+    test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
+
+    fake_module = types.ModuleType("fake_module")
+    fake_module.__file__ = str(tmp_path / "fake_module.py")
+    func = ast.parse("def test_case_0():\n    assert True\n").body[0]
+
+    class _FakeClient:
+        def reset_usage(self):
+            return None
+
+        def get_usage(self):
+            return {"calls": 1, "input_tokens": 1, "output_tokens": 1}
+
+    class _FakeRefiner:
+        def __init__(self, **_kwargs):
+            self.llm_client = _FakeClient()
+
+    def _fake_process(*_args, **_kwargs):
+        return _TestOutcome(
+            func_text="def test_case_0():\n    assert True\n",
+            processed=True,
+            refined=True,
+            iterations=1,
+            readability_original=0.2,
+            readability_refined=0.8,
+        )
+
+    tracked: list[tuple[RuntimeVariable, Any]] = []
+    monkeypatch.setattr(
+        refiner_module.stat, "track_output_variable", lambda var, val: tracked.append((var, val))
+    )
+    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func]))
+    monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
+    monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
+    monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
+    monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
+
+    monkeypatch.setattr(
+        refiner_module,
+        "measure_suite_coverage",
+        lambda **_k: CoverageResult(coverage_value=0.88, branch_coverage=0.88, line_coverage=0.95),
+    )
+    monkeypatch.setattr(
+        config.configuration.llm_refinement,
+        "refinement_granularity",
+        config.RefinementGranularity.PER_TEST,
+    )
+
+    stats = refine_generated_tests(
+        test_file_path=test_file,
+        module_name="fake_module",
+        max_tests=1,
+    )
+
+    assert stats["post_refinement_coverage"] == 0.88
+    assert stats["post_refinement_branch_coverage"] == 0.88
+    assert stats["post_refinement_line_coverage"] == 0.95
+    assert stats["post_refinement_assertions"] == 1
+
+    tracked_dict = dict(tracked)
+    assert tracked_dict[RuntimeVariable.PostRefinementCoverage] == 0.88
+    assert tracked_dict[RuntimeVariable.Coverage] == 0.88
+    assert tracked_dict[RuntimeVariable.PostRefinementAssertions] == 1
+    assert tracked_dict[RuntimeVariable.Assertions] == 1
 
 
 _EXPORTED_FILE = (

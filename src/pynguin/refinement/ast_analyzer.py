@@ -17,6 +17,8 @@ The core logic:
 - Extract the method name, line number, and resolved module path
 """
 
+from __future__ import annotations
+
 import ast
 from dataclasses import dataclass
 
@@ -263,3 +265,19 @@ class FocalMethodAnalyzer:
         self.focal_info = self._find_focal_method()
 
         return self.focal_info
+
+
+def count_assertions(source: str) -> int:
+    """Count the total number of assert statements in the Python source code.
+
+    Args:
+        source: Python source code string.
+
+    Returns:
+        Number of ast.Assert nodes found in the AST.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return 0
+    return sum(1 for node in ast.walk(tree) if isinstance(node, ast.Assert))
