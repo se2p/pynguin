@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import argparse
-import importlib
 import logging
 import os
 import re
@@ -131,43 +130,47 @@ def test__create_argument_parser():
     assert isinstance(parser, argparse.ArgumentParser)
 
 
+@pytest.fixture(autouse=True)
+def restore_logging():
+    old_handlers = logging.root.handlers[:]
+    old_level = logging.root.level
+    yield
+    logging.root.handlers.clear()
+    logging.root.handlers.extend(old_handlers)
+    logging.root.setLevel(old_level)
+
+
 def test__setup_logging_single_verbose_without_log_file():
-    logging.shutdown()
-    importlib.reload(logging)
     _setup_logging(verbosity=1, no_rich=False, log_file=None)
     logger = logging.getLogger("")
+    # _setup_logging clears existing handlers and adds one
     assert len(logger.handlers) == 1
     assert logger.level == logging.INFO
-    logging.shutdown()
-    importlib.reload(logging)
 
 
 def test__setup_logging_double_verbose_without_log_file():
-    logging.shutdown()
-    importlib.reload(logging)
     _setup_logging(verbosity=2, no_rich=False, log_file=None)
     logger = logging.getLogger("")
     assert len(logger.handlers) == 1
     assert logger.level == logging.DEBUG
-    logging.shutdown()
-    importlib.reload(logging)
 
 
 def test__setup_logging_log_file(tmp_path: Path):
     log_file = tmp_path / "pynguin.log"
-    logging.shutdown()
-    importlib.reload(logging)
     _setup_logging(verbosity=1, no_rich=False, log_file=log_file)
     logger = logging.getLogger("")
     assert len(logger.handlers) == 1
     logger.info("Test entry")
+
+    # Ensure handlers flush to file before reading
+    for handler in logger.handlers:
+        handler.flush()
+
     assert re.match(
         r"\[[0-9]{2}:[0-9]{2}:[0-9]{2}\]\s\[INFO\]\(.+:"
         r"test__setup_logging_log_file:[0-9]+\):\sTest\sentry",
         log_file.read_text(),
     )
-    logging.shutdown()
-    importlib.reload(logging)
 
 
 @pytest.mark.parametrize(
