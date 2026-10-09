@@ -268,6 +268,24 @@ class RuntimeVariable(str, enum.Enum):
     PostRefinementCheckedMutants = "PostRefinementCheckedMutants"
     PostRefinementTimedOutMutants = "PostRefinementTimedOutMutants"
 
+    # Per-phase coverage metrics
+    PostSearchCoverage = "PostSearchCoverage"
+    PostAssertionGenerationCoverage = "PostAssertionGenerationCoverage"
+    PreRefinementCoverage = "PreRefinementCoverage"
+    PostRefinementCoverage = "PostRefinementCoverage"
+
+    # Per-phase assertions metrics
+    PostSearchAssertions = "PostSearchAssertions"
+    PostAssertionGenerationAssertions = "PostAssertionGenerationAssertions"
+    PreRefinementAssertions = "PreRefinementAssertions"
+    PostRefinementAssertions = "PostRefinementAssertions"
+
+    # Per-phase mutation metrics
+    PostAssertionGenerationMutationScore = "PostAssertionGenerationMutationScore"
+    PostAssertionGenerationKilledMutants = "PostAssertionGenerationKilledMutants"
+    PostAssertionGenerationCheckedMutants = "PostAssertionGenerationCheckedMutants"
+    PostAssertionGenerationTimedOutMutants = "PostAssertionGenerationTimedOutMutants"
+
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 

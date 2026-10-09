@@ -45,3 +45,38 @@ def test_llm_related_runtime_variables():
 def test_runtime_variable_repr():
     """Test the __repr__ method of RuntimeVariable."""
     assert repr(RuntimeVariable.LLMStrategy) == "LLMStrategy"
+
+
+def test_per_phase_runtime_variables():
+    """Test that all per-phase breakdown runtime variables are defined."""
+    # Coverage
+    assert RuntimeVariable.PostSearchCoverage == "PostSearchCoverage"
+    assert RuntimeVariable.PostAssertionGenerationCoverage == "PostAssertionGenerationCoverage"
+    assert RuntimeVariable.PreRefinementCoverage == "PreRefinementCoverage"
+    assert RuntimeVariable.PostRefinementCoverage == "PostRefinementCoverage"
+
+    # Assertions
+    assert RuntimeVariable.PostSearchAssertions == "PostSearchAssertions"
+    assert RuntimeVariable.PostAssertionGenerationAssertions == "PostAssertionGenerationAssertions"
+    assert RuntimeVariable.PreRefinementAssertions == "PreRefinementAssertions"
+    assert RuntimeVariable.PostRefinementAssertions == "PostRefinementAssertions"
+
+    # Mutations
+    assert (
+        RuntimeVariable.PostAssertionGenerationMutationScore
+        == "PostAssertionGenerationMutationScore"
+    )
+    assert (
+        RuntimeVariable.PostAssertionGenerationKilledMutants
+        == "PostAssertionGenerationKilledMutants"
+    )
+    assert (
+        RuntimeVariable.PostAssertionGenerationCheckedMutants
+        == "PostAssertionGenerationCheckedMutants"
+    )
+    assert (
+        RuntimeVariable.PostAssertionGenerationTimedOutMutants
+        == "PostAssertionGenerationTimedOutMutants"
+    )
+    assert RuntimeVariable.PreRefinementMutationScore == "PreRefinementMutationScore"
+    assert RuntimeVariable.PostRefinementMutationScore == "PostRefinementMutationScore"

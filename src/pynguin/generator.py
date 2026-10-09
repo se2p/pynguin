@@ -27,6 +27,7 @@ import json
 import logging
 import math
 import random
+import statistics
 import sys
 import time
 import types
@@ -1234,6 +1235,40 @@ def _run() -> ReturnCode:
     )
 
 
+def _track_pre_refinement_metrics(
+    algorithm: GenerationAlgorithm,
+    generation_result: tsc.TestSuiteChromosome,
+) -> None:
+    """Track pre-refinement metrics before test suite export and LLM refinement.
+
+    Args:
+        algorithm: Generation algorithm used for coverage-related setup.
+        generation_result: Finalized test suite chromosome.
+    """
+    post_ass_assertions = sum(
+        len(tc.test_case.get_assertions()) for tc in generation_result.test_case_chromosomes
+    )
+    stat.track_output_variable(
+        RuntimeVariable.PostAssertionGenerationAssertions, post_ass_assertions
+    )
+    stat.track_output_variable(RuntimeVariable.PreRefinementAssertions, post_ass_assertions)
+    stat.track_output_variable(RuntimeVariable.Assertions, post_ass_assertions)
+
+    cov_functions = getattr(algorithm, "test_suite_coverage_functions", [])
+    try:
+        if cov_functions:
+            post_ass_coverage = statistics.mean(
+                generation_result.get_coverage_for(cov_func) for cov_func in cov_functions
+            )
+        else:
+            post_ass_coverage = generation_result.get_coverage()
+    except Exception:  # noqa: BLE001
+        post_ass_coverage = 0.0
+    stat.track_output_variable(RuntimeVariable.PostAssertionGenerationCoverage, post_ass_coverage)
+    stat.track_output_variable(RuntimeVariable.PreRefinementCoverage, post_ass_coverage)
+    stat.track_output_variable(RuntimeVariable.Coverage, post_ass_coverage)
+
+
 def finalize_generation_result(  # noqa: C901, PLR0917
     algorithm: GenerationAlgorithm,
     executor: TestCaseExecutor,
@@ -1292,6 +1327,8 @@ def finalize_generation_result(  # noqa: C901, PLR0917
         return ReturnCode.FINAL_METRICS_TRACKING_FAILED
 
     executor.subject_properties.instrumentation_tracer.disable()
+
+    _track_pre_refinement_metrics(algorithm, generation_result)
 
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
@@ -1675,6 +1712,15 @@ def _track_search_metrics(
             )
     # Write overall coverage data of result
     stat.current_individual(generation_result)
+    try:
+        post_search_cov = generation_result.get_coverage()
+    except Exception:  # noqa: BLE001
+        post_search_cov = 0.0
+    stat.track_output_variable(RuntimeVariable.PostSearchCoverage, post_search_cov)
+    post_search_assertions = sum(
+        len(tc.test_case.get_assertions()) for tc in generation_result.test_case_chromosomes
+    )
+    stat.track_output_variable(RuntimeVariable.PostSearchAssertions, post_search_assertions)
 
 
 def _instantiate_test_generation_strategy(

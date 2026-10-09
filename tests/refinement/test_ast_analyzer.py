@@ -15,6 +15,7 @@ from pynguin.refinement.ast_analyzer import (
     FocalMethodAnalyzer,
     FocalMethodInfo,
     ImportMapBuilder,
+    count_assertions,
 )
 
 MODULE_TEST = """\
@@ -107,3 +108,27 @@ def test_analyze_returns_none_without_calls():
 
 def test_analyze_handles_syntax_error():
     assert FocalMethodAnalyzer("def test(:\n    broken").analyze() is None
+
+
+def test_count_assertions_multiple():
+    code = """
+def test_one():
+    assert 1 == 1
+    assert 2 == 2
+
+def test_two():
+    assert True
+"""
+    assert count_assertions(code) == 3
+
+
+def test_count_assertions_zero():
+    code = """
+def test_one():
+    x = 1
+"""
+    assert count_assertions(code) == 0
+
+
+def test_count_assertions_syntax_error():
+    assert count_assertions("def broken(:\n") == 0

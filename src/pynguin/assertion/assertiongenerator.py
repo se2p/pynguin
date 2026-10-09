@@ -691,14 +691,24 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         score = _compute_reported_score(metrics, num_created)
         stat.track_output_variable(RuntimeVariable.MutationScore, score)
         stat.track_output_variable(RuntimeVariable.PreRefinementMutationScore, score)
+        stat.track_output_variable(RuntimeVariable.PostAssertionGenerationMutationScore, score)
         stat.track_output_variable(
             RuntimeVariable.PreRefinementKilledMutants, metrics.num_killed_mutants
+        )
+        stat.track_output_variable(
+            RuntimeVariable.PostAssertionGenerationKilledMutants, metrics.num_killed_mutants
         )
         stat.track_output_variable(
             RuntimeVariable.PreRefinementCheckedMutants, metrics.num_created_mutants
         )
         stat.track_output_variable(
+            RuntimeVariable.PostAssertionGenerationCheckedMutants, metrics.num_created_mutants
+        )
+        stat.track_output_variable(
             RuntimeVariable.PreRefinementTimedOutMutants, metrics.num_timeout_mutants
+        )
+        stat.track_output_variable(
+            RuntimeVariable.PostAssertionGenerationTimedOutMutants, metrics.num_timeout_mutants
         )
 
         for info in mutation_summary.mutant_information:

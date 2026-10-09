@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 from pynguin.configuration import MutationStrengtheningGranularity, RefinementGranularity
+from pynguin.refinement.ast_analyzer import count_assertions
+from pynguin.refinement.coverage_checker import measure_suite_coverage
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
 from pynguin.refinement.mutation_analyzer import (
     evaluate_refined_suite_mutations,
@@ -580,8 +582,7 @@ def _attach_usage(stats: dict[str, Any], refiner: TestRefiner, start_wall: float
     stats["wall_time_seconds"] = float(time.perf_counter() - start_wall)
 
 
-def _track_statistics(stats: dict[str, Any]) -> None:
-    """Export refinement metrics to the statistics output (statistics.csv/results.csv)."""
+def _track_refinement_core_statistics(stats: dict[str, Any]) -> None:
     stat.track_output_variable(
         RuntimeVariable.TestsProcessed, int(stats.get("tests_processed", 0) or 0)
     )
@@ -649,6 +650,34 @@ def _track_statistics(stats: dict[str, Any]) -> None:
         RuntimeVariable.RefinementSuiteContributionMean,
         float(stats.get("mutation_suite_contribution_mean", 0.0) or 0.0),
     )
+
+
+def _track_post_refinement_metrics(stats: dict[str, Any]) -> None:
+    if "post_refinement_coverage" in stats:
+        cov = stats.get("post_refinement_coverage")
+        stat.track_output_variable(RuntimeVariable.PostRefinementCoverage, cov)
+        stat.track_output_variable(RuntimeVariable.Coverage, cov)
+        if "post_refinement_line_coverage" in stats:
+            line_cov = stats["post_refinement_line_coverage"]
+            stat.track_output_variable(RuntimeVariable.FinalLineCoverage, line_cov)
+            stat.track_output_variable(RuntimeVariable.LineCoverage, line_cov)
+        if "post_refinement_branch_coverage" in stats:
+            branch_cov = stats["post_refinement_branch_coverage"]
+            stat.track_output_variable(RuntimeVariable.FinalBranchCoverage, branch_cov)
+            stat.track_output_variable(RuntimeVariable.BranchCoverage, branch_cov)
+        elif (
+            cov is not None
+            and config.CoverageMetric.BRANCH
+            in config.configuration.search_algorithm.coverage_metrics
+        ):
+            stat.track_output_variable(RuntimeVariable.BranchCoverage, cov)
+            stat.track_output_variable(RuntimeVariable.FinalBranchCoverage, cov)
+
+    if "post_refinement_assertions" in stats:
+        asserts = stats.get("post_refinement_assertions")
+        stat.track_output_variable(RuntimeVariable.PostRefinementAssertions, asserts)
+        stat.track_output_variable(RuntimeVariable.Assertions, asserts)
+
     if "post_refinement_mutation_score" in stats or "post_refinement_checked_mutants" in stats:
         score = stats.get("post_refinement_mutation_score")
         killed = int(stats.get("post_refinement_killed_mutants", 0) or 0)
@@ -668,6 +697,12 @@ def _track_statistics(stats: dict[str, Any]) -> None:
         stat.track_output_variable(RuntimeVariable.NumberOfCheckedMutants, checked)
         stat.track_output_variable(RuntimeVariable.NumberOfTimedOutMutants, timed_out)
         stat.track_output_variable(RuntimeVariable.NumberOfCreatedMutants, created)
+
+
+def _track_statistics(stats: dict[str, Any]) -> None:
+    """Export refinement metrics to the statistics output (statistics.csv/results.csv)."""
+    _track_refinement_core_statistics(stats)
+    _track_post_refinement_metrics(stats)
 
 
 def _should_evaluate_post_refinement_mutations() -> bool:
@@ -702,6 +737,49 @@ def _maybe_evaluate_post_refinement_mutations(
         stats.update(post_mutation_stats)
     except Exception as ex:
         _LOGGER.exception("Failed to evaluate refined test suite mutations: %s", ex)
+
+
+def _maybe_count_post_refinement_assertions(
+    preamble: str,
+    refined_tests: list[str],
+    stats: dict[str, Any],
+) -> None:
+    if stats.get("tests_refined", 0) <= 0 or not refined_tests:
+        return
+    try:
+        full_code = preamble.rstrip("\n") + "\n\n\n" + "\n\n\n".join(refined_tests)
+        stats["post_refinement_assertions"] = count_assertions(full_code)
+    except Exception as ex:
+        _LOGGER.exception("Failed to count refined test suite assertions: %s", ex)
+
+
+def _maybe_evaluate_post_refinement_coverage(
+    preamble: str,
+    refined_tests: list[str],
+    module_under_test: types.ModuleType | None,
+    subject_properties: SubjectProperties | None,
+    stats: dict[str, Any],
+) -> None:
+    if stats.get("tests_refined", 0) <= 0 or not refined_tests or module_under_test is None:
+        return
+    try:
+        _LOGGER.info("Evaluating coverage of the refined test suite")
+        full_code = preamble.rstrip("\n") + "\n\n\n" + "\n\n\n".join(refined_tests)
+        cov_res = measure_suite_coverage(
+            test_code=full_code,
+            module_under_test=module_under_test,
+            subject_properties=subject_properties,
+        )
+        if cov_res.error is None:
+            stats["post_refinement_coverage"] = cov_res.coverage_value
+            if cov_res.branch_coverage is not None:
+                stats["post_refinement_branch_coverage"] = cov_res.branch_coverage
+            if cov_res.line_coverage is not None:
+                stats["post_refinement_line_coverage"] = cov_res.line_coverage
+        else:
+            _LOGGER.warning("Could not measure refined suite coverage: %s", cov_res.error)
+    except Exception as ex:
+        _LOGGER.exception("Failed to evaluate refined test suite coverage: %s", ex)
 
 
 def refine_generated_tests(
@@ -815,6 +893,10 @@ def refine_generated_tests(
         )
         _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
         _maybe_evaluate_post_refinement_mutations(preamble, refined_tests, module_under_test, stats)
+        _maybe_count_post_refinement_assertions(preamble, refined_tests, stats)
+        _maybe_evaluate_post_refinement_coverage(
+            preamble, refined_tests, module_under_test, subject_properties, stats
+        )
 
         _LOGGER.info("Refinement complete: %s", stats)
         _attach_usage(stats, refiner, start_wall)

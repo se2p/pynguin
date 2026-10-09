@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import ast
 import functools
+import logging
+import statistics
 import sys
 import textwrap
 import threading
@@ -60,20 +62,26 @@ if TYPE_CHECKING:
 
     from pynguin.instrumentation.tracer import SubjectProperties
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class CoverageResult:
-    """Result of coverage measurement for a single test.
+    """Result of coverage measurement for a test or test suite.
 
     Attributes:
         coverage_value: Coverage as a fraction in [0.0, 1.0].
-        metric: Which coverage metric was used ('branch' or 'line').
+        metric: Which coverage metric was used ('branch', 'line', or 'mean').
         error: Error message if coverage measurement failed.
+        branch_coverage: Branch coverage as a fraction in [0.0, 1.0], if computed.
+        line_coverage: Line coverage as a fraction in [0.0, 1.0], if computed.
     """
 
     coverage_value: float = 0.0
     metric: str = "branch"
     error: str | None = None
+    branch_coverage: float | None = None
+    line_coverage: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -162,14 +170,23 @@ def _measure_coverage_pynguin(
     # Compute coverage from the trace
     trace = tracer.get_trace()
 
+    branch_cov: float | None = None
+    line_cov: float | None = None
     if use_branch:
         coverage = compute_branch_coverage(trace, subject_properties)
         metric_name = "branch"
+        branch_cov = coverage
     else:
         coverage = compute_line_coverage(trace, subject_properties)
         metric_name = "line"
+        line_cov = coverage
 
-    return CoverageResult(coverage_value=coverage, metric=metric_name)
+    return CoverageResult(
+        coverage_value=coverage,
+        metric=metric_name,
+        branch_coverage=branch_cov,
+        line_coverage=line_cov,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -245,10 +262,48 @@ def _make_sut_line_tracer(
     return _tracer
 
 
+def _run_test_safely(func: Callable[[], Any], scope: dict[str, Any]) -> None:
+    reseed_random(scope)
+    with time_limit(resolve_timeout(None)):
+        try:
+            func()
+        except KeyboardInterrupt:
+            raise
+        except BaseException as exc:  # noqa: BLE001
+            _LOGGER.debug("Test raised during coverage execution: %s", exc)
+
+
+def _execute_test_code_under_trace(
+    compiled: Any,
+    scope: dict[str, Any],
+    test_funcs: list[tuple[str, bool, bool]],
+    func_name: str | None,
+    *,
+    ignore_test_failures: bool = False,
+) -> None:
+    with preserved_random_seed():
+        with time_limit(resolve_timeout(None)):
+            exec(compiled, scope)  # noqa: S102
+        if test_funcs:
+            if ignore_test_failures:
+                for name, _is_xfail, _is_strict in test_funcs:
+                    func = scope.get(name)
+                    if callable(func):
+                        _run_test_safely(func, scope)
+            else:
+                call_test_functions(scope, test_funcs)
+        elif func_name and callable(scope.get(func_name)):
+            reseed_random(scope)
+            with time_limit(resolve_timeout(None)):
+                scope[func_name]()
+
+
 def _trace_sut_lines(
     test_code: str,
     module_under_test: types.ModuleType,
     sut_path: Path,
+    *,
+    ignore_test_failures: bool = False,
 ) -> tuple[set[int], BaseException | None]:
     """Execute *test_code* and record the SUT lines it runs via ``sys.settrace``.
 
@@ -273,15 +328,13 @@ def _trace_sut_lines(
     try:
         compiled = compile(cleaned, "<test>", "exec")
         sys.settrace(tracer)
-        with preserved_random_seed():
-            with time_limit(resolve_timeout(None)):
-                exec(compiled, scope)  # noqa: S102
-            if test_funcs:
-                call_test_functions(scope, test_funcs)  # per-test time limits
-            elif func_name and func_name in scope and callable(scope[func_name]):
-                reseed_random(scope)
-                with time_limit(resolve_timeout(None)):
-                    scope[func_name]()
+        _execute_test_code_under_trace(
+            compiled,
+            scope,
+            test_funcs,
+            func_name,
+            ignore_test_failures=ignore_test_failures,
+        )
     except BaseException as exc:  # noqa: BLE001
         # Executing generated test code may raise anything; degrade gracefully.
         return executed_lines, exc
@@ -297,6 +350,8 @@ def _trace_sut_lines(
 def _measure_coverage_settrace(
     test_code: str,
     module_under_test: types.ModuleType,
+    *,
+    ignore_test_failures: bool = False,
 ) -> CoverageResult:
     """Fallback: measure line coverage via ``sys.settrace``.
 
@@ -310,14 +365,138 @@ def _measure_coverage_settrace(
     if not total_executable:
         return CoverageResult(error="No executable lines found in SUT", metric="line")
 
-    executed_lines, exc = _trace_sut_lines(test_code, module_under_test, sut_path)
+    executed_lines, exc = _trace_sut_lines(
+        test_code, module_under_test, sut_path, ignore_test_failures=ignore_test_failures
+    )
     if exc is not None and not executed_lines:
         return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")
 
     covered = executed_lines & total_executable
     pct = len(covered) / len(total_executable)
 
-    return CoverageResult(coverage_value=pct, metric="line")
+    return CoverageResult(coverage_value=pct, metric="line", line_coverage=pct)
+
+
+def _compute_suite_coverage_result(
+    trace: Any,
+    subject_properties: SubjectProperties,
+    coverage_metrics: set[config.CoverageMetric],
+) -> CoverageResult:
+    cov_values: list[float] = []
+    branch_cov: float | None = None
+    line_cov: float | None = None
+
+    if config.CoverageMetric.BRANCH in coverage_metrics:
+        branch_cov = compute_branch_coverage(trace, subject_properties)
+        cov_values.append(branch_cov)
+    if config.CoverageMetric.LINE in coverage_metrics:
+        line_cov = compute_line_coverage(trace, subject_properties)
+        cov_values.append(line_cov)
+
+    if not cov_values:
+        branch_cov = compute_branch_coverage(trace, subject_properties)
+        cov_values.append(branch_cov)
+
+    overall = statistics.mean(cov_values)
+    metric_name = (
+        "branch"
+        if config.CoverageMetric.BRANCH in coverage_metrics
+        and config.CoverageMetric.LINE not in coverage_metrics
+        else (
+            "line"
+            if config.CoverageMetric.LINE in coverage_metrics
+            and config.CoverageMetric.BRANCH not in coverage_metrics
+            else "mean"
+        )
+    )
+
+    return CoverageResult(
+        coverage_value=overall,
+        metric=metric_name,
+        branch_coverage=branch_cov,
+        line_coverage=line_cov,
+    )
+
+
+def _measure_suite_coverage_pynguin(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties,
+) -> CoverageResult:
+    """Measure coverage of an entire test suite using Pynguin's tracer."""
+    tracer = subject_properties.instrumentation_tracer
+    coverage_metrics = set(config.configuration.search_algorithm.coverage_metrics)
+
+    # Prepare a fresh trace (includes import trace)
+    tracer.init_trace()
+
+    scope: dict[str, Any] = {
+        "__builtins__": __builtins__,
+        module_under_test.__name__: module_under_test,
+        "pytest": pytest,
+    }
+
+    cleaned = textwrap.dedent(test_code.strip())
+    test_funcs = collect_test_functions(cleaned)
+    try:
+        compiled = compile(cleaned, "<test>", "exec")
+    except SyntaxError as e:
+        return CoverageResult(error=f"SyntaxError in test suite: {e}")
+
+    tracer.tracer._current_thread_identifier = (  # noqa: SLF001
+        threading.current_thread().ident
+    )
+    with tracer.temporarily_enable(), preserved_random_seed():
+        try:
+            with time_limit(resolve_timeout(None)):
+                exec(compiled, scope)  # noqa: S102
+        except BaseException as exc:
+            if isinstance(exc, KeyboardInterrupt):
+                raise
+            msg = f"Suite preamble raised {type(exc).__name__}: {exc}"
+            trace = tracer.get_trace()
+            if not trace.executed_code_objects and not trace.covered_line_ids:
+                return CoverageResult(error=msg)
+
+        for name, _is_xfail, _is_strict in test_funcs:
+            func = scope.get(name)
+            if callable(func):
+                _run_test_safely(func, scope)
+
+    trace = tracer.get_trace()
+    return _compute_suite_coverage_result(trace, subject_properties, coverage_metrics)
+
+
+def measure_suite_coverage(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties | None = None,
+) -> CoverageResult:
+    """Measure the coverage of a full test suite against the module under test.
+
+    Uses Pynguin's instrumentation infrastructure when ``subject_properties`` is
+    provided and valid, falling back to ``sys.settrace`` line coverage otherwise.
+
+    Args:
+        test_code: The complete test suite code (preamble + test functions).
+        module_under_test: The SUT module.
+        subject_properties: Optional SubjectProperties with instrumentation tracer.
+
+    Returns:
+        CoverageResult with the overall coverage value and per-metric details.
+    """
+    if subject_properties is not None and getattr(
+        subject_properties, "instrumentation_tracer", None
+    ):
+        res = _measure_suite_coverage_pynguin(test_code, module_under_test, subject_properties)
+        if res.error is None:
+            return res
+        _LOGGER.warning(
+            "Pynguin instrumentation coverage measurement failed: %s; falling back to settrace",
+            res.error,
+        )
+
+    return _measure_coverage_settrace(test_code, module_under_test, ignore_test_failures=True)
 
 
 # ---------------------------------------------------------------------------

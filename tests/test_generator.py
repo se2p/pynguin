@@ -197,6 +197,55 @@ def test__reset_cache_for_result():
                 test_case_result_mock.assert_called_once()
 
 
+def test__track_search_metrics_tracks_post_search_variables():
+    tc = MagicMock()
+    tc.get_assertions.return_value = [MagicMock(), MagicMock()]
+    chromosome = MagicMock(test_case=tc)
+    generation_result = MagicMock(test_case_chromosomes=[chromosome])
+    generation_result.get_coverage.return_value = 0.72
+
+    tracked = []
+    with (
+        mock.patch.object(gen.stat, "current_individual"),
+        mock.patch.object(
+            gen.stat, "track_output_variable", lambda var, val: tracked.append((var, val))
+        ),
+    ):
+        gen._track_search_metrics(MagicMock(), generation_result, [])
+
+    tracked_dict = dict(tracked)
+    assert tracked_dict[RuntimeVariable.PostSearchCoverage] == 0.72
+    assert tracked_dict[RuntimeVariable.PostSearchAssertions] == 2
+
+
+def test__track_pre_refinement_metrics_tracks_breakdowns_and_headline():
+    tc1 = MagicMock()
+    tc1.get_assertions.return_value = [MagicMock()]
+    tc2 = MagicMock()
+    tc2.get_assertions.return_value = [MagicMock(), MagicMock()]
+    chromosomes = [MagicMock(test_case=tc1), MagicMock(test_case=tc2)]
+    generation_result = MagicMock(test_case_chromosomes=chromosomes)
+    generation_result.get_coverage.return_value = 0.85
+
+    algorithm = MagicMock()
+    algorithm.test_suite_coverage_functions = []
+
+    tracked = []
+    with mock.patch.object(
+        gen.stat, "track_output_variable", lambda var, val: tracked.append((var, val))
+    ):
+        gen._track_pre_refinement_metrics(algorithm, generation_result)
+
+    tracked_dict = dict(tracked)
+    assert tracked_dict[RuntimeVariable.PostAssertionGenerationAssertions] == 3
+    assert tracked_dict[RuntimeVariable.PreRefinementAssertions] == 3
+    assert tracked_dict[RuntimeVariable.Assertions] == 3
+
+    assert tracked_dict[RuntimeVariable.PostAssertionGenerationCoverage] == 0.85
+    assert tracked_dict[RuntimeVariable.PreRefinementCoverage] == 0.85
+    assert tracked_dict[RuntimeVariable.Coverage] == 0.85
+
+
 def test__minimize_assertions():
     config.configuration.test_case_output.assertion_generation = (
         config.AssertionGenerator.CHECKED_MINIMIZING
