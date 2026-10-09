@@ -40,6 +40,7 @@ from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
 )
 from pynguin.refinement.sut_inspector import SUTInspector
+from pynguin.utils.naming import canonical_module_name
 from pynguin.utils.openai_key_resolver import get_model_name, require_api_key  # noqa: F401
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -99,6 +100,34 @@ def get_module_path() -> Path:
             return Path(source_file)
 
     return Path(config.configuration.project_path) / (config.configuration.module_name + ".py")
+
+
+def get_importable_module_path(module_path: Path | None = None) -> str:
+    """Returns the importable module path to display in prompts.
+
+    Ensures the path does not include an absolute import-root directory (e.g. /input)
+    so LLM prompts derive correct Python imports (e.g. 'from slugify.slugify import ...'
+    rather than 'from input.slugify.slugify import ...').
+
+    Args:
+        module_path: Optional filesystem path of the module. If omitted, uses ``get_module_path()``.
+
+    Returns:
+        The relative or canonical importable module path (e.g. 'slugify/slugify.py').
+    """
+    if module_path is None:
+        module_path = get_module_path()
+
+    if config.configuration.project_path:
+        project_root = Path(config.configuration.project_path).resolve()
+        with contextlib.suppress(ValueError):
+            rel = module_path.resolve().relative_to(project_root)
+            if rel.name == "__init__.py":
+                return f"{rel.parent}.py"
+            return str(rel)
+
+    canonical = canonical_module_name(config.configuration.module_name)
+    return f"{canonical.replace('.', '/')}.py"
 
 
 def _truncate_to_context_budget(source: str) -> str:
@@ -279,7 +308,7 @@ def _uncovered_targets_prompt(
     return UncoveredTargetsPrompt(
         list(gao_coverage_map.keys()),
         get_module_source_code(),
-        str(get_module_path()),
+        get_importable_module_path(),
         diagnostics=diagnostics,
         visibility_instructions=get_visibility_instructions(),
     )
@@ -609,7 +638,7 @@ class LLMAgent:  # noqa: PLR0904
 
         prompt = TestCaseGenerationPrompt(
             module_code,
-            str(module_path),
+            get_importable_module_path(module_path),
             dependencies=dependencies,
             usage_examples=usage_examples,
             visibility_instructions=get_visibility_instructions(),

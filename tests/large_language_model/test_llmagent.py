@@ -14,6 +14,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.large_language_model.llmagent import (
     LLMAgent,
+    get_importable_module_path,
     get_module_path,
     get_module_source_code,
     get_visibility_instructions,
@@ -162,6 +163,42 @@ def test_get_module_path_for_single_file(monkeypatch, tmp_path):
     path = get_module_path()
     assert path.name == "my_single_mod.py"
     assert path.exists()
+
+
+def test_get_importable_module_path_strips_project_root(monkeypatch, tmp_path):
+    pkg_dir = tmp_path / "slugify"
+    pkg_dir.mkdir()
+    mod_file = pkg_dir / "slugify.py"
+    mod_file.write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(config.configuration, "project_path", str(tmp_path))
+    monkeypatch.setattr(config.configuration, "module_name", "slugify.slugify")
+
+    assert get_importable_module_path(mod_file) == "slugify/slugify.py"
+    # Calling without explicit argument uses get_module_path()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    assert get_importable_module_path() == "slugify/slugify.py"
+
+
+def test_get_importable_module_path_for_package_init(monkeypatch, tmp_path):
+    pkg_dir = tmp_path / "mypkg"
+    pkg_dir.mkdir()
+    init_file = pkg_dir / "__init__.py"
+    init_file.write_text("", encoding="utf-8")
+    monkeypatch.setattr(config.configuration, "project_path", str(tmp_path))
+    monkeypatch.setattr(config.configuration, "module_name", "mypkg")
+
+    assert get_importable_module_path(init_file) == "mypkg.py"
+
+
+def test_get_importable_module_path_fallback_when_outside_project_path(monkeypatch, tmp_path):
+    other_dir = tmp_path / "other"
+    other_dir.mkdir()
+    other_file = other_dir / "mod.py"
+    other_file.write_text("", encoding="utf-8")
+    monkeypatch.setattr(config.configuration, "project_path", str(tmp_path / "proj"))
+    monkeypatch.setattr(config.configuration, "module_name", "mypkg.mod")
+
+    assert get_importable_module_path(other_file) == "mypkg/mod.py"
 
 
 def test_get_module_source_code_with_module_level_getattr(monkeypatch, tmp_path):
