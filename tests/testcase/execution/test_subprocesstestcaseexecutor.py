@@ -22,7 +22,7 @@ import pytest
 import pynguin.configuration as config
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer, SubjectProperties
+from pynguin.instrumentation.tracer import ExecutedAssertion, ExecutionTracer, SubjectProperties
 from pynguin.testcase.execution import (
     ModuleProvider,
     PatchRandomOnUnpickle,
@@ -325,21 +325,70 @@ def test_typeinfo_pickling_with_unpicklable_raw_type():
     assert loaded.raw_type is None
 
 
-def test_send_results_resets_unpicklable_fields():
-    class Unpicklable:
-        def __reduce__(self):
-            raise TypeError("Cannot pickle")
+class _Unpicklable:
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        raise TypeError("Cannot pickle")
 
-    result = ExecutionResult()
-    result.exceptions = {0: Unpicklable()}  # type: ignore[dict-item]
-    result.raw_return_types = {0: int}
+
+def _send_and_receive(
+    tracer: ExecutionTracer,
+    results: tuple[ExecutionResult, ...],
+    references_bindings: tuple[dict[int, str] | None, ...],
+) -> tuple[Any, ...]:
     receiving_connection, sending_connection = mp.Pipe(duplex=False)
-
     SubprocessTestCaseExecutor._send_results(
-        sending_connection, ExecutionTracer(), (result,), ({},)
+        sending_connection, tracer, results, references_bindings
+    )
+    received = receiving_connection.recv()
+    receiving_connection.close()
+    return received
+
+
+def test_send_results_replaces_unpicklable_result_by_timeout() -> None:
+    bad = ExecutionResult()
+    bad.exceptions = {0: _Unpicklable()}  # type: ignore[dict-item]
+    good = ExecutionResult()
+    good.exceptions = {0: ValueError("kept")}
+    good.raw_return_types = {0: int}
+
+    tracer, (received_bad, received_good), bindings, _ = _send_and_receive(
+        ExecutionTracer(), (bad, good), ({0: "a"}, {0: "b"})
     )
 
-    _, (received,), _, _ = receiving_connection.recv()
-    receiving_connection.close()
-    assert received.exceptions == {}
+    assert tracer is not None
+    assert received_bad.timeout
+    assert not received_good.timeout
+    assert str(received_good.exceptions[0]) == "kept"
+    assert received_good.raw_return_types == {0: int}
+    assert bindings == (None, {0: "b"})
+
+
+def test_send_results_drops_tracer_sharing_unpicklable_trace() -> None:
+    tracer = ExecutionTracer()
+    result = ExecutionResult()
+    result.execution_trace = tracer.get_trace()
+    result.execution_trace.executed_assertions.append(
+        ExecutedAssertion(0, _Unpicklable())  # type: ignore[arg-type]
+    )
+
+    received_tracer, (received,), bindings, _ = _send_and_receive(tracer, (result,), (None,))
+
+    assert received_tracer is None
+    assert received.timeout
+    assert bindings == (None,)
+
+
+def test_send_results_drops_unpicklable_reference_bindings() -> None:
+    result = ExecutionResult()
+    result.raw_return_types = {0: int}
+    bad_bindings = {0: _Unpicklable()}
+
+    _, (received,), bindings, _ = _send_and_receive(
+        ExecutionTracer(),
+        (result,),
+        (bad_bindings,),  # type: ignore[arg-type]
+    )
+
+    assert not received.timeout
     assert received.raw_return_types == {0: int}
+    assert bindings == (None,)
