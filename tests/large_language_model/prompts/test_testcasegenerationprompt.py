@@ -23,6 +23,7 @@ def test_testcasegenerationprompt_init():
         "dependencies",
         "usage_examples",
         "visibility_instructions",
+        "api_signatures",
     ]
 
 
@@ -39,6 +40,17 @@ def test_testcasegenerationprompt_build_prompt():
     assert "make_dataclass" in user_prompt
 
 
+def test_testcasegenerationprompt_renders_api_signatures_only_when_given():
+    without = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py").build_prompt()
+    with_api = TestCaseGenerationPrompt(
+        "def foo():\n    pass", "example/path.py", api_signatures="def foo()"
+    ).build_prompt()
+
+    assert "API of the module under test" not in without
+    assert "API of the module under test" in with_api
+    assert "```\ndef foo()\n```" in with_api
+
+
 def test_testcasegenerationprompt_render():
     prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
     rendered = prompt.render(
@@ -47,6 +59,7 @@ def test_testcasegenerationprompt_render():
         dependencies="",
         usage_examples="",
         visibility_instructions="",
+        api_signatures="",
     )
 
     assert isinstance(rendered, RenderedRequest)
@@ -72,6 +85,7 @@ def test_prompt_parameter_overrides(monkeypatch):
         dependencies="",
         usage_examples="",
         visibility_instructions="",
+        api_signatures="",
     )
     assert rendered.model == "gpt-4o-mini"
     assert rendered.temperature == 0.0

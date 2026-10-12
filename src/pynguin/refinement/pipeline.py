@@ -37,6 +37,7 @@ from pynguin.refinement.alignment import (
     flatten_unconditional,
     is_immutable_literal,
 )
+from pynguin.refinement.api_signatures import describe_module_api
 from pynguin.refinement.ast_analyzer import FocalMethodAnalyzer
 from pynguin.refinement.coverage_checker import check_coverage_preservation
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX, LLMClient
@@ -625,6 +626,18 @@ class TestRefiner:
         self.subject_properties = subject_properties
         self.current_dependencies = ""
         self.current_usage_examples = ""
+        self._api_signatures: str | None = None
+
+    @property
+    def api_signatures(self) -> str:
+        """The call signatures of the public API of the module under test (cached)."""
+        if self._api_signatures is None:
+            self._api_signatures = (
+                describe_module_api(self.module_under_test)
+                if self.module_under_test is not None
+                else ""
+            )
+        return self._api_signatures
 
     def structural_analysis(self, test_code: str):  # noqa: C901
         """Structural analysis of a test.
@@ -926,6 +939,7 @@ class TestRefiner:
             error_message=error_message,
             dependencies=self.current_dependencies,
             usage_examples=self.current_usage_examples,
+            api_signatures=self.api_signatures,
         )
         try:
             return self.llm_client.generate_from_prompt(prompt_obj)
@@ -988,7 +1002,8 @@ class TestRefiner:
         Used by the module-granularity refinement paths, which have no single focal
         method.  Falls back to ``"Documentation unavailable."`` when the source cannot
         be retrieved.  The context is truncated to ``max_context_chars`` to bound token
-        usage on large modules.
+        usage on large modules.  The call signatures of the module's public API are
+        appended, so rewritten calls keep matching the API.
 
         Returns:
             The (possibly truncated) SUT module source, or a fallback string.
@@ -1000,7 +1015,13 @@ class TestRefiner:
         max_chars = config.configuration.large_language_model.max_context_chars
         if max_chars and len(module_source) > max_chars:
             module_source = module_source[:max_chars]
-        return module_source or "Documentation unavailable."
+        if not module_source:
+            return "Documentation unavailable."
+        if self.api_signatures:
+            module_source += (
+                "\n\nAPI of the module under test (exact call signatures):\n" + self.api_signatures
+            )
+        return module_source
 
     def finish_refined_test(
         self,
@@ -1162,7 +1183,9 @@ class TestRefiner:
     ) -> str | None:
         """Gate 1 for one function: run it on the clean SUT.
 
-        A failing new test (*orig_src* is ``None``) is discarded; a strengthened
+        A failing new test (*orig_src* is ``None``) is discarded, unless it raised an
+        error other than an ``AssertionError`` (typically a call that does not match
+        the module's API) and one repair attempt makes it pass.  A strengthened
         existing test has its failing LLM assertions stripped.
 
         Returns:
@@ -1173,11 +1196,39 @@ class TestRefiner:
         if passed:
             return func_src
         if orig_src is None:
+            if _classify_error(msg) not in {"Assertion Error", "Timeout Error"}:
+                repaired = self._repair_new_test(preamble, func_src, msg)
+                if repaired is not None:
+                    return repaired
             _LOGGER.warning("Discarded new test because it failed on clean SUT: %s", msg)
             return None
         if "AssertionError" in msg:
             return self._strip_failing_assertions(preamble, func_src, orig_src, msg)
         return None
+
+    def _repair_new_test(self, preamble: str, func_src: str, error_msg: str) -> str | None:
+        """Ask the LLM once to repair a new strengthened test that raised an error.
+
+        The repair prompt carries the error and the API signatures of the module
+        under test, which fixes the common case of a call with a wrong signature.
+
+        Returns:
+            The repaired function source if it passes on the clean SUT, else ``None``.
+        """
+        name = _function_name(func_src)
+        code, _ = _with_preamble(preamble, func_src)
+        repaired = self.repair_test_code(code, error_msg)
+        if not repaired or repaired.startswith(LLM_ERROR_PREFIX):
+            return None
+        functions = _top_level_functions(repaired) or []
+        repaired_src = next((src for fn_name, src in functions if fn_name == name), None)
+        if repaired_src is None:
+            return None
+        passed, _ = run_test(_with_preamble(preamble, repaired_src)[0], self.module_under_test)
+        if not passed:
+            return None
+        _LOGGER.info("Repaired new test %s after it failed on the clean SUT", name)
+        return repaired_src
 
     def _validate_and_filter_strengthened_functions(
         self,
@@ -1302,6 +1353,7 @@ class TestRefiner:
                 module_code=state.module_source,
                 module_test_code=current_code,
                 surviving_mutants=_format_surviving_mutants(chunk),
+                api_signatures=self.api_signatures,
             )
         )
         if not strengthened or strengthened.startswith(LLM_ERROR_PREFIX):

@@ -35,6 +35,15 @@ user_message_template: |
   ```python
   {{ module_code }}
   ```
+  {% if api_signatures %}
+  ### API of the module under test
+  The exact call signatures of the module's public classes and functions. Call them
+  accordingly: pass every required argument, with values of the expected types, and never
+  instantiate a class marked ABSTRACT (use a concrete subclass instead).
+  ```
+  {{ api_signatures }}
+  ```
+  {% endif %}
   {% if dependencies %}
   ### Dependency Signatures
   Below are signatures and docstrings of dependencies and helper classes/functions referenced by the module under test:

@@ -44,7 +44,7 @@ robust and is the automatic **fallback**.
 
 ### Mutation strengthening granularity (`mutation_granularity`)
 
-- `full_module` (**default**): Detects surviving mutants across the whole suite, batches them (up to `max_mutants_per_prompt`, default 15), and prompts the LLM to strengthen existing tests or add new boundary tests using `ModuleMutationStrengthenPrompt`. Employs a 3-gate validation pipeline per chunk: clean SUT execution with assertion stripping (failing new tests are discarded; LLM-added imports are only kept if an accepted test uses them), mutant verification (the assembled module must pass on the clean SUT, keep every mutant it killed before and kill additional ones; added assertions and new tests that kill no surviving mutant are pruned), and a coverage preservation check. Test functions in a module are run one by one with pytest's `xfail` semantics (`validator.call_test_functions`), so an expected failure neither counts as a kill nor hides later tests; each test has its own time limit (`maximum_test_execution_timeout`). It runs on the sanitized suite (`_finalize_refined_suite`) and is skipped if that suite still fails on the clean SUT, since every mutant would then count as killed.
+- `full_module` (**default**): Detects surviving mutants across the whole suite, batches them (up to `max_mutants_per_prompt`, default 15), and prompts the LLM to strengthen existing tests or add new boundary tests using `ModuleMutationStrengthenPrompt`. Employs a 3-gate validation pipeline per chunk: clean SUT execution with assertion stripping (a new test failing with an error other than an `AssertionError` gets one LLM repair with the module's API signatures, otherwise failing new tests are discarded; LLM-added imports are only kept if an accepted test uses them), mutant verification (the assembled module must pass on the clean SUT, keep every mutant it killed before and kill additional ones; added assertions and new tests that kill no surviving mutant are pruned), and a coverage preservation check. Test functions in a module are run one by one with pytest's `xfail` semantics (`validator.call_test_functions`), so an expected failure neither counts as a kill nor hides later tests; each test has its own time limit (`maximum_test_execution_timeout`). It runs on the sanitized suite (`_finalize_refined_suite`) and is skipped if that suite still fails on the clean SUT, since every mutant would then count as killed.
 - `per_test`: Legacy loop prompting up to 10 surviving mutants per test function.
 
 ### Module path (`_process_module`)
@@ -79,6 +79,9 @@ or parse failure falls the entire module back to per-test.
 - `llm_client.py` — thin OpenAI wrapper; `generate_from_prompt`; `LLM_ERROR_PREFIX` sentinel.
 - `alignment.py` — aligns an original test with its refined version (renames, inlined
   literals); used to restore original assertions and by `AssertionTracker`.
+- `api_signatures.py` — `describe_module_api`: call signatures of the SUT's public API
+  (constructors without `self`, abstract classes with concrete subclasses), shown in the
+  test-generation, module-refinement, strengthening and repair prompts.
 - `mutation_analyzer.py`, `coverage_checker.py`, `validator.py`, `sut_inspector.py`,
   `ast_analyzer.py`, `aaa_inserter.py`, `readability_metrics.py` — supporting stages.
 

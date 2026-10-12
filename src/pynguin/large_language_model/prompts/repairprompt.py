@@ -27,6 +27,7 @@ class RepairPrompt(Prompt):
         error_message: str,
         dependencies: str = "",
         usage_examples: str = "",
+        api_signatures: str = "",
     ):
         """Creates a new prompt.
 
@@ -35,15 +36,24 @@ class RepairPrompt(Prompt):
             error_message: The error message/traceback.
             dependencies: Optional SUT dependency signatures.
             usage_examples: Optional call-site usage examples.
+            api_signatures: Optional call signatures of the module's public API
+                (see ``api_signatures.describe_module_api``).
         """
         self.broken_code = broken_code
         self.error_message = error_message
         self.dependencies = dependencies
         self.usage_examples = usage_examples
+        self.api_signatures = api_signatures
         super().__init__()
 
     def _template_vars(self) -> list[str]:
-        return ["broken_code", "error_message", "dependencies", "usage_examples"]
+        return [
+            "broken_code",
+            "error_message",
+            "dependencies",
+            "usage_examples",
+            "api_signatures",
+        ]
 
     def render_request(self) -> RenderedRequest:
         """Builds the rendered request.
@@ -56,4 +66,5 @@ class RepairPrompt(Prompt):
             error_message=self.error_message,
             dependencies=self.dependencies,
             usage_examples=self.usage_examples,
+            api_signatures=self.api_signatures,
         )

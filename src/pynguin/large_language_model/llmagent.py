@@ -39,6 +39,7 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
 from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
 )
+from pynguin.refinement.api_signatures import describe_module_api
 from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.utils.naming import canonical_module_name
 from pynguin.utils.openai_key_resolver import get_model_name, require_api_key  # noqa: F401
@@ -642,6 +643,7 @@ class LLMAgent:  # noqa: PLR0904
             dependencies=dependencies,
             usage_examples=usage_examples,
             visibility_instructions=get_visibility_instructions(),
+            api_signatures=describe_module_api(import_module(config.configuration.module_name)),
         )
         return self.query(prompt)
 

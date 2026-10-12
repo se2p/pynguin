@@ -6,6 +6,7 @@
 #
 
 import importlib
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -287,3 +288,24 @@ def test_test_case_generation_prompt_omits_visibility_section_when_all(monkeypat
         visibility_instructions=get_visibility_instructions(),
     )
     assert "Only call" not in prompt.build_prompt()
+
+
+def test_generate_tests_for_module_under_test_passes_api_signatures(monkeypatch):
+    monkeypatch.setattr(config.configuration, "module_name", "tests.fixtures.cluster.visibility")
+    monkeypatch.setattr(config.configuration.large_language_model, "model_name", "test-model")
+    monkeypatch.setattr(
+        "pynguin.large_language_model.client.require_api_key",
+        lambda: MagicMock(get_secret_value=MagicMock(return_value="test-api-key")),
+    )
+    monkeypatch.setattr("pynguin.large_language_model.llmagent.openai.OpenAI", MagicMock)
+    with patch.object(LLMAgent, "query", return_value="def test_x(): pass") as query:
+        LLMAgent().generate_tests_for_module_under_test()
+
+    prompt = query.call_args.args[0]
+    assert isinstance(prompt, TestCaseGenerationPrompt)
+    assert prompt.api_signatures.splitlines()[:3] == [
+        "def public_function(x: int) -> int",
+        "class PublicClass(value: int)",
+        "    public_method(self, x: int) -> int",
+    ]
+    assert "API of the module under test" in prompt.build_prompt()
