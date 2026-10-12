@@ -10,3 +10,8 @@ def compare_op_dummy(x, y):
         return 0
     else:
         return 1
+
+
+# Dummy method for testing a comparison inside an inlined comprehension
+def comprehension_compare_dummy(values, y):
+    return [x for x in values if x == y]

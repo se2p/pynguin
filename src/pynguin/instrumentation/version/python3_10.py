@@ -43,6 +43,7 @@ from pynguin.instrumentation.version.common import (
     after,
     before,
     extract_name,
+    is_jump_if,
     override,
 )
 
@@ -279,7 +280,7 @@ RETURN_NONE_SIZE: int = 2
 
 
 def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
-    return instruction.is_cond_jump() or instruction.name == "FOR_ITER"
+    return is_jump_if(instruction) or instruction.name == "FOR_ITER"
 
 
 def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
@@ -926,7 +927,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             )
             return
 
-        if not maybe_jump.is_cond_jump():
+        if not is_jump_if(maybe_jump):
             return
 
         self._wire_subscript_predicates(ast_info, cfg, code_object_id, node)
@@ -2000,7 +2001,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                 code_object_id,
                 node,
                 maybe_compare,
-                maybe_compare_index,
+                node.get_basic_block_index(maybe_compare_index),
             )
             return
 
@@ -2018,7 +2019,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                 code_object_id,
                 node,
                 maybe_string_func,
-                maybe_string_func_index,
+                node.get_basic_block_index(maybe_string_func_index),
             )
             return
 
@@ -2037,7 +2038,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                         code_object_id,
                         node,
                         maybe_string_func_with_arg,
-                        maybe_string_func_with_arg_index,
+                        node.get_basic_block_index(maybe_string_func_with_arg_index),
                     )
                 case "endswith":
                     self.visit_endswith_function(
@@ -2046,7 +2047,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                         code_object_id,
                         node,
                         maybe_string_func_with_arg,
-                        maybe_string_func_with_arg_index,
+                        node.get_basic_block_index(maybe_string_func_with_arg_index),
                     )
 
     def visit_compare_op(  # noqa: D102, PLR0917

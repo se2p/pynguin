@@ -120,6 +120,25 @@ class BasicBlockNode:
         """
         return tuple(instr for instr in self.instructions)[index]
 
+    def get_basic_block_index(self, index: int) -> int:
+        """Convert the index of an instruction into its index in the basic block.
+
+        Besides instructions, the basic block can contain markers such as ``TryBegin``
+        and ``TryEnd`` (e.g., for inlined comprehensions since Python 3.12), so an index
+        into ``instructions`` can point to a different element of ``basic_block``.
+
+        Args:
+            index: The index of the instruction, as used by ``try_get_instruction``
+
+        Returns:
+            The non-negative index of the instruction in the basic block
+        """
+        return tuple(
+            block_index
+            for block_index, instr in enumerate(self._basic_block)
+            if isinstance(instr, Instr)
+        )[index]
+
     def try_get_instruction(self, index: int) -> Instr | None:
         """Try to get the instruction at the given index.
 

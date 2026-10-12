@@ -1038,6 +1038,12 @@ RETURN_VALUE" -> "ArtificialNode(EXIT)";
 LOAD_FAST 'foo'
 POP_JUMP_IF_FALSE BasicBlockNode";
 }"""
+    if sys.version_info >= (3, 15):
+        # Python 3.15 loads the iterable with LOAD_FAST (GET_ITER now has an argument)
+        # and loads None with LOAD_COMMON_CONSTANT, the graph is the same as in 3.14.
+        expected = expected.replace(
+            "LOAD_FAST_BORROW 'foo'\nGET_ITER", "LOAD_FAST 'foo'\nGET_ITER 0"
+        ).replace("LOAD_CONST None", "LOAD_COMMON_CONSTANT <CommonConstant.CONSTANT_NONE: 7>")
     cfg = CFG.from_bytecode(
         add_for_loop_no_yield_nodes(Bytecode.from_code(control_flow_labelling.__code__))
     )

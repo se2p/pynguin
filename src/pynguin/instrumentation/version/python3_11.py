@@ -32,6 +32,7 @@ from pynguin.instrumentation.version.common import (
     InstrumentationSetupAction,
     InstrumentationStackValue,
     before,
+    is_jump_if,
 )
 from pynguin.instrumentation.version.python3_10 import (
     ACCESS_NAMES,
@@ -464,7 +465,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             )
             return
 
-        if not maybe_jump.is_cond_jump():
+        if not is_jump_if(maybe_jump):
             return
 
         self._wire_subscript_predicates(ast_info, cfg, code_object_id, node)

@@ -36,6 +36,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Topic :: Education :: Testing",
   "Topic :: Software Development :: Testing",
@@ -50,9 +51,13 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10, <3.15"
+python = ">=3.10, <3.16"
 black = "^25.1.0"
-bytecode = "0.17.0"
+bytecode = [
+  # bytecode 0.18 dropped Python 3.10, and Python 3.15 needs at least bytecode 0.19.
+  { version = "0.17.0", python = "<3.11" },
+  { version = "0.19.1", python = ">=3.11" },
+]
 dill = "^0.4.0"
 Jinja2 = "^3.1.6"
 networkx = "^3.4.2"
@@ -302,7 +307,7 @@ convention = "google"
 
 [tool.tox]
 requires = ["tox~=4.28"]
-env_list = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+env_list = ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
 
 [tool.tox.env_run_base]
 skip_install = true

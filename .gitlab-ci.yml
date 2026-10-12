@@ -66,6 +66,7 @@ unit-tests:
       - PYTHON_VERSION: "3.12-bookworm"
       - PYTHON_VERSION: "3.13-bookworm"
       - PYTHON_VERSION: "3.14-bookworm"
+      - PYTHON_VERSION: "3.15-rc-bookworm"  # TODO: switch to 3.15-bookworm once published
 
 combine-coverage:
   stage: test
@@ -124,6 +125,7 @@ nightly-tests:
       - PYTHON_VERSION: "3.12-bookworm"
       - PYTHON_VERSION: "3.13-bookworm"
       - PYTHON_VERSION: "3.14-bookworm"
+      - PYTHON_VERSION: "3.15-rc-bookworm"  # TODO: switch to 3.15-bookworm once published
 
 combine-nightly-coverage:
   only:

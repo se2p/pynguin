@@ -13,7 +13,12 @@ from unittest.mock import MagicMock
 import pytest
 from bytecode import Bytecode, Instr
 
-from pynguin.instrumentation.version import python3_10, python3_14, stack_effects
+from pynguin.instrumentation.version import (
+    end_with_explicit_return_none,
+    python3_10,
+    python3_14,
+    stack_effects,
+)
 from pynguin.instrumentation.version.common import (
     InstrumentationConstantLoad,
     InstrumentationMethodCall,
@@ -237,3 +242,26 @@ def test_is_subscr_instruction_with_enum():
     instr = _make_instr("BINARY_OP", DummyOp())
     assert not python3_10.BranchCoverageInstrumentation._is_subscr_instruction(instr)
     assert python3_14.BranchCoverageInstrumentation._is_subscr_instruction(instr)
+
+
+def _explicit_return_none(x):  # pragma: no cover
+    x += 1
+    return None  # noqa: PLR1711, RET501
+
+
+def _implicit_return_none(x):  # pragma: no cover
+    x += 1
+
+
+@pytest.mark.parametrize(
+    "function,expected",
+    [
+        pytest.param(_explicit_return_none, True, id="explicit"),
+        pytest.param(_implicit_return_none, False, id="implicit"),
+    ],
+)
+def test_end_with_explicit_return_none(function, expected):
+    instructions = [
+        instr for instr in Bytecode.from_code(function.__code__) if isinstance(instr, Instr)
+    ]
+    assert end_with_explicit_return_none(instructions) is expected

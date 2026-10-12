@@ -13,6 +13,7 @@ import subprocess  # noqa: S404
 import tempfile
 import types
 from pathlib import Path
+from typing import TypeVar
 
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.typesystem import Instance, ProperType, TypeSystem
@@ -23,6 +24,8 @@ from pynguin.assertion.mutation_analysis.operators.arithmetic import (
 from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer, create_module
 from pynguin.instrumentation.transformer import InstrumentationTransformer
+
+_AstNodeT = TypeVar("_AstNodeT", bound=ast.AST)
 
 
 def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
@@ -149,13 +152,23 @@ def assert_mutator_mutation(
     )
 
 
+def with_children(node: _AstNodeT, children: list[ast.AST]) -> _AstNodeT:
+    """Attach the ``children`` attribute used by the mutation strategies to an AST node.
+
+    Since Python 3.15, AST node constructors reject unknown keyword arguments, so the
+    attribute has to be set after construction.
+    """
+    node.children = children  # type: ignore[attr-defined]
+    return node
+
+
 def create_aor_mutation_on_substraction(node: ast.Sub | None = None) -> Mutation:
     if node is None:
-        node = ast.Sub(children=[])
+        node = with_children(ast.Sub(), [])
 
     return Mutation(
         node=node,
-        replacement_node=ast.Add(children=[]),
+        replacement_node=with_children(ast.Add(), []),
         operator=ArithmeticOperatorReplacement,
         visitor_name="mutate_Sub",
     )

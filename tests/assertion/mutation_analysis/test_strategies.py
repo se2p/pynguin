@@ -19,7 +19,7 @@ from pynguin.assertion.mutation_analysis.strategies import (
     RandomHOMStrategy,
 )
 from pynguin.utils.randomness import RNG
-from tests.testutils import create_aor_mutation_on_substraction
+from tests.testutils import create_aor_mutation_on_substraction, with_children
 
 
 def test_first_to_last_hom_strategy_generation():
@@ -42,7 +42,7 @@ def test_first_to_last_hom_strategy_generation():
 
 
 def test_first_to_last_hom_strategy_same_node():
-    node = ast.Sub(children=[])
+    node = with_children(ast.Sub(), [])
 
     mutations = [
         create_aor_mutation_on_substraction(node),
@@ -62,14 +62,14 @@ def test_first_to_last_hom_strategy_same_node():
 
 
 def test_first_to_last_hom_strategy_child_node_generation():
-    child_node = ast.Sub(children=[])
-    node = ast.UnaryOp(children=[child_node])
+    child_node = with_children(ast.Sub(), [])
+    node = with_children(ast.UnaryOp(op=ast.USub(), operand=ast.Constant(value=1)), [child_node])
 
     mutations = [
         create_aor_mutation_on_substraction(child_node),
         Mutation(
             node=node,
-            replacement_node=ast.Name(id="foo", children=[]),
+            replacement_node=with_children(ast.Name(id="foo"), []),
             operator=ArithmeticOperatorDeletion,
             visitor_name="mutate_UnaryOp",
         ),
@@ -129,8 +129,8 @@ def test_between_operators_hom_strategy_generation_if_two_operators():
         create_aor_mutation_on_substraction(),
         create_aor_mutation_on_substraction(),
         Mutation(
-            node=ast.Sub(children=[]),
-            replacement_node=ast.Add(children=[]),
+            node=with_children(ast.Sub(), []),
+            replacement_node=with_children(ast.Add(), []),
             operator=AssignmentOperatorReplacement,
             visitor_name="mutate_Sub",
         ),
@@ -153,14 +153,14 @@ def test_between_operators_hom_strategy_generation_if_three_operators():
         create_aor_mutation_on_substraction(),
         create_aor_mutation_on_substraction(),
         Mutation(
-            node=ast.Sub(children=[]),
-            replacement_node=ast.Add(children=[]),
+            node=with_children(ast.Sub(), []),
+            replacement_node=with_children(ast.Add(), []),
             operator=AssignmentOperatorReplacement,
             visitor_name="mutate_Sub",
         ),
         Mutation(
-            node=ast.Constant(value=1, children=[]),
-            replacement_node=ast.Constant(value=2, children=[]),
+            node=with_children(ast.Constant(value=1), []),
+            replacement_node=with_children(ast.Constant(value=2), []),
             operator=ConstantReplacement,
             visitor_name="mutate_Constant_num",
         ),

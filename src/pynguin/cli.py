@@ -12,11 +12,17 @@ line.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+# simple_parsing (up to at least 0.1.9) imports ``dataclasses._MISSING_TYPE``, which
+# Python 3.15 removed when ``dataclasses.MISSING`` became a builtin sentinel object.
+if not hasattr(dataclasses, "_MISSING_TYPE"):
+    dataclasses._MISSING_TYPE = type(dataclasses.MISSING)  # type: ignore[misc]  # noqa: SLF001
 
 import simple_parsing
 from rich.console import Console
