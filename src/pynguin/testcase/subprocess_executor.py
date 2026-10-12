@@ -577,13 +577,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     f"Unpicklable {field.name}, resetting it",
                     exception,
                 )
-                setattr(
-                    result,
-                    field.name,
-                    field.default_factory()  # type: ignore[misc]
-                    if field.default_factory is not dataclasses.MISSING
-                    else field.default,
-                )
+                setattr(result, field.name, getattr(ExecutionResult(), field.name))
 
     @staticmethod
     def _create_new_reference_bindings(
