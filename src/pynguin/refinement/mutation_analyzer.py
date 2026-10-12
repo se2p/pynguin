@@ -40,6 +40,7 @@ from pynguin.refinement.alignment import (
     align_statements,
     find_test_function,
     flatten_unconditional,
+    is_immutable_literal,
     normalise_expression,
 )
 from pynguin.refinement.coverage_checker import get_covered_lines
@@ -112,8 +113,8 @@ class AssertionTracker:
 
     A refined assertion counts as original if its text equals an original assertion,
     either as written or after renaming the original variables to their refined
-    counterparts and inlining the literal variables the refinement inlined.  Renames
-    and inlined literals come from aligning the unconditional statements of the test
+    counterparts and inlining the immutable literal variables the refinement inlined.
+    Renames and inlined literals come from aligning the unconditional statements of the test
     function (see :func:`~pynguin.refinement.alignment.align_statements`).  Callers
     pass one original and one refined test.  Every other assertion counts as
     inferred, which only means that the vacuous-assertion filter checks it.
@@ -163,13 +164,16 @@ class AssertionTracker:
         alignment = align_statements(
             flatten_unconditional(orig_func.body), flatten_unconditional(ref_func.body)
         )
+        # Like the restore of original assertions, inline only immutable literals: the
+        # SUT may mutate a list or dict, so its literal no longer equals the variable.
+        literal_map = {
+            name: node for name, node in alignment.literal_map.items() if is_immutable_literal(node)
+        }
         renamed: set[str] = set()
         for node in ast.walk(orig_func):
             if isinstance(node, ast.Assert):
                 try:
-                    renamed.add(
-                        normalise_expression(node.test, alignment.rename_map, alignment.literal_map)
-                    )
+                    renamed.add(normalise_expression(node.test, alignment.rename_map, literal_map))
                 except ValueError:
                     continue
         return renamed

@@ -107,6 +107,16 @@ def test_assertion_tracker_inlined_literal_not_inferred():
     assert AssertionTracker(original, refined).inferred_assertions == []
 
 
+def test_assertion_tracker_inlined_mutable_literal_is_inferred():
+    # The SUT may mutate the list, so the inlined literal is not the original check.
+    original = (
+        "def test_1():\n    list_0 = [1, 2]\n    var_0 = module_0.extend(list_0)\n"
+        "    assert var_0 == list_0\n"
+    )
+    refined = "def test_e():\n    result = module_0.extend([1, 2])\n    assert result == [1, 2]\n"
+    assert AssertionTracker(original, refined).inferred_assertions == ["result == [1, 2]"]
+
+
 def test_assertion_tracker_reassigned_variable_is_inferred():
     # Outside the rename rule: the refined test changed the value, so the
     # assertion is checked by the vacuous-assertion filter.
