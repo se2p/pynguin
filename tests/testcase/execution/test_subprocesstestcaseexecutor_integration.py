@@ -23,25 +23,32 @@ or are inherently flaky, exactly as before the migration to the libcst represent
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import importlib
 import inspect
-import types
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.assertion.mutation_analysis.transformer import create_module
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import ExecutedAssertion, SubjectProperties
 from pynguin.testcase.execution import SubprocessTestCaseExecutor, TestCaseExecutor
 from tests.testcase._builders import assign, make_test_case, stmt
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
+
+    from multiprocess.connection import Connection
+
+    from pynguin.instrumentation.tracer import ExecutionTracer
+    from pynguin.testcase.execution_result import ExecutionResult
 
 
 MODULE_ACCESSIBLE = "tests.fixtures.accessibles.accessible"
@@ -290,16 +297,17 @@ def test_results_returned_for_mutant_with_unpicklable_class(
 ) -> None:
     """The subprocess returns results even if the mutated module cannot be pickled.
 
-    A mutant is a second copy of the module under test, so its classes are not the
-    objects found under their qualified names and dill must pickle them by value, which
-    fails for ``Direction`` (as for ``pypara.accounting.journaling.Direction``).  The
-    subprocess must not send the module provider holding the mutant back.
+    A mutant is a second copy of the module under test that carries the package context
+    of the original, so dill pickles it by value.  Its classes are not the objects found
+    under their qualified names, which fails for ``Direction`` (as for
+    ``pypara.accounting.journaling.Direction``).  The subprocess must not send the module
+    provider holding the mutant back.
     """
     module_name = "tests.fixtures.mutation.recursive_enum"
     with _subprocess_executor_for(module_name, subject_properties) as executor:
         original = importlib.import_module(module_name)
-        mutant = types.ModuleType(module_name)
-        exec(inspect.getsource(original), mutant.__dict__)  # noqa: S102
+        # Built like ``MutationController.create_mutant`` builds mutants.
+        mutant = create_module(ast.parse(inspect.getsource(original)), module_name, original)
         executor.module_provider.add_mutated_version(module_name, mutant)
 
         result = executor.execute(make_test_case(stmt("direction = Direction.of(1)")))
@@ -307,3 +315,44 @@ def test_results_returned_for_mutant_with_unpicklable_class(
     assert not result.timeout
     assert not result.has_test_exceptions()
     assert executor.module_provider.get_module(module_name) is mutant
+
+
+class _Unpicklable:
+    def __reduce__(self) -> str | tuple[object, ...]:
+        raise TypeError("Cannot pickle")
+
+
+_send_results = SubprocessTestCaseExecutor._send_results
+
+
+def _send_unpicklable_results(
+    sending_connection: Connection,
+    tracer: ExecutionTracer,
+    results: tuple[ExecutionResult, ...],
+    new_references_bindings: tuple[dict[int, str] | None, ...],
+) -> None:
+    unpicklable = ExecutedAssertion(0, _Unpicklable())  # type: ignore[arg-type]
+    tracer.state["import_trace"].executed_assertions.append(unpicklable)
+    results[0].execution_trace.executed_assertions.append(unpicklable)
+    _send_results(sending_connection, tracer, results, new_references_bindings)
+
+
+def test_unpicklable_results_received_as_timeout(
+    subject_properties: SubjectProperties,
+) -> None:
+    """Results and a tracer the subprocess cannot pickle are replaced, not lost.
+
+    The main process receives a timeout for the unpicklable result and keeps its own
+    tracer state instead of the unpicklable tracer.
+    """
+    with (
+        _subprocess_executor_for(MODULE_ACCESSIBLE, subject_properties) as executor,
+        mock.patch.object(SubprocessTestCaseExecutor, "_send_results", _send_unpicklable_results),
+    ):
+        tracer = subject_properties.instrumentation_tracer.tracer
+        import_trace = tracer.state["import_trace"]
+        result = executor.execute(make_test_case(stmt("val = simple_function(2.0)")))
+        received_import_trace = tracer.state["import_trace"]
+
+    assert result.timeout
+    assert received_import_trace is import_trace
