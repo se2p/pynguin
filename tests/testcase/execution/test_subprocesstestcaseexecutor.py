@@ -16,12 +16,13 @@ import unittest.mock
 from typing import Any
 from unittest.mock import patch
 
+import multiprocess as mp
 import pytest
 
 import pynguin.configuration as config
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import ExecutionTracer, SubjectProperties
 from pynguin.testcase.execution import (
     ModuleProvider,
     PatchRandomOnUnpickle,
@@ -322,3 +323,23 @@ def test_typeinfo_pickling_with_unpicklable_raw_type():
     loaded = pickle.loads(dumped)  # noqa: S301
     assert loaded.full_name == info.full_name
     assert loaded.raw_type is None
+
+
+def test_send_results_resets_unpicklable_fields():
+    class Unpicklable:
+        def __reduce__(self):
+            raise TypeError("Cannot pickle")
+
+    result = ExecutionResult()
+    result.exceptions = {0: Unpicklable()}  # type: ignore[dict-item]
+    result.raw_return_types = {0: int}
+    receiving_connection, sending_connection = mp.Pipe(duplex=False)
+
+    SubprocessTestCaseExecutor._send_results(
+        sending_connection, ExecutionTracer(), (result,), ({},)
+    )
+
+    _, (received,), _, _ = receiving_connection.recv()
+    receiving_connection.close()
+    assert received.exceptions == {}
+    assert received.raw_return_types == {0: int}

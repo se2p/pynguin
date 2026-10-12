@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import inspect
+import types
 from typing import TYPE_CHECKING
 
 import pytest
@@ -278,3 +280,30 @@ def test_generate_partly_crashing_test_integration(tmp_path: Path) -> None:
     assert len(list(crash_path.iterdir())) >= 1
     crash_file = next(crash_path.iterdir())
     assert crash_file.is_file()
+
+
+# --------------------------------------------------------------------------- #
+# Mutated modules whose objects cannot be pickled by value
+# --------------------------------------------------------------------------- #
+def test_results_returned_for_mutant_with_unpicklable_class(
+    subject_properties: SubjectProperties,
+) -> None:
+    """The subprocess returns results even if the mutated module cannot be pickled.
+
+    A mutant is a second copy of the module under test, so its classes are not the
+    objects found under their qualified names and dill must pickle them by value, which
+    fails for ``Direction`` (as for ``pypara.accounting.journaling.Direction``).  The
+    subprocess must not send the module provider holding the mutant back.
+    """
+    module_name = "tests.fixtures.mutation.recursive_enum"
+    with _subprocess_executor_for(module_name, subject_properties) as executor:
+        original = importlib.import_module(module_name)
+        mutant = types.ModuleType(module_name)
+        exec(inspect.getsource(original), mutant.__dict__)  # noqa: S102
+        executor.module_provider.add_mutated_version(module_name, mutant)
+
+        result = executor.execute(make_test_case(stmt("direction = Direction.of(1)")))
+
+    assert not result.timeout
+    assert not result.has_test_exceptions()
+    assert executor.module_provider.get_module(module_name) is mutant

@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import dill  # noqa: S403
 import multiprocess as mp
 import multiprocess.connection as mp_conn
+from multiprocess.reduction import ForkingPickler
 
 import pynguin.assertion.assertion as ass
 import pynguin.utils.execution_recorder as ter
@@ -320,7 +321,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 with self._disable_tracing_while_unpickling():
                     return_value: tuple[
                         ExecutionTracer,
-                        ModuleProvider,
                         tuple[ExecutionResult, ...],
                         tuple[dict[int, str] | None, ...],
                         tuple[Any, ...],
@@ -334,7 +334,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             else:
                 (
                     new_tracer,
-                    new_module_provider,
                     results,
                     new_references_bindings,
                     random_state,
@@ -348,8 +347,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     context.process.kill()
 
                 randomness.RNG.setstate(random_state)
-
-                self._module_provider = new_module_provider
 
                 for result, reference_bindings, new_reference_bindings in zip(
                     results, context.references_bindings, new_references_bindings, strict=True
@@ -522,21 +519,71 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     for result, reference_bindings in zip(results, references_bindings, strict=True)
                 )
 
-                sending_connection.send((
+                SubprocessTestCaseExecutor._send_results(
+                    sending_connection,
                     subject_properties.instrumentation_tracer.tracer,
-                    module_provider,
                     results,
                     new_references_bindings,
-                    randomness.RNG.getstate(),
-                ))
-
-                sending_connection.close()
+                )
         except Exception as e:  # noqa: BLE001
             # Suppress all exceptions from the subprocess
             _LOGGER.warning(
                 "Suppressed exception in subprocess: %s",
                 e,
             )
+
+    @staticmethod
+    def _send_results(
+        sending_connection: mp_conn.Connection,
+        tracer: ExecutionTracer,
+        results: tuple[ExecutionResult, ...],
+        new_references_bindings: tuple[dict[int, str] | None, ...],
+    ) -> None:
+        """Send the results of the subprocess back to the main process.
+
+        ``_fix_result_for_pickle`` only removes the unpicklable objects it knows to look
+        for.  If the results still cannot be pickled, every field of a result that cannot
+        be pickled on its own is reset to its default value and pickling is retried, so
+        the main process gets partial results instead of none at all.
+
+        Args:
+            sending_connection: The connection to send the results through
+            tracer: The tracer of the subprocess
+            results: The execution results
+            new_references_bindings: The new reference bindings
+        """
+        payload = (tracer, results, new_references_bindings, randomness.RNG.getstate())
+        try:
+            data = ForkingPickler.dumps(payload)
+        except Exception as exception:  # noqa: BLE001
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to pickle results, dropping unpicklable fields",
+                exception,
+            )
+            for result in results:
+                SubprocessTestCaseExecutor._reset_unpicklable_fields(result)
+            data = ForkingPickler.dumps(payload)
+        sending_connection.send_bytes(data)
+        sending_connection.close()
+
+    @staticmethod
+    def _reset_unpicklable_fields(result: ExecutionResult) -> None:
+        for field in dataclasses.fields(result):
+            value = getattr(result, field.name)
+            try:
+                dill.dumps(value)
+            except Exception as exception:  # noqa: BLE001
+                SubprocessTestCaseExecutor._log_different_results(
+                    f"Unpicklable {field.name}, resetting it",
+                    exception,
+                )
+                setattr(
+                    result,
+                    field.name,
+                    field.default_factory()  # type: ignore[misc]
+                    if field.default_factory is not dataclasses.MISSING
+                    else field.default,
+                )
 
     @staticmethod
     def _create_new_reference_bindings(
