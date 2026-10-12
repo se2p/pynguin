@@ -62,7 +62,9 @@ def _island_task(island_id: int, tmp_path: Path) -> IslandTask:
     return IslandTask(island_id, configuration)
 
 
-def test_covered_goals_compare_equal_across_islands_sharing_the_orchestrator_setup(tmp_path):
+def test_covered_goals_compare_equal_across_islands_sharing_the_orchestrator_setup(
+    tmp_path,
+):
     for island_id in range(2):
         (tmp_path / str(island_id)).mkdir()
     tasks = [_island_task(island_id, tmp_path / str(island_id)) for island_id in range(2)]
@@ -122,7 +124,10 @@ def _built_island(configuration, migration_channel=None, llm_worker_channel=None
 
 
 def test_island_classes_no_longer_exist():
-    from pynguin.islands import llm_worker_algorithm, migration_algorithm  # noqa: PLC0415
+    from pynguin.islands import (  # noqa: PLC0415
+        llm_worker_algorithm,
+        migration_algorithm,
+    )
 
     assert not hasattr(migration_algorithm, "_IslandDynaMOSAAlgorithm")
     assert not hasattr(migration_algorithm, "IslandMigrationMixin")
@@ -152,7 +157,9 @@ def test_parallel_dynamosa_island_is_plain_dynamosa_with_migration(tmp_path):
     assert type(algorithm).generate_tests is DynaMOSAAlgorithm.generate_tests
 
 
-def test_island_without_channels_runs_the_configured_algorithm_without_extensions(tmp_path):
+def test_island_without_channels_runs_the_configured_algorithm_without_extensions(
+    tmp_path,
+):
     algorithm, migration_extension = _built_island(_island_task(0, tmp_path).configuration)
 
     assert type(algorithm) is DynaMOSAAlgorithm
@@ -246,7 +253,10 @@ def test_only_lldynamosa_subclasses_dynamosa_across_pynguin():
         for _name, cls in inspect.getmembers(module, inspect.isclass):
             if isinstance(cls, types.GenericAlias):
                 continue
-            if issubclass(cls, DynaMOSAAlgorithm) and cls is not DynaMOSAAlgorithm:
-                subclasses.add(cls)
+            try:
+                if issubclass(cls, DynaMOSAAlgorithm) and cls is not DynaMOSAAlgorithm:
+                    subclasses.add(cls)
+            except TypeError:
+                continue
 
     assert subclasses == {LLDynaMOSAAlgorithm}
