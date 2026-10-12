@@ -29,6 +29,12 @@ user_message_template: |
   **Usage Examples:**
   {{ usage_examples }}
   {% endif %}
+  {% if api_signatures %}
+  **API of the Module Under Test (exact call signatures):**
+  ```
+  {{ api_signatures }}
+  ```
+  {% endif %}
 
 
   **Your Task:**
@@ -37,6 +43,7 @@ user_message_template: |
   2. **Import Errors:** Add missing imports (e.g., `import pytest`, `from module import ...`)
   3. **Name Errors:** Fix undefined variables or incorrect variable names
   4. **Assertion Errors:** Replace vacuous assertions (e.g., `pytest.fail()`) with meaningful checks
+  5. **Call Errors:** Call constructors and functions exactly as their signatures require (all required arguments, of the expected types); never instantiate an abstract class, use a concrete subclass instead
 
   **Requirements:**
   - Output ONLY the corrected Python test function code

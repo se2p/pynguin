@@ -19,6 +19,13 @@ user_message_template: |
   {{ module_code }}
   ```
 
+  {% if api_signatures %}
+  **API of the Module Under Test (exact call signatures):**
+  ```
+  {{ api_signatures }}
+  ```
+
+  {% endif %}
   **Current Test Module (all test functions):**
   ```python
   {{ module_test_code }}
@@ -42,6 +49,8 @@ user_message_template: |
   3. **Add Boundary / Edge Tests (When Needed):**
      - If a surviving mutant affects a branch, fallback, or boundary condition that no existing test exercises (e.g. empty list/dict, zero, None, boundary values), write a new, concise test function starting with `test_` targeting that specific input state.
      - Ensure any new test function uses valid inputs and calls, and asserts expected behavior on the clean module.
+     - Call constructors and functions exactly as their signatures require: pass every required argument, with values of the expected types. Never instantiate an abstract class; use one of its concrete subclasses, or reuse an object an existing test already builds.
+     - Only use attributes and methods the module actually defines.
 
   4. **Preserve Coverage & Existing Behavior:**
      - Do NOT delete or weaken any existing tests.

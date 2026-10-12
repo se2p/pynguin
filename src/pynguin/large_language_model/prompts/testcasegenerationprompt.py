@@ -19,9 +19,11 @@ class TestCaseGenerationPrompt(Prompt):
         self,
         module_code: str,
         module_path: str,
+        *,
         dependencies: str = "",
         usage_examples: str = "",
         visibility_instructions: str = "",
+        api_signatures: str = "",
     ):
         """Creates a new prompt.
 
@@ -33,12 +35,15 @@ class TestCaseGenerationPrompt(Prompt):
             visibility_instructions: Optional prose describing which members of
                 the module the generated tests may call (see
                 ``llmagent.get_visibility_instructions``).
+            api_signatures: Optional call signatures of the module's public API
+                (see ``api_signatures.describe_module_api``).
         """
         self.module_code = module_code
         self.module_path = module_path
         self.dependencies = dependencies
         self.usage_examples = usage_examples
         self.visibility_instructions = visibility_instructions
+        self.api_signatures = api_signatures
         super().__init__()
 
     def _template_vars(self) -> list[str]:
@@ -48,6 +53,7 @@ class TestCaseGenerationPrompt(Prompt):
             "dependencies",
             "usage_examples",
             "visibility_instructions",
+            "api_signatures",
         ]
 
     def render_request(self) -> RenderedRequest:
@@ -62,4 +68,5 @@ class TestCaseGenerationPrompt(Prompt):
             dependencies=self.dependencies,
             usage_examples=self.usage_examples,
             visibility_instructions=self.visibility_instructions,
+            api_signatures=self.api_signatures,
         )

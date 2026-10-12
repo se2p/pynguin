@@ -17,6 +17,7 @@ import pytest
 
 import pynguin.configuration as config
 from pynguin.configuration import MutationStrengtheningGranularity
+from pynguin.large_language_model.prompts import RepairPrompt
 from pynguin.large_language_model.prompts.modulemutationstrengthenprompt import (
     ModuleMutationStrengthenPrompt,
 )
@@ -341,3 +342,67 @@ def test_refine_generated_tests_dispatches_full_module_strengthening(tmp_path, m
         # Strengthening runs on the sanitized suite.
         assert mock_strengthen_mod.call_args.kwargs["refined_tests"][-1] == "# sanitized"
         assert stats["tests_refined"] == 1
+
+
+_WRONG_CALL_TEST = "def test_fallback_empty():\n    assert module_0.fallback() == [0]\n"
+_FIXED_CALL_TEST = "def test_fallback_empty():\n    assert module_0.fallback([]) == [0]"
+
+
+def test_strengthen_module_mutations_repairs_new_test_with_wrong_signature(refiner):
+    refiner.llm_client.generate_from_prompt.side_effect = [
+        _PREAMBLE + _EXISTING_TEST + "\n\n" + _WRONG_CALL_TEST,
+        _PREAMBLE + _FIXED_CALL_TEST + "\n",
+    ]
+
+    _, tests, stats = refiner.strengthen_module_mutations(
+        _PREAMBLE, [_EXISTING_TEST], max_iterations=1
+    )
+
+    assert tests == [_EXISTING_TEST, _FIXED_CALL_TEST]
+    assert stats["mutants_killed_total"] > 0
+    strengthen_prompt, repair_prompt = (
+        call.args[0] for call in refiner.llm_client.generate_from_prompt.call_args_list
+    )
+    assert "def fallback(values)" in strengthen_prompt.api_signatures
+    assert isinstance(repair_prompt, RepairPrompt)
+    assert "missing 1 required positional argument" in repair_prompt.error_message
+    assert repair_prompt.api_signatures == strengthen_prompt.api_signatures
+
+
+@pytest.mark.parametrize(
+    "repair_response",
+    [
+        pytest.param(_PREAMBLE + _WRONG_CALL_TEST, id="still-failing"),
+        pytest.param(_PREAMBLE + "def test_other():\n    assert True\n", id="renamed"),
+        pytest.param("# LLM error: request failed", id="llm-error"),
+    ],
+)
+def test_gate1_discards_new_test_whose_repair_fails(refiner, repair_response):
+    refiner.llm_client.generate_from_prompt.return_value = repair_response
+
+    _, tests = refiner._validate_and_filter_strengthened_functions(
+        _PREAMBLE + _EXISTING_TEST + "\n\n" + _WRONG_CALL_TEST, _PREAMBLE, [_EXISTING_TEST]
+    )
+
+    assert tests == [_EXISTING_TEST]
+    refiner.llm_client.generate_from_prompt.assert_called_once()
+
+
+def test_gate1_does_not_repair_new_test_failing_an_assertion(refiner):
+    _, tests = refiner._validate_and_filter_strengthened_functions(
+        _PREAMBLE + _EXISTING_TEST + "\n\ndef test_wrong():\n    assert module_0.inc(0) == 9\n",
+        _PREAMBLE,
+        [_EXISTING_TEST],
+    )
+
+    assert tests == [_EXISTING_TEST]
+    refiner.llm_client.generate_from_prompt.assert_not_called()
+
+
+def test_build_module_sut_context_appends_api_signatures(refiner):
+    context = refiner.build_module_sut_context()
+
+    assert context.startswith(_SUT_SOURCE)
+    assert context.endswith(
+        "API of the module under test (exact call signatures):\ndef inc(x)\ndef fallback(values)"
+    )

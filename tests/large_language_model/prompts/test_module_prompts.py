@@ -72,8 +72,14 @@ def test_module_mutation_strengthen_prompt_render():
         module_code=sut_code,
         module_test_code=test_code,
         surviving_mutants=mutants,
+        api_signatures="def f(x)",
     )
-    assert prompt._template_vars() == ["module_code", "module_test_code", "surviving_mutants"]
+    assert prompt._template_vars() == [
+        "module_code",
+        "module_test_code",
+        "surviving_mutants",
+        "api_signatures",
+    ]
 
     request = prompt.render_request()
     assert request.messages[0]["role"] == "system"
@@ -83,6 +89,7 @@ def test_module_mutation_strengthen_prompt_render():
     assert sut_code in user_content
     assert test_code in user_content
     assert mutants in user_content
+    assert "```\ndef f(x)\n```" in user_content
     assert "module_0." in user_content
     assert request.temperature == 0.0
     assert request.max_tokens is None

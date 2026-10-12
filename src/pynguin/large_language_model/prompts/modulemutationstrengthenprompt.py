@@ -26,6 +26,7 @@ class ModuleMutationStrengthenPrompt(Prompt):
         module_code: str,
         module_test_code: str,
         surviving_mutants: str,
+        api_signatures: str = "",
     ):
         """Creates a new prompt.
 
@@ -33,14 +34,17 @@ class ModuleMutationStrengthenPrompt(Prompt):
             module_code: The source code of the module under test.
             module_test_code: The whole test module (imports + all test functions).
             surviving_mutants: Formatted list of surviving mutants.
+            api_signatures: Call signatures of the module's public API (see
+                ``api_signatures.describe_module_api``).
         """
         self.module_code = module_code
         self.module_test_code = module_test_code
         self.surviving_mutants = surviving_mutants
+        self.api_signatures = api_signatures
         super().__init__()
 
     def _template_vars(self) -> list[str]:
-        return ["module_code", "module_test_code", "surviving_mutants"]
+        return ["module_code", "module_test_code", "surviving_mutants", "api_signatures"]
 
     def render_request(self) -> RenderedRequest:
         """Builds the rendered request.
@@ -52,4 +56,5 @@ class ModuleMutationStrengthenPrompt(Prompt):
             module_code=self.module_code,
             module_test_code=self.module_test_code,
             surviving_mutants=self.surviving_mutants,
+            api_signatures=self.api_signatures,
         )
