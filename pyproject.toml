@@ -54,9 +54,9 @@ include = [
 python = ">=3.10, <3.16"
 black = "^25.1.0"
 bytecode = [
-  # bytecode 0.18 dropped Python 3.10, and Python 3.15 needs at least bytecode 0.19.
-  { version = "0.17.0", python = "<3.11" },
-  { version = "0.19.1", python = ">=3.11" },
+  # Python 3.15 needs at least bytecode 0.19, which no longer supports Python 3.10.
+  { version = "0.17.0", python = "<3.15" },
+  { version = "0.19.1", python = ">=3.15" },
 ]
 dill = "^0.4.0"
 Jinja2 = "^3.1.6"

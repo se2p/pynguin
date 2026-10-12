@@ -13,18 +13,10 @@
 from __future__ import annotations
 
 from opcode import opname
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
-from pynguin.instrumentation import StackEffects, tracer
-from pynguin.instrumentation.version import python3_12, python3_14
-from pynguin.instrumentation.version.common import (
-    CheckedCoverageInstrumentationVisitorMethod,
-    InstrumentationConstantLoad,
-    InstrumentationMethodCall,
-    InstrumentationSetupAction,
-    InstrumentationStackValue,
-    after,
-)
+from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation.version import python3_14
 from pynguin.instrumentation.version.python3_14 import (
     ACCESS_NAMES,
     CALL_NAMES,
@@ -57,9 +49,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from bytecode.instr import Instr
-
-    from pynguin.instrumentation import controlflow as cf
-    from pynguin.instrumentation import transformer
 
 
 __all__ = [
@@ -163,44 +152,8 @@ def extract_import_name(arg: object) -> object:
 class CheckedCoverageInstrumentation(python3_14.CheckedCoverageInstrumentation):
     """Specialized instrumentation adapter for checked coverage in Python 3.15."""
 
-    def visit_import_name_access(  # noqa: D102, PLR0917
-        self,
-        ast_info: transformer.AstInfo | None,
-        cfg: cf.CFG,
-        code_object_id: int,
-        node: cf.BasicBlockNode,
-        instr: Instr,
-        instr_index: int,
-        instr_original_index: int,
-    ) -> None:
-        node.basic_block[after(instr_index)] = self.instructions_generator.generate_instructions(
-            InstrumentationSetupAction.COPY_FIRST,
-            InstrumentationMethodCall(
-                self._subject_properties.instrumentation_tracer,
-                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                (
-                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
-                    InstrumentationConstantLoad(value=code_object_id),
-                    InstrumentationConstantLoad(value=node.index),
-                    InstrumentationConstantLoad(value=instr.opcode),
-                    InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_original_index),
-                    InstrumentationConstantLoad(value=extract_import_name(instr.arg)),  # type: ignore[arg-type]
-                    InstrumentationStackValue.FIRST,
-                ),
-            ),
-            instr.lineno,
-        )
-
-    METHODS: ClassVar[
-        dict[
-            tuple[str, ...],
-            CheckedCoverageInstrumentationVisitorMethod,
-        ]
-    ] = {
-        **python3_14.CheckedCoverageInstrumentation.METHODS,
-        python3_12.IMPORT_NAME_NAMES: visit_import_name_access,
-    }
+    def import_name_argument(self, instr: Instr) -> object:  # noqa: D102
+        return extract_import_name(instr.arg)
 
 
 class BranchCoverageInstrumentation(python3_14.BranchCoverageInstrumentation):

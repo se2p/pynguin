@@ -604,6 +604,27 @@ def test_checked_coverage_import_name(subject_properties: SubjectProperties):
     assert import_instructions[0].argument == "json.decoder"
 
 
+def _comprehension_compare(values, y):
+    return [value for value in values if value == y]
+
+
+def test_checked_coverage_comprehension(subject_properties: SubjectProperties):
+    # Since Python 3.12, comprehensions are inlined and their basic blocks contain
+    # TryBegin/TryEnd markers, which must not shift where the instrumentation is placed.
+    adapter = CheckedCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
+    instrument_function(transformer, _comprehension_compare)
+
+    with subject_properties.instrumentation_tracer:
+        assert _comprehension_compare(["abc", "def"], "def") == ["def"]
+
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    compare_instructions = [
+        instr for instr in trace.executed_instructions if instr.opcode == opmap["COMPARE_OP"]
+    ]
+    assert len(compare_instructions) == 2
+
+
 @pytest.mark.parametrize(
     "op",
     [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],

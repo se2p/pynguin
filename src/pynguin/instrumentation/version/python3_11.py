@@ -435,11 +435,12 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        maybe_jump_index = JUMP_OP_POS
-        maybe_jump = node.try_get_instruction(maybe_jump_index)
+        maybe_jump_with_index = node.try_get_instruction_with_index(JUMP_OP_POS)
 
-        if maybe_jump is None:
+        if maybe_jump_with_index is None:
             return
+
+        maybe_jump_index, maybe_jump = maybe_jump_with_index
 
         if (
             ast_info is not None
@@ -638,19 +639,14 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
 
         # We want to place the instrumentation instructions before the PRECALL and KW_NAMES
         # instructions, if they are present, otherwise it may cause issues.
-        precall_instr = node.try_get_instruction(instr_index - 1)
-        assert precall_instr is not None, (
-            f"A Instruction should exist at index {instr_index - 1} in {node.basic_block}"
-        )
-        if precall_instr.name == "PRECALL":
-            instr_index -= 1
-
-        kw_names_instr = node.try_get_instruction(instr_index - 1)
-        assert kw_names_instr is not None, (
-            f"Instruction should exist at index {instr_index - 1} in {node.basic_block}"
-        )
-        if kw_names_instr.name == "KW_NAMES":
-            instr_index -= 1
+        for previous_name in ("PRECALL", "KW_NAMES"):
+            previous = node.try_get_previous_instruction(instr_index)
+            assert previous is not None, (
+                f"An instruction should exist before index {instr_index} in {node.basic_block}"
+            )
+            previous_index, previous_instr = previous
+            if previous_instr.name == previous_name:
+                instr_index = previous_index
 
         # Instrumentation before the original instruction
         node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
