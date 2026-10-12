@@ -9,7 +9,7 @@
 # ruff: noqa: E501, ERA001
 import sys
 
-from bytecode.instr import BinaryOp, TryEnd
+from bytecode.instr import BinaryOp, CommonConstant, TryEnd
 
 from tests.slicer.util import (
     TracedInstr,
@@ -85,6 +85,14 @@ else:
         )
 
 
+if sys.version_info >= (3, 15):
+    # Python 3.15 loads None with LOAD_COMMON_CONSTANT instead of LOAD_CONST.
+    return_none = (
+        TracedInstr("LOAD_COMMON_CONSTANT", arg=CommonConstant.CONSTANT_NONE),
+        TracedInstr("RETURN_VALUE"),
+    )
+
+
 def test_data_dependency_composite():
     # Composite type dependencies, which are way too broad
     def func():
@@ -145,16 +153,14 @@ def test_dunder_definition():
             TracedInstr("MAKE_FUNCTION"),
             TracedInstr("LOAD_CONST", arg="NestedClass"),
             TracedInstr("CALL", arg=2),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
+            *return_none,
         )
         call_nested_class = (
             TracedInstr(load_fast, arg="NestedClass"),
             TracedInstr("PUSH_NULL"),
             TracedInstr("CALL", arg=0),
             # MISSING: __init__ method call
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
+            *return_none,
         )
     elif sys.version_info >= (3, 13):
         create_nested_class = (

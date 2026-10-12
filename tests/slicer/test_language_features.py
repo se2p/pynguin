@@ -11,7 +11,7 @@
 import sys
 from unittest.mock import MagicMock
 
-from bytecode.instr import BinaryOp, CellVar, Compare, FreeVar
+from bytecode.instr import BinaryOp, CellVar, CommonConstant, Compare, FreeVar
 
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from tests.slicer.util import (
@@ -74,6 +74,18 @@ else:
     load_const = "LOAD_CONST"
     load_fast = "LOAD_FAST"
     load_fast_load_fast = "LOAD_FAST_LOAD_FAST"
+
+
+if sys.version_info >= (3, 15):
+    # Python 3.15 loads None with LOAD_COMMON_CONSTANT instead of LOAD_CONST.
+    return_none = (
+        TracedInstr("LOAD_COMMON_CONSTANT", arg=CommonConstant.CONSTANT_NONE),
+        TracedInstr("RETURN_VALUE"),
+    )
+    # GET_ITER has an argument since Python 3.15.
+    get_iter = TracedInstr("GET_ITER", arg=0)
+else:
+    get_iter = TracedInstr("GET_ITER")
 
 
 def test_simple_loop():
@@ -140,7 +152,7 @@ def test_simple_loop():
         TracedInstr("STORE_FAST", arg="result"),
         # for i in range(0, 3):
         *range_call,
-        TracedInstr("GET_ITER"),
+        get_iter,
         TracedInstr(
             "FOR_ITER",
             # the first instruction of the return block
@@ -357,7 +369,7 @@ def test_call_with_arguments():
     assert_slice_equal(sliced_instructions, expected_instructions)
 
 
-def test_generators():  # noqa: PLR0915
+def test_generators():  # noqa: PLR0914, PLR0915
     # YIELD_VALUE and YIELD_FROM
     if sys.version_info >= (3, 13):
         create_abc_generator = (
@@ -546,6 +558,22 @@ def test_generators():  # noqa: PLR0915
             TracedInstr("LOAD_FAST", arg="letter"),
         )
 
+    if sys.version_info >= (3, 15):
+        # "yield from" uses GET_ITER instead of GET_YIELD_FROM_ITER, and the None sent to
+        # the sub-generator is loaded with LOAD_COMMON_CONSTANT.
+        get_yield_from_iter = TracedInstr("GET_ITER", arg=3)
+        load_empty_str = TracedInstr("LOAD_COMMON_CONSTANT", arg=CommonConstant.CONSTANT_EMPTY_STR)
+        # The iterable of a for loop is no longer loaded with LOAD_FAST_BORROW.
+        load_iterable = "LOAD_FAST"
+        send = (
+            TracedInstr("LOAD_COMMON_CONSTANT", arg=CommonConstant.CONSTANT_NONE),
+            *send[1:],
+        )
+    else:
+        get_yield_from_iter = TracedInstr("GET_YIELD_FROM_ITER")
+        load_empty_str = TracedInstr("LOAD_CONST", arg="")
+        load_iterable = load_fast
+
     expected_instructions = [
         # def abc_generator():
         *create_abc_generator,
@@ -557,11 +585,11 @@ def test_generators():  # noqa: PLR0915
         *call_abc_xyz_generator,
         TracedInstr("STORE_FAST", arg="generator"),
         # result = ""
-        TracedInstr("LOAD_CONST", arg=""),
+        load_empty_str,
         TracedInstr("STORE_FAST", arg="result"),
         # for ... in generator:
-        TracedInstr(load_fast, arg="generator"),
-        TracedInstr("GET_ITER"),
+        TracedInstr(load_iterable, arg="generator"),
+        get_iter,
         TracedInstr(
             "FOR_ITER",
             # the first instruction of the return block
@@ -572,7 +600,7 @@ def test_generators():  # noqa: PLR0915
         TracedInstr("STORE_FAST", arg="x"),
         # yield from abc_generator()
         *call_abc_generator,
-        TracedInstr("GET_YIELD_FROM_ITER"),
+        get_yield_from_iter,
         *yield_from,
         # a = "a"
         TracedInstr("LOAD_CONST", arg="a"),

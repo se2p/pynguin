@@ -6,6 +6,7 @@
 #
 import importlib
 import itertools
+import sys
 from logging import Logger
 from typing import Union, cast
 from unittest.mock import MagicMock, patch
@@ -368,7 +369,10 @@ def test_nothing_from_blacklist():
 
 def test_blacklist_is_valid():
     # Naive test without assert, checks if the module names are valid.
-    allowed_to_fail = ("six",)
+    allowed_to_fail: tuple[str, ...] = ("six",)
+    if sys.version_info >= (3, 15):
+        # The deprecated sre_* aliases of the re module were removed in Python 3.15.
+        allowed_to_fail += ("sre_compile", "sre_parse")
     for item in MODULE_BLACKLIST:
         if item in allowed_to_fail:
             # We have modules in our blacklist that are not a dependency of Pynguin,

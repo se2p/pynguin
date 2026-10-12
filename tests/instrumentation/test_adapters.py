@@ -580,6 +580,51 @@ def test_calculation_checked_coverage_instrumentation(
         assert expected_instr.instr_original_index == actual_instr.instr_original_index
 
 
+def _import_json_decoder():
+    import json.decoder  # noqa: PLC0415
+
+    return json.decoder
+
+
+def test_checked_coverage_import_name(subject_properties: SubjectProperties):
+    # Since Python 3.15, the argument of IMPORT_NAME also holds the lazy/eager flags.
+    adapter = CheckedCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
+    instrument_function(transformer, _import_json_decoder)
+
+    with subject_properties.instrumentation_tracer:
+        assert _import_json_decoder().__name__ == "json.decoder"
+
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    import_instructions = [
+        instr for instr in trace.executed_instructions if instr.opcode == opmap["IMPORT_NAME"]
+    ]
+    assert len(import_instructions) == 1
+    assert isinstance(import_instructions[0], ExecutedMemoryInstruction)
+    assert import_instructions[0].argument == "json.decoder"
+
+
+def _comprehension_compare(values, y):
+    return [value for value in values if value == y]
+
+
+def test_checked_coverage_comprehension(subject_properties: SubjectProperties):
+    # Since Python 3.12, comprehensions are inlined and their basic blocks contain
+    # TryBegin/TryEnd markers, which must not shift where the instrumentation is placed.
+    adapter = CheckedCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
+    instrument_function(transformer, _comprehension_compare)
+
+    with subject_properties.instrumentation_tracer:
+        assert _comprehension_compare(["abc", "def"], "def") == ["def"]
+
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    compare_instructions = [
+        instr for instr in trace.executed_instructions if instr.opcode == opmap["COMPARE_OP"]
+    ]
+    assert len(compare_instructions) == 2
+
+
 @pytest.mark.parametrize(
     "op",
     [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],
@@ -965,6 +1010,17 @@ def test_compare_op_string(dynamic_instr, dummy_module):
     res = dummy_module.compare_op_dummy("abc", "def")
 
     assert res == 1
+    assert dynamic.get_all_constants_for(str) == OrderedSet(["def", "abc"])
+
+
+def test_compare_op_in_comprehension(dynamic_instr, dummy_module):
+    # Since Python 3.12, comprehensions are inlined and their basic blocks contain
+    # TryBegin/TryEnd markers, which must not shift where the operands are recorded.
+    dynamic, instr = dynamic_instr
+    instrument_function(instr, dummy_module.comprehension_compare_dummy)
+    res = dummy_module.comprehension_compare_dummy(["abc"], "def")
+
+    assert res == []
     assert dynamic.get_all_constants_for(str) == OrderedSet(["def", "abc"])
 
 

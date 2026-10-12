@@ -135,7 +135,7 @@ clean_build:
 .PHONY: clean
 clean: clean_build clean_docker
 
-PYVERSIONS = 3.10 3.11 3.12 3.13 3.14
+PYVERSIONS = 3.10 3.11 3.12 3.13 3.14 3.15
 
 .PHONY: setup-envs
 setup-envs:
@@ -154,7 +154,7 @@ define activate_template
 	@bash --rcfile <(echo "source .venv-$(1)/bin/activate") -i
 endef
 
-.PHONY: py310 py311 py312 py313 py314
+.PHONY: py310 py311 py312 py313 py314 py315
 py310:
 	$(call activate_template,3.10)
 
@@ -170,12 +170,15 @@ py313:
 py314:
 	$(call activate_template,3.14)
 
+py315:
+	$(call activate_template,3.15)
+
 define test_template
 	@echo "Running tests in .venv-$(1)..."
 	@bash -c 'source .venv-$(1)/bin/activate && pytest'
 endef
 
-.PHONY: py310-test py311-test py312-test py313-test py314-test
+.PHONY: py310-test py311-test py312-test py313-test py314-test py315-test
 py310-test:
 	$(call test_template,3.10)
 
@@ -190,3 +193,6 @@ py313-test:
 
 py314-test:
 	$(call test_template,3.14)
+
+py315-test:
+	$(call test_template,3.15)

@@ -9,7 +9,7 @@
 # ruff: noqa: ERA001
 import sys
 
-from bytecode.instr import BinaryOp, Compare
+from bytecode.instr import BinaryOp, CommonConstant, Compare
 
 from tests.slicer.util import (
     TracedInstr,
@@ -101,6 +101,14 @@ else:
     eq_compare = Compare.EQ
     load_const = "LOAD_CONST"
     load_fast = "LOAD_FAST"
+
+
+if sys.version_info >= (3, 15):
+    # Python 3.15 loads None with LOAD_COMMON_CONSTANT instead of LOAD_CONST.
+    return_none = (
+        TracedInstr("LOAD_COMMON_CONSTANT", arg=CommonConstant.CONSTANT_NONE),
+        TracedInstr("RETURN_VALUE"),
+    )
 
 
 def test_data_dependency_1():

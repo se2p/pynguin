@@ -92,12 +92,10 @@ class ReverseIterationLoop(MutationOperator):
         """
         mutated_node = copy_node(node)
         old_iter = mutated_node.iter
-        mutated_node.iter = ast.Call(  # type: ignore[call-arg]
+        mutated_node.iter = ast.Call(
             func=ast.Name(id=reversed.__name__, ctx=ast.Load()),
             args=[old_iter],
             keywords=[],
-            starargs=None,
-            kwargs=None,
         )
         return mutated_node
 

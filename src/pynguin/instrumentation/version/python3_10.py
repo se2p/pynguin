@@ -43,6 +43,7 @@ from pynguin.instrumentation.version.common import (
     after,
     before,
     extract_name,
+    is_jump_if,
     override,
 )
 
@@ -279,7 +280,7 @@ RETURN_NONE_SIZE: int = 2
 
 
 def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
-    return instruction.is_cond_jump() or instruction.name == "FOR_ITER"
+    return is_jump_if(instruction) or instruction.name == "FOR_ITER"
 
 
 def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
@@ -896,11 +897,12 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        maybe_jump_index = JUMP_OP_POS
-        maybe_jump = node.try_get_instruction(maybe_jump_index)
+        maybe_jump_with_index = node.try_get_instruction_with_index(JUMP_OP_POS)
 
-        if maybe_jump is None:
+        if maybe_jump_with_index is None:
             return
+
+        maybe_jump_index, maybe_jump = maybe_jump_with_index
 
         if (
             ast_info is not None
@@ -926,7 +928,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             )
             return
 
-        if not maybe_jump.is_cond_jump():
+        if not is_jump_if(maybe_jump):
             return
 
         self._wire_subscript_predicates(ast_info, cfg, code_object_id, node)
@@ -1734,12 +1736,23 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
-                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationConstantLoad(value=self.import_name_argument(instr)),  # type: ignore[arg-type]
                     InstrumentationStackValue.FIRST,
                 ),
             ),
             instr.lineno,
         )
+
+    def import_name_argument(self, instr: Instr) -> object:
+        """Provides the module name that an IMPORT_NAME instruction imports.
+
+        Args:
+            instr: The IMPORT_NAME instruction.
+
+        Returns:
+            The module name that is tracked for the import.
+        """
+        return instr.arg
 
     def visit_global_access(  # noqa: D102, PLR0917
         self,
@@ -1986,68 +1999,67 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         ):
             return
 
-        maybe_compare_index = COMPARE_OP_POS
-        maybe_compare = node.try_get_instruction(maybe_compare_index)
+        maybe_compare_with_index = node.try_get_instruction_with_index(COMPARE_OP_POS)
 
-        if (
-            maybe_compare is not None
-            and isinstance(maybe_compare, Instr)
-            and maybe_compare.name == "COMPARE_OP"
-        ):
-            self.visit_compare_op(
-                ast_info,
-                cfg,
-                code_object_id,
-                node,
-                maybe_compare,
-                maybe_compare_index,
-            )
+        if maybe_compare_with_index is not None:
+            maybe_compare_index, maybe_compare = maybe_compare_with_index
+            if maybe_compare.name == "COMPARE_OP":
+                self.visit_compare_op(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
+
+        maybe_string_func_with_index = node.try_get_instruction_with_index(self.STRING_FUNC_POS)
+
+        if maybe_string_func_with_index is not None:
+            maybe_string_func_index, maybe_string_func = maybe_string_func_with_index
+            if (
+                method_name := self.extract_method_name(maybe_string_func)
+            ) is not None and method_name in DynamicConstantProvider.STRING_FUNCTION_LOOKUP:
+                self.visit_string_function_without_arg(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_string_func,
+                    maybe_string_func_index,
+                )
+                return
+
+        maybe_string_func_with_arg_with_index = node.try_get_instruction_with_index(
+            self.STRING_FUNC_POS_WITH_ARG
+        )
+
+        if maybe_string_func_with_arg_with_index is None:
             return
 
-        maybe_string_func_index = self.STRING_FUNC_POS
-        maybe_string_func = node.try_get_instruction(maybe_string_func_index)
-
-        if (
-            isinstance(maybe_string_func, Instr)
-            and (method_name := self.extract_method_name(maybe_string_func)) is not None
-            and method_name in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
-        ):
-            self.visit_string_function_without_arg(
-                ast_info,
-                cfg,
-                code_object_id,
-                node,
-                maybe_string_func,
-                maybe_string_func_index,
-            )
-            return
-
-        maybe_string_func_with_arg_index = self.STRING_FUNC_POS_WITH_ARG
-        maybe_string_func_with_arg = node.try_get_instruction(maybe_string_func_with_arg_index)
-
-        if (
-            isinstance(maybe_string_func_with_arg, Instr)
-            and (method_name := self.extract_method_name(maybe_string_func_with_arg)) is not None
-        ):
-            match method_name:
-                case "startswith":
-                    self.visit_startswith_function(
-                        ast_info,
-                        cfg,
-                        code_object_id,
-                        node,
-                        maybe_string_func_with_arg,
-                        maybe_string_func_with_arg_index,
-                    )
-                case "endswith":
-                    self.visit_endswith_function(
-                        ast_info,
-                        cfg,
-                        code_object_id,
-                        node,
-                        maybe_string_func_with_arg,
-                        maybe_string_func_with_arg_index,
-                    )
+        maybe_string_func_with_arg_index, maybe_string_func_with_arg = (
+            maybe_string_func_with_arg_with_index
+        )
+        match self.extract_method_name(maybe_string_func_with_arg):
+            case "startswith":
+                self.visit_startswith_function(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_string_func_with_arg,
+                    maybe_string_func_with_arg_index,
+                )
+            case "endswith":
+                self.visit_endswith_function(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_string_func_with_arg,
+                    maybe_string_func_with_arg_index,
+                )
 
     def visit_compare_op(  # noqa: D102, PLR0917
         self,

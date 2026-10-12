@@ -398,6 +398,11 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
         instr_index: int,
         instr_original_index: int,
     ) -> None:
+        value: InstrumentationConstantLoad | InstrumentationFastLoad = (
+            InstrumentationConstantLoad(value=None)
+            if self._may_be_unbound(cfg, node, instr, instr_original_index)
+            else InstrumentationFastLoad(name=instr.arg)  # type: ignore[arg-type]
+        )
         instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
@@ -411,7 +416,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
+                    value,
                 ),
             ),
             instr.lineno,
@@ -425,6 +430,42 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
             case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST":
                 # Instrumentation after the original instruction
                 node.basic_block[after(instr_index)] = instructions
+
+    @staticmethod
+    def _may_be_unbound(
+        cfg: cf.CFG,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_original_index: int,
+    ) -> bool:
+        """Check if the local variable of an instruction may be unbound when it is tracked.
+
+        Inlined comprehensions save their iteration variable with LOAD_FAST_AND_CLEAR
+        and restore it with ``SWAP 2; STORE_FAST`` afterwards. The variable is usually
+        unbound outside the comprehension, so both instructions can leave it unbound,
+        and loading an unbound variable with LOAD_FAST crashes the interpreter.
+
+        Args:
+            cfg: The CFG of the code object.
+            node: The node that contains the instruction.
+            instr: The local access instruction.
+            instr_original_index: The original index of the instruction in the node.
+
+        Returns:
+            True if the value of the variable must not be loaded.
+        """
+        if instr.name == "LOAD_FAST_AND_CLEAR":
+            return True
+        if instr.name != "STORE_FAST" or instr_original_index == 0:
+            return False
+        _, previous_instr = node.find_instruction_by_original_index(instr_original_index - 1)
+        return previous_instr.name == "SWAP" and any(
+            isinstance(other, Instr)
+            and other.name == "LOAD_FAST_AND_CLEAR"
+            and other.arg == instr.arg
+            for block in cfg.bytecode_cfg
+            for other in block
+        )
 
     def visit_attr_access(  # noqa: D102, PLR0917
         self,

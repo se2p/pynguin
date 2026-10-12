@@ -14,7 +14,7 @@ Pynguin (IPA: ˈpɪŋɡuiːn) is a research tool for automated generation of uni
 
 ## Project Status
 
-- **Python Support:** 3.10 (stable), 3.11-3.14 (experimental)
+- **Python Support:** 3.10 (stable), 3.11-3.15 (experimental)
 - **License:** MIT
 
 ## Key Files

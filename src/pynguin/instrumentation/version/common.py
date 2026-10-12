@@ -328,6 +328,22 @@ def after(index: int) -> slice[int, int]:
     return slice(index + 1, index + 1)
 
 
+def is_jump_if(instr: Instr) -> bool:
+    """Check if an instruction is a conditional jump that tests a value (``*JUMP_*IF_*``).
+
+    The bytecode library's ``Instr.is_cond_jump`` cannot be used for this, because since
+    bytecode 0.18 it also considers ``FOR_ITER``, ``SEND``, and ``END_ASYNC_FOR`` to be
+    conditional jumps, while earlier versions only consider ``*JUMP_*IF_*`` instructions.
+
+    Args:
+        instr: The instruction to check
+
+    Returns:
+        True if the instruction is a ``*JUMP_*IF_*`` instruction, False otherwise.
+    """
+    return "JUMP_" in instr.name and "IF_" in instr.name
+
+
 def override(index: int) -> slice[int, int]:
     """Get the slice for overriding an instruction at the given index.
 

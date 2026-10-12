@@ -109,30 +109,70 @@ class BasicBlockNode:
             if isinstance(instr, Instr):
                 yield instr
 
-    def _get_instruction(self, index: int) -> Instr:
-        """Get the instruction at the given index.
+    def _indexed_instructions(self) -> tuple[tuple[int, Instr], ...]:
+        """Provides the instructions of the basic block with their basic-block indices.
 
-        Args:
-            index: The index of the instruction
+        Besides instructions, the basic block can contain markers such as ``TryBegin``
+        and ``TryEnd`` (e.g., for inlined comprehensions since Python 3.12), so the
+        position of an instruction in ``instructions`` can differ from its index in
+        ``basic_block``. The returned indices are always valid (non-negative) indices into
+        ``basic_block`` and can be used for insertions.
 
         Returns:
-            The instruction at the given index
+            A tuple of the basic-block indices and the instructions
         """
-        return tuple(instr for instr in self.instructions)[index]
+        return tuple(
+            (block_index, instr)
+            for block_index, instr in enumerate(self._basic_block)
+            if isinstance(instr, Instr)
+        )
+
+    def try_get_instruction_with_index(self, index: int) -> tuple[int, Instr] | None:
+        """Try to get the instruction at the given index together with its block index.
+
+        Args:
+            index: The index of the instruction among the instructions of the basic
+                block (negative indices count from the end)
+
+        Returns:
+            The index of the instruction in the basic block and the instruction itself,
+            or None if no such instruction exists
+        """
+        try:
+            return self._indexed_instructions()[index]
+        except IndexError:
+            return None
 
     def try_get_instruction(self, index: int) -> Instr | None:
         """Try to get the instruction at the given index.
 
         Args:
-            index: The index of the instruction
+            index: The index of the instruction among the instructions of the basic
+                block (negative indices count from the end)
 
         Returns:
             The instruction at the given index or None if no such instruction exists
         """
-        try:
-            return self._get_instruction(index)
-        except IndexError:
-            return None
+        indexed_instr = self.try_get_instruction_with_index(index)
+        return None if indexed_instr is None else indexed_instr[1]
+
+    def try_get_previous_instruction(self, block_index: int) -> tuple[int, Instr] | None:
+        """Try to get the last instruction before the given basic-block index.
+
+        Markers such as ``TryBegin`` and ``TryEnd`` are skipped.
+
+        Args:
+            block_index: The index in the basic block
+
+        Returns:
+            The index of the previous instruction in the basic block and the instruction
+            itself, or None if there is no instruction before the given index
+        """
+        for previous_index in range(block_index - 1, -1, -1):
+            instr = self._basic_block[previous_index]
+            if isinstance(instr, Instr):
+                return previous_index, instr
+        return None
 
     @property
     def original_instructions(self) -> Iterable[Instr]:
@@ -153,48 +193,42 @@ class BasicBlockNode:
         added by the instrumentation until the next instruction that was supposed to be yielded.
 
         Returns:
-            An iterable of tuples containing the index of the instructions and the instructions
+            An iterable of tuples containing the index of the instructions in the basic
+            block and the instructions
         """
-        instr_index = 0
-        while instr_index < len(self._basic_block):
-            instr = self.try_get_instruction(instr_index)
+        block_index = 0
+        while block_index < len(self._basic_block):
+            instr = self._basic_block[block_index]
 
-            if instr is None:
-                break
-
-            if isinstance(instr, ArtificialInstr):
-                instr_index += 1
+            if not isinstance(instr, Instr) or isinstance(instr, ArtificialInstr):
+                block_index += 1
                 continue
 
-            yield instr_index, instr
+            yield block_index, instr
 
-            # Update the instr_index to retarget at the original instruction
+            # Update the block_index to retarget at the original instruction
             while (
-                isinstance(new_instr := self._get_instruction(instr_index), ArtificialInstr)
+                isinstance(new_instr := self._basic_block[block_index], ArtificialInstr)
                 or new_instr != instr
             ):
-                instr_index += 1
+                block_index += 1
 
-            instr_index += 1
+            block_index += 1
 
     def find_instruction_by_original_index(self, original_index: int) -> tuple[int, Instr]:
         """Find an index and instruction by its original index.
 
         Args:
-            original_index: The index of the instruction
+            original_index: The index of the instruction among the original (not
+                artificial) instructions of the basic block
 
         Returns:
             The index of the instruction in the basic block and the instruction itself
         """
-        # We must enumerate over the raw basic block so that the returned index is a
-        # valid index into ``basic_block`` (used later for insertion). Iterating over
-        # ``self.instructions`` would skip non-instruction markers such as ``TryBegin``
-        # and ``TryEnd`` (introduced by exception tables, e.g. inlined comprehensions on
-        # Python 3.12+), yielding an index that is shifted relative to ``basic_block``.
         return tuple(
-            (instr_index, instr)
-            for instr_index, instr in enumerate(self._basic_block)
-            if isinstance(instr, Instr) and not isinstance(instr, ArtificialInstr)
+            (block_index, instr)
+            for block_index, instr in self._indexed_instructions()
+            if not isinstance(instr, ArtificialInstr)
         )[original_index]
 
     def __eq__(self, other: object) -> bool:
