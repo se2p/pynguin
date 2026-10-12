@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import dill  # noqa: S403
 import multiprocess as mp
 import multiprocess.connection as mp_conn
+from multiprocess.reduction import ForkingPickler
 
 import pynguin.assertion.assertion as ass
 import pynguin.utils.execution_recorder as ter
@@ -319,8 +320,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             try:
                 with self._disable_tracing_while_unpickling():
                     return_value: tuple[
-                        ExecutionTracer,
-                        ModuleProvider,
+                        ExecutionTracer | None,
                         tuple[ExecutionResult, ...],
                         tuple[dict[int, str] | None, ...],
                         tuple[Any, ...],
@@ -334,7 +334,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             else:
                 (
                     new_tracer,
-                    new_module_provider,
                     results,
                     new_references_bindings,
                     random_state,
@@ -349,8 +348,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
                 randomness.RNG.setstate(random_state)
 
-                self._module_provider = new_module_provider
-
                 for result, reference_bindings, new_reference_bindings in zip(
                     results, context.references_bindings, new_references_bindings, strict=True
                 ):
@@ -359,7 +356,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                             result.assertion_trace, reference_bindings, new_reference_bindings
                         )
 
-                self._subject_properties.instrumentation_tracer.tracer.state = new_tracer.state
+                if new_tracer is not None:
+                    self._subject_properties.instrumentation_tracer.tracer.state = new_tracer.state
 
         return results
 
@@ -522,21 +520,83 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     for result, reference_bindings in zip(results, references_bindings, strict=True)
                 )
 
-                sending_connection.send((
+                SubprocessTestCaseExecutor._send_results(
+                    sending_connection,
                     subject_properties.instrumentation_tracer.tracer,
-                    module_provider,
                     results,
                     new_references_bindings,
-                    randomness.RNG.getstate(),
-                ))
-
-                sending_connection.close()
+                )
         except Exception as e:  # noqa: BLE001
             # Suppress all exceptions from the subprocess
             _LOGGER.warning(
                 "Suppressed exception in subprocess: %s",
                 e,
             )
+
+    @staticmethod
+    def _send_results(
+        sending_connection: mp_conn.Connection,
+        tracer: ExecutionTracer,
+        results: tuple[ExecutionResult, ...],
+        new_references_bindings: tuple[dict[int, str] | None, ...],
+    ) -> None:
+        """Send the results of the subprocess back to the main process.
+
+        ``_fix_result_for_pickle`` only removes the unpicklable objects it knows to look
+        for.  If the results still cannot be pickled, every result that cannot be pickled
+        is replaced by a timeout result, as if its test case had been executed in its own
+        subprocess that failed to return it.  Its fields are not sanitised one by one
+        because an emptied exception or assertion trace would turn a failing execution
+        into a passing one.  The tracer is only sent if it can be pickled, since its
+        trace is shared with the last result and may hold the same unpicklable objects.
+
+        Args:
+            sending_connection: The connection to send the results through
+            tracer: The tracer of the subprocess
+            results: The execution results
+            new_references_bindings: The new reference bindings
+        """
+        random_state = randomness.RNG.getstate()
+        try:
+            data = ForkingPickler.dumps((tracer, results, new_references_bindings, random_state))
+        except Exception as exception:  # noqa: BLE001
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to pickle results, replacing unpicklable results by timeouts",
+                exception,
+            )
+            picklable_results = tuple(
+                SubprocessTestCaseExecutor._is_picklable(result) for result in results
+            )
+            data = ForkingPickler.dumps((
+                tracer if SubprocessTestCaseExecutor._is_picklable(tracer) else None,
+                tuple(
+                    result if picklable else ExecutionResult(timeout=True)
+                    for result, picklable in zip(results, picklable_results, strict=True)
+                ),
+                tuple(
+                    bindings
+                    if picklable and SubprocessTestCaseExecutor._is_picklable(bindings)
+                    else None
+                    for bindings, picklable in zip(
+                        new_references_bindings, picklable_results, strict=True
+                    )
+                ),
+                random_state,
+            ))
+        sending_connection.send_bytes(data)
+        sending_connection.close()
+
+    @staticmethod
+    def _is_picklable(obj: object) -> bool:
+        try:
+            ForkingPickler.dumps(obj)
+        except Exception as exception:  # noqa: BLE001
+            SubprocessTestCaseExecutor._log_different_results(
+                f"Unpicklable {type(obj).__name__}",
+                exception,
+            )
+            return False
+        return True
 
     @staticmethod
     def _create_new_reference_bindings(
