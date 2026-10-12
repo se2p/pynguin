@@ -65,6 +65,66 @@ def test_assertion_tracker_handles_unparseable_code():
     assert tracker.original_assertions == []
 
 
+def test_assertion_tracker_renamed_variable_not_inferred():
+    original = (
+        "def test_1():\n"
+        "    var_0 = number_._format_not_finite(float('nan'))\n"
+        "    assert var_0 == 'NaN'\n"
+    )
+    refined = (
+        "def test_nan_is_formatted():\n"
+        "    result = number_._format_not_finite(float('nan'))\n"
+        "    assert result == 'NaN'\n"
+    )
+    assert AssertionTracker(original, refined).inferred_assertions == []
+
+
+def test_assertion_tracker_renamed_variable_with_new_assertion():
+    original = "def test_1():\n    var_0 = f()\n    assert var_0 == 1\n"
+    refined = (
+        "def test_f():\n    result = f()\n    assert result == 1\n"
+        "    assert isinstance(result, int)\n"
+    )
+    tracker = AssertionTracker(original, refined)
+    assert tracker.inferred_assertions == ["isinstance(result, int)"]
+
+
+def test_assertion_tracker_chained_renames_not_inferred():
+    original = (
+        "def test_1():\n    foo_0 = module_0.Foo()\n    var_0 = foo_0.bar()\n"
+        "    assert var_0 == 2\n    assert foo_0.size == 1\n"
+    )
+    refined = (
+        "def test_bar():\n    foo = module_0.Foo()\n    bar = foo.bar()\n"
+        "    assert bar == 2\n    assert foo.size == 1\n"
+    )
+    assert AssertionTracker(original, refined).inferred_assertions == []
+
+
+def test_assertion_tracker_inlined_literal_not_inferred():
+    original = "def test_1():\n    int_0 = 5\n    var_0 = f(int_0)\n    assert var_0 == int_0\n"
+    refined = "def test_f():\n    result = f(5)\n    assert result == 5\n"
+    assert AssertionTracker(original, refined).inferred_assertions == []
+
+
+def test_assertion_tracker_inlined_mutable_literal_is_inferred():
+    # The SUT may mutate the list, so the inlined literal is not the original check.
+    original = (
+        "def test_1():\n    list_0 = [1, 2]\n    var_0 = module_0.extend(list_0)\n"
+        "    assert var_0 == list_0\n"
+    )
+    refined = "def test_e():\n    result = module_0.extend([1, 2])\n    assert result == [1, 2]\n"
+    assert AssertionTracker(original, refined).inferred_assertions == ["result == [1, 2]"]
+
+
+def test_assertion_tracker_reassigned_variable_is_inferred():
+    # Outside the rename rule: the refined test changed the value, so the
+    # assertion is checked by the vacuous-assertion filter.
+    original = "def test_1():\n    var_0 = f()\n    assert var_0 == 1\n"
+    refined = "def test_f():\n    result = g()\n    assert result == 1\n"
+    assert AssertionTracker(original, refined).inferred_assertions == ["result == 1"]
+
+
 def test_remove_assertion_by_index_replaces_target():
     tree = ast.parse("def test():\n    assert a == 1\n    assert b == 2\n")
     new_tree = _remove_assertion_by_index(tree, 0)

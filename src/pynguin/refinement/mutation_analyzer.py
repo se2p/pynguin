@@ -36,6 +36,13 @@ from pynguin.assertion.mutation_analysis.operators import (
     RelationalOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.refinement.alignment import (
+    align_statements,
+    find_test_function,
+    flatten_unconditional,
+    is_immutable_literal,
+    normalise_expression,
+)
 from pynguin.refinement.coverage_checker import get_covered_lines
 from pynguin.refinement.validator import (
     TestExecution,
@@ -103,6 +110,14 @@ class AssertionTracker:
 
     This is critical for filtering: we only want to validate NEW assertions,
     not the original Pynguin-generated ones.
+
+    A refined assertion counts as original if its text equals an original assertion,
+    either as written or after renaming the original variables to their refined
+    counterparts and inlining the immutable literal variables the refinement inlined.
+    Renames and inlined literals come from aligning the unconditional statements of the test
+    function (see :func:`~pynguin.refinement.alignment.align_statements`).  Callers
+    pass one original and one refined test.  Every other assertion counts as
+    inferred, which only means that the vacuous-assertion filter checks it.
     """
 
     def __init__(self, original_test: str, refined_test: str):
@@ -113,6 +128,9 @@ class AssertionTracker:
             refined_test: Test code after LLM refinement
         """
         self.original_assertions = self._extract_assertions(original_test)
+        self._renamed_original_assertions = self._rename_original_assertions(
+            original_test, refined_test
+        )
         self.refined_assertions = self._extract_assertions(refined_test)
         self.inferred_assertions = self._identify_new_assertions()
 
@@ -133,12 +151,39 @@ class AssertionTracker:
             _LOGGER.warning("Could not parse test for assertions: %s", e)
         return assertions
 
+    @staticmethod
+    def _rename_original_assertions(original_test: str, refined_test: str) -> set[str]:
+        """Return the original assertions with variables renamed to the refined ones."""
+        try:
+            orig_func = find_test_function(ast.parse(original_test))
+            ref_func = find_test_function(ast.parse(refined_test))
+        except SyntaxError:
+            return set()
+        if orig_func is None or ref_func is None:
+            return set()
+        alignment = align_statements(
+            flatten_unconditional(orig_func.body), flatten_unconditional(ref_func.body)
+        )
+        # Like the restore of original assertions, inline only immutable literals: the
+        # SUT may mutate a list or dict, so its literal no longer equals the variable.
+        literal_map = {
+            name: node for name, node in alignment.literal_map.items() if is_immutable_literal(node)
+        }
+        renamed: set[str] = set()
+        for node in ast.walk(orig_func):
+            if isinstance(node, ast.Assert):
+                try:
+                    renamed.add(normalise_expression(node.test, alignment.rename_map, literal_map))
+                except ValueError:
+                    continue
+        return renamed
+
     def _identify_new_assertions(self) -> list[str]:
         """Identify assertions that were added during refinement.
 
         Returns only assertions present in refined but not in original.
         """
-        original_set = set(self.original_assertions)
+        original_set = set(self.original_assertions) | self._renamed_original_assertions
         refined_set = set(self.refined_assertions)
         new_assertions = refined_set - original_set
         return list(new_assertions)

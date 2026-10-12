@@ -77,6 +77,8 @@ or parse failure falls the entire module back to per-test.
 - `pipeline.py` — `TestRefiner`: structural analysis, per-test and module-level generators,
   mutation filtering/strengthening, repair loop (`_run_repair_loop`), coverage/AAA finish.
 - `llm_client.py` — thin OpenAI wrapper; `generate_from_prompt`; `LLM_ERROR_PREFIX` sentinel.
+- `alignment.py` — aligns an original test with its refined version (renames, inlined
+  literals); used to restore original assertions and by `AssertionTracker`.
 - `mutation_analyzer.py`, `coverage_checker.py`, `validator.py`, `sut_inspector.py`,
   `ast_analyzer.py`, `aaa_inserter.py`, `readability_metrics.py` — supporting stages.
 
@@ -86,6 +88,11 @@ or parse failure falls the entire module back to per-test.
   `_run_repair_loop` calls the LLM only on failing tests (assertion failures are stripped
   locally, no LLM). Never batch repair.
 - **Mutation-strengthening supports full_module (default) and per_test.**
+- **`AssertionTracker` stays a simple rule.** It compares one original with one refined
+  test: an assertion is original if it matches an original one as written or after the
+  aligned renames and inlined literals. Anything else counts as inferred, which only means
+  the vacuous-assertion filter checks it. Do not add heuristics for other rewrite shapes
+  unless a `/llm` run shows they matter.
 - Module-level responses must preserve imports and `module_0.` call prefixes.
 - **In-process execution emulates the seed fixtures.** Suites of SUTs using `random` carry
   a deterministic-seed preamble whose autouse fixtures pytest runs but `exec` does not.
