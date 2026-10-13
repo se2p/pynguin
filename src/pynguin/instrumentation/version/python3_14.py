@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from pynguin.instrumentation import StackEffects, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation.version import python3_10, python3_11, python3_12, python3_13
+from pynguin.instrumentation.version import python3_10, python3_12, python3_13
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
     InstrumentationArgument,
@@ -100,7 +100,7 @@ ACCESS_FAST_NAMES = LOAD_FAST_NAMES + MODIFY_FAST_NAMES
 
 # Regrouping opcodes
 TRACED_NAMES = (
-    python3_11.OPERATION_NAMES
+    OPERATION_NAMES
     + ACCESS_FAST_NAMES
     + python3_10.ACCESS_NAME_NAMES
     + python3_10.ACCESS_GLOBAL_NAMES

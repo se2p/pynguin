@@ -202,6 +202,10 @@ class InstrState:
     import_back_call: UniqueInstruction | None = None
 
 
+def _instr_key(instr: UniqueInstruction) -> tuple[int, int, int]:
+    return instr.code_object_id, instr.node_id, instr.instr_original_index
+
+
 @dataclass
 class ExecutionFlowBuilderState:
     """Holds the configuration and state of the execution flow builder."""
@@ -244,6 +248,8 @@ class ExecutionFlowBuilder:
         """
         self._trace = trace
         self._known_code_objects = known_code_objects
+        self._walk_position: int | None = None
+        self._walked_instrs: set[tuple[int, int, int]] = set()
 
     def create_instruction_state(self, trace_position: int) -> InstrState:
         """Creates an instruction state starting from the given trace position.
@@ -295,6 +301,10 @@ class ExecutionFlowBuilder:
 
         Returns:
             The previous instruction state, or None if there is no previous instruction state
+
+        Raises:
+            RuntimeError: If the backward walk revisits an instruction at the same
+                trace position, i.e., it would never terminate.
         """
         instr = state.instr
         previous_trace_position = (
@@ -323,7 +333,30 @@ class ExecutionFlowBuilder:
         self._handle_method_invocation(efb_state, previous_traced_instr)
         self._handle_generator_and_exceptions(efb_state, previous_traced_instr)
 
-        return self._create_instr_state(efb_state, previous_trace_position, previous_traced_instr)
+        previous_state = self._create_instr_state(
+            efb_state, previous_trace_position, previous_traced_instr
+        )
+        if previous_state is not None:
+            self._check_progress(state, previous_state)
+        return previous_state
+
+    def _check_progress(self, state: InstrState, previous_state: InstrState) -> None:
+        # Between two traced instructions the walk only passes untraced ones, and
+        # it cannot loop there without a traced jump, so every instruction occurs
+        # at most once per trace position. Seeing one again means the backward walk
+        # is cycling and would never terminate.
+        if state.trace_position != self._walk_position:
+            self._walk_position = state.trace_position
+            self._walked_instrs = {_instr_key(state.instr)}
+        if previous_state.trace_position != self._walk_position:
+            return
+        key = _instr_key(previous_state.instr)
+        if key in self._walked_instrs:
+            raise RuntimeError(
+                f"Execution flow reconstruction made no progress at {previous_state.instr} "
+                f"(trace position {previous_state.trace_position})."
+            )
+        self._walked_instrs.add(key)
 
     def _get_node(
         self, code_object_id: int, node_id: int

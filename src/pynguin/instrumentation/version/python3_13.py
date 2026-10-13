@@ -19,7 +19,7 @@ from bytecode.instr import _UNSET, UNSET, Compare, Instr
 
 from pynguin.instrumentation import PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation.version import python3_10, python3_11, python3_12
+from pynguin.instrumentation.version import python3_10, python3_12
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
     ExtractComparisonFunction,
@@ -131,7 +131,7 @@ OPERATION_NAMES = (
 
 # Regrouping opcodes
 TRACED_NAMES = (
-    python3_11.OPERATION_NAMES
+    OPERATION_NAMES
     + ACCESS_FAST_NAMES
     + python3_10.ACCESS_NAME_NAMES
     + python3_10.ACCESS_GLOBAL_NAMES

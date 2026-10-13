@@ -8,15 +8,20 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from pynguin.instrumentation import version
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
+from pynguin.utils.exceptions import SlicingTimeoutException
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion, UniqueInstruction
     from pynguin.testcase.testcase import Statement
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _cleanse_included_implicit_return_none(
@@ -76,10 +81,16 @@ def compute_statement_checked_lines(
             # with an exception will never be executed,
             # thus having no slicing criterion
             break
-        statement_slice = dynamic_slicer.slice(
-            trace,
-            statement_slicing_criteria[position],
-        )
+        try:
+            statement_slice = dynamic_slicer.slice(
+                trace,
+                statement_slicing_criteria[position],
+            )
+        except (RuntimeError, SlicingTimeoutException) as ex:
+            # A failed slice must not abort the whole run; the statement then
+            # checks no lines.
+            _LOGGER.warning("Failed to slice statement %s: %r", statement, ex)
+            continue
         statement_checked_lines = DynamicSlicer.map_instructions_to_lines(
             statement_slice, subject_properties
         )
@@ -109,7 +120,15 @@ def compute_assertion_checked_lines(
     assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
     checked_instructions = []
     for executed_assertion in trace.executed_assertions:
-        assertion_checked_instructions = assertion_slicer.slice_assertion(executed_assertion, trace)
+        try:
+            assertion_checked_instructions = assertion_slicer.slice_assertion(
+                executed_assertion, trace
+            )
+        except (RuntimeError, SlicingTimeoutException) as ex:
+            # A failed slice must not abort the whole run; the assertion then
+            # checks no lines.
+            _LOGGER.warning("Failed to slice assertion %s: %r", executed_assertion.assertion, ex)
+            continue
         executed_assertion.assertion.checked_instructions.extend(assertion_checked_instructions)
         # checked at any point by the assertion of a statement
         checked_instructions.extend(assertion_checked_instructions)
