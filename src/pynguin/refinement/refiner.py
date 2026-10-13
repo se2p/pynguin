@@ -31,6 +31,7 @@ from pynguin.refinement.pipeline import TestRefiner, _strip_xfail_decorator
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
 from pynguin.refinement.validator import run_test
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
 
 if TYPE_CHECKING:
     import types
@@ -780,11 +781,34 @@ def _store_post_refinement_coverage(stats: dict[str, Any], cov_res: CoverageResu
         stats["post_refinement_line_coverage"] = cov_res.line_coverage
 
 
+def _reload_module_under_test(
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties | None,
+) -> None:
+    """Re-execute the SUT so that a suite does not see state left by earlier runs.
+
+    The tracer is enabled during the reload so that the import trace is recorded
+    again (the instrumentation loader resets and re-registers the subject).
+    """
+    with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
+        if subject_properties is None:
+            importlib.reload(module_under_test)
+            return
+        tracer = subject_properties.instrumentation_tracer
+        with tracer, tracer.temporarily_enable():
+            importlib.reload(module_under_test)
+
+
 def _measure_suite(
     test_code: str,
     module_under_test: types.ModuleType,
     subject_properties: SubjectProperties | None,
 ) -> CoverageResult:
+    try:
+        _reload_module_under_test(module_under_test, subject_properties)
+    except (Exception, TestExecutionTimeoutError) as ex:
+        _LOGGER.exception("Failed to reload the module under test: %s", ex)
+        return CoverageResult(error=str(ex))
     try:
         return measure_suite_coverage(
             test_code=test_code,
@@ -807,7 +831,8 @@ def _guard_suite_coverage(  # noqa: PLR0917
     """Decide whether the refined suite may replace the exported one.
 
     Rule: the exported and the refined suite are measured the same way, with
-    ``measure_suite_coverage`` in the same process state.  If the refined suite
+    ``measure_suite_coverage`` on a freshly reloaded SUT, so neither suite sees
+    module state left by the other or by refinement.  If the refined suite
     covers less, it is discarded and the exported suite's coverage is reported as
     the post-refinement coverage.  If either suite cannot be measured, the refined
     suite is kept.
