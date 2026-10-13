@@ -10,15 +10,18 @@ workflow:
     - if: $CI_COMMIT_BRANCH == 'main'  # Execute jobs when a new commit is pushed to main branch
 
 cache:
-  key: virtualenv
-  paths:
-    - .venv/
-    - .cache/pip
-    - .cache/pypoetry
-    - .cache/pre-commit
-    # Parsed Fandango grammars; the test jobs point XDG_CACHE_HOME at .cache so the
-    # grammar parse (about a minute per job) is not repeated.
-    - .cache/fandango
+  - key: virtualenv
+    paths:
+      - .venv/
+      - .cache/pip
+      - .cache/pypoetry
+      - .cache/pre-commit
+  # Parsed Fandango grammars; the test jobs point XDG_CACHE_HOME at .cache so the
+  # grammar parse (about a minute per job) is not repeated. Keyed per Python version
+  # so that parallel matrix jobs do not overwrite each other's entries.
+  - key: fandango-${PYTHON_VERSION}
+    paths:
+      - .cache/fandango
 
 stages:
   - build
