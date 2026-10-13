@@ -356,10 +356,17 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     assert stats["post_refinement_assertions"] == 1
 
 
-def _setup_guard_run(tmp_path, monkeypatch, coverage_by_code):
-    """Run a one-test refinement where ``measure_suite_coverage`` maps code to a result."""
+def _setup_guard_run(tmp_path, monkeypatch, coverage_by_code, extra_tests=()):
+    """Run a refinement of ``test_case_0`` with ``max_tests=1``.
+
+    ``coverage_by_code(is_refined, code)`` returns the ``measure_suite_coverage``
+    result for the measured code.  ``extra_tests`` are further exported tests beyond
+    ``max_tests``.
+    """
     test_file = tmp_path / "test_mod.py"
-    test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
+    test_file.write_text(
+        "\n\n".join(("def test_case_0():\n    assert True\n", *extra_tests)), encoding="utf-8"
+    )
 
     fake_module = types.ModuleType("fake_module")
     fake_module.__file__ = str(tmp_path / "fake_module.py")
@@ -390,7 +397,8 @@ def _setup_guard_run(tmp_path, monkeypatch, coverage_by_code):
     monkeypatch.setattr(
         refiner_module.stat, "track_output_variable", lambda var, val: tracked.append((var, val))
     )
-    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func]))
+    extra = [ast.parse(code).body[0] for code in extra_tests]
+    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func, *extra]))
     monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
     monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
     monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
@@ -398,7 +406,7 @@ def _setup_guard_run(tmp_path, monkeypatch, coverage_by_code):
     monkeypatch.setattr(
         refiner_module,
         "measure_suite_coverage",
-        lambda test_code, **_k: coverage_by_code("assert 1 == 1" in test_code),
+        lambda test_code, **_k: coverage_by_code("assert 1 == 1" in test_code, test_code),
     )
     monkeypatch.setattr(
         config.configuration.llm_refinement,
@@ -414,7 +422,7 @@ def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp
     stats, tracked, refined_path = _setup_guard_run(
         tmp_path,
         monkeypatch,
-        lambda _refined: CoverageResult(
+        lambda _refined, _code: CoverageResult(
             coverage_value=0.88, branch_coverage=0.88, line_coverage=0.95
         ),
     )
@@ -425,6 +433,7 @@ def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp
     assert stats["post_refinement_assertions"] == 1
     assert stats["coverage_guard_reverted"] is False
     assert refined_path.exists()
+    assert tracked[RuntimeVariable.PreRefinementCoverage] == 0.88
     assert tracked[RuntimeVariable.PostRefinementCoverage] == 0.88
     assert tracked[RuntimeVariable.Coverage] == 0.88
     assert tracked[RuntimeVariable.PostRefinementAssertions] == 1
@@ -433,10 +442,13 @@ def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp
 
 
 def test_coverage_guard_keeps_exported_suite_when_refined_covers_less(tmp_path, monkeypatch):
+    stale = tmp_path / "test_mod_refined.py"
+    stale.write_text("# refined file of an earlier run\n", encoding="utf-8")
+
     stats, tracked, refined_path = _setup_guard_run(
         tmp_path,
         monkeypatch,
-        lambda refined: CoverageResult(
+        lambda refined, _code: CoverageResult(
             coverage_value=0.5 if refined else 0.8,
             branch_coverage=0.5 if refined else 0.8,
         ),
@@ -447,21 +459,27 @@ def test_coverage_guard_keeps_exported_suite_when_refined_covers_less(tmp_path, 
     assert stats["post_refinement_branch_coverage"] == 0.8
     assert "post_refinement_assertions" not in stats
     assert not refined_path.exists()
+    assert tracked[RuntimeVariable.PreRefinementCoverage] == 0.8
     assert tracked[RuntimeVariable.PostRefinementCoverage] == 0.8
     assert tracked[RuntimeVariable.RefinementCoverageGuardReverted] is True
+    # The exported suite stays unchanged, so the headline coverage tracked before
+    # refinement is not overwritten.
+    assert RuntimeVariable.Coverage not in tracked
+    assert RuntimeVariable.BranchCoverage not in tracked
 
 
 def test_coverage_guard_keeps_refined_suite_when_exported_unmeasurable(tmp_path, monkeypatch):
-    stats, _tracked, refined_path = _setup_guard_run(
+    stats, tracked, refined_path = _setup_guard_run(
         tmp_path,
         monkeypatch,
-        lambda refined: CoverageResult(coverage_value=0.5)
+        lambda refined, _code: CoverageResult(coverage_value=0.5)
         if refined
         else CoverageResult(error="boom"),
     )
 
     assert stats["coverage_guard_reverted"] is False
     assert stats["post_refinement_coverage"] == 0.5
+    assert RuntimeVariable.PreRefinementCoverage not in tracked
     assert refined_path.exists()
 
 
@@ -469,7 +487,7 @@ def test_coverage_guard_keeps_refined_suite_when_refined_unmeasurable(tmp_path, 
     stats, _tracked, refined_path = _setup_guard_run(
         tmp_path,
         monkeypatch,
-        lambda refined: CoverageResult(error="boom")
+        lambda refined, _code: CoverageResult(error="boom")
         if refined
         else CoverageResult(coverage_value=0.8),
     )
@@ -477,6 +495,23 @@ def test_coverage_guard_keeps_refined_suite_when_refined_unmeasurable(tmp_path, 
     assert stats["coverage_guard_reverted"] is False
     assert "post_refinement_coverage" not in stats
     assert refined_path.exists()
+
+
+def test_coverage_guard_keeps_tests_beyond_max_tests_in_refined_suite(tmp_path, monkeypatch):
+    # Only test_case_0 is refined.  test_case_1 covers what lifts the exported suite
+    # from 0.5 to 0.8, so it must stay in the refined suite or the guard reverts.
+    stats, _tracked, refined_path = _setup_guard_run(
+        tmp_path,
+        monkeypatch,
+        lambda _refined, code: CoverageResult(coverage_value=0.8 if "2 == 2" in code else 0.5),
+        extra_tests=("def test_case_1():\n    assert 2 == 2\n",),
+    )
+
+    assert stats["coverage_guard_reverted"] is False
+    assert stats["post_refinement_coverage"] == 0.8
+    refined_code = refined_path.read_text(encoding="utf-8")
+    assert "assert 1 == 1" in refined_code
+    assert "def test_case_1" in refined_code
 
 
 _EXPORTED_FILE = (
