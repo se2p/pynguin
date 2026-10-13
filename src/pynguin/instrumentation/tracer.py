@@ -949,8 +949,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             return
 
         self.disable()
-        yield
-        self.enable()
+        try:
+            yield
+        finally:
+            self.enable()
 
     @contextlib.contextmanager
     def temporarily_enable(self) -> Generator[None, None, None]:
@@ -963,8 +965,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             return
 
         self.enable()
-        yield
-        self.disable()
+        try:
+            yield
+        finally:
+            self.disable()
 
     @abstractmethod
     def stop(self) -> None:

@@ -544,6 +544,30 @@ def test_temporarily_enable_disable_cmp(  # noqa: PLR0917
     )
 
 
+@pytest.mark.parametrize(
+    "function,disabled_before",
+    [
+        (InstrumentationExecutionTracer.temporarily_disable, False),
+        (InstrumentationExecutionTracer.temporarily_enable, True),
+    ],
+)
+def test_temporarily_enable_disable_restores_state_on_exception(
+    subject_properties: SubjectProperties,
+    function,
+    disabled_before: bool,  # noqa: FBT001
+):
+    tracer = subject_properties.instrumentation_tracer
+    if disabled_before:
+        tracer.disable()
+    else:
+        tracer.enable()
+
+    with pytest.raises(TypeError), function(tracer):
+        raise TypeError
+
+    assert tracer.is_disabled() is disabled_before
+
+
 def test_enable_disable_bool(subject_properties: SubjectProperties):
     subject_properties.register_predicate(MagicMock(code_object_id=0))
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0

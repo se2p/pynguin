@@ -320,6 +320,38 @@ def test_measure_suite_coverage_pynguin_instrumented():
     sys.modules.pop(module_name, None)
 
 
+def test_measure_suite_coverage_pynguin_continues_after_raising_comparison(tmp_path, monkeypatch):
+    # The first test raises inside a traced comparison; the later tests must still
+    # be traced.
+    module_name = "raising_compare_sut"
+    (tmp_path / f"{module_name}.py").write_text(
+        "def f(x):\n    if x > 10:\n        return 1\n    return 0\n", encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+    subject_properties = SubjectProperties()
+    with install_import_hook(
+        module_name, subject_properties, coverage_metrics={config.CoverageMetric.BRANCH}
+    ):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+        subject_properties.instrumentation_tracer.disable()
+        code = (
+            f"import {module_name} as sut\n\n"
+            "def test_1():\n"
+            "    sut.f('a')\n\n"
+            "def test_2():\n"
+            "    assert sut.f(20) == 1\n\n"
+            "def test_3():\n"
+            "    assert sut.f(0) == 0\n"
+        )
+        result = measure_suite_coverage(code, module, subject_properties)
+    sys.modules.pop(module_name, None)
+
+    assert result.error is None
+    assert result.coverage_value == pytest.approx(1.0)
+
+
 def test_measure_suite_coverage_falls_back_when_pynguin_fails(sut_module, monkeypatch):
     monkeypatch.setattr(
         "pynguin.refinement.coverage_checker._measure_suite_coverage_pynguin",
