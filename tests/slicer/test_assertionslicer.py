@@ -16,6 +16,8 @@ cases.
 
 import importlib
 import sys
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,6 +25,7 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.slicer.executionflowbuilder as efb
+from pynguin.ga.checked_coverage import compute_assertion_checked_lines
 from pynguin.ga.computations import TestSuiteAssertionCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
@@ -238,12 +241,9 @@ def test_raising_statement_without_exception_assertion_records_nothing(
         assert not result.execution_trace.executed_assertions
 
 
-@pytest.mark.skipif(sys.version_info < (3, 13), reason="TO_BOOL exists since Python 3.13")
-def test_slicing_without_progress_fails_instead_of_hanging(
-    plus_test_with_isinstance_assertion, subject_properties: SubjectProperties, monkeypatch
-):
+def _execute_without_traced_to_bool(test_case, subject_properties, monkeypatch):
     # Treating the traced TO_BOOL as untraced made the backward walk return the same
-    # state forever; the flow builder must fail on that instead of looping.
+    # state forever (#336).
     monkeypatch.setattr(
         efb,
         "TRACED_NAMES",
@@ -261,9 +261,56 @@ def test_slicing_without_progress_fails_instead_of_hanging(
         executor = TestCaseExecutor(subject_properties)
         executor.set_instrument(True)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
-        result = executor.execute(plus_test_with_isinstance_assertion)
+        return executor.execute(test_case)
 
-        assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
-        (assertion,) = result.execution_trace.executed_assertions
-        with pytest.raises(RuntimeError, match="made no progress at <UniqueInstruction TO_BOOL"):
-            assertion_slicer.slice_assertion(assertion, result.execution_trace)
+
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="TO_BOOL exists since Python 3.13")
+def test_slicing_without_progress_fails_instead_of_hanging(
+    plus_test_with_isinstance_assertion, subject_properties: SubjectProperties, monkeypatch
+):
+    result = _execute_without_traced_to_bool(
+        plus_test_with_isinstance_assertion, subject_properties, monkeypatch
+    )
+
+    assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
+    (assertion,) = result.execution_trace.executed_assertions
+    with pytest.raises(RuntimeError, match="made no progress at <UniqueInstruction TO_BOOL"):
+        assertion_slicer.slice_assertion(assertion, result.execution_trace)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="TO_BOOL exists since Python 3.13")
+def test_failed_assertion_slice_checks_no_lines(
+    plus_test_with_isinstance_assertion,
+    subject_properties: SubjectProperties,
+    monkeypatch,
+    caplog,
+):
+    result = _execute_without_traced_to_bool(
+        plus_test_with_isinstance_assertion, subject_properties, monkeypatch
+    )
+
+    checked_lines = compute_assertion_checked_lines(result.execution_trace, subject_properties)
+
+    assert checked_lines == set()
+    assert "Failed to slice assertion" in caplog.text
+
+
+def _walk_state(trace_position: int, instr_original_index: int) -> efb.InstrState:
+    instr = SimpleNamespace(code_object_id=0, node_id=0, instr_original_index=instr_original_index)
+    return efb.InstrState(instr=instr, trace_position=trace_position, traced_instr=None)
+
+
+def test_backward_walk_cycle_at_same_trace_position_fails():
+    builder = efb.ExecutionFlowBuilder(MagicMock(), {})
+    first, second = _walk_state(5, 1), _walk_state(5, 2)
+
+    builder._check_progress(first, second)
+    with pytest.raises(RuntimeError, match="made no progress"):
+        builder._check_progress(second, first)
+
+
+def test_backward_walk_revisit_at_new_trace_position_is_allowed():
+    builder = efb.ExecutionFlowBuilder(MagicMock(), {})
+
+    builder._check_progress(_walk_state(6, 1), _walk_state(5, 1))
+    builder._check_progress(_walk_state(5, 1), _walk_state(4, 1))
