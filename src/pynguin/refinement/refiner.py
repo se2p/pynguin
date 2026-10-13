@@ -21,7 +21,7 @@ import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 from pynguin.configuration import MutationStrengtheningGranularity, RefinementGranularity
 from pynguin.refinement.ast_analyzer import count_assertions
-from pynguin.refinement.coverage_checker import measure_suite_coverage
+from pynguin.refinement.coverage_checker import CoverageResult, measure_suite_coverage
 from pynguin.refinement.llm_client import LLM_ERROR_PREFIX
 from pynguin.refinement.mutation_analyzer import (
     evaluate_refined_suite_mutations,
@@ -140,6 +140,7 @@ def _new_stats() -> dict[str, Any]:
         "mutation_suite_baseline_size_total": 0,
         "mutation_per_test_contribution_mean": 0.0,
         "mutation_suite_contribution_mean": 0.0,
+        "coverage_guard_reverted": False,
     }
 
 
@@ -596,6 +597,10 @@ def _track_refinement_core_statistics(stats: dict[str, Any]) -> None:
         RuntimeVariable.FailedRefinements, int(stats.get("failed_tests", 0) or 0)
     )
     stat.track_output_variable(
+        RuntimeVariable.RefinementCoverageGuardReverted,
+        bool(stats.get("coverage_guard_reverted")),
+    )
+    stat.track_output_variable(
         RuntimeVariable.ReadabilityScoreOriginal,
         float(stats.get("readability_original", 0.0) or 0.0),
     )
@@ -753,33 +758,80 @@ def _maybe_count_post_refinement_assertions(
         _LOGGER.exception("Failed to count refined test suite assertions: %s", ex)
 
 
-def _maybe_evaluate_post_refinement_coverage(
+def _store_post_refinement_coverage(stats: dict[str, Any], cov_res: CoverageResult) -> None:
+    stats["post_refinement_coverage"] = cov_res.coverage_value
+    if cov_res.branch_coverage is not None:
+        stats["post_refinement_branch_coverage"] = cov_res.branch_coverage
+    if cov_res.line_coverage is not None:
+        stats["post_refinement_line_coverage"] = cov_res.line_coverage
+
+
+def _measure_suite(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties | None,
+) -> CoverageResult:
+    try:
+        return measure_suite_coverage(
+            test_code=test_code,
+            module_under_test=module_under_test,
+            subject_properties=subject_properties,
+        )
+    except Exception as ex:
+        _LOGGER.exception("Failed to measure test suite coverage: %s", ex)
+        return CoverageResult(error=str(ex))
+
+
+def _guard_suite_coverage(  # noqa: PLR0917
+    test_file_path: Path,
     preamble: str,
     refined_tests: list[str],
     module_under_test: types.ModuleType | None,
     subject_properties: SubjectProperties | None,
     stats: dict[str, Any],
-) -> None:
-    if stats.get("tests_refined", 0) <= 0 or not refined_tests or module_under_test is None:
-        return
-    try:
-        _LOGGER.info("Evaluating coverage of the refined test suite")
-        full_code = preamble.rstrip("\n") + "\n\n\n" + "\n\n\n".join(refined_tests)
-        cov_res = measure_suite_coverage(
-            test_code=full_code,
-            module_under_test=module_under_test,
-            subject_properties=subject_properties,
+) -> bool:
+    """Decide whether the refined suite may replace the exported one.
+
+    Rule: the exported and the refined suite are measured the same way, with
+    ``measure_suite_coverage`` in the same process state.  If the refined suite
+    covers less, it is discarded and the exported suite's coverage is reported as
+    the post-refinement coverage.  If either suite cannot be measured, the refined
+    suite is kept.
+
+    Args:
+        test_file_path: The exported (unrefined) test file.
+        preamble: The refined suite's preamble.
+        refined_tests: The refined suite's test functions.
+        module_under_test: The imported module under test.
+        subject_properties: Optional Pynguin subject properties for measuring.
+        stats: The refinement statistics, updated in place.
+
+    Returns:
+        Whether the refined suite is kept.
+    """
+    if stats.get("tests_refined", 0) <= 0 or module_under_test is None:
+        return True
+    _LOGGER.info("Evaluating coverage of the refined test suite")
+    full_code = preamble.rstrip("\n") + "\n\n\n" + "\n\n\n".join(refined_tests)
+    refined = _measure_suite(full_code, module_under_test, subject_properties)
+    if refined.error is not None:
+        _LOGGER.warning("Could not measure refined suite coverage: %s", refined.error)
+        return True
+    original = _measure_suite(
+        test_file_path.read_text(encoding="utf-8"), module_under_test, subject_properties
+    )
+    if original.error is None and refined.coverage_value < original.coverage_value:
+        _LOGGER.warning(
+            "Refined suite covers less than the exported one (%.3f < %.3f); keeping the "
+            "exported suite",
+            refined.coverage_value,
+            original.coverage_value,
         )
-        if cov_res.error is None:
-            stats["post_refinement_coverage"] = cov_res.coverage_value
-            if cov_res.branch_coverage is not None:
-                stats["post_refinement_branch_coverage"] = cov_res.branch_coverage
-            if cov_res.line_coverage is not None:
-                stats["post_refinement_line_coverage"] = cov_res.line_coverage
-        else:
-            _LOGGER.warning("Could not measure refined suite coverage: %s", cov_res.error)
-    except Exception as ex:
-        _LOGGER.exception("Failed to evaluate refined test suite coverage: %s", ex)
+        stats["coverage_guard_reverted"] = True
+        _store_post_refinement_coverage(stats, original)
+        return False
+    _store_post_refinement_coverage(stats, refined)
+    return True
 
 
 def refine_generated_tests(
@@ -891,12 +943,14 @@ def refine_generated_tests(
         preamble, refined_tests = _finalize_refined_suite(
             preamble, refined_tests, module_under_test
         )
-        _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
-        _maybe_evaluate_post_refinement_mutations(preamble, refined_tests, module_under_test, stats)
-        _maybe_count_post_refinement_assertions(preamble, refined_tests, stats)
-        _maybe_evaluate_post_refinement_coverage(
-            preamble, refined_tests, module_under_test, subject_properties, stats
-        )
+        if _guard_suite_coverage(
+            test_file_path, preamble, refined_tests, module_under_test, subject_properties, stats
+        ):
+            _maybe_write_refined_file(stats, test_file_path, preamble, refined_tests)
+            _maybe_evaluate_post_refinement_mutations(
+                preamble, refined_tests, module_under_test, stats
+            )
+            _maybe_count_post_refinement_assertions(preamble, refined_tests, stats)
 
         _LOGGER.info("Refinement complete: %s", stats)
         _attach_usage(stats, refiner, start_wall)

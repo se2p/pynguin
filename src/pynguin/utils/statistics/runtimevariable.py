@@ -233,6 +233,9 @@ class RuntimeVariable(str, enum.Enum):
     # Number of tests where refinement failed (original test kept).
     FailedRefinements = "FailedRefinements"
 
+    # Whether the refined suite covered less than the exported one and was discarded.
+    RefinementCoverageGuardReverted = "RefinementCoverageGuardReverted"
+
     # Average readability score of original tests (aggregate).
     ReadabilityScoreOriginal = "ReadabilityScoreOriginal"
 

@@ -1316,6 +1316,11 @@ def finalize_generation_result(  # noqa: C901, PLR0917
     except Exception as ex:
         _LOGGER.exception("Minimization failed: %s", ex)
 
+    # Track before _track_final_metrics re-instruments and reloads the SUT: process-global
+    # state from the first import (e.g. registered codecs) survives the reload, so the
+    # same suite can cover less when it is executed again afterwards.
+    _track_pre_refinement_metrics(algorithm, generation_result)
+
     if (
         tracked_metrics := _track_final_metrics(
             algorithm,
@@ -1327,8 +1332,6 @@ def finalize_generation_result(  # noqa: C901, PLR0917
         return ReturnCode.FINAL_METRICS_TRACKING_FAILED
 
     executor.subject_properties.instrumentation_tracer.disable()
-
-    _track_pre_refinement_metrics(algorithm, generation_result)
 
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
