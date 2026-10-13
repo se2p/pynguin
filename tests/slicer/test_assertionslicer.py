@@ -15,12 +15,14 @@ cases.
 """
 
 import importlib
+import sys
 
 import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.slicer.executionflowbuilder as efb
 from pynguin.ga.computations import TestSuiteAssertionCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
@@ -53,6 +55,7 @@ def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
         ("tests.fixtures.linecoverage.plus", "plus_test_with_object_assertion", 1),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_float_assertion", 1),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_type_name_assertion", 1),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_isinstance_assertion", 1),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_multiple_assertions", 3),
         (
             "tests.fixtures.linecoverage.exception",
@@ -91,6 +94,7 @@ def test_assertion_detection_on_test_case(
     [
         ("tests.fixtures.linecoverage.plus", "plus_test_with_object_assertion"),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_float_assertion"),
+        ("tests.fixtures.linecoverage.plus", "plus_test_with_isinstance_assertion"),
         ("tests.fixtures.linecoverage.plus", "plus_test_with_multiple_assertions"),
     ],
 )
@@ -232,3 +236,34 @@ def test_raising_statement_without_exception_assertion_records_nothing(
 
         assert result.has_test_exceptions()
         assert not result.execution_trace.executed_assertions
+
+
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="TO_BOOL exists since Python 3.13")
+def test_slicing_without_progress_fails_instead_of_hanging(
+    plus_test_with_isinstance_assertion, subject_properties: SubjectProperties, monkeypatch
+):
+    # Treating the traced TO_BOOL as untraced made the backward walk return the same
+    # state forever; the flow builder must fail on that instead of looping.
+    monkeypatch.setattr(
+        efb,
+        "TRACED_NAMES",
+        tuple(name for name in efb.TRACED_NAMES if name != "TO_BOOL"),
+    )
+    module_name = "tests.fixtures.linecoverage.plus"
+    config.configuration.module_name = module_name
+    config.configuration.search_algorithm.coverage_metrics = [config.CoverageMetric.CHECKED]
+
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+
+        executor = TestCaseExecutor(subject_properties)
+        executor.set_instrument(True)
+        executor.add_remote_observer(RemoteAssertionExecutionObserver())
+        result = executor.execute(plus_test_with_isinstance_assertion)
+
+        assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
+        (assertion,) = result.execution_trace.executed_assertions
+        with pytest.raises(RuntimeError, match="made no progress at <UniqueInstruction TO_BOOL"):
+            assertion_slicer.slice_assertion(assertion, result.execution_trace)

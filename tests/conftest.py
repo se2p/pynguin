@@ -541,6 +541,16 @@ def plus_test_with_type_name_assertion() -> tc.TestCase:
 
 
 @pytest.fixture
+def plus_test_with_isinstance_assertion() -> tc.TestCase:
+    """Plus test case with ``assert isinstance(plus_0, plus_.Plus)``."""
+    test_case = _plus_test_case()
+    test_case.get_statement(1).assertions.append(
+        ass.IsInstanceAssertion("plus_0", "tests.fixtures.linecoverage.plus", "Plus")
+    )
+    return test_case
+
+
+@pytest.fixture
 def exception_test_with_except_assertion() -> tc.TestCase:
     """Exception test case with an exception assertion.
 

@@ -295,6 +295,9 @@ class ExecutionFlowBuilder:
 
         Returns:
             The previous instruction state, or None if there is no previous instruction state
+
+        Raises:
+            RuntimeError: If the reconstructed previous state is the given state itself.
         """
         instr = state.instr
         previous_trace_position = (
@@ -323,7 +326,23 @@ class ExecutionFlowBuilder:
         self._handle_method_invocation(efb_state, previous_traced_instr)
         self._handle_generator_and_exceptions(efb_state, previous_traced_instr)
 
-        return self._create_instr_state(efb_state, previous_trace_position, previous_traced_instr)
+        previous_state = self._create_instr_state(
+            efb_state, previous_trace_position, previous_traced_instr
+        )
+        if (
+            previous_state is not None
+            and previous_state.trace_position == state.trace_position
+            and previous_state.instr.code_object_id == instr.code_object_id
+            and previous_state.instr.node_id == instr.node_id
+            and previous_state.instr.instr_original_index == instr.instr_original_index
+        ):
+            # The same occurrence of an instruction cannot precede itself, so the
+            # backward walk would never terminate from here.
+            raise RuntimeError(
+                f"Execution flow reconstruction made no progress at {instr} "
+                f"(trace position {state.trace_position})."
+            )
+        return previous_state
 
     def _get_node(
         self, code_object_id: int, node_id: int
