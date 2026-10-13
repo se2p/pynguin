@@ -16,6 +16,9 @@ cache:
     - .cache/pip
     - .cache/pypoetry
     - .cache/pre-commit
+    # Parsed Fandango grammars; the test jobs point XDG_CACHE_HOME at .cache so the
+    # grammar parse (about a minute per job) is not repeated.
+    - .cache/fandango
 
 stages:
   - build
@@ -46,6 +49,7 @@ before_script:
   stage: test
   script:
     - >
+      XDG_CACHE_HOME="${CI_PROJECT_DIR}/.cache"
       poetry run pytest -q --cov=pynguin --cov=tests --cov-branch
       --cov-report=term-missing
       --junitxml=report.xml tests/
@@ -104,7 +108,8 @@ combine-coverage:
     for ((i=1; i<=10; i++)); do
       SECONDS=0
       echo "test run ${i}\n"
-      poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
+      XDG_CACHE_HOME="${CI_PROJECT_DIR}/.cache" \
+        poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
         --random-order --random-order-bucket=global \
         --cov-report=term-missing
       mv .coverage ".coverage.${PYTHON_VERSION}.${i}"

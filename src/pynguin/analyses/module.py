@@ -2049,16 +2049,31 @@ def _is_same_file(path1: str | None, path2: str | None) -> bool:
     """
     if not path1 or not path2:
         return False
+    p1 = _normalise_source_path(path1)
+    return p1 is not None and p1 == _normalise_source_path(path2)
+
+
+@functools.cache
+def _normalise_source_path(file_path: str) -> str | None:
+    """Resolve a source file path and map compiled files to their source file.
+
+    Resolving a path costs several system calls, and the lookups below repeat it for
+    every module in ``sys.modules``, so the result is cached per path.
+
+    Args:
+        file_path: Path to a source or compiled file
+
+    Returns:
+        The resolved path with a ``.py`` suffix for compiled files, or None if the
+        path cannot be resolved
+    """
     try:
-        p1 = Path(path1).resolve()
-        p2 = Path(path2).resolve()
-        if p1.suffix in {".pyc", ".pyo"}:
-            p1 = p1.with_suffix(".py")
-        if p2.suffix in {".pyc", ".pyo"}:
-            p2 = p2.with_suffix(".py")
-        return p1 == p2
+        path = Path(file_path).resolve()
     except (OSError, ValueError):
-        return False
+        return None
+    if path.suffix in {".pyc", ".pyo"}:
+        path = path.with_suffix(".py")
+    return str(path)
 
 
 def _get_class_defining_file(cls: type) -> str | None:
@@ -2092,26 +2107,16 @@ def _find_module_name_for_file(file_path: str | None) -> str | None:
     """
     if not file_path:
         return None
-    try:
-        target = Path(file_path).resolve()
-        if target.suffix in {".pyc", ".pyo"}:
-            target = target.with_suffix(".py")
-    except (OSError, ValueError):
+    target = _normalise_source_path(file_path)
+    if target is None:
         return None
 
     for name, mod in list(sys.modules.items()):
         if not inspect.ismodule(mod):
             continue
         mod_file = getattr(mod, "__file__", None)
-        if mod_file:
-            try:
-                p = Path(mod_file).resolve()
-                if p.suffix in {".pyc", ".pyo"}:
-                    p = p.with_suffix(".py")
-                if p == target:
-                    return name
-            except (OSError, ValueError):
-                continue
+        if isinstance(mod_file, str) and _normalise_source_path(mod_file) == target:
+            return name
     return None
 
 
