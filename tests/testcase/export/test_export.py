@@ -314,6 +314,22 @@ def test_write_nonempty_suite_has_no_coverage_comment(tmp_path: Path):
     assert "# noqa: F401" not in content
 
 
+def test_write_header_has_no_license(tmp_path: Path):
+    """Generated tests carry only the Pynguin note, not Pynguin's license (#339)."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert content.startswith("#  This file was automatically generated using Pynguin.\n\n")
+    assert "SPDX" not in content
+    assert "This file is part of Pynguin." not in content
+
+
 def test_write_imports_module_for_isinstance_assertion(tmp_path: Path):
     """A non-builtin isinstance-assertion module is imported under its alias.
 
