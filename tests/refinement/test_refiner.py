@@ -20,6 +20,8 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.refinement import refiner as refiner_module
 from pynguin.refinement.coverage_checker import CoverageResult
 from pynguin.refinement.refiner import (
@@ -27,6 +29,7 @@ from pynguin.refinement.refiner import (
     _extract_function_text,  # noqa: PLC2701
     _failure_stats,  # noqa: PLC2701
     _finalize_refined_suite,  # noqa: PLC2701
+    _guard_suite_coverage,  # noqa: PLC2701
     _hoist_local_imports,  # noqa: PLC2701
     _is_test_function,  # noqa: PLC2701
     _load_test_functions,  # noqa: PLC2701
@@ -235,8 +238,9 @@ def test_track_statistics_emits_all_runtime_variables(monkeypatch):
     })
 
     emitted = {variable for variable, _ in calls}
-    assert len(calls) == 19
+    assert len(calls) == 20
     assert RuntimeVariable.TestsProcessed in emitted
+    assert RuntimeVariable.RefinementCoverageGuardReverted in emitted
     assert RuntimeVariable.RefinementSuiteContributionMean in emitted
 
 
@@ -355,9 +359,17 @@ def test_refine_generated_tests_happy_path_with_mocked_pipeline(tmp_path, monkey
     assert stats["post_refinement_assertions"] == 1
 
 
-def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp_path, monkeypatch):
+def _setup_guard_run(tmp_path, monkeypatch, coverage_by_code, extra_tests=()):
+    """Run a refinement of ``test_case_0`` with ``max_tests=1``.
+
+    ``coverage_by_code(is_refined, code)`` returns the ``measure_suite_coverage``
+    result for the measured code.  ``extra_tests`` are further exported tests beyond
+    ``max_tests``.
+    """
     test_file = tmp_path / "test_mod.py"
-    test_file.write_text("def test_case_0():\n    assert True\n", encoding="utf-8")
+    test_file.write_text(
+        "\n\n".join(("def test_case_0():\n    assert True\n", *extra_tests)), encoding="utf-8"
+    )
 
     fake_module = types.ModuleType("fake_module")
     fake_module.__file__ = str(tmp_path / "fake_module.py")
@@ -376,7 +388,7 @@ def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp
 
     def _fake_process(*_args, **_kwargs):
         return _TestOutcome(
-            func_text="def test_case_0():\n    assert True\n",
+            func_text="def test_case_0():\n    assert 1 == 1\n",
             processed=True,
             refined=True,
             iterations=1,
@@ -388,16 +400,17 @@ def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp
     monkeypatch.setattr(
         refiner_module.stat, "track_output_variable", lambda var, val: tracked.append((var, val))
     )
-    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func]))
+    extra = [ast.parse(code).body[0] for code in extra_tests]
+    monkeypatch.setattr(refiner_module, "_load_test_functions", lambda _p: ("", [func, *extra]))
     monkeypatch.setattr(refiner_module, "_import_module_under_test", lambda _m: fake_module)
+    monkeypatch.setattr(refiner_module, "_reload_module_under_test", lambda *_a: None)
     monkeypatch.setattr(refiner_module, "TestRefiner", _FakeRefiner)
     monkeypatch.setattr(refiner_module, "_process_one_test", _fake_process)
     monkeypatch.setattr(refiner_module, "run_test", lambda *_a, **_k: (True, "Test passed."))
-
     monkeypatch.setattr(
         refiner_module,
         "measure_suite_coverage",
-        lambda **_k: CoverageResult(coverage_value=0.88, branch_coverage=0.88, line_coverage=0.95),
+        lambda test_code, **_k: coverage_by_code("assert 1 == 1" in test_code, test_code),
     )
     monkeypatch.setattr(
         config.configuration.llm_refinement,
@@ -405,22 +418,156 @@ def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp
         config.RefinementGranularity.PER_TEST,
     )
 
-    stats = refine_generated_tests(
-        test_file_path=test_file,
-        module_name="fake_module",
-        max_tests=1,
+    stats = refine_generated_tests(test_file_path=test_file, module_name="fake_module", max_tests=1)
+    return stats, dict(tracked), tmp_path / "test_mod_refined.py"
+
+
+def test_refine_generated_tests_measures_and_tracks_post_refinement_coverage(tmp_path, monkeypatch):
+    stats, tracked, refined_path = _setup_guard_run(
+        tmp_path,
+        monkeypatch,
+        lambda _refined, _code: CoverageResult(
+            coverage_value=0.88, branch_coverage=0.88, line_coverage=0.95
+        ),
     )
 
     assert stats["post_refinement_coverage"] == 0.88
     assert stats["post_refinement_branch_coverage"] == 0.88
     assert stats["post_refinement_line_coverage"] == 0.95
     assert stats["post_refinement_assertions"] == 1
+    assert stats["coverage_guard_reverted"] is False
+    assert refined_path.exists()
+    assert tracked[RuntimeVariable.PreRefinementCoverage] == 0.88
+    assert tracked[RuntimeVariable.PostRefinementCoverage] == 0.88
+    assert tracked[RuntimeVariable.Coverage] == 0.88
+    assert tracked[RuntimeVariable.PostRefinementAssertions] == 1
+    assert tracked[RuntimeVariable.Assertions] == 1
+    assert tracked[RuntimeVariable.RefinementCoverageGuardReverted] is False
 
-    tracked_dict = dict(tracked)
-    assert tracked_dict[RuntimeVariable.PostRefinementCoverage] == 0.88
-    assert tracked_dict[RuntimeVariable.Coverage] == 0.88
-    assert tracked_dict[RuntimeVariable.PostRefinementAssertions] == 1
-    assert tracked_dict[RuntimeVariable.Assertions] == 1
+
+def test_coverage_guard_keeps_exported_suite_when_refined_covers_less(tmp_path, monkeypatch):
+    stale = tmp_path / "test_mod_refined.py"
+    stale.write_text("# refined file of an earlier run\n", encoding="utf-8")
+
+    stats, tracked, refined_path = _setup_guard_run(
+        tmp_path,
+        monkeypatch,
+        lambda refined, _code: CoverageResult(
+            coverage_value=0.5 if refined else 0.8,
+            branch_coverage=0.5 if refined else 0.8,
+        ),
+    )
+
+    assert stats["coverage_guard_reverted"] is True
+    assert stats["post_refinement_coverage"] == 0.8
+    assert stats["post_refinement_branch_coverage"] == 0.8
+    assert "post_refinement_assertions" not in stats
+    assert not refined_path.exists()
+    assert tracked[RuntimeVariable.PreRefinementCoverage] == 0.8
+    assert tracked[RuntimeVariable.PostRefinementCoverage] == 0.8
+    assert tracked[RuntimeVariable.RefinementCoverageGuardReverted] is True
+    # The exported suite stays unchanged, so the headline coverage tracked before
+    # refinement is not overwritten.
+    assert RuntimeVariable.Coverage not in tracked
+    assert RuntimeVariable.BranchCoverage not in tracked
+
+
+def test_coverage_guard_keeps_refined_suite_when_exported_unmeasurable(tmp_path, monkeypatch):
+    stats, tracked, refined_path = _setup_guard_run(
+        tmp_path,
+        monkeypatch,
+        lambda refined, _code: CoverageResult(coverage_value=0.5)
+        if refined
+        else CoverageResult(error="boom"),
+    )
+
+    assert stats["coverage_guard_reverted"] is False
+    assert stats["post_refinement_coverage"] == 0.5
+    assert RuntimeVariable.PreRefinementCoverage not in tracked
+    assert refined_path.exists()
+
+
+def test_coverage_guard_keeps_refined_suite_when_refined_unmeasurable(tmp_path, monkeypatch):
+    stats, _tracked, refined_path = _setup_guard_run(
+        tmp_path,
+        monkeypatch,
+        lambda refined, _code: CoverageResult(error="boom")
+        if refined
+        else CoverageResult(coverage_value=0.8),
+    )
+
+    assert stats["coverage_guard_reverted"] is False
+    assert "post_refinement_coverage" not in stats
+    assert refined_path.exists()
+
+
+def test_coverage_guard_keeps_tests_beyond_max_tests_in_refined_suite(tmp_path, monkeypatch):
+    # Only test_case_0 is refined.  test_case_1 covers what lifts the exported suite
+    # from 0.5 to 0.8, so it must stay in the refined suite or the guard reverts.
+    stats, _tracked, refined_path = _setup_guard_run(
+        tmp_path,
+        monkeypatch,
+        lambda _refined, code: CoverageResult(coverage_value=0.8 if "2 == 2" in code else 0.5),
+        extra_tests=("def test_case_1():\n    assert 2 == 2\n",),
+    )
+
+    assert stats["coverage_guard_reverted"] is False
+    assert stats["post_refinement_coverage"] == 0.8
+    refined_code = refined_path.read_text(encoding="utf-8")
+    assert "assert 1 == 1" in refined_code
+    assert "def test_case_1" in refined_code
+
+
+def test_coverage_guard_measures_each_suite_on_fresh_module_state(tmp_path, monkeypatch):
+    # The refined test_case_1 leaves an element on the module-level stack.  Without
+    # a reset, the exported suite's pop() then takes the non-empty branch and the
+    # exported suite measures as low as the refined one.
+    module_name = "guard_stack_sut"
+    (tmp_path / f"{module_name}.py").write_text(
+        "_stack = []\n\n\n"
+        "def push(x):\n    _stack.append(x)\n\n\n"
+        "def pop():\n    if _stack:\n        return _stack.pop()\n    return None\n",
+        encoding="utf-8",
+    )
+    test_file = tmp_path / f"test_{module_name}.py"
+    test_file.write_text(
+        f"import {module_name} as module_0\n\n\n"
+        "def test_case_0():\n    module_0.push(1)\n    module_0.pop()\n\n\n"
+        "def test_case_1():\n    module_0.pop()\n",
+        encoding="utf-8",
+    )
+    refined_tests = [
+        "def test_case_0():\n    module_0.push(1)\n    module_0.pop()\n",
+        "def test_case_1():\n    module_0.push(5)\n",
+    ]
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+    monkeypatch.setattr(
+        config.configuration.search_algorithm,
+        "coverage_metrics",
+        [config.CoverageMetric.BRANCH],
+    )
+    subject_properties = SubjectProperties()
+    stats: dict[str, Any] = {"tests_refined": 1}
+    with install_import_hook(
+        module_name, subject_properties, coverage_metrics={config.CoverageMetric.BRANCH}
+    ):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+        subject_properties.instrumentation_tracer.disable()
+        kept = _guard_suite_coverage(
+            test_file,
+            f"import {module_name} as module_0\n",
+            refined_tests,
+            module,
+            subject_properties,
+            stats,
+        )
+    sys.modules.pop(module_name, None)
+
+    assert kept is False
+    assert stats["pre_refinement_coverage"] == pytest.approx(1.0)
+    assert stats["post_refinement_coverage"] == pytest.approx(1.0)
 
 
 _EXPORTED_FILE = (
