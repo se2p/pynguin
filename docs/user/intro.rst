@@ -208,6 +208,16 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
+* K. Domi: **Analysing Pynguin Failures Using LLMs**. Master's Thesis. University of
+  Passau, 2026.
+
+  Used LLMs to analyse crashes of Pynguin and to explain why it does not reach 100% coverage.
+
+* E. B. Türe: **Integrating LLM-Based Mock Generation into Automated Test Generation for
+  Python**. Master's Thesis. University of Passau, 2026.
+
+  Added LLM-based generation of mocks.
+
 * A. Abidi: **Enhancing the Readability of Python Generated Unit Tests using Large
   Language Models**. Master's Thesis. University of Passau, 2026.
 

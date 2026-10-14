@@ -131,6 +131,8 @@ Maintainer: [Lukas Krodinger](https://github.com/LuKrO2011)
 Former Maintainer: [Stephan Lukasczyk](https://codeberg.org/stephanlukasczyk)
 
 Contributors:
+- [Kejdi Domi](https://github.com/kdomi18)
+- [Erkin Berk Türe](https://github.com/erkintuere)
 - [Lukas Vögl](https://github.com/lvoegl)
 - [Louis Leppelmann](https://github.com/Tudeldu)
 - [Alexander Wüst](https://github.com/Ravaqor)
