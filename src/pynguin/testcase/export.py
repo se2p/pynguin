@@ -114,15 +114,9 @@ def _exec_statement_guarded(
     return True, outcome[0]
 
 
-_LICENSE_HEADER = """\
-#  This file is part of Pynguin.
-#
-#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
-#
-#  SPDX-License-Identifier: MIT
-#
-#  This file was automatically generated using Pynguin.
-"""
+# Generated test files belong to the user, not to Pynguin, so they carry no
+# license header, only a note that Pynguin generated them.
+_GENERATED_HEADER = "#  This file was automatically generated using Pynguin.\n"
 
 _COVERAGE_BY_IMPORT_COMMENT = "# Importing this module achieves coverage.\n"
 
@@ -1338,5 +1332,5 @@ class TestSuiteWriter:
             output = pattern.sub(f"import {canonical_name}  # noqa: F401", output, count=1)
             output = _COVERAGE_BY_IMPORT_COMMENT + output
 
-        out_file.write_text(_LICENSE_HEADER + "\n" + output)
+        out_file.write_text(_GENERATED_HEADER + "\n" + output)
         return out_file
