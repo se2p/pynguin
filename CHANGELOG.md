@@ -9,6 +9,16 @@ SPDX-License-Identifier: CC-BY-4.0
 Please also check the [GitHub Releases Page](https://github.com/se2p/pynguin/releases)
 for the source-code artifacts of each version.
 
+## Release Pynguin 0.48.0
+
+- Add support for Python 3.15
+- Add module-level LLM mutation strengthening
+- Improve LLM integrations
+- Add generation of concrete instantiations of generic types
+- Support generators by advancing them with next
+- Improve dict generation for key-dependent branches (cf. GitHub Issue https://github.com/se2p/pynguin/issues/135)
+- Create branch goals for targeted if and else lines in --only-cover-line-ranges (cf. GitHub Issue https://github.com/se2p/pynguin/issues/148)
+
 ## Release Pynguin 0.47.0
 
 - Add LLDynaMOSA (DynaMosa + LLM calls on stall)
