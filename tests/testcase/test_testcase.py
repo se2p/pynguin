@@ -195,6 +195,35 @@ def test_append_test_case_from_resolves_head_reference_and_drops_unsatisfiable()
     assert "dependent" not in code
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_append_test_case_from_resolves_head_references_in_sorted_order(monkeypatch, reverse):
+    # ``used_variables`` is a frozenset whose iteration order follows the per-process
+    # string hash; the RNG draws for head references must not depend on it.
+    original_used_variables = tc.Statement.used_variables
+
+    def used_variables(self):
+        return tuple(sorted(original_used_variables(self), reverse=reverse))
+
+    monkeypatch.setattr(tc.Statement, "used_variables", used_variables)
+    drawn: list[list[str]] = []
+
+    def choice(candidates):
+        drawn.append(list(candidates))
+        return candidates[0]
+
+    monkeypatch.setattr(tc.randomness, "choice", choice)
+    self_tc = make_test_case(int_stmt("i", 1), str_stmt("s", "x"))
+    other = make_test_case(
+        int_stmt("h", 1),
+        str_stmt("h2", "y"),
+        assign("tail", "f(h, h2)"),
+    )
+
+    self_tc.append_test_case_from(other, 2)
+
+    assert drawn == [["i"], ["s"]]
+
+
 def test_remove_unused_variables_preserves_asserted_variable():
     s0 = int_stmt("var_0", 1)
     assertion = ObjectAssertion("var_0", 1)

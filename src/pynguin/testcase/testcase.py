@@ -652,7 +652,9 @@ class TestCase:  # noqa: PLR0904
             True if all references are satisfiable, False if the statement must
             be dropped.
         """
-        for name in stmt.used_variables():
+        # Sorted: iterating the frozenset directly follows the per-process string hash
+        # order, which changes the RNG draws below and breaks seeded reproducibility.
+        for name in sorted(stmt.used_variables()):
             if name in dropped:
                 return False
             if name in rename:
