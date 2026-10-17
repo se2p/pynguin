@@ -652,7 +652,7 @@ class TestCase:  # noqa: PLR0904
             True if all references are satisfiable, False if the statement must
             be dropped.
         """
-        for name in stmt.used_variables():
+        for name in sorted(stmt.used_variables()):
             if name in dropped:
                 return False
             if name in rename:
