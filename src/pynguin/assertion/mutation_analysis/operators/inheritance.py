@@ -78,7 +78,11 @@ class AbstractOverriddenElementModification(MutationOperator):
         if not isinstance(klass, type):
             return None
 
-        return any(name in vars(base_klass) for base_klass in type.mro(klass)[1:-1])
+        missing = object()
+        return any(
+            inspect.getattr_static(base_klass, name, missing) is not missing
+            for base_klass in type.mro(klass)[1:-1]
+        )
 
 
 class HidingVariableDeletion(AbstractOverriddenElementModification):

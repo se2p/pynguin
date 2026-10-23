@@ -1628,10 +1628,7 @@ def _setup_mutation_analysis_assertion_generator(
         module = importlib.import_module(config.configuration.module_name)
 
     _LOGGER.info("Mutate module %s", module.__name__)
-    # Reading the module source calls hasattr(module, "__wrapped__"), which runs an
-    # instrumented module-level __getattr__ (PEP 562) outside of any test execution.
-    with executor.subject_properties.instrumentation_tracer.temporarily_disable():
-        mutation_controller = create_mutation_controller(module)
+    mutation_controller = create_mutation_controller(module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(

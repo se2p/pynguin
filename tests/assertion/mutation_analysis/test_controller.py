@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
+import types
 from unittest import mock
 
 import pytest
@@ -135,3 +136,20 @@ def test_create_mutation_controller():
     controller = ct.create_mutation_controller(module)
     assert isinstance(controller, ct.MutationController)
     assert controller._module == module
+
+
+def test_create_mutation_controller_does_not_call_module_level_getattr(tmp_path):
+    source = "def foo():\n    return 1\n"
+    (tmp_path / "lazy_mod.py").write_text(source, encoding="utf-8")
+    requested: list[str] = []
+
+    def lazy_getattr(name: str) -> str:
+        requested.append(name)
+        raise AttributeError(name)
+
+    module = types.ModuleType("lazy_mod")
+    module.__file__ = str(tmp_path / "lazy_mod.py")
+    module.__getattr__ = lazy_getattr  # type: ignore[method-assign]
+    controller = ct.create_mutation_controller(module)
+    assert requested == []
+    assert ast.unparse(controller._module_ast) == ast.unparse(ast.parse(source))

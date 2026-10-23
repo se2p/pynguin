@@ -138,14 +138,13 @@ def create_mutation_controller(module: types.ModuleType) -> MutationController:
     Returns:
         The configured MutationController.
     """
-    try:
+    # Prefer the source file: inspect.getsource() checks hasattr(module, "__wrapped__"),
+    # which runs a module-level __getattr__ (PEP 562) of the SUT.
+    file_path = vars(module).get("__file__")
+    if file_path and Path(file_path).is_file():
+        module_source_code = Path(file_path).read_text(encoding="utf-8")
+    else:
         module_source_code = inspect.getsource(module)
-    except Exception:
-        file_path = getattr(module, "__file__", None)
-        if file_path:
-            module_source_code = Path(file_path).read_text(encoding="utf-8")
-        else:
-            raise
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
     mutant_generator = setup_mutant_generator()
     return MutationController(mutant_generator, module_ast, module)

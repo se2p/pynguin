@@ -217,6 +217,31 @@ def test_overriding_method_deletion():
     )
 
 
+def test_overriding_method_deletion_of_method_inherited_from_object():
+    assert_mutation(
+        OverridingMethodDeletion,
+        inspect.cleandoc(
+            """
+            class Foo:
+                pass
+            class Bar(Foo):
+                def __repr__(self):
+                    return "Bar"
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                class Foo:
+                    pass
+                class Bar(Foo):
+                    pass
+                """
+            ): ("mutate_FunctionDef", ast.FunctionDef, ast.Pass),
+        },
+    )
+
+
 def test_overriding_method_deletion_in_inner_class():
     assert_mutation(
         OverridingMethodDeletion,
