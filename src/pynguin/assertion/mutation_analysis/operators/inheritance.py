@@ -12,6 +12,7 @@ and integrated in Pynguin.
 
 import ast
 import functools
+import inspect
 from collections.abc import Iterable
 from typing import Any, cast
 
@@ -34,7 +35,7 @@ def getattr_rec(obj: object, attr: Iterable[str]) -> Any:
     Returns:
         The attribute.
     """
-    return functools.reduce(getattr, attr, obj)
+    return functools.reduce(inspect.getattr_static, attr, obj)
 
 
 class AbstractOverriddenElementModification(MutationOperator):
@@ -67,6 +68,8 @@ class AbstractOverriddenElementModification(MutationOperator):
             parent_names.append(parent.name)
             parent = parent.parent  # type: ignore[attr-defined]
 
+        # Static lookups only: a dynamic getattr/hasattr could run SUT code, e.g., a
+        # module-level or metaclass __getattr__, outside of any test execution.
         try:
             klass = getattr_rec(self.module, reversed(parent_names))
         except AttributeError:
@@ -75,7 +78,7 @@ class AbstractOverriddenElementModification(MutationOperator):
         if not isinstance(klass, type):
             return None
 
-        return any(hasattr(base_klass, name) for base_klass in type.mro(klass)[1:-1])
+        return any(name in vars(base_klass) for base_klass in type.mro(klass)[1:-1])
 
 
 class HidingVariableDeletion(AbstractOverriddenElementModification):

@@ -66,7 +66,7 @@ def test_create_module_keeps_package_context_for_relative_imports():
     assert mod.__path__ == package.__path__
 
 
-def test_create_module_does_not_call_module_level_getattr():
+def test_create_module_does_not_call_module_level_getattr() -> None:
     requested: list[str] = []
 
     def lazy_getattr(name: str) -> str:

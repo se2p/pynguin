@@ -315,7 +315,9 @@ def test_generate_assertions_for_llm_invokes_generators():
         config.configuration.test_case_output.assertion_generation = orig_ass_gen
 
 
-def test_setup_mutation_analysis_with_module_level_getattr(monkeypatch, tmp_path: Path):
+def test_setup_mutation_analysis_with_module_level_getattr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """A module-level ``__getattr__`` (PEP 562) must not abort mutation analysis.
 
     ``inspect.getsource`` checks ``hasattr(module, "__wrapped__")``, which runs the
@@ -332,7 +334,9 @@ def test_setup_mutation_analysis_with_module_level_getattr(monkeypatch, tmp_path
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
-    monkeypatch.delitem(sys.modules, "mod_with_getattr", raising=False)
+    # Registers the key so that monkeypatch removes the imported module afterwards.
+    monkeypatch.setitem(sys.modules, "mod_with_getattr", None)
+    monkeypatch.delitem(sys.modules, "mod_with_getattr")
     config.configuration.module_name = "mod_with_getattr"
 
     subject_properties = SubjectProperties()
