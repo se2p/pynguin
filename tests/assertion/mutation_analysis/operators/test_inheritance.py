@@ -217,6 +217,31 @@ def test_overriding_method_deletion():
     )
 
 
+def test_overriding_method_deletion_of_method_inherited_from_object():
+    assert_mutation(
+        OverridingMethodDeletion,
+        inspect.cleandoc(
+            """
+            class Foo:
+                pass
+            class Bar(Foo):
+                def __repr__(self):
+                    return "Bar"
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                class Foo:
+                    pass
+                class Bar(Foo):
+                    pass
+                """
+            ): ("mutate_FunctionDef", ast.FunctionDef, ast.Pass),
+        },
+    )
+
+
 def test_overriding_method_deletion_in_inner_class():
     assert_mutation(
         OverridingMethodDeletion,
@@ -355,4 +380,40 @@ def test_super_call_insertion():
                 """
             ): ("mutate_FunctionDef", ast.FunctionDef, ast.FunctionDef),
         },
+    )
+
+
+def test_hiding_variable_deletion_does_not_call_metaclass_getattr():
+    assert_mutation(
+        HidingVariableDeletion,
+        inspect.cleandoc(
+            """
+            class Meta(type):
+                def __getattr__(cls, name):
+                    raise SystemExit(name)
+            class Foo(metaclass=Meta):
+                pass
+            class Bar(Foo):
+                x = 2
+            """
+        ),
+        {},
+    )
+
+
+def test_hiding_variable_deletion_does_not_call_module_getattr():
+    assert_mutation(
+        HidingVariableDeletion,
+        inspect.cleandoc(
+            """
+            class Foo:
+                x = 1
+            class Bar(Foo):
+                x = 2
+            del Bar
+            def __getattr__(name):
+                raise SystemExit(name)
+            """
+        ),
+        {},
     )

@@ -588,7 +588,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     with subject_properties.instrumentation_tracer.temporarily_disable():
         if (test_cluster := _setup_test_cluster()) is None:
             return None
-    test_cluster.sut_uses_random = _check_sut_uses_random(new_sut_module_names)
+        test_cluster.sut_uses_random = _check_sut_uses_random(new_sut_module_names)
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping

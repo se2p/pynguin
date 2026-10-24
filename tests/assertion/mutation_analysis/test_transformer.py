@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import ast
+import types
 
 import pytest
 
@@ -63,6 +64,22 @@ def test_create_module_keeps_package_context_for_relative_imports():
     assert mod.result == 42
     assert mod.__package__ == package.__package__
     assert mod.__path__ == package.__path__
+
+
+def test_create_module_does_not_call_module_level_getattr() -> None:
+    requested: list[str] = []
+
+    def lazy_getattr(name: str) -> str:
+        requested.append(name)
+        return name
+
+    original = types.ModuleType("lazy_mod")
+    original.__file__ = "lazy_mod.py"
+    original.__getattr__ = lazy_getattr
+    mod = create_module(ast.parse("x = 1\n"), "lazy_mod", original)
+    assert requested == []
+    assert mod.__file__ == "lazy_mod.py"
+    assert "__path__" not in vars(mod)
 
 
 def test_create_module_without_package_context_fails_relative_import():

@@ -21,6 +21,8 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generator as gen
 from pynguin.configuration import CoverageMetric
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils.exceptions import CannotInstrumentCompiledModuleError
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.timeout import TestExecutionTimeoutError
@@ -311,6 +313,48 @@ def test_generate_assertions_for_llm_invokes_generators():
             ]
     finally:
         config.configuration.test_case_output.assertion_generation = orig_ass_gen
+
+
+def test_setup_mutation_analysis_with_module_level_getattr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A module-level ``__getattr__`` (PEP 562) must not abort mutation analysis.
+
+    ``inspect.getsource`` checks ``hasattr(module, "__wrapped__")``, which runs the
+    instrumented ``__getattr__`` outside of any test execution.
+    """
+    (tmp_path / "mod_with_getattr.py").write_text(
+        "def foo(x):\n"
+        "    return x + 1\n"
+        "\n"
+        "def __getattr__(name):\n"
+        "    if name == 'old_foo':\n"
+        "        return foo\n"
+        "    raise AttributeError(name)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    # Registers the key so that monkeypatch removes the imported module afterwards.
+    monkeypatch.setitem(sys.modules, "mod_with_getattr", None)
+    monkeypatch.delitem(sys.modules, "mod_with_getattr")
+    config.configuration.module_name = "mod_with_getattr"
+
+    subject_properties = SubjectProperties()
+    with install_import_hook("mod_with_getattr", subject_properties):
+        # Import the SUT under an active tracer, as _load_sut does.
+        with subject_properties.instrumentation_tracer:
+            importlib.import_module("mod_with_getattr")
+
+        executor = MagicMock(subject_properties=subject_properties)
+        with (
+            mock.patch.object(gen.ag, "create_filtering_executor", return_value=None),
+            mock.patch.object(gen.ag, "MutationAnalysisAssertionGenerator") as generator_mock,
+        ):
+            gen._setup_mutation_analysis_assertion_generator(executor)
+
+    mutation_controller = generator_mock.call_args.args[1]
+    assert mutation_controller.mutant_count() > 0
+    assert not subject_properties.instrumentation_tracer.is_disabled()
 
 
 def test__setup_report_dir(tmp_path: Path):

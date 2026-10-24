@@ -43,9 +43,12 @@ def create_module(
     code = compile(ast_node, module_name, "exec")
     module = types.ModuleType(module_name)
     if original_module is not None:
+        # Look the attributes up in the module's namespace: hasattr() would fall back to
+        # a module-level __getattr__ (PEP 562) for missing ones, e.g., __path__.
+        original_namespace = vars(original_module)
         for attribute in _PACKAGE_CONTEXT_ATTRIBUTES:
-            if hasattr(original_module, attribute):
-                setattr(module, attribute, getattr(original_module, attribute))
+            if attribute in original_namespace:
+                setattr(module, attribute, original_namespace[attribute])
     with time_limit(config.configuration.stopping.maximum_module_execution_timeout):
         exec(code, module.__dict__)  # noqa: S102
     return module
