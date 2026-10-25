@@ -9,6 +9,7 @@
 import inspect
 import operator
 import re
+import sys
 from typing import Any, ParamSpec, TypeVar, Union
 from unittest import mock
 
@@ -190,6 +191,16 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
     result = type_system.infer_type_info(func, type_inference_provider=infer_types)
     assert result.original_parameters == expected_parameters
     assert result.return_type == expected_return
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_infer_type_info_annotation_imported_for_type_checking():
+    from tests.fixtures.types.deferred_annotations import length  # noqa: PLC0415
+
+    type_system = TypeSystem()
+    result = type_system.infer_type_info(length, type_inference_provider=HintInference())
+    assert list(result.signature.parameters) == ["obj"]
+    assert result.original_parameters == {"obj": AnyType()}
 
 
 A = TypeVar("A")

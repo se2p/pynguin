@@ -35,6 +35,9 @@ from typing import (  # type: ignore[attr-defined]
 import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
 
+if sys.version_info >= (3, 14):
+    import annotationlib
+
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
@@ -2369,7 +2372,15 @@ class TypeSystem:  # noqa: PLR0904
         """
         method_for_signature = get_method_for_signature(method)
         try:
-            method_signature = inspect.signature(method_for_signature)
+            if sys.version_info >= (3, 14):
+                # Deferred annotations (PEP 649) may name types imported only for
+                # type checking, which raises NameError in the default VALUE format.
+                method_signature = inspect.signature(
+                    method_for_signature,
+                    annotation_format=annotationlib.Format.FORWARDREF,
+                )
+            else:
+                method_signature = inspect.signature(method_for_signature)
         except (ValueError, TypeError):
             method_signature = inspect.Signature(
                 parameters=[
