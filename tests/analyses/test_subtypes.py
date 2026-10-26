@@ -21,6 +21,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
 )
 from tests.fixtures.examples.abstract_classes import Animal, Bird, Circle, Shape
+from tests.fixtures.examples.abstract_self_generators import Expression
 
 
 def test_abstract_class_has_subclass_generators():
@@ -105,6 +106,29 @@ def test_testfactory_reuses_existing_subclass_var():
             test_case, shape_type, Shape, test_case.size(), 0
         )
         assert reused_var == var_circle
+
+
+def test_testfactory_does_not_retry_failed_type_exponentially():
+    """A type that no generator can build is given up on after linearly many attempts.
+
+    Every generator of ``Expression`` needs an ``Expression`` receiver.  Without
+    remembering failed creations, each depth level multiplied the attempts by the
+    number of generators.
+    """
+    config.configuration.test_creation.max_recursion = 6
+    cluster = generate_test_cluster("tests.fixtures.examples.abstract_self_generators")
+    expression_type = cluster.type_system.convert_type_hint(Expression)
+    factory = TestFactory(cluster)
+
+    with mock.patch.object(factory, "_emit_accessible", wraps=factory._emit_accessible) as emit:
+        var_name, cursor = factory._create_or_reuse_var(
+            TestCase(), expression_type, Expression, 0, 0
+        )
+
+    assert (var_name, cursor) == (None, 0)
+    num_generators = len(cluster.get_generators_for(expression_type))
+    assert emit.call_count <= num_generators * 6
+    assert factory._failed_creation_depths is None
 
 
 def test_random_generator_provider_subtypes():

@@ -349,6 +349,9 @@ class TestFactory:
         if constant_provider is None:
             constant_provider = EmptyConstantProvider()
         self._constant_provider: ConstantProvider = constant_provider
+        # Smallest depth at which creating a type failed, kept only while the
+        # outermost _create_var_of_type call is running.
+        self._failed_creation_depths: dict[ProperType, int] | None = None
 
     @property
     def test_cluster(self) -> ModuleTestCluster:
@@ -2804,22 +2807,36 @@ class TestFactory:
         """
         if depth >= config.configuration.test_creation.max_recursion:
             return None, position
+        # All candidate generators are tried in turn, so a type that no generator can
+        # build, e.g., an abstract class whose generators need an instance of itself,
+        # would be retried exponentially often. With the same or less depth left, a
+        # failed type fails again, so remember failures within the outermost call.
+        failed_depths = self._failed_creation_depths
+        if failed_depths is not None and depth >= failed_depths.get(param_type, depth + 1):
+            return None, position
         generators = list(self._test_cluster.get_generators_for(param_type))
         if not generators:
             return None, position
 
-        for gen in self._select_candidate_generators(param_type, generators):
-            pre_size = test_case.size()
-            new_pos = self._emit_accessible(test_case, gen, position, depth + 1)
-            if new_pos < 0:
-                continue
-            total_added = test_case.size() - pre_size
-            matching_var = self._find_matching_variable(
-                test_case, position, total_added, raw, new_pos
-            )
-            return matching_var, position + total_added
-
-        return None, position
+        outermost = failed_depths is None
+        if failed_depths is None:
+            failed_depths = self._failed_creation_depths = {}
+        try:
+            for gen in self._select_candidate_generators(param_type, generators):
+                pre_size = test_case.size()
+                new_pos = self._emit_accessible(test_case, gen, position, depth + 1)
+                if new_pos < 0:
+                    continue
+                total_added = test_case.size() - pre_size
+                matching_var = self._find_matching_variable(
+                    test_case, position, total_added, raw, new_pos
+                )
+                return matching_var, position + total_added
+            failed_depths[param_type] = depth
+            return None, position
+        finally:
+            if outermost:
+                self._failed_creation_depths = None
 
     @staticmethod
     def _find_any_variable(test_case: tc.TestCase, position: int) -> str | None:
