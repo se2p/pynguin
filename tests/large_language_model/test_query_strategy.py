@@ -143,19 +143,32 @@ def test_async_strategy_exception_handling():
 def test_async_strategy_shutdown_waits_for_running_task():
     strategy = AsyncLLMQueryStrategy()
     completed = False
+    started = threading.Event()
+    release = threading.Event()
 
     def slow_query_fn() -> str:
-        time.sleep(0.05)
+        started.set()
+        release.wait(timeout=5.0)
         nonlocal completed
         completed = True
         return "done"
 
     strategy.execute(slow_query_fn)
+    # Wait until the task runs, otherwise shutdown would cancel it as pending.
+    assert started.wait(timeout=5.0)
     assert strategy.is_in_progress() is True
     assert completed is False
 
-    strategy.shutdown()
-    assert completed is True
+    # Release the task only after shutdown has started, so it can only have
+    # completed by the time shutdown returns if shutdown waited for it.
+    release_timer = threading.Timer(0.05, release.set)
+    release_timer.start()
+    try:
+        strategy.shutdown()
+        assert completed is True
+    finally:
+        release_timer.cancel()
+        release.set()
 
 
 def test_get_query_strategy():

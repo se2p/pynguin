@@ -184,26 +184,7 @@ def long_fixture():
     return func
 
 
-if sys.version_info >= (3, 15):
-    # Since Python 3.15, NOT_TAKEN is excluded from the exception table, so the
-    # RERAISE of the with statement's exit handler ends up in a block of its own.
-    test_is_control_dependent_on_root_params = [
-        pytest.param(0, True),
-        pytest.param(1, False),
-        pytest.param(2, True),
-        pytest.param(3, True),
-        pytest.param(4, True),
-        pytest.param(5, False),
-        pytest.param(6, False),
-        pytest.param(7, True),
-        pytest.param(8, True),
-        pytest.param(9, False),
-        pytest.param(10, False),
-        pytest.param(11, False),
-        pytest.param(12, False),
-        pytest.param(13, True),
-    ]
-elif sys.version_info >= (3, 12):
+if sys.version_info >= (3, 12):
     test_is_control_dependent_on_root_params = [
         pytest.param(0, True),
         pytest.param(1, False),
