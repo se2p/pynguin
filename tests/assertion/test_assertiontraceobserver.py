@@ -709,21 +709,24 @@ def test_is_unstable_runtime_value():
     assert ato._is_unstable_runtime_value(list(sys.path)) is False
 
 
-@pytest.mark.parametrize("stream", ["stdin", "stdout", "stderr"])
-def test_is_unstable_runtime_value_for_rebound_std_stream(monkeypatch, stream):
-    # multiprocess rebinds sys.stdin to os.devnull in each worker process, i.e., after
-    # the original streams were captured at import time.
-    replacement = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
-    monkeypatch.setattr(sys, stream, replacement)
-    assert ato._is_unstable_runtime_value(replacement) is True
-    assert ato._is_blacklisted_value(replacement) is True
-    other_stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
-    assert ato._is_unstable_runtime_value(other_stream) is False
+def test_is_blacklisted_module_maps_private_io_module():
+    assert ato._is_blacklisted_module("_io") is True
+    assert ato._is_blacklisted_module("_iox") is False
 
 
-def test_is_unstable_runtime_value_without_stdin(monkeypatch):
-    monkeypatch.setattr(sys, "stdin", None)
-    assert ato._is_unstable_runtime_value(None) is False
+@pytest.mark.parametrize(
+    "stream",
+    [
+        io.TextIOWrapper(io.BytesIO(), encoding="utf-8"),
+        io.BufferedReader(io.BytesIO()),
+        io.StringIO(),
+        io.BytesIO(),
+    ],
+)
+def test_is_blacklisted_value_for_io_streams(stream):
+    # The stream types report "_io" as their module, while MODULE_BLACKLIST lists "io".
+    assert type(stream).__module__ == "_io"
+    assert ato._is_blacklisted_value(stream) is True
 
 
 # --- RemoteAssertionTraceObserver: static class-field assertions --------------

@@ -1170,3 +1170,31 @@ def test_mutation_analysis_integration_package_with_relative_import(
         assert num_created > 0
         assert metrics.num_created_mutants == num_created
         assert metrics.num_killed_mutants > 0
+
+
+def _tc_std_streams(alias: str) -> tc.TestCase:
+    return make_test_case(
+        call_stmt("stream_holder_0", f"{alias}.StreamHolder()"),
+        call_stmt("shlex_0", f"{alias}.create_lexer()"),
+    )
+
+
+def test_no_assertions_on_std_streams(subject_properties: SubjectProperties):
+    # Stream objects such as sys.stdin and sys.stdin.buffer are io types from the "_io"
+    # module, and pytest's capture replaces them, so assertions on them do not hold there.
+    module_name = "tests.fixtures.examples.std_streams"
+    config.configuration.module_name = module_name
+    alias = get_module_alias(module_name)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+
+        test_case = _tc_std_streams(alias)
+        _suite(test_case).accept(ag.AssertionGenerator(TestCaseExecutor(subject_properties)))
+
+    source = _render(test_case)
+    assert "assert stream_holder_0.name == 'stdin'" in source
+    assert "_io." not in source
+    for stream_field in ("stream_holder_0.text", "stream_holder_0.binary", "shlex_0.instream"):
+        assert stream_field not in source

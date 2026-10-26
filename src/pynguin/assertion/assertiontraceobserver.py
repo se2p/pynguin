@@ -74,9 +74,9 @@ _UNSTABLE_RUNTIME_VALUES: tuple[Any, ...] = tuple(
     if val is not None
 )
 
-# Standard streams that can be rebound after the values above were captured, e.g.,
-# multiprocess rebinds sys.stdin to os.devnull in every worker process.
-_REBINDABLE_STD_STREAMS = ("stdin", "stdout", "stderr")
+# C implementations of blacklisted modules report their private module name, e.g.,
+# the stream types of ``io`` (``io.TextIOWrapper.__module__ == "_io"``).
+_PRIVATE_MODULE_ALIASES = {"_io": "io"}
 
 
 def _is_unstable_runtime_value(value: Any) -> bool:
@@ -87,15 +87,10 @@ def _is_unstable_runtime_value(value: Any) -> bool:
 
     Returns:
         True, if ``value`` is (by identity) one of the known
-        process-/environment-dependent singletons or the currently bound
-        standard stream, regardless of the name it is currently bound to.
+        process-/environment-dependent singletons, regardless of the name it
+        is currently bound to.
     """
-    if any(value is unstable for unstable in _UNSTABLE_RUNTIME_VALUES):
-        return True
-    return any(
-        (stream := getattr(sys, name, None)) is not None and value is stream
-        for name in _REBINDABLE_STD_STREAMS
-    )
+    return any(value is unstable for unstable in _UNSTABLE_RUNTIME_VALUES)
 
 
 def _is_blacklisted_module(module_name: str | None) -> bool:
@@ -114,7 +109,12 @@ def _is_blacklisted_module(module_name: str | None) -> bool:
         return False
     blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
     blacklist.discard("builtins")
-    return module_name in blacklist or module_name.split(".")[0] in blacklist
+    top_level = module_name.split(".")[0]
+    return (
+        module_name in blacklist
+        or top_level in blacklist
+        or _PRIVATE_MODULE_ALIASES.get(top_level) in blacklist
+    )
 
 
 def _is_blacklisted_value(value: Any) -> bool:
