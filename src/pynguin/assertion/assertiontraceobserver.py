@@ -74,6 +74,10 @@ _UNSTABLE_RUNTIME_VALUES: tuple[Any, ...] = tuple(
     if val is not None
 )
 
+# Standard streams that can be rebound after the values above were captured, e.g.,
+# multiprocess rebinds sys.stdin to os.devnull in every worker process.
+_REBINDABLE_STD_STREAMS = ("stdin", "stdout", "stderr")
+
 
 def _is_unstable_runtime_value(value: Any) -> bool:
     """Check whether a value is a known volatile runtime/environment singleton.
@@ -83,10 +87,15 @@ def _is_unstable_runtime_value(value: Any) -> bool:
 
     Returns:
         True, if ``value`` is (by identity) one of the known
-        process-/environment-dependent singletons, regardless of the name it
-        is currently bound to.
+        process-/environment-dependent singletons or the currently bound
+        standard stream, regardless of the name it is currently bound to.
     """
-    return any(value is unstable for unstable in _UNSTABLE_RUNTIME_VALUES)
+    if any(value is unstable for unstable in _UNSTABLE_RUNTIME_VALUES):
+        return True
+    return any(
+        (stream := getattr(sys, name, None)) is not None and value is stream
+        for name in _REBINDABLE_STD_STREAMS
+    )
 
 
 def _is_blacklisted_module(module_name: str | None) -> bool:

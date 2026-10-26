@@ -19,6 +19,7 @@
 from __future__ import annotations
 import __future__
 
+import io
 import logging
 import os
 import sys
@@ -706,6 +707,23 @@ def test_is_unstable_runtime_value():
     assert ato._is_unstable_runtime_value(os.environ) is True
     assert ato._is_unstable_runtime_value([1, 2, 3]) is False
     assert ato._is_unstable_runtime_value(list(sys.path)) is False
+
+
+@pytest.mark.parametrize("stream", ["stdin", "stdout", "stderr"])
+def test_is_unstable_runtime_value_for_rebound_std_stream(monkeypatch, stream):
+    # multiprocess rebinds sys.stdin to os.devnull in each worker process, i.e., after
+    # the original streams were captured at import time.
+    replacement = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    monkeypatch.setattr(sys, stream, replacement)
+    assert ato._is_unstable_runtime_value(replacement) is True
+    assert ato._is_blacklisted_value(replacement) is True
+    other_stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    assert ato._is_unstable_runtime_value(other_stream) is False
+
+
+def test_is_unstable_runtime_value_without_stdin(monkeypatch):
+    monkeypatch.setattr(sys, "stdin", None)
+    assert ato._is_unstable_runtime_value(None) is False
 
 
 # --- RemoteAssertionTraceObserver: static class-field assertions --------------
