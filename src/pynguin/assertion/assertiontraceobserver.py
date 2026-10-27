@@ -26,7 +26,7 @@ import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.module import MODULE_BLACKLIST
+from pynguin.analyses.module import MODULE_BLACKLIST, public_top_level_module
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.naming import get_module_alias
@@ -74,10 +74,6 @@ _UNSTABLE_RUNTIME_VALUES: tuple[Any, ...] = tuple(
     if val is not None
 )
 
-# C implementations of blacklisted modules report their private module name, e.g.,
-# the stream types of ``io`` (``io.TextIOWrapper.__module__ == "_io"``).
-_PRIVATE_MODULE_ALIASES = {"_io": "io"}
-
 
 def _is_unstable_runtime_value(value: Any) -> bool:
     """Check whether a value is a known volatile runtime/environment singleton.
@@ -109,11 +105,12 @@ def _is_blacklisted_module(module_name: str | None) -> bool:
         return False
     blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
     blacklist.discard("builtins")
-    top_level = module_name.split(".")[0]
+    # Also match C implementations, e.g., "_io" for "io", next to private entries
+    # of the blacklist itself, e.g., "_thread".
     return (
         module_name in blacklist
-        or top_level in blacklist
-        or _PRIVATE_MODULE_ALIASES.get(top_level) in blacklist
+        or module_name.split(".")[0] in blacklist
+        or public_top_level_module(module_name) in blacklist
     )
 
 

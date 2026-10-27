@@ -709,9 +709,20 @@ def test_is_unstable_runtime_value():
     assert ato._is_unstable_runtime_value(list(sys.path)) is False
 
 
-def test_is_blacklisted_module_maps_private_io_module():
-    assert ato._is_blacklisted_module("_io") is True
-    assert ato._is_blacklisted_module("_iox") is False
+@pytest.mark.parametrize(
+    "module_name,blacklisted",
+    [
+        ("_io", True),
+        ("_asyncio", True),
+        ("_csv", True),
+        ("_thread", True),
+        ("_iox", False),
+        ("_pytest", False),
+    ],
+)
+def test_is_blacklisted_module_for_private_modules(module_name, blacklisted):
+    # C implementations report private modules, e.g., "_io" for the blacklisted "io".
+    assert ato._is_blacklisted_module(module_name) is blacklisted
 
 
 @pytest.mark.parametrize(
