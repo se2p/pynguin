@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import ast
+from ast import Constant
 
 import tests.fixtures.cluster.dependency as dep
 
@@ -17,5 +17,5 @@ def bar(p: int) -> dep.SomeArgumentType:
     return dep.SomeArgumentType(p)
 
 
-def ast_node() -> ast.Constant:
-    return ast.Constant(value=42, kind=int)
+def ast_node() -> Constant:
+    return Constant(value=42, kind=int)
