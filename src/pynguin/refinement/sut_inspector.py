@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
+from pynguin.utils.type_utils import get_signature
 
 _logger = logging.getLogger(__name__)
 
@@ -280,7 +281,7 @@ class SUTInspector:
             String representation of the signature, or None if extraction fails
         """
         try:
-            sig = inspect.signature(obj)
+            sig = get_signature(obj)
             return str(sig)
         except (ValueError, TypeError):
             # Some built-in functions don't have inspectable signatures
@@ -530,10 +531,10 @@ class SUTInspector:
         try:
             if inspect.isclass(obj):
                 try:
-                    return str(inspect.signature(obj.__init__))
+                    return str(get_signature(obj.__init__))
                 except Exception:  # noqa: BLE001
-                    return str(inspect.signature(obj))
-            return str(inspect.signature(obj))
+                    return str(get_signature(obj))
+            return str(get_signature(obj))
         except Exception:  # noqa: BLE001
             return "(...)"
 

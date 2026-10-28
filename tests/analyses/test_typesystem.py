@@ -9,6 +9,7 @@
 import inspect
 import operator
 import re
+import sys
 from typing import Any, ParamSpec, TypeVar, Union
 from unittest import mock
 
@@ -190,6 +191,40 @@ def test_infer_type_info(func, infer_types, expected_parameters, expected_return
     result = type_system.infer_type_info(func, type_inference_provider=infer_types)
     assert result.original_parameters == expected_parameters
     assert result.return_type == expected_return
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_infer_type_info_annotation_imported_for_type_checking() -> None:
+    from tests.fixtures.types.deferred_annotations import length  # noqa: PLC0415
+
+    type_system = TypeSystem()
+    result = type_system.infer_type_info(length, type_inference_provider=HintInference())
+    assert list(result.signature.parameters) == ["obj"]
+    assert result.original_parameters == {"obj": AnyType()}
+    assert result.original_return_type == type_system.convert_type_hint(int)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+@pytest.mark.parametrize(
+    "name, expected_parameters",
+    [
+        pytest.param("pick", {"x": None, "y": int}, id="type-error"),
+        pytest.param("divide", {"x": None}, id="zero-division-error"),
+        pytest.param("Box", {"n": None}, id="constructor"),
+    ],
+)
+def test_infer_type_info_annotation_fails_to_evaluate(
+    name: str, expected_parameters: dict[str, type | None]
+) -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    type_system = TypeSystem()
+    result = type_system.infer_type_info(
+        getattr(deferred_annotations, name), type_inference_provider=HintInference()
+    )
+    assert result.original_parameters == {
+        param: type_system.convert_type_hint(hint) for param, hint in expected_parameters.items()
+    }
 
 
 A = TypeVar("A")

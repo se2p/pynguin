@@ -7,10 +7,12 @@ from __future__ import annotations
 import ast
 import asyncio
 import builtins
+import collections.abc
 import importlib
 import inspect
 import json
 import logging
+import sys
 import time
 import types
 import typing
@@ -47,6 +49,15 @@ from pynguin.large_language_model.prompts.typeinferenceprompt import (
 )
 from pynguin.utils.llm import LLMProvider
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.type_utils import get_signature
+
+if sys.version_info >= (3, 14):
+    import annotationlib
+
+    from pynguin.utils.type_utils import (
+        get_annotations_one_by_one,
+        with_annotations_one_by_one,
+    )
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -236,7 +247,7 @@ class LLMInference(InferenceProvider):
     def _prior_types(self, func: Callable[..., Any]) -> dict[str, str]:
         """Build a default type map from existing annotations/signature."""
         try:
-            sig = inspect.signature(func)
+            sig = get_signature(func)
         except (TypeError, ValueError):
             return {"*args": ANY_STR, "**kwargs": ANY_STR}
 
@@ -256,6 +267,9 @@ class LLMInference(InferenceProvider):
     @staticmethod
     def _annotation_to_str(ann: Any) -> str:
         try:
+            if sys.version_info >= (3, 14) and isinstance(ann, annotationlib.ForwardRef):
+                # An annotation that could not be evaluated, see get_signature.
+                return ann.__forward_arg__
             if getattr(ann, "__module__", "") and getattr(ann, "__qualname__", ""):
                 return f"{ann.__module__}.{ann.__qualname__}"
             return str(ann)
@@ -487,18 +501,121 @@ class HintInference(InferenceProvider):
             A dict mapping parameter names to type hints.
         """
         try:
-            hints = get_type_hints(method)
+            hints = self._type_hints(method)
             # Sadly there is no guarantee that resolving the type hints actually works.
             # If the developers annotated something with an erroneous type hint we fall
             # back to no type hints, i.e., use Any.
-            # The import used in the type hint could also be conditional on
-            # typing.TYPE_CHECKING, e.g., to avoid circular imports, in which case this
-            # also fails.
-        except (AttributeError, NameError, TypeError) as exc:
+        except Exception as exc:  # noqa: BLE001
             _LOGGER.debug("Could not retrieve type hints for %s", method)
             _LOGGER.debug(exc)
             hints = {}
         return hints
+
+    @staticmethod
+    def _type_hints(method: Callable) -> dict[str, Any]:
+        if sys.version_info >= (3, 14):
+            # Annotations are deferred and evaluated here. Names that cannot be
+            # resolved, e.g., types imported only for type checking, are left without a
+            # hint, while the other hints are kept.
+            try:
+                hints = get_type_hints(method, format=annotationlib.Format.FORWARDREF)
+            except Exception:  # noqa: BLE001
+                # Even Format.FORWARDREF evaluates operations on literals, such as
+                # "int" | None. Evaluate each annotation on its own, then let
+                # get_type_hints resolve nested strings, strip Annotated and use
+                # NoneType for None, as it does for the other hints.
+                hints = _type_hints_one_by_one(method)
+            resolved = {}
+            for name, hint in hints.items():
+                if isinstance(hint, annotationlib.ForwardRef):
+                    continue
+                try:
+                    resolved[name] = _without_forward_refs(hint)
+                except Exception:  # noqa: BLE001, S112
+                    continue
+            return resolved
+        # The import used in the type hint could be conditional on typing.TYPE_CHECKING,
+        # e.g., to avoid circular imports, in which case this fails.
+        return get_type_hints(method)
+
+
+if sys.version_info >= (3, 14):
+
+    def _type_hints_one_by_one(obj: Any) -> dict[str, Any]:
+        """Like get_type_hints, but with each annotation evaluated on its own.
+
+        Args:
+            obj: The function, method, class or other object with annotations.
+
+        Returns:
+            The type hints, where annotations that cannot be evaluated are forward
+            references.
+        """
+        if inspect.isfunction(obj) or inspect.ismethod(obj):
+            stand_in = with_annotations_one_by_one(obj)
+            if stand_in is not None:
+                return get_type_hints(stand_in, format=annotationlib.Format.FORWARDREF)
+        if not inspect.isclass(obj):
+            return _resolve_annotations(get_annotations_one_by_one(obj), obj, None)
+        # Like get_type_hints, collect the annotations of the bases too, each resolved
+        # in the scope of its own class.
+        hints: dict[str, Any] = {}
+        for base in reversed(obj.__mro__):
+            if base is not object:
+                hints.update(
+                    _resolve_annotations(get_annotations_one_by_one(base), base, dict(vars(base)))
+                )
+        return hints
+
+    def _resolve_annotations(
+        annotations: dict[str, Any], owner: Any, locals_: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        # Let get_type_hints resolve nested strings, strip Annotated and use NoneType for
+        # None, on a function that only carries the annotations.
+        module = sys.modules.get(getattr(owner, "__module__", None) or "")
+        stand_in = types.FunctionType(
+            (lambda: None).__code__, vars(module) if module is not None else {}
+        )
+        stand_in.__annotations__ = annotations
+        return get_type_hints(stand_in, localns=locals_, format=annotationlib.Format.FORWARDREF)
+
+
+def _without_forward_refs(hint: Any) -> Any:
+    """Replace forward references nested in a type hint by Any.
+
+    Forward references from Format.FORWARDREF keep their owner, so they cannot be
+    copied or pickled.
+
+    Args:
+        hint: The type hint.
+
+    Returns:
+        The type hint without forward references.
+    """
+    if sys.version_info >= (3, 14) and isinstance(hint, annotationlib.ForwardRef):
+        return Any
+    args = getattr(hint, "__args__", None)
+    if not isinstance(args, tuple) or not args:
+        return hint
+    new_args = tuple(_without_forward_refs(arg) for arg in args)
+    if all(new is old for new, old in zip(new_args, args, strict=True)):
+        return hint
+    origin = typing.get_origin(hint)
+    if origin is typing.Union:
+        return typing.Union[new_args]  # noqa: UP007
+    if hasattr(hint, "copy_with"):
+        return hint.copy_with(new_args)
+    if origin is collections.abc.Callable:
+        # The arguments of collections.abc.Callable[[int], str] are (int, str).
+        *parameters, return_type = new_args
+        if len(parameters) == 1 and (
+            parameters[0] is Ellipsis
+            or isinstance(parameters[0], typing.ParamSpec)
+            or typing.get_origin(parameters[0]) is typing.Concatenate
+        ):
+            return origin[parameters[0], return_type]
+        return origin[parameters, return_type]
+    return origin[new_args]
 
 
 def _default_function_name(func: Callable[..., Any]) -> str:
@@ -566,7 +683,7 @@ class TypeEvalPyInference(InferenceProvider):
         hints: dict[str, Any] = {}
         function_name = self._name_resolver(method)
         try:
-            sig = inspect.signature(method)
+            sig = get_signature(method)
         except (TypeError, ValueError):
             return hints
 

@@ -4,13 +4,18 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import copy
 import enum
 import functools
+import gc
 import inspect
+import operator
+import pickle  # noqa: S403
 import sys
 import types
+import weakref
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from unittest.mock import MagicMock
 
 import pytest
@@ -20,6 +25,7 @@ from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import (
     get_class_that_defined_method,
     get_method_for_signature,
+    get_signature,
     given_exception_matches,
     is_arg_or_kwarg,
     is_assertable,
@@ -547,3 +553,260 @@ def test_is_type_picklable():
         assert is_type_picklable(list[scanner]) is False
     except (ImportError, AttributeError):
         pass
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+@pytest.mark.parametrize("name, parameter", [("length", "obj"), ("Box.size", "other")])
+def test_get_signature_keeps_unresolvable_annotation_as_forward_ref(
+    name: str, parameter: str
+) -> None:
+    import annotationlib  # noqa: PLC0415
+
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    signature = get_signature(operator.attrgetter(name)(deferred_annotations))
+    annotation = signature.parameters[parameter].annotation
+    assert isinstance(annotation, annotationlib.ForwardRef)
+    assert annotation.__forward_arg__ == "Sized"
+    assert signature.return_annotation is int
+    # Without an owner, the forward reference can be copied and shows no address.
+    assert copy.deepcopy(signature) == signature
+    assert "0x" not in repr(annotation)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        pytest.param("pick", "(x: 'int' | None, y: int) -> int", id="type-error"),
+        pytest.param("divide", "(x: 1 / 0) -> int", id="zero-division-error"),
+        pytest.param("Box", "(n: 'int' | None) -> None", id="constructor"),
+    ],
+)
+def test_get_signature_keeps_annotations_that_evaluate(name: str, expected: str) -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    assert str(get_signature(getattr(deferred_annotations, name))) == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_without_source_drops_annotations_that_fail() -> None:
+    namespace: dict[str, Any] = {}
+    exec('def pick(x: "int" | None, y: int) -> int: ...', namespace)  # noqa: S102
+    assert str(get_signature(namespace["pick"])) == "(x, y)"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_leaves_inspect_unchanged() -> None:
+    import annotationlib  # noqa: PLC0415
+
+    from tests.fixtures.types.deferred_annotations import length  # noqa: PLC0415
+
+    assert str(get_signature(length)) == "(obj: Sized) -> int"
+    assert inspect.get_annotations is annotationlib.get_annotations
+    with pytest.raises(NameError):
+        inspect.signature(length)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        pytest.param(
+            "Outer.method",
+            "(self, x: tests.fixtures.types.deferred_annotations.Outer.Inner, y: Sized)"
+            " -> tests.fixtures.types.deferred_annotations.Outer.Inner",
+            id="class-body",
+        ),
+        pytest.param(
+            "closure",
+            "(x: tests.fixtures.types.deferred_annotations.make_closure.<locals>.Local,"
+            " y: Sized) -> tests.fixtures.types.deferred_annotations.make_closure.<locals>.Local",
+            id="closure",
+        ),
+        pytest.param("renamed", "(x: 'int' | None, y: int) -> int", id="renamed"),
+        pytest.param("nothing", "(x: 'int' | None, z: 'int') -> None", id="quoted"),
+    ],
+)
+def test_get_signature_evaluates_annotations_in_their_scope(name: str, expected: str) -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    assert str(get_signature(operator.attrgetter(name)(deferred_annotations))) == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_of_bound_method() -> None:
+    from tests.fixtures.types.deferred_annotations import Box  # noqa: PLC0415
+
+    assert str(get_signature(Box(None).size)) == "(other: Sized) -> int"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_evaluates_failing_annotations_once() -> None:
+    calls: list[str] = []
+
+    def failing(name: str) -> Any:
+        calls.append(name)
+        raise NameError(name)
+
+    namespace: dict[str, Any] = {"failing": failing}
+    exec("def f(x: failing('x')) -> int: ...", namespace)  # noqa: S102
+    assert str(get_signature(namespace["f"])) == "(x: failing('x')) -> int"
+    evaluations = len(calls)
+    assert str(get_signature(namespace["f"])) == "(x: failing('x')) -> int"
+    assert len(calls) == evaluations
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_of_class_and_method_evaluates_failing_annotations_once() -> None:
+    calls: list[str] = []
+
+    def failing(name: str) -> Any:
+        calls.append(name)
+        raise NameError(name)
+
+    namespace: dict[str, Any] = {"failing": failing}
+    exec(  # noqa: S102
+        "class C:\n"
+        "    def __init__(self, x: failing('x')) -> None: ...\n"
+        "    def m(self, y: failing('y')) -> int: ...",
+        namespace,
+    )
+    cls = namespace["C"]
+    for obj in (cls, cls(None).m):
+        expected = str(get_signature(obj))
+        evaluations = len(calls)
+        assert str(get_signature(obj)) == expected
+        assert len(calls) == evaluations
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_does_not_hash_callable() -> None:
+    class Meta(type):
+        def __hash__(cls) -> int:
+            raise RuntimeError
+
+    class Unhashable(metaclass=Meta):
+        def __init__(self, x: int) -> None: ...
+
+        def __call__(self, y: int) -> None: ...
+
+        def __hash__(self) -> int:
+            raise RuntimeError
+
+    assert str(get_signature(Unhashable)) == "(x: int) -> None"
+    assert str(get_signature(Unhashable.__new__(Unhashable))) == "(y: int) -> None"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_does_not_keep_failing_callables_alive() -> None:
+    def failing(name: str) -> Any:
+        raise NameError(name)
+
+    namespace: dict[str, Any] = {"failing": failing}
+    exec(  # noqa: S102
+        "class Node:\n    def merge(self, other: Node, y: failing('y')) -> Node: ...",
+        namespace,
+    )
+    node = namespace["Node"]
+    assert "other: Node" in str(get_signature(node.merge))
+    reference = weakref.ref(node)
+    del node
+    namespace.clear()
+    gc.collect()
+    assert reference() is None
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_ignores_state_copied_by_wraps() -> None:
+    def failing(name: str) -> Any:
+        raise NameError(name)
+
+    namespace: dict[str, Any] = {"failing": failing}
+    exec("def f(x: failing('x'), y: int) -> int: ...", namespace)  # noqa: S102
+    func = namespace["f"]
+    assert str(get_signature(func)) == "(x: failing('x'), y: int) -> int"
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    signature = inspect.Signature([inspect.Parameter("z", inspect.Parameter.KEYWORD_ONLY)])
+    wrapper.__signature__ = signature  # type: ignore[attr-defined]
+    assert get_signature(wrapper) == signature
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_failure_depends_on_eval_str() -> None:
+    namespace: dict[str, Any] = {}
+    exec(  # noqa: S102
+        "from __future__ import annotations\ndef f(x: Missing, y: int) -> int: ...",
+        namespace,
+    )
+    func = namespace["f"]
+    assert str(get_signature(func, eval_str=True)) == "(x: Missing, y: int) -> int"
+    assert str(get_signature(func)) == "(x: 'Missing', y: 'int') -> 'int'"
+
+
+def test_get_signature_without_signature_raises() -> None:
+    with pytest.raises(TypeError):
+        get_signature(42)  # type: ignore[arg-type]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        pytest.param("caller", "(x: Sized) -> int", id="callable-instance"),
+        pytest.param("partial_length", "(obj: Sized) -> int", id="partial"),
+    ],
+)
+def test_get_signature_keeps_annotations_of_callable_instance_and_partial(
+    name: str, expected: str
+) -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    assert str(get_signature(getattr(deferred_annotations, name))) == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_stays_picklable_after_forward_ref_is_evaluated() -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    annotation = get_signature(deferred_annotations.length).parameters["obj"].annotation
+    # Evaluating a forward reference, as get_type_hints does, stores code on it.
+    assert annotation.__forward_code__ is not None
+    signature = get_signature(deferred_annotations.length)
+    assert pickle.loads(pickle.dumps(signature)) == signature  # noqa: S301
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_keeps_quoted_annotations_without_eval_str() -> None:
+    def failing(name: str) -> Any:
+        raise NameError(name)
+
+    namespace: dict[str, Any] = {"failing": failing}
+    exec("def f(x: failing('x'), y: 'int') -> 'int': ...", namespace)  # noqa: S102
+    func = namespace["f"]
+    # The same as for a signature that does not fail.
+    assert str(get_signature(func)) == "(x: failing('x'), y: 'int') -> 'int'"
+    assert str(get_signature(func, eval_str=True)) == "(x: failing('x'), y: int) -> int"
+    assert str(get_signature(func)) == "(x: failing('x'), y: 'int') -> 'int'"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_does_not_change_the_function() -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    get_signature(deferred_annotations.length)
+    get_signature(deferred_annotations.length, eval_str=True)
+    assert vars(deferred_annotations.length) == {}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_get_signature_of_function_decorated_in_other_module() -> None:
+    from tests.fixtures.types.deferred_annotations import decorated  # noqa: PLC0415
+
+    assert str(get_signature(decorated)) == (
+        "(x: 'int' | None, y: tests.fixtures.types.deferred_annotations.Item) -> int"
+    )

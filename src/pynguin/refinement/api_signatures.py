@@ -20,6 +20,8 @@ import inspect
 import sys
 from typing import Any
 
+from pynguin.utils.type_utils import get_signature
+
 #: Maximum number of methods listed per class.
 _MAX_METHODS_PER_CLASS = 25
 
@@ -36,7 +38,7 @@ def _signature(obj: Any) -> str:
     # Resolve string annotations (``from __future__ import annotations``) if possible.
     for eval_str in (True, False):
         try:
-            signature = inspect.signature(obj, eval_str=eval_str)
+            signature = get_signature(obj, eval_str=eval_str)
         except Exception:  # noqa: BLE001, S112
             continue
         if inspect.isclass(obj):

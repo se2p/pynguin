@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import math
+import sys
 
 import pytest
 
@@ -36,6 +37,12 @@ def test_inspect_python_function_succeeds():
     assert result.signature is not None
     assert result.module_name == "json"
     assert result.object_path == "dumps"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_inspect_function_with_annotation_imported_for_type_checking() -> None:
+    result = SUTInspector().inspect_method("tests.fixtures.types.deferred_annotations", "length")
+    assert result.signature == "(obj: Sized) -> int"
 
 
 def test_inspect_builtin_without_signature_still_succeeds_on_docstring():

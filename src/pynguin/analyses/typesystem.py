@@ -46,6 +46,7 @@ from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
     get_method_for_signature,
+    get_signature,
     is_type_picklable,
 )
 
@@ -2328,31 +2329,6 @@ class TypeSystem:  # noqa: PLR0904
         """
         return self.infer_signature(method, type_inference_provider.provide)
 
-    @staticmethod
-    def type_hints_provider(method: Callable) -> dict[str, Any]:
-        """Provides PEP484-style type information, if available.
-
-        Args:
-            method: The method for which we want type hints.
-
-        Returns:
-            A dict mapping parameter names to type hints.
-        """
-        try:
-            hints = typing.get_type_hints(method)
-            # Sadly there is no guarantee that resolving the type hints actually works.
-            # If the developers annotated something with an erroneous type hint we fall
-            # back to no type hints, i.e., use Any.
-            # Using Self from `from __future__ import annotations` also results in Any.
-            # The import used in the type hint could also be conditional on
-            # typing.TYPE_CHECKING, e.g., to avoid circular imports, in which case this
-            # also fails.
-        except (AttributeError, NameError, TypeError) as exc:
-            _LOGGER.debug("Could not retrieve type hints for %s", method)
-            _LOGGER.debug(exc)
-            hints = {}
-        return hints
-
     def infer_signature(
         self,
         method: Callable,
@@ -2369,7 +2345,7 @@ class TypeSystem:  # noqa: PLR0904
         """
         method_for_signature = get_method_for_signature(method)
         try:
-            method_signature = inspect.signature(method_for_signature)
+            method_signature = get_signature(method_for_signature)
         except (ValueError, TypeError):
             method_signature = inspect.Signature(
                 parameters=[

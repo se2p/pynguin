@@ -6,21 +6,29 @@
 """Tests for type inference module."""
 
 import ast
+import collections.abc
 import math
 import operator
-from typing import Any
+import pickle  # noqa: S403
+import sys
+from typing import Any, Concatenate, ParamSpec
 from unittest.mock import Mock, patch
 
+import pytest
 import typeshed_client
 
 from pynguin.analyses.type_inference import (
     HintInference,
     LLMInference,
     NoInference,
+    TypeEvalPyInference,
     TypeshedInference,
+    _without_forward_refs,  # noqa: PLC2701
 )
 from pynguin.analyses.typesystem import AnyType, TypeSystem
+from pynguin.large_language_model.prompts.typeinferenceprompt import TypeInferencePrompt
 from pynguin.utils.llm import LLMProvider
+from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, TypeEvalPySchemaElement
 
 
 def _function_name_info(source: str) -> typeshed_client.NameInfo:
@@ -346,3 +354,116 @@ def test_typeshed_strategy_improves_on_type_hints_via_type_system():
     )
     assert via_typeshed.return_type == type_system.convert_type_hint(float)
     assert not isinstance(via_typeshed.return_type, AnyType)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        pytest.param("length", {"return": int}, id="type-checking-import"),
+        pytest.param("pick", {"y": int, "return": int}, id="type-error"),
+        pytest.param("divide", {"return": int}, id="zero-division-error"),
+        pytest.param("nothing", {"z": int, "return": type(None)}, id="none-and-quoted"),
+        pytest.param("nested", {"x": list[Any], "y": int, "return": type(None)}, id="nested"),
+        pytest.param(
+            "Outer.method",
+            {"x": "Outer.Inner", "return": "Outer.Inner"},
+            id="class-body",
+        ),
+        pytest.param("decorated", {"y": "Item", "return": int}, id="decorator-from-other-module"),
+        pytest.param(
+            "callback",
+            {
+                "f": collections.abc.Callable[[int], Any],
+                "g": collections.abc.Callable[..., Any],
+                "return": type(None),
+            },
+            id="callable",
+        ),
+    ],
+)
+def test_hint_inference_keeps_hints_that_evaluate(name: str, expected: dict[str, Any]) -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    expected = {
+        key: operator.attrgetter(value)(deferred_annotations) if isinstance(value, str) else value
+        for key, value in expected.items()
+    }
+    hints = HintInference().provide(operator.attrgetter(name)(deferred_annotations))
+    assert hints == expected
+    pickle.dumps(hints)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_hint_inference_fallback_resolves_like_get_type_hints() -> None:
+    from tests.fixtures.types.deferred_annotations import Item, nested_strings  # noqa: PLC0415
+
+    assert HintInference().provide(nested_strings) == {
+        "y": list[Item],
+        "z": Item | None,
+        "w": int,
+        "return": Item,
+    }
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_hint_inference_fallback_resolves_class_like_get_type_hints() -> None:
+    from tests.fixtures.types.deferred_annotations import Item, Record  # noqa: PLC0415
+
+    assert HintInference().provide(Record) == {"b": list[Item], "c": int}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_llm_prior_types_with_annotation_imported_for_type_checking() -> None:
+    from tests.fixtures.types.deferred_annotations import pick  # noqa: PLC0415
+
+    inference = LLMInference.__new__(LLMInference)
+    assert inference._prior_types(pick) == {"x": "'int' | None", "y": "builtins.int"}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_typeevalpy_inference_with_annotation_imported_for_type_checking() -> None:
+    from tests.fixtures.types.deferred_annotations import length  # noqa: PLC0415
+
+    data = ParsedTypeEvalPyData(
+        elements=[
+            TypeEvalPySchemaElement(
+                file="deferred_annotations.py",
+                line_number=13,
+                type=["str"],
+                function="length",
+                parameter="obj",
+            )
+        ]
+    )
+    assert TypeEvalPyInference(data).provide(length) == {"obj": str}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_type_inference_prompt_with_annotation_imported_for_type_checking() -> None:
+    from tests.fixtures.types.deferred_annotations import Box, length  # noqa: PLC0415
+
+    assert TypeInferencePrompt._get_signature_str(length) == "(obj: Sized) -> int"
+    assert "size(self, other: Sized) -> int" in (
+        TypeInferencePrompt._get_all_function_signatures_in_class(Box.__init__)
+    )
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_without_forward_refs_keeps_callable_parameters() -> None:
+    import annotationlib  # noqa: PLC0415
+
+    sized = annotationlib.ForwardRef("Sized")
+    p = ParamSpec("p")
+    assert (
+        _without_forward_refs(collections.abc.Callable[p, sized])
+        == (collections.abc.Callable[p, Any])
+    )
+    assert (
+        _without_forward_refs(collections.abc.Callable[Concatenate[int, p], sized])
+        == (collections.abc.Callable[Concatenate[int, p], Any])
+    )
+    assert (
+        _without_forward_refs(collections.abc.Callable[[sized, int], int])
+        == (collections.abc.Callable[[Any, int], int])
+    )

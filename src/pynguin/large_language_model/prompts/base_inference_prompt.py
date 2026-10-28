@@ -12,6 +12,7 @@ from typing import Any
 
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.type_utils import get_signature
 
 
 class BaseInferencePrompt(Prompt):
@@ -43,7 +44,7 @@ class BaseInferencePrompt(Prompt):
     def _get_signature_str(func: Callable[..., Any]) -> str:
         """Get the signature string of a function."""
         try:
-            sig = inspect.signature(func)
+            sig = get_signature(func)
             return str(sig)
         except (TypeError, ValueError):
             return "( *args, **kwargs )"
@@ -72,7 +73,7 @@ class BaseInferencePrompt(Prompt):
             if member is func:
                 continue
             try:
-                sig = str(inspect.signature(member))
+                sig = str(get_signature(member))
             except (TypeError, ValueError):
                 sig = "(...)"
             signatures.append(f"{name}{sig}")
