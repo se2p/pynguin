@@ -7,6 +7,7 @@
 import inspect
 import math
 import operator
+import sys
 from builtins import isinstance as real_isinstance
 from unittest.mock import MagicMock
 
@@ -687,3 +688,12 @@ def test_has_path_no_path():
     proxy = tt.ObjectProxy([1])
     proxy.count(1)
     assert tt.UsageTraceNode.from_proxy(proxy).find_path(("count", "foobar")) is None
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_proxy_of_function_with_annotation_imported_for_type_checking() -> None:
+    from tests.fixtures.types.deferred_annotations import divide, length  # noqa: PLC0415
+
+    proxy = tt.ObjectProxy(length)
+    proxy.__wrapped__ = divide
+    assert proxy.__wrapped__ is divide

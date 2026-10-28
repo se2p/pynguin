@@ -173,3 +173,10 @@ def test_describe_module_api_does_not_trigger_module_getattr():
 
 def test_describe_module_api_without_public_members_is_empty():
     assert not describe_module_api(types.ModuleType("empty_sut"))
+
+
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")
+def test_signature_with_annotation_imported_for_type_checking() -> None:
+    from tests.fixtures.types import deferred_annotations  # noqa: PLC0415
+
+    assert "length(obj: Sized) -> int" in describe_module_api(deferred_annotations)

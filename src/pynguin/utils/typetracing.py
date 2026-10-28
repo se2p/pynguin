@@ -383,8 +383,9 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
             object.__setattr__(self, "__qualname__", wrapped.__qualname__)
 
         # Python 3.10 onwards also does not allow itself to be overridden
-        # using a property and it must instead be set explicitly.
-        with contextlib.suppress(AttributeError):
+        # using a property and it must instead be set explicitly. On Python 3.14,
+        # reading deferred annotations evaluates them, which may raise any exception.
+        with contextlib.suppress(Exception):
             object.__setattr__(self, "__annotations__", wrapped.__annotations__)
 
     @property
@@ -469,7 +470,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
                 object.__setattr__(self, "__qualname__", value.__qualname__)
             with contextlib.suppress(AttributeError):
                 object.__delattr__(self, "__annotations__")
-            with contextlib.suppress(AttributeError):
+            with contextlib.suppress(Exception):
                 object.__setattr__(self, "__annotations__", value.__annotations__)
 
         elif name in {"__qualname__", "__annotations__"}:

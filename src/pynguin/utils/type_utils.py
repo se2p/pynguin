@@ -8,19 +8,26 @@
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import copy
 import enum
+import functools
 import inspect
 import numbers
 import pickle  # noqa: S403
 import sys
+import textwrap
 import types
 import typing
+import weakref
 from inspect import isclass
 from typing import Any
 
 import libcst as cst
+
+if sys.version_info >= (3, 14):
+    import annotationlib
 
 import pynguin.configuration as config
 from pynguin.utils.naming import get_module_alias
@@ -406,6 +413,335 @@ def get_method_for_signature(method: Callable) -> Callable:
         if not is_python:
             method_for_signature = clazz  # type: ignore[assignment]
     return method_for_signature
+
+
+if sys.version_info >= (3, 14):
+    # The source of each annotation and whether it failed, and whether inspect.signature
+    # failed, per function. The entries only hold strings, so they are freed with the
+    # function, e.g., when the SUT is reloaded, and leave the SUT's functions untouched.
+    # Only plain functions are keys, which are hashed and compared by identity, so
+    # looking them up runs no code of the SUT.
+    _ANNOTATIONS = "annotations"
+    _SIGNATURE_FAILED = "signature_failed"
+    _CACHE: weakref.WeakKeyDictionary[types.FunctionType, dict[str, Any]] = (
+        weakref.WeakKeyDictionary()
+    )
+
+    def _cached(func: types.FunctionType, key: str) -> Any:
+        # An entry only belongs to the code it was stored with, as __code__ can be
+        # replaced.
+        entry = _CACHE.get(func, {}).get(key)
+        if entry is not None and entry[0] is func.__code__:
+            return entry[1]
+        return None
+
+    def _cache(func: types.FunctionType, key: str, value: Any) -> None:
+        _CACHE.setdefault(func, {})[key] = (func.__code__, value)
+
+    def _annotation_sources(func: Any) -> dict[str, str]:
+        sources: dict[str, str] | None = None
+        with contextlib.suppress(Exception):
+            sources = annotationlib.get_annotations(func, format=annotationlib.Format.STRING)
+        if sources is not None:
+            # Format.STRING drops the quotes of a quoted annotation, such as "int", which
+            # Format.FORWARDREF keeps as a string.
+            with contextlib.suppress(Exception):
+                values = annotationlib.get_annotations(func, format=annotationlib.Format.FORWARDREF)
+                return {
+                    name: repr(values[name]) if isinstance(values.get(name), str) else source
+                    for name, source in sources.items()
+                }
+        # Format.STRING still evaluates operations on literals, such as "int" | None, so
+        # read the annotations from the source code instead.
+        from_code = _annotation_sources_from_code(func)
+        if from_code is not None and (sources is None or from_code.keys() == sources.keys()):
+            return from_code
+        return sources or {}
+
+    def _annotation_sources_from_code(obj: Any) -> dict[str, str] | None:
+        if not inspect.isfunction(obj) and not inspect.isclass(obj):
+            return None
+        try:
+            tree = ast.parse(textwrap.dedent(inspect.getsource(obj)))
+        except (OSError, TypeError, SyntaxError):
+            return None
+        # The source only covers the object, so its first definition is the object,
+        # whatever its __name__ is.
+        if inspect.isclass(obj):
+            class_node = next(
+                (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)), None
+            )
+            if class_node is None:
+                return None
+            return {
+                statement.target.id: ast.unparse(statement.annotation)
+                for statement in class_node.body
+                if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name)
+            }
+        node = next(
+            (
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+            ),
+            None,
+        )
+        if node is None:
+            return None
+        args = node.args
+        parameters = [*args.posonlyargs, *args.args, *args.kwonlyargs]
+        parameters.extend(arg for arg in (args.vararg, args.kwarg) if arg is not None)
+        sources = {
+            parameter.arg: ast.unparse(parameter.annotation)
+            for parameter in parameters
+            if parameter.annotation is not None
+        }
+        if node.returns is not None:
+            sources["return"] = ast.unparse(node.returns)
+        return sources
+
+    def _annotation_scope(func: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+        # Like get_type_hints, take the globals of the function wrapped by decorators,
+        # as a wrapper from functools.wraps has the globals of the decorator's module.
+        try:
+            unwrapped = inspect.unwrap(func)
+        except ValueError:
+            unwrapped = func
+        globals_ = getattr(unwrapped, "__globals__", None)
+        if globals_ is None:
+            module = sys.modules.get(getattr(func, "__module__", None) or "")
+            globals_ = vars(module) if module is not None else {}
+        # The annotations of a method or a nested function can also use names from the
+        # class body or the enclosing functions, which their annotate function holds.
+        locals_: dict[str, Any] = {}
+        class_dict: Any = {}
+        annotate = getattr(func, "__annotate__", None)
+        code = getattr(annotate, "__code__", None)
+        closure = getattr(annotate, "__closure__", None) or ()
+        if code is not None:
+            for name, cell in zip(code.co_freevars, closure, strict=False):
+                try:
+                    value = cell.cell_contents
+                except ValueError:
+                    continue
+                if name == "__classdict__":
+                    class_dict = value
+                else:
+                    locals_[name] = value
+        with contextlib.suppress(TypeError, ValueError):
+            locals_.update(class_dict)
+        return globals_, locals_
+
+    def _evaluate_annotation(
+        source: str, globals_: dict[str, Any], locals_: dict[str, Any], *, eval_str: bool
+    ) -> Any:
+        try:
+            value = eval(source, globals_, locals_)  # noqa: S307
+        except Exception:  # noqa: BLE001
+            return annotationlib.ForwardRef(source)
+        # A quoted annotation, such as "int", which is read as is from the source code.
+        # Like inspect.signature, only evaluate it with eval_str.
+        if not isinstance(value, str) or not eval_str:
+            return value
+        try:
+            return eval(value, globals_, locals_)  # noqa: S307
+        except Exception:  # noqa: BLE001
+            return annotationlib.ForwardRef(value)
+
+    def get_annotations_one_by_one(obj: Any, *, eval_str: bool = True) -> dict[str, Any]:
+        """Evaluate each annotation of an object on its own.
+
+        On Python 3.14, annotations are deferred (PEP 649) and evaluated all at once, so
+        a single annotation that cannot be evaluated, e.g., a type imported only for type
+        checking or ``"int" | None``, makes all of them unavailable. Here, such an
+        annotation becomes a forward reference to its source text, while the others are
+        evaluated as usual, in the same scope as the annotations themselves. The forward
+        references have no owner, so they neither show memory addresses nor prevent
+        copying. Which annotations fail is cached per function, so they are evaluated
+        once, and each call returns new forward references, as evaluating one, e.g., by
+        get_type_hints, stores code on it, which cannot be pickled.
+
+        Args:
+            obj: The object whose annotations are evaluated.
+            eval_str: Whether to evaluate quoted annotations, see inspect.signature.
+
+        Returns:
+            The annotations of the object.
+        """
+        func = getattr(obj, "__func__", obj)
+        is_function = inspect.isfunction(func)
+        globals_, locals_ = _annotation_scope(func)
+        if is_function and (cached := _cached(func, _ANNOTATIONS)) is not None:
+            return {
+                name: _evaluate_annotation(source, globals_, locals_, eval_str=eval_str)
+                if evaluates
+                else annotationlib.ForwardRef(source)
+                for name, (source, evaluates) in cached.items()
+            }
+        sources = _annotation_sources(func)
+        annotations = {
+            name: _evaluate_annotation(source, globals_, locals_, eval_str=eval_str)
+            for name, source in sources.items()
+        }
+        if is_function:
+            # Only an annotation whose source fails is not evaluated again.
+            _cache(
+                func,
+                _ANNOTATIONS,
+                {
+                    name: (
+                        source,
+                        not (
+                            isinstance(annotations[name], annotationlib.ForwardRef)
+                            and annotations[name].__forward_arg__ == source
+                        ),
+                    )
+                    for name, source in sources.items()
+                },
+            )
+        return annotations
+
+    def with_annotations_one_by_one(obj: Any, *, eval_str: bool = True) -> Any:
+        """Build a stand-in for obj whose signature does not evaluate annotations.
+
+        Args:
+            obj: A function, method, class, functools.partial or callable instance
+                whose signature failed.
+            eval_str: Whether to evaluate quoted annotations, see inspect.signature.
+
+        Returns:
+            A stand-in with the same signature as obj, but annotations evaluated one by
+            one, or None if obj is not supported.
+        """
+        if isinstance(obj, types.MethodType):
+            func = with_annotations_one_by_one(obj.__func__, eval_str=eval_str)
+            return None if func is None else types.MethodType(func, obj.__self__)
+        if inspect.isclass(obj):
+            return _class_with_annotations_one_by_one(obj, eval_str=eval_str)
+        if isinstance(obj, functools.partial):
+            func = with_annotations_one_by_one(obj.func, eval_str=eval_str)
+            return None if func is None else functools.partial(func, *obj.args, **obj.keywords)
+        if (call := _instance_call(obj)) is not None:
+            return with_annotations_one_by_one(types.MethodType(call, obj), eval_str=eval_str)
+        func = _unwrapped_function(obj)
+        if func is None:
+            return None
+        stand_in = types.FunctionType(
+            func.__code__, func.__globals__, func.__name__, func.__defaults__, func.__closure__
+        )
+        stand_in.__kwdefaults__ = func.__kwdefaults__
+        stand_in.__qualname__ = func.__qualname__
+        stand_in.__annotations__ = get_annotations_one_by_one(func, eval_str=eval_str)
+        return stand_in
+
+    def _instance_call(obj: Any) -> types.FunctionType | None:
+        # The __call__ method of a callable instance, which inspect.signature uses.
+        if inspect.isroutine(obj) or isinstance(obj, type):
+            return None
+        call = inspect.getattr_static(type(obj), "__call__", None)
+        return call if inspect.isfunction(call) else None
+
+    def _unwrapped_function(obj: Any) -> types.FunctionType | None:
+        if not inspect.isfunction(obj):
+            return None
+        # Like inspect.signature, follow functions wrapped by decorators.
+        func = inspect.unwrap(obj, stop=lambda f: hasattr(f, "__signature__"))
+        return func if inspect.isfunction(func) else None
+
+    def _constructor(cls: type) -> tuple[str, Any] | None:
+        # Mirrors how inspect.signature picks the constructor of a class.
+        for metaclass in inspect.getmro(type(cls)):
+            if metaclass not in {type, object} and "__call__" in vars(metaclass):
+                return None
+        for base in cls.__mro__:
+            if base is object:
+                break
+            for name in ("__new__", "__init__"):
+                if name in vars(base):
+                    method = vars(base)[name]
+                    return name, getattr(method, "__func__", method)
+        return None
+
+    def _class_with_annotations_one_by_one(cls: type, *, eval_str: bool) -> type | None:
+        constructor = _constructor(cls)
+        if constructor is None:
+            return None
+        name, method = constructor
+        stand_in = with_annotations_one_by_one(method, eval_str=eval_str)
+        if stand_in is None:
+            return None
+        if name == "__new__":
+            stand_in = staticmethod(stand_in)
+        return type(cls.__name__, (), {name: stand_in})
+
+    def _signature_function(obj: Any) -> types.FunctionType | None:
+        # The function whose annotations inspect.signature evaluates for obj.
+        with contextlib.suppress(Exception):
+            if isinstance(obj, types.MethodType):
+                return _signature_function(obj.__func__)
+            if inspect.isclass(obj):
+                constructor = _constructor(obj)
+                return None if constructor is None else _signature_function(constructor[1])
+            if isinstance(obj, functools.partial):
+                return _signature_function(obj.func)
+            if (call := _instance_call(obj)) is not None:
+                return _signature_function(call)
+            return _unwrapped_function(obj)
+        return None
+
+    def _get_signature_tolerantly(obj: Callable, *, eval_str: bool) -> inspect.Signature:
+        func = _signature_function(obj)
+        # With eval_str, string annotations are evaluated too, so the signature can fail
+        # for one value of eval_str and work for the other.
+        failed_key = f"{_SIGNATURE_FAILED}_{eval_str}"
+        if func is not None and _cached(func, failed_key):
+            # Avoid evaluating the annotations again, which fails the same way.
+            with contextlib.suppress(Exception):
+                return inspect.signature(
+                    with_annotations_one_by_one(obj, eval_str=eval_str), eval_str=eval_str
+                )
+        try:
+            return inspect.signature(obj, eval_str=eval_str)
+        except Exception as error:
+            stand_in = with_annotations_one_by_one(obj, eval_str=eval_str)
+            signature = None
+            if stand_in is not None:
+                with contextlib.suppress(Exception):
+                    signature = inspect.signature(stand_in, eval_str=eval_str)
+            if signature is None:
+                if isinstance(error, TypeError | ValueError):
+                    raise
+                # An annotation that cannot be evaluated, e.g., of a functools.partial.
+                raise ValueError(f"Cannot get the signature of {obj!r}: {error!r}") from error
+            if func is not None:
+                _cache(func, failed_key, value=True)
+            return signature
+
+
+def get_signature(obj: Callable, *, eval_str: bool = False) -> inspect.Signature:
+    """Get the signature of a callable, even if its annotations cannot be evaluated.
+
+    On Python 3.14, annotations are deferred (PEP 649) and only evaluated when the
+    signature is requested. If this fails for a function, method or class, each
+    annotation is evaluated on its own, see get_annotations_one_by_one.
+    annotation_format=Format.FORWARDREF of inspect.signature is no replacement: it
+    still fails on operations on literals, such as "int" | None, and its forward
+    references hold their module, so the signature can be neither copied nor pickled.
+
+    Args:
+        obj: The callable to inspect.
+        eval_str: Whether to evaluate string annotations, see inspect.signature.
+
+    Returns:
+        The signature of the callable.
+
+    Raises:
+        ValueError: If no signature can be provided.
+        TypeError: If the object is not supported by inspect.signature.
+    """
+    if sys.version_info >= (3, 14):
+        return _get_signature_tolerantly(obj, eval_str=eval_str)
+    return inspect.signature(obj, eval_str=eval_str)
 
 
 def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
