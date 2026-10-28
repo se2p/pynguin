@@ -48,6 +48,19 @@ def test_c_is_whitelisted():
     assert not pm._c_is_whitelisted(fake_mod)
 
 
+@pytest.mark.parametrize(
+    "module_name,expected",
+    [
+        ("_io", "io"),
+        ("_json.decoder", "json"),
+        ("json", "json"),
+        ("numpy.linalg", "numpy"),
+    ],
+)
+def test_public_top_level_module(module_name, expected):
+    assert pm.public_top_level_module(module_name) == expected
+
+
 def test_c_is_whitelisted_exception():
     """Verify that non-module or broken objects return False without crashing."""
 

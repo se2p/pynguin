@@ -19,6 +19,7 @@
 from __future__ import annotations
 import __future__
 
+import io
 import logging
 import os
 import sys
@@ -706,6 +707,37 @@ def test_is_unstable_runtime_value():
     assert ato._is_unstable_runtime_value(os.environ) is True
     assert ato._is_unstable_runtime_value([1, 2, 3]) is False
     assert ato._is_unstable_runtime_value(list(sys.path)) is False
+
+
+@pytest.mark.parametrize(
+    "module_name,blacklisted",
+    [
+        ("_io", True),
+        ("_asyncio", True),
+        ("_csv", True),
+        ("_thread", True),
+        ("_iox", False),
+        ("_pytest", False),
+    ],
+)
+def test_is_blacklisted_module_for_private_modules(module_name, blacklisted):
+    # C implementations report private modules, e.g., "_io" for the blacklisted "io".
+    assert ato._is_blacklisted_module(module_name) is blacklisted
+
+
+@pytest.mark.parametrize(
+    "stream",
+    [
+        io.TextIOWrapper(io.BytesIO(), encoding="utf-8"),
+        io.BufferedReader(io.BytesIO()),
+        io.StringIO(),
+        io.BytesIO(),
+    ],
+)
+def test_is_blacklisted_value_for_io_streams(stream):
+    # The stream types report "_io" as their module, while MODULE_BLACKLIST lists "io".
+    assert type(stream).__module__ == "_io"
+    assert ato._is_blacklisted_value(stream) is True
 
 
 # --- RemoteAssertionTraceObserver: static class-field assertions --------------

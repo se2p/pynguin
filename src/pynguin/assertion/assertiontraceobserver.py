@@ -26,7 +26,7 @@ import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.testcase.execution as ex
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.module import MODULE_BLACKLIST
+from pynguin.analyses.module import MODULE_BLACKLIST, public_top_level_module
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.naming import get_module_alias
@@ -105,7 +105,13 @@ def _is_blacklisted_module(module_name: str | None) -> bool:
         return False
     blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
     blacklist.discard("builtins")
-    return module_name in blacklist or module_name.split(".")[0] in blacklist
+    # Also match C implementations, e.g., "_io" for "io", next to private entries
+    # of the blacklist itself, e.g., "_thread".
+    return (
+        module_name in blacklist
+        or module_name.split(".")[0] in blacklist
+        or public_top_level_module(module_name) in blacklist
+    )
 
 
 def _is_blacklisted_value(value: Any) -> bool:

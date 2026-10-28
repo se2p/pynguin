@@ -416,6 +416,21 @@ C_MODULE_WHITELIST = frozenset((
 ))
 
 
+def public_top_level_module(module_name: str) -> str:
+    """Return the top-level module of a module name without leading underscores.
+
+    C implementations of standard-library modules often report a private module,
+    e.g., ``io.TextIOWrapper.__module__`` is ``"_io"``.
+
+    Args:
+        module_name: The (possibly dotted) module name.
+
+    Returns:
+        The top-level module name without leading underscores.
+    """
+    return module_name.split(".", maxsplit=1)[0].lstrip("_")
+
+
 def _c_is_whitelisted(element: ModuleType | str) -> bool:
     """Checks if the given element belongs to the C module whitelist.
 
@@ -429,9 +444,7 @@ def _c_is_whitelisted(element: ModuleType | str) -> bool:
 
     try:
         module_name = element if isinstance(element, str) else element.__name__
-        top_level = module_name.split(".")[0]
-        public_top_level = top_level.lstrip("_")
-        return public_top_level in c_module_whitelist
+        return public_top_level_module(module_name) in c_module_whitelist
     except Exception:  # noqa: BLE001
         LOGGER.warning(
             "Could not check if %s is whitelisted. Assuming it is not.", element, exc_info=True
