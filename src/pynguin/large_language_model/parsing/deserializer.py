@@ -1855,6 +1855,26 @@ def _collect_deserialized_external_imports(
     return all_external_imports
 
 
+def _compiles(test_case: tc.TestCase) -> bool:
+    """Whether the code of a deserialized test case compiles.
+
+    libcst parses some code that Python's compiler rejects, e.g., a repeated keyword
+    argument or ``yield`` outside a function. Executing such a test case fails before
+    it records a result, in every copy the search makes of it, and exporting it fails.
+
+    Args:
+        test_case: The deserialized test case.
+
+    Returns:
+        Whether its code compiles.
+    """
+    try:
+        compile(test_case.to_code(), "<llm test case>", "exec")
+    except (SyntaxError, ValueError):
+        return False
+    return True
+
+
 def deserialize_code_to_testcases(
     test_file_contents: str,
     test_cluster: TestCluster,
@@ -1913,16 +1933,18 @@ def deserialize_code_to_testcases(
         )
         counts.update(function_result.counts)
         testcase = function_result.test_case
-        if testcase.size() > 0:
-            test_cases.append(testcase)
+        if testcase.size() == 0:
             logger.debug(
-                "Successfully imported %s (%s).",
+                "Failed to parse %s (%s).",
                 stmt_.name.value,
                 _format_counts(function_result.counts),
             )
+        elif not _compiles(testcase):
+            logger.debug("Dropped %s: its code does not compile.", stmt_.name.value)
         else:
+            test_cases.append(testcase)
             logger.debug(
-                "Failed to parse %s (%s).",
+                "Successfully imported %s (%s).",
                 stmt_.name.value,
                 _format_counts(function_result.counts),
             )
