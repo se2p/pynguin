@@ -738,7 +738,8 @@ class SubjectProperties:
             )
         for code_object_id, code_meta in self.existing_code_objects.items():
             for node in code_meta.cfg.graph.nodes:
-                if not isinstance(node, BasicBlockNode):
+                # Nodes that are excluded from coverage are not part of the CDG.
+                if not isinstance(node, BasicBlockNode) or node not in code_meta.cdg.graph:
                     continue
                 original_instructions = getattr(node, "original_instructions", None)
                 if not original_instructions:
