@@ -9,3 +9,7 @@
 class SomeArgumentType:
     def __init__(self, needed_for_me: int):
         pass
+
+    # needed so the cluster creates at least one modifier for this class
+    def addOne(self, x: int) -> int:
+        return x + 1
