@@ -43,7 +43,29 @@ Publications on Pynguin
           eprint       = {2510.09108},
         }
 
+
+* K. Kitsios, M. Castelluccio, and A. Bacchelli.
+  **Automated Generation of Issue-Reproducing Tests by Combining LLMs and Search-Based Testing**.
+  In *2025 40th IEEE/ACM International Conference on Automated Software Engineering (ASE)*.
+  IEEE, 2025, pp. 1982--1994.
+  DOI: `10.1109/ASE63991.2025.00165 <https://doi.org/10.1109/ASE63991.2025.00165>`_.
+
   BibTeX entry:
+
+  .. code-block:: bibtex
+
+     @inproceedings{11334449,
+       author    = {Konstantinos Kitsios and
+                    Marco Castelluccio and
+                    Alberto Bacchelli},
+       title     = {Automated Generation of Issue-Reproducing Tests by Combining LLMs and
+                    Search-Based Testing},
+       booktitle = {2025 40th IEEE/ACM International Conference on Automated Software
+                    Engineering (ASE)},
+       pages     = {1982--1994},
+       year      = {2025},
+       doi       = {10.1109/ASE63991.2025.00165},
+     }
 
 * S. Lukasczyk and G. Fraser.
   **Search-based Hyperparameter Tuning for Python Unit Test Generation**
