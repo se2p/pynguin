@@ -355,7 +355,9 @@ def test_call_llm_for_uncovered_targets_sync_and_async_build_the_same_prompt(mon
     assert sync_call == async_call
     assert async_call.kwargs["visibility_instructions"] == "visibility"
     assert async_call.kwargs["diagnostics"] == {gao: "hint"}
-    agent.query_async.assert_awaited_once_with(prompt_class.return_value)
+    agent.query_async.assert_awaited_once_with(
+        prompt_class.return_value, purpose="uncovered-targets", targets=[str(gao)]
+    )
 
 
 def test_extract_python_code_no_code(monkeypatch):
@@ -640,7 +642,7 @@ def test_query_batch_keeps_successful_responses_and_tokens(monkeypatch):
     )
     agent = LLMAgent()
 
-    async def fake_send_async(request, timeout=None):  # noqa: ARG001
+    async def fake_send_async(request, timeout=None, usage=None):  # noqa: ARG001
         await asyncio.sleep(0)
         if request.messages[-1]["content"] == "p1":
             raise TimeoutError("Request timed out.")

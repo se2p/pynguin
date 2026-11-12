@@ -106,6 +106,8 @@ enable_thinking = false
 cache_dir = "~/.cache/pynguin/llm"
 max_concurrency = 5
 llm_mode = "sync"
+trace_dir = ""
+repair_attempts = 0
 
 [mock_generation]
 mock_generation_enabled = false
@@ -341,7 +343,7 @@ def expected_txt(tmp_path):
  'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
  'max_request_time=300.0, enable_thinking=False, '
  "cache_dir='~/.cache/pynguin/llm', max_concurrency=5, llm_mode=<LLMMode.SYNC: "
- "'sync'>), "
+ "'sync'>, trace_dir='', repair_attempts=0), "
  'mock_generation=MockGenerationConfiguration(mock_generation_enabled=False, '
  "proxy_cache_url='', base_rules_cache_id=''), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
@@ -511,6 +513,8 @@ SYNC
 45
 --large_language_model.model_name
 gpt-4o-mini
+--large_language_model.repair_attempts
+0
 --large_language_model.request_timeout
 30.0
 --large_language_model.stall_detection_window_seconds

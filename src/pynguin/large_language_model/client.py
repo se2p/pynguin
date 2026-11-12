@@ -18,6 +18,7 @@ import random
 import re
 import threading
 import time
+from itertools import starmap
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import pynguin.configuration as config
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from pydantic import SecretStr
 
     from pynguin.large_language_model.request import RenderedRequest
+    from pynguin.large_language_model.tracing import CallUsage
 
 _T = TypeVar("_T")
 
@@ -163,7 +165,10 @@ class LLMClient(abc.ABC):
         """
 
     async def send_async(
-        self, request: RenderedRequest, timeout: float | None = None
+        self,
+        request: RenderedRequest,
+        timeout: float | None = None,
+        usage: CallUsage | None = None,
     ) -> str | None:
         """Sends a rendered request asynchronously to the LLM.
 
@@ -171,6 +176,7 @@ class LLMClient(abc.ABC):
             request: The request payload.
             timeout: Per-attempt timeout in seconds overriding the configured
                 ``request_timeout``; *None* uses the configured value.
+            usage: Optional per-call usage that the client fills in.
 
         Returns:
             The LLM response content or None on failure.
@@ -183,6 +189,7 @@ class LLMClient(abc.ABC):
         requests: list[RenderedRequest],
         timeout: float | None = None,
         max_concurrency: int | None = None,
+        usages: list[CallUsage] | None = None,
     ) -> list[str | None]:
         """Sends a batch of requests concurrently with bounded concurrency.
 
@@ -192,6 +199,8 @@ class LLMClient(abc.ABC):
                 ``request_timeout``; *None* uses the configured value.
             max_concurrency: Maximum number of concurrent requests. Defaults to
                 the configured ``max_concurrency``.
+            usages: Optional per-request usages, parallel to ``requests``, that the
+                client fills in.
 
         Returns:
             List of LLM response strings in the same order as the requests. A request
@@ -208,12 +217,18 @@ class LLMClient(abc.ABC):
 
         semaphore = asyncio.Semaphore(max_concurrency)
 
-        async def _send_one(req: RenderedRequest) -> str | None:
+        async def _send_one(req: RenderedRequest, usage: CallUsage | None) -> str | None:
             async with semaphore:
-                return await self.send_async(req, timeout=timeout)
+                if usage is None:
+                    return await self.send_async(req, timeout=timeout)
+                return await self.send_async(req, timeout=timeout, usage=usage)
 
+        request_usages: list[CallUsage | None] = (
+            list(usages) if usages is not None else [None] * len(requests)
+        )
         results = await asyncio.gather(
-            *[_send_one(req) for req in requests], return_exceptions=True
+            *list(starmap(_send_one, zip(requests, request_usages, strict=True))),
+            return_exceptions=True,
         )
         responses: list[str | None] = []
         for index, result in enumerate(results):
@@ -221,6 +236,10 @@ class LLMClient(abc.ABC):
                 _logger.error(
                     "LLM request %d of %d in batch failed: %s", index + 1, len(requests), result
                 )
+                usage = request_usages[index]
+                if usage is not None:
+                    usage.error = usage.error or repr(result)
+                    usage.timed_out = usage.timed_out or isinstance(result, TimeoutError)
                 responses.append(None)
             elif isinstance(result, BaseException):
                 # Cancellation and interpreter shutdown must still abort the batch.
@@ -411,11 +430,23 @@ class OpenAIClient(LLMClient):
             }
         return kwargs
 
+    def is_timeout_error(self, exc: BaseException) -> bool:
+        """Whether an exception raised while sending a request is a timeout.
+
+        Args:
+            exc: The exception.
+
+        Returns:
+            True if the exception signals a request timeout.
+        """
+        return isinstance(exc, (*self._timeout_errors, TimeoutError))
+
     def _record_response(
         self,
         request: RenderedRequest,
         response: Any,
         elapsed: float,
+        call_usage: CallUsage | None = None,
     ) -> str | None:
         usage = getattr(response, "usage", None)
         prompt_tokens = (getattr(usage, "prompt_tokens", 0) or 0) if usage is not None else 0
@@ -437,6 +468,9 @@ class OpenAIClient(LLMClient):
             self._time_seconds += elapsed
             if has_no_code:
                 self._calls_with_no_python_code += 1
+        if call_usage is not None:
+            call_usage.input_tokens += prompt_tokens
+            call_usage.output_tokens += completion_tokens
 
         cache_enabled = getattr(
             config.configuration.large_language_model, "enable_response_caching", False
@@ -456,7 +490,11 @@ class OpenAIClient(LLMClient):
         request_budget: float,
         request_started: float,
         timeout: float | None,
+        usage: CallUsage | None = None,
     ) -> float:
+        if usage is not None:
+            usage.error = repr(exc)
+            usage.timed_out = self.is_timeout_error(exc)
         is_rate_limit = self._rate_limit_errors and isinstance(exc, self._rate_limit_errors)
         is_timeout = self._timeout_errors and isinstance(exc, self._timeout_errors)
         is_api_err = self._api_errors and isinstance(exc, self._api_errors)
@@ -501,15 +539,23 @@ class OpenAIClient(LLMClient):
             raise exc
         with self._lock:
             self._retries += 1
+        if usage is not None:
+            usage.retries += 1
         return wait
 
-    def send(self, request: RenderedRequest, timeout: float | None = None) -> str | None:
+    def send(
+        self,
+        request: RenderedRequest,
+        timeout: float | None = None,
+        usage: CallUsage | None = None,
+    ) -> str | None:
         """Sends a query to OpenAI with retry policy, timeout, and usage tracking.
 
         Args:
             request: The RenderedRequest payload.
             timeout: Per-attempt timeout in seconds overriding the configured
                 ``request_timeout``; *None* uses the configured value.
+            usage: Optional per-call usage that the client fills in.
 
         Returns:
             The response string, or None if failed.
@@ -551,7 +597,7 @@ class OpenAIClient(LLMClient):
                     self._endpoint_requests += 1
                 response = self._client.chat.completions.create(**kwargs)
                 elapsed = time.perf_counter() - start_time
-                return self._record_response(request, response, elapsed)
+                return self._record_response(request, response, elapsed, usage)
             except Exception as exc:  # noqa: BLE001
                 if self._is_cancelled:
                     return None
@@ -584,13 +630,17 @@ class OpenAIClient(LLMClient):
                     request_budget=request_budget,
                     request_started=request_started,
                     timeout=timeout,
+                    usage=usage,
                 )
                 time.sleep(wait)
 
         return None
 
     async def send_async(
-        self, request: RenderedRequest, timeout: float | None = None
+        self,
+        request: RenderedRequest,
+        timeout: float | None = None,
+        usage: CallUsage | None = None,
     ) -> str | None:
         """Sends a query asynchronously to OpenAI with retry policy, timeout, and usage tracking.
 
@@ -598,6 +648,7 @@ class OpenAIClient(LLMClient):
             request: The RenderedRequest payload.
             timeout: Per-attempt timeout in seconds overriding the configured
                 ``request_timeout``; *None* uses the configured value.
+            usage: Optional per-call usage that the client fills in.
 
         Returns:
             The response string, or None if failed.
@@ -639,7 +690,7 @@ class OpenAIClient(LLMClient):
                     self._endpoint_requests += 1
                 response = await self.async_client.chat.completions.create(**kwargs)
                 elapsed = time.perf_counter() - start_time
-                return self._record_response(request, response, elapsed)
+                return self._record_response(request, response, elapsed, usage)
             except Exception as exc:  # noqa: BLE001
                 if self._is_cancelled:
                     return None
@@ -672,6 +723,7 @@ class OpenAIClient(LLMClient):
                     request_budget=request_budget,
                     request_started=request_started,
                     timeout=timeout,
+                    usage=usage,
                 )
                 await asyncio.sleep(wait)
 

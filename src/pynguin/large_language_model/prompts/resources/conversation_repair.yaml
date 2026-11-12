@@ -1,0 +1,17 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+
+# Follow-up message appended to an existing conversation; only the user message is
+# used, the system message and sampling settings of the original request are kept.
+user_message_template: |
+  Pynguin could not use the tests from your previous answer:
+
+  {{ error_message }}
+
+  Fix the problem and return the complete corrected test module.
+  Keep the same imports of the module under test, call only names that exist in it,
+  and use only plain statements and `assert`s inside each `test_*` function.
+  Return only Python code inside a single ```python code block.

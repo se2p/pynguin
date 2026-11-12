@@ -21,7 +21,7 @@ from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
     import pynguin.ga.chromosomefactory as cf
     import pynguin.ga.testsuitechromosome as tsc
@@ -30,12 +30,69 @@ import operator
 
 import pynguin.configuration as config
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
-from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.llmagent import LLMAgent, target_name
+from pynguin.large_language_model.llmtestcasehandler import (
+    ChromosomeContext,
+    LLMGeneration,
+    reset_statement_ratio,
+)
 from pynguin.large_language_model.query_strategy import get_query_strategy
+from pynguin.large_language_model.tracing import CallPurpose, count
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
 from pynguin.utils.report import CoverageReport, LineAnnotation, get_coverage_report
+
+_MAX_REPORTED_FAILURES = 5
+
+
+def _timed(step: Callable[[], None]) -> float:
+    """Runs a step and measures how long it took.
+
+    Args:
+        step: The step to run.
+
+    Returns:
+        The wall-clock seconds the step took.
+    """
+    started = time.perf_counter()
+    step()
+    return time.perf_counter() - started
+
+
+def _without(
+    chromosomes: list[tcc.TestCaseChromosome], excluded: list[tcc.TestCaseChromosome]
+) -> list[tcc.TestCaseChromosome]:
+    excluded_ids = {id(chromosome) for chromosome in excluded}
+    return [chromosome for chromosome in chromosomes if id(chromosome) not in excluded_ids]
+
+
+def _describe_failures(failing: list[tcc.TestCaseChromosome]) -> str:
+    """Describes LLM test cases that raised or timed out, for a repair prompt.
+
+    Args:
+        failing: The executed chromosomes that did not work.
+
+    Returns:
+        A description of the failing tests and their errors.
+    """
+    parts = [f"{len(failing)} of your tests did not run cleanly:"]
+    for index, chromosome in enumerate(failing[:_MAX_REPORTED_FAILURES]):
+        result = chromosome.get_last_execution_result()
+        if result is not None and result.timeout:
+            error = "it timed out"
+        elif result is not None and result.exceptions:
+            position = min(result.exceptions)
+            exception = result.exceptions[position]
+            error = f"statement {position + 1} raised {type(exception).__name__}: {exception}"
+        else:
+            error = "it raised an exception"
+        code = chromosome.test_case.to_test_function(index).code
+        parts.append(f"```python\n{code.strip()}\n```\nIn this test, {error}.")
+    if len(failing) > _MAX_REPORTED_FAILURES:
+        parts.append(f"({len(failing) - _MAX_REPORTED_FAILURES} more failing tests omitted.)")
+    parts.append("Return corrected versions of these tests.")
+    return "\n\n".join(parts)
 
 
 class _StallTracker:
@@ -91,6 +148,12 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         # global llm_calls_counter (which also counts pre-search/seeding queries) so
         # that ``max_llm_interventions`` caps stall queries independently.
         self._stall_intervention_count = 0
+        # The purpose of the query running in the background, if any, so that its
+        # result is attributed correctly when a later poll() delivers it.
+        self._inflight_purpose: CallPurpose | None = None
+        # Whether the current in-flight query already caused a stall to be skipped,
+        # so a stall that lasts several iterations is only counted once.
+        self._inflight_skip_counted = False
 
     def _target_initial_uncovered_goals(self) -> None:
         """Performs an LLM intervention to improve coverage before search iteration."""
@@ -103,14 +166,14 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             self._logger.info("Coverage before LLM call: %5f", coverage_before)
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
-            llm_chromosomes = self._query_initial_targets()
-            if llm_chromosomes is None:
+            generation = self._query_initial_targets()
+            if generation is None:
                 self._logger.info(
                     "Initial LLM query runs in the background; its result is integrated "
                     "when it completes."
                 )
                 return
-            working_chromosomes = self._filter_working_test_cases(llm_chromosomes)
+            working_chromosomes = self._execute_and_repair(generation)
             self._population = working_chromosomes + self._population
             self._archive.update(self._population)
 
@@ -118,7 +181,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             self._logger.info("Coverage after LLM call: %5f", coverage_after)
             stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
 
-    def _query_initial_targets(self) -> list[tcc.TestCaseChromosome] | None:
+    def _query_initial_targets(self) -> LLMGeneration | None:
         """Runs the initial LLM query through the configured query strategy.
 
         Target selection reads the archive and the test cluster, so it runs on the
@@ -127,13 +190,50 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         in ASYNC mode it returns immediately and a later poll() delivers the result.
 
         Returns:
-            The generated chromosomes, or None if the query runs in the background.
+            The generation, or None if the query runs in the background.
         """
         targets_map, diagnostics = self._select_uncovered_targets()
         if not targets_map:
-            return []
-        return self._llm_query_strategy.execute(
-            functools.partial(self._query_llm_for_targets, targets_map, diagnostics)
+            return LLMGeneration(chromosomes=[])
+        return self._dispatch_llm_query(
+            CallPurpose.UNCOVERED_TARGETS,
+            functools.partial(
+                self._query_llm_for_targets,
+                targets_map,
+                diagnostics,
+                CallPurpose.UNCOVERED_TARGETS,
+            ),
+        )
+
+    def _dispatch_llm_query(
+        self, purpose: CallPurpose, query_fn: functools.partial[LLMGeneration]
+    ) -> LLMGeneration | None:
+        """Runs an LLM query through the query strategy and remembers its purpose.
+
+        Args:
+            purpose: Why the query is made.
+            query_fn: The query.
+
+        Returns:
+            The generation, or None if the query runs in the background.
+        """
+        generation = self._llm_query_strategy.execute(query_fn)
+        if generation is None:
+            self._inflight_purpose = purpose
+            self._inflight_skip_counted = False
+        return generation
+
+    def _llm_context(self) -> ChromosomeContext:
+        """Bundles what is needed to turn LLM test cases into chromosomes.
+
+        Returns:
+            The context.
+        """
+        return ChromosomeContext(
+            test_cluster=self.test_cluster,
+            test_factory=self._test_factory,
+            fitness_functions=self._test_case_fitness_functions,
+            coverage_functions=self._test_suite_coverage_functions,
         )
 
     def _poll_and_handle_stall(self, stall_tracker: _StallTracker) -> None:
@@ -142,34 +242,70 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         Args:
             stall_tracker: State tracker for stall detection.
         """
-        pending_chromosomes = self._llm_query_strategy.poll()
-        if pending_chromosomes:
-            self._integrate_llm_chromosomes(pending_chromosomes)
+        pending = self._llm_query_strategy.poll()
+        if pending is not None:
+            purpose, self._inflight_purpose = self._inflight_purpose, None
+            if pending.chromosomes:
+                self._integrate_llm_chromosomes(pending.chromosomes)
+                if purpose is CallPurpose.STALL:
+                    count(RuntimeVariable.LLMStallTestsPublished, len(pending.chromosomes))
 
         if config.configuration.large_language_model.call_llm_on_stall_detection:
             current_covered = len(self._archive.covered_goals)
-            if (
-                stall_tracker.check_stall(current_covered)
-                and not self._llm_query_strategy.is_in_progress()
-            ):
-                self._maybe_intervene_on_stall()
-                stall_tracker.reset()
+            if stall_tracker.check_stall(current_covered):
+                if self._llm_query_strategy.is_in_progress():
+                    if not self._inflight_skip_counted:
+                        count(RuntimeVariable.LLMStallSkippedInFlight)
+                        self._inflight_skip_counted = True
+                else:
+                    self._maybe_intervene_on_stall()
+                    stall_tracker.reset()
 
     def _seed_archive_from_llm(self) -> None:
         """Seed valid LLM test cases directly into the archive before search iteration 0."""
-        llm_chromosomes = self._generate_initial_llm_test_cases()
-        if not llm_chromosomes:
+        generation = self._generate_initial_llm_test_cases()
+        if not generation.chromosomes:
             return
-        working_chromosomes = self._filter_working_test_cases(llm_chromosomes)
+        working_chromosomes = self._execute_and_repair(generation)
         if not working_chromosomes:
             self._logger.warning(
                 "All %d initial LLM test cases raised exceptions or timed out; "
                 "archive will not be seeded with LLM test cases.",
-                len(llm_chromosomes),
+                len(generation.chromosomes),
             )
-            self._log_common_failure(llm_chromosomes)
+            self._log_common_failure(generation.chromosomes)
             return
         self._update_archive_with_initial_tests(working_chromosomes)
+
+    def _execute_and_repair(self, generation: LLMGeneration) -> list[tcc.TestCaseChromosome]:
+        """Executes LLM chromosomes and asks the LLM to repair the ones that raise.
+
+        Every repaired response is executed again; repairs stop once all chromosomes
+        work, ``repair_attempts`` repair calls were made for the original call, or the
+        search budget is used up.
+
+        Args:
+            generation: The generation to execute.
+
+        Returns:
+            The chromosomes that ran without exceptions or timeouts.
+        """
+        working = self._filter_working_test_cases(generation.chromosomes)
+        failing = _without(generation.chromosomes, working)
+        while failing:
+            repaired = self.model.llm_test_case_handler.repair_chromosomes(
+                generation,
+                _describe_failures(failing),
+                self._llm_context(),
+                may_repair=self.resources_left,
+            )
+            if repaired is None:
+                break
+            generation = repaired
+            newly_working = self._filter_working_test_cases(generation.chromosomes)
+            working += newly_working
+            failing = _without(generation.chromosomes, newly_working)
+        return working
 
     def _log_common_failure(self, chromosomes: list[tcc.TestCaseChromosome]) -> None:
         """Log the exception if every candidate chromosome failed with the same one.
@@ -196,29 +332,29 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 failures.pop(),
             )
 
-    def _generate_initial_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:
+    def _generate_initial_llm_test_cases(self) -> LLMGeneration:
         """Generate initial test cases using the LLM for the module under test.
 
         Returns:
-            A list of test case chromosomes generated by the LLM.
+            The test case chromosomes generated by the LLM, with their conversation.
         """
-        llm_query_results = self.model.generate_tests_for_module_under_test()
-        if llm_query_results is None:
+        generation = self.model.llm_test_case_handler.generate_chromosomes(
+            self.model.build_test_generation_prompt(),
+            self._llm_context(),
+            purpose=CallPurpose.INITIAL.value,
+            may_repair=self.resources_left,
+        )
+        if generation.response is None:
             self._logger.warning(
                 "Initial LLM query for the module under test returned no results "
                 "(timeout or error); archive will not be seeded with LLM test cases."
             )
-            return []
-        chromosomes = self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
-            llm_query_results=llm_query_results,
-            test_cluster=self.test_cluster,
-            test_factory=self._test_factory,
-            fitness_functions=self._test_case_fitness_functions,
-            coverage_functions=self._test_suite_coverage_functions,
+            return generation
+        stat.track_output_variable(RuntimeVariable.TotalLTCs, len(generation.chromosomes))
+        self._logger.info(
+            "Generated %d initial LLM test case chromosomes.", len(generation.chromosomes)
         )
-        stat.track_output_variable(RuntimeVariable.TotalLTCs, len(chromosomes))
-        self._logger.info("Generated %d initial LLM test case chromosomes.", len(chromosomes))
-        return chromosomes
+        return generation
 
     def _filter_working_test_cases(
         self, chromosomes: list[tcc.TestCaseChromosome]
@@ -264,13 +400,18 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
+        self._reset_llm_statistics()
+        pre_search_time = 0.0
         if config.configuration.large_language_model.hybrid_initial_population:
-            self._seed_archive_from_llm()
+            pre_search_time += _timed(self._seed_archive_from_llm)
 
         self._population = self._get_random_population()
         self._archive.update(self._population)
 
-        self._target_initial_uncovered_goals()
+        pre_search_time += _timed(self._target_initial_uncovered_goals)
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.LLMPreSearchTime, pre_search_time
+        )
 
         self._compute_dominance()
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
@@ -293,6 +434,23 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             )
 
         return self._finalize_generation()
+
+    @staticmethod
+    def _reset_llm_statistics() -> None:
+        """Starts the search-time LLM statistics at zero, so they are always reported."""
+        reset_statement_ratio()
+        for variable in (
+            RuntimeVariable.LLMCallsSucceeded,
+            RuntimeVariable.LLMCallsFailed,
+            RuntimeVariable.LLMCallsTimedOut,
+            RuntimeVariable.LLMRepairCalls,
+            RuntimeVariable.LLMStallQueriesSubmitted,
+            RuntimeVariable.LLMStallResponsesReceived,
+            RuntimeVariable.LLMStallTestsPublished,
+            RuntimeVariable.LLMStallSkippedBudget,
+            RuntimeVariable.LLMStallSkippedInFlight,
+        ):
+            count(variable, 0)
 
     def _integrate_llm_chromosomes(self, llm_chromosomes: list[tcc.TestCaseChromosome]) -> None:
         """Integrates newly generated LLM test case chromosomes into the population.
@@ -323,8 +481,10 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 "Skipping stall LLM query: less than %ds of search budget remain.",
                 llm_config.min_remaining_budget_for_llm,
             )
+            count(RuntimeVariable.LLMStallSkippedBudget)
             return
         if self._llm_query_strategy.is_in_progress():
+            count(RuntimeVariable.LLMStallSkippedInFlight)
             return
 
         targets_map, diagnostics = self._select_uncovered_targets()
@@ -332,11 +492,16 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             return
 
         self._stall_intervention_count += 1
-        llm_chromosomes = self._llm_query_strategy.execute(
-            functools.partial(self._query_llm_for_targets, targets_map, diagnostics)
+        count(RuntimeVariable.LLMStallQueriesSubmitted)
+        generation = self._dispatch_llm_query(
+            CallPurpose.STALL,
+            functools.partial(
+                self._query_llm_for_targets, targets_map, diagnostics, CallPurpose.STALL
+            ),
         )
-        if llm_chromosomes:
-            self._integrate_llm_chromosomes(llm_chromosomes)
+        if generation is not None and generation.chromosomes:
+            self._integrate_llm_chromosomes(generation.chromosomes)
+            count(RuntimeVariable.LLMStallTestsPublished, len(generation.chromosomes))
 
     def _enough_budget_for_llm(self) -> bool:
         """Whether enough search time remains to fire a stall-triggered LLM query.
@@ -396,7 +561,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         self,
         targets_map: dict[GenericCallableAccessibleObject, float],
         diagnostics: dict[GenericCallableAccessibleObject, str],
-    ) -> list[tcc.TestCaseChromosome]:
+        purpose: CallPurpose = CallPurpose.UNCOVERED_TARGETS,
+    ) -> LLMGeneration:
         """Queries the LLM for uncovered targets and parses results into chromosomes.
 
         Safe to run asynchronously on a background thread because it does not access the
@@ -405,22 +571,24 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         Args:
             targets_map: Mapping of callables to their coverage ratio.
             diagnostics: Mapping of callables to diagnostic hints.
+            purpose: Why the query is made, for the trace and the stall counters.
 
         Returns:
-            A list of TestCaseChromosome objects.
+            The generated chromosomes, with their conversation.
         """
         if not targets_map:
-            return []
+            return LLMGeneration(chromosomes=[])
 
-        llm_query_results = self.model.call_llm_for_uncovered_targets(targets_map, diagnostics)
-
-        return self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
-            llm_query_results=llm_query_results,
-            test_cluster=self.test_cluster,
-            test_factory=self._test_factory,
-            fitness_functions=self._test_case_fitness_functions,
-            coverage_functions=self._test_suite_coverage_functions,
+        generation = self.model.llm_test_case_handler.generate_chromosomes(
+            self.model.build_uncovered_targets_prompt(targets_map, diagnostics),
+            self._llm_context(),
+            purpose=purpose.value,
+            targets=[target_name(gao) for gao in targets_map],
+            may_repair=self.resources_left,
         )
+        if purpose is CallPurpose.STALL and generation.response is not None:
+            count(RuntimeVariable.LLMStallResponsesReceived)
+        return generation
 
     def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
         """Identifies uncovered targets, queries an LLM for test cases.
@@ -431,7 +599,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             A list of `TestCaseChromosome` objects derived from the LLM query results.
         """
         targets_map, diagnostics = self._select_uncovered_targets()
-        return self._query_llm_for_targets(targets_map, diagnostics)
+        return self._query_llm_for_targets(targets_map, diagnostics).chromosomes
 
     @staticmethod
     def _diagnose_callable(

@@ -41,6 +41,15 @@ The LLM integration provides AI-assisted test generation capabilities:
   - Integrates with deserializer and rewriter.
   - Saves intermediate results for debugging.
 
+- **Call tracing** (`tracing.py`): Structured per-call records
+  - `LLMCallRecord`: purpose, targets, prompt, response, latency, tokens, retries, outcome,
+    deserialisation counts, repair attempt index and parent call id of one logical call.
+  - Written as JSON lines to `<trace_dir>/llm_calls.jsonl` when `large_language_model.trace_dir` is set.
+  - Feeds the `LLMCallsSucceeded` / `LLMCallsFailed` / `LLMCallsTimedOut` runtime variables.
+  - Search-time calls go through `LLMTestCaseHandler.generate_chromosomes`, which parses the
+    response, records the deserialisation result and, with `repair_attempts > 0`, asks for a
+    repair in the same conversation (`ConversationRepairPrompt`).
+
 - **LLMCache** (`cache.py`): Hashed caching system
   - Correct, reproducible file-based caching under `~/.cache/pynguin/llm/`.
   - Keys on hashes computed from `RenderedRequest` values.
@@ -67,6 +76,7 @@ Jinja2 prompt templates configured via YAML files:
   - `AssertionGenerationPrompt`
   - `UncoveredTargetsPrompt`
   - `LocalSearchPrompt`
+  - `ConversationRepairPrompt` (continues a conversation with the error its last answer caused)
   - `BaseInferencePrompt` -> `TypeInferencePrompt` and `TypeAndSubtypeInferencePrompt`
 
 ### parsing/

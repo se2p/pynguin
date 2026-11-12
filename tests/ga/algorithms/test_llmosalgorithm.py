@@ -17,6 +17,8 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.llmtestcasehandler import LLMGeneration
+from pynguin.large_language_model.tracing import CallPurpose
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -47,6 +49,8 @@ def llmosa_algorithm():
         mock_model = MagicMock()
         mock_model.llm_calls_counter = 0
         mock_model.llm_test_case_handler = MagicMock()
+        # Repair is off by default (repair_attempts=0).
+        mock_model.llm_test_case_handler.repair_chromosomes.return_value = None
         mock_model.call_llm_for_uncovered_targets = MagicMock(return_value="test response")
         mock_llm_agent.return_value = mock_model
 
@@ -112,7 +116,9 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, llmosa_algori
     )
     raw_chromosomes = [MagicMock(spec=tcc.TestCaseChromosome)]
     llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.5}, {}))
-    llmosa_algorithm._query_llm_for_targets = MagicMock(return_value=raw_chromosomes)
+    llmosa_algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=raw_chromosomes)
+    )
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=raw_chromosomes)
 
     # Execute
@@ -143,7 +149,9 @@ def test_target_initial_uncovered_goals_filters_crashing_tests(mock_config, llmo
         MagicMock(spec=tcc.TestCaseChromosome),
     ]
     llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.5}, {}))
-    llmosa_algorithm._query_llm_for_targets = MagicMock(return_value=raw_chromosomes)
+    llmosa_algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=raw_chromosomes)
+    )
     # Only the second chromosome survives filtering (e.g. the first crashed).
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=raw_chromosomes[1:])
     llmosa_algorithm._population = []
@@ -229,7 +237,7 @@ def test_target_uncovered_callables(mock_get_coverage_report, llmosa_algorithm):
     # Setup mock for test case chromosomes
     test_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     handler = llmosa_algorithm.model.llm_test_case_handler
-    handler.get_test_case_chromosomes_from_llm_results.return_value = [test_chromosome]
+    handler.generate_chromosomes.return_value = LLMGeneration(chromosomes=[test_chromosome])
 
     with patch("pynguin.ga.algorithms.llmosalgorithm.config") as mock_config:
         mock_config.configuration.large_language_model.coverage_threshold = 0.8
@@ -241,9 +249,9 @@ def test_target_uncovered_callables(mock_get_coverage_report, llmosa_algorithm):
     # Assert
     assert len(result) == 1
     assert result[0] == test_chromosome
-    llmosa_algorithm.model.call_llm_for_uncovered_targets.assert_called_once()
+    llmosa_algorithm.model.build_uncovered_targets_prompt.assert_called_once()
     handler = llmosa_algorithm.model.llm_test_case_handler
-    handler.get_test_case_chromosomes_from_llm_results.assert_called_once()
+    handler.generate_chromosomes.assert_called_once()
 
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.get_coverage_report")
@@ -559,25 +567,29 @@ def test_breed_next_generation(llmosa_algorithm):
 
 
 def test_generate_initial_llm_test_cases_none(llmosa_algorithm):
-    llmosa_algorithm.model.generate_tests_for_module_under_test.return_value = None
+    handler = llmosa_algorithm.model.llm_test_case_handler
+    handler.generate_chromosomes.return_value = LLMGeneration(chromosomes=[], response=None)
     result = llmosa_algorithm._generate_initial_llm_test_cases()
-    assert result == []
+    assert result.chromosomes == []
     # The silent-timeout failure mode must be logged, not swallowed.
     llmosa_algorithm._logger.warning.assert_called_once()
 
 
 def test_generate_initial_llm_test_cases_success(llmosa_algorithm):
-    llmosa_algorithm.model.generate_tests_for_module_under_test.return_value = "def test_a(): pass"
     fake_chromosomes = [
         MagicMock(spec=tcc.TestCaseChromosome),
         MagicMock(spec=tcc.TestCaseChromosome),
     ]
     handler = llmosa_algorithm.model.llm_test_case_handler
-    handler.get_test_case_chromosomes_from_llm_results.return_value = fake_chromosomes
+    handler.generate_chromosomes.return_value = LLMGeneration(
+        chromosomes=fake_chromosomes, response="def test_a(): pass"
+    )
     with patch.object(stat, "track_output_variable") as mock_track:
         result = llmosa_algorithm._generate_initial_llm_test_cases()
-        assert result == fake_chromosomes
+        assert result.chromosomes == fake_chromosomes
         mock_track.assert_called_once_with(RuntimeVariable.TotalLTCs, 2)
+    _, kwargs = handler.generate_chromosomes.call_args
+    assert kwargs["purpose"] == "initial"
 
 
 def test_filter_working_test_cases(llmosa_algorithm):
@@ -621,7 +633,9 @@ def test_update_archive_with_initial_tests(llmosa_algorithm):
 def test_seed_archive_from_llm(llmosa_algorithm):
     candidates = [MagicMock(spec=tcc.TestCaseChromosome)]
     working = [MagicMock(spec=tcc.TestCaseChromosome)]
-    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=candidates)
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(
+        return_value=LLMGeneration(chromosomes=candidates)
+    )
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=working)
     llmosa_algorithm._update_archive_with_initial_tests = MagicMock()
 
@@ -633,7 +647,9 @@ def test_seed_archive_from_llm(llmosa_algorithm):
 
 
 def test_seed_archive_from_llm_empty_cases(llmosa_algorithm):
-    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=[])
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(
+        return_value=LLMGeneration(chromosomes=[])
+    )
     llmosa_algorithm._filter_working_test_cases = MagicMock()
     llmosa_algorithm._update_archive_with_initial_tests = MagicMock()
 
@@ -645,7 +661,9 @@ def test_seed_archive_from_llm_empty_cases(llmosa_algorithm):
 
 def test_seed_archive_from_llm_all_crashing(llmosa_algorithm):
     candidates = [MagicMock(spec=tcc.TestCaseChromosome)]
-    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=candidates)
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(
+        return_value=LLMGeneration(chromosomes=candidates)
+    )
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=[])
     llmosa_algorithm._update_archive_with_initial_tests = MagicMock()
 
@@ -667,7 +685,9 @@ def _crashed_chromosome(exceptions):
 def test_seed_archive_from_llm_logs_common_exception(llmosa_algorithm):
     error = ImportError("cannot import name 'is_32bit' from 'croniter'")
     candidates = [_crashed_chromosome({2: error, 5: ValueError()}) for _ in range(3)]
-    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=candidates)
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(
+        return_value=LLMGeneration(chromosomes=candidates)
+    )
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=[])
 
     llmosa_algorithm._seed_archive_from_llm()
@@ -678,7 +698,9 @@ def test_seed_archive_from_llm_logs_common_exception(llmosa_algorithm):
 
 def test_seed_archive_from_llm_does_not_log_differing_exceptions(llmosa_algorithm):
     candidates = [_crashed_chromosome({0: ValueError("a")}), _crashed_chromosome({0: KeyError()})]
-    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(return_value=candidates)
+    llmosa_algorithm._generate_initial_llm_test_cases = MagicMock(
+        return_value=LLMGeneration(chromosomes=candidates)
+    )
     llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=[])
 
     llmosa_algorithm._seed_archive_from_llm()
@@ -731,3 +753,196 @@ def test_generate_tests_seeds_archive_when_hybrid(mock_config, llmosa_algorithm)
     llmosa_algorithm.generate_tests()
 
     llmosa_algorithm._seed_archive_from_llm.assert_called_once()
+
+
+def _stat_value(variable):
+    output_variable = stat.statistics_tracker.output_variables.get(variable.name)
+    return None if output_variable is None else output_variable.value
+
+
+def _executed_chromosome(*, exceptions=None, timeout=False):
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.to_test_function.return_value.code = "def test_0():\n    pass\n"
+    result = MagicMock()
+    result.exceptions = exceptions or {}
+    result.timeout = timeout
+    chromosome.get_last_execution_result.return_value = result
+    return chromosome
+
+
+def test_execute_and_repair_repairs_failing_chromosomes(llmosa_algorithm):
+    working = _executed_chromosome()
+    failing = _executed_chromosome(exceptions={1: ValueError("bad value")})
+    repaired = _executed_chromosome()
+    generation = LLMGeneration(chromosomes=[working, failing], response="r")
+    repaired_generation = LLMGeneration(chromosomes=[repaired], response="r2", repairs_used=1)
+    handler = llmosa_algorithm.model.llm_test_case_handler
+    handler.repair_chromosomes.side_effect = [repaired_generation]
+    llmosa_algorithm._filter_working_test_cases = MagicMock(side_effect=[[working], [repaired]])
+
+    result = llmosa_algorithm._execute_and_repair(generation)
+
+    assert result == [working, repaired]
+    (call,) = handler.repair_chromosomes.call_args_list
+    assert call.args[0] is generation
+    assert "statement 2 raised ValueError: bad value" in call.args[1]
+    assert call.kwargs["may_repair"] == llmosa_algorithm.resources_left
+
+
+def test_execute_and_repair_stops_when_no_repair_is_allowed(llmosa_algorithm):
+    failing = _executed_chromosome(timeout=True)
+    llmosa_algorithm._filter_working_test_cases = MagicMock(return_value=[])
+
+    result = llmosa_algorithm._execute_and_repair(LLMGeneration(chromosomes=[failing]))
+
+    assert result == []
+    llmosa_algorithm.model.llm_test_case_handler.repair_chromosomes.assert_called_once()
+
+
+def test_describe_failures_lists_errors_and_omits_the_rest():
+    from pynguin.ga.algorithms.llmosalgorithm import (  # noqa: PLC0415
+        _describe_failures,  # noqa: PLC2701
+    )
+
+    failing = [_executed_chromosome(timeout=True)]
+    failing += [_executed_chromosome(exceptions={0: KeyError("k")}) for _ in range(5)]
+    unknown = _executed_chromosome()
+    unknown.get_last_execution_result.return_value = None
+    failing.insert(1, unknown)
+
+    description = _describe_failures(failing)
+
+    assert description.startswith("7 of your tests did not run cleanly")
+    assert "it timed out" in description
+    assert "it raised an exception" in description
+    assert "statement 1 raised KeyError" in description
+    assert "(2 more failing tests omitted.)" in description
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_stall_skipped_for_budget_is_counted(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.max_llm_interventions = -1
+    llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=False)
+
+    llmosa_algorithm._maybe_intervene_on_stall()
+
+    assert _stat_value(RuntimeVariable.LLMStallSkippedBudget) == 1
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_stall_skipped_in_flight_is_counted(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.max_llm_interventions = -1
+    llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=True)
+    llmosa_algorithm._llm_query_strategy = MagicMock()
+    llmosa_algorithm._llm_query_strategy.is_in_progress.return_value = True
+
+    llmosa_algorithm._maybe_intervene_on_stall()
+
+    assert _stat_value(RuntimeVariable.LLMStallSkippedInFlight) == 1
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_sync_stall_query_counts_submitted_and_published(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.max_llm_interventions = -1
+    llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=True)
+    llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
+    chromosomes = [MagicMock(spec=tcc.TestCaseChromosome) for _ in range(2)]
+    llmosa_algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=chromosomes)
+    )
+
+    llmosa_algorithm._maybe_intervene_on_stall()
+
+    assert llmosa_algorithm._query_llm_for_targets.call_args.args[2] is CallPurpose.STALL
+    assert _stat_value(RuntimeVariable.LLMStallQueriesSubmitted) == 1
+    assert _stat_value(RuntimeVariable.LLMStallTestsPublished) == 2
+    assert llmosa_algorithm._population == chromosomes
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_async_stall_result_is_published_when_polled(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = True
+    strategy = MagicMock()
+    strategy.execute.return_value = None
+    strategy.is_in_progress.return_value = True
+    llmosa_algorithm._llm_query_strategy = strategy
+    llmosa_algorithm._dispatch_llm_query(CallPurpose.STALL, MagicMock())
+    stall_tracker = MagicMock()
+    stall_tracker.check_stall.return_value = True
+    llmosa_algorithm._archive.covered_goals = []
+
+    # While the query is in flight, a lasting stall is skipped and counted once.
+    strategy.poll.return_value = None
+    llmosa_algorithm._poll_and_handle_stall(stall_tracker)
+    llmosa_algorithm._poll_and_handle_stall(stall_tracker)
+    assert _stat_value(RuntimeVariable.LLMStallSkippedInFlight) == 1
+    stall_tracker.reset.assert_not_called()
+
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    strategy.poll.return_value = LLMGeneration(chromosomes=[chromosome])
+    stall_tracker.check_stall.return_value = False
+    llmosa_algorithm._poll_and_handle_stall(stall_tracker)
+
+    assert llmosa_algorithm._population == [chromosome]
+    assert _stat_value(RuntimeVariable.LLMStallTestsPublished) == 1
+    assert llmosa_algorithm._inflight_purpose is None
+
+
+def test_async_initial_targets_result_is_not_counted_as_stall(llmosa_algorithm):
+    strategy = MagicMock()
+    strategy.execute.return_value = None
+    llmosa_algorithm._llm_query_strategy = strategy
+    llmosa_algorithm._dispatch_llm_query(CallPurpose.UNCOVERED_TARGETS, MagicMock())
+    strategy.poll.return_value = LLMGeneration(chromosomes=[MagicMock()])
+
+    with patch("pynguin.ga.algorithms.llmosalgorithm.config") as mock_config:
+        mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+        llmosa_algorithm._poll_and_handle_stall(MagicMock())
+
+    assert len(llmosa_algorithm._population) == 1
+    assert _stat_value(RuntimeVariable.LLMStallTestsPublished) is None
+
+
+def test_query_llm_for_stall_targets_counts_responses(llmosa_algorithm):
+    gao = MagicMock()
+    gao.callable.__qualname__ = "Queue.enqueue"
+    handler = llmosa_algorithm.model.llm_test_case_handler
+    handler.generate_chromosomes.return_value = LLMGeneration(chromosomes=[], response="r")
+
+    llmosa_algorithm._query_llm_for_targets({gao: 0.0}, {}, CallPurpose.STALL)
+
+    kwargs = handler.generate_chromosomes.call_args.kwargs
+    assert kwargs["purpose"] == "stall"
+    assert kwargs["targets"] == ["Queue.enqueue"]
+    assert _stat_value(RuntimeVariable.LLMStallResponsesReceived) == 1
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_generate_tests_reports_search_llm_statistics(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.hybrid_initial_population = True
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+    llmosa_algorithm.resources_left = MagicMock(return_value=False)
+    llmosa_algorithm._seed_archive_from_llm = MagicMock(side_effect=lambda: time.sleep(0.01))
+    llmosa_algorithm._get_random_population = MagicMock(return_value=[])
+    llmosa_algorithm._target_initial_uncovered_goals = MagicMock()
+    llmosa_algorithm._compute_dominance = MagicMock()
+    llmosa_algorithm.before_search_start = MagicMock()
+    llmosa_algorithm.before_first_search_iteration = MagicMock()
+    llmosa_algorithm.create_test_suite = MagicMock()
+    llmosa_algorithm._finalize_generation = MagicMock()
+
+    llmosa_algorithm.generate_tests()
+
+    assert _stat_value(RuntimeVariable.LLMPreSearchTime) >= 0.01
+    for variable in (
+        RuntimeVariable.LLMCallsSucceeded,
+        RuntimeVariable.LLMCallsFailed,
+        RuntimeVariable.LLMCallsTimedOut,
+        RuntimeVariable.LLMStallQueriesSubmitted,
+        RuntimeVariable.LLMStallResponsesReceived,
+        RuntimeVariable.LLMStallTestsPublished,
+        RuntimeVariable.LLMStallSkippedBudget,
+        RuntimeVariable.LLMStallSkippedInFlight,
+    ):
+        assert _stat_value(variable) == 0
