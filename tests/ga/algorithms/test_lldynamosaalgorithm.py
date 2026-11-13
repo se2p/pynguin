@@ -48,7 +48,6 @@ def lldynamosa_algorithm():
         mock_model = MagicMock()
         mock_model.llm_calls_counter = 0
         mock_model.llm_test_case_handler = MagicMock()
-        mock_model.call_llm_for_uncovered_targets = MagicMock(return_value="test response")
         mock_llm_agent.return_value = mock_model
 
         algorithm = LLDynaMOSAAlgorithm()

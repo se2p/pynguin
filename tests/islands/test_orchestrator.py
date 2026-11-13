@@ -208,10 +208,6 @@ def test_run_pynguin_with_islands_llm_worker_targeted_delivers_llm_test(tmp_path
         patch("pynguin.large_language_model.llmagent.openai.OpenAI"),
         patch("pynguin.large_language_model.llmagent.openai.AsyncOpenAI"),
         patch(
-            "pynguin.large_language_model.llmagent.LLMAgent.call_llm_for_uncovered_targets",
-            return_value=_CANNED_LLM_TEST_CASE_SOURCE,
-        ),
-        patch(
             "pynguin.large_language_model.llmagent.LLMAgent.call_llm_for_uncovered_targets_async",
             new_callable=AsyncMock,
             return_value=_CANNED_LLM_TEST_CASE_SOURCE,
@@ -272,10 +268,6 @@ def test_run_pynguin_with_islands_llm_worker_broadcast_reaches_all_islands(tmp_p
         patch("pynguin.large_language_model.client.require_api_key") as mock_key,
         patch("pynguin.large_language_model.llmagent.openai.OpenAI"),
         patch("pynguin.large_language_model.llmagent.openai.AsyncOpenAI"),
-        patch(
-            "pynguin.large_language_model.llmagent.LLMAgent.call_llm_for_uncovered_targets",
-            return_value=_CANNED_LLM_TEST_CASE_SOURCE,
-        ),
         patch(
             "pynguin.large_language_model.llmagent.LLMAgent.call_llm_for_uncovered_targets_async",
             new_callable=AsyncMock,

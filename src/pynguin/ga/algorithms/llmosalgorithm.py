@@ -245,9 +245,12 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         Args:
             stall_tracker: State tracker for stall detection.
         """
+        # Checked before poll(): a query that finishes between the two calls must
+        # keep its purpose until the next poll() delivers its result.
+        was_in_progress = self._llm_query_strategy.is_in_progress()
         pending = self._llm_query_strategy.poll()
         purpose = self._inflight_purpose
-        if pending is not None or not self._llm_query_strategy.is_in_progress():
+        if pending is not None or not was_in_progress:
             # The background query delivered its result, or finished without one
             # (e.g. it raised): nothing is in flight any more.
             self._inflight_purpose = None

@@ -51,7 +51,6 @@ def llmosa_algorithm():
         mock_model.llm_test_case_handler = MagicMock()
         # Repair is off by default (repair_attempts=0).
         mock_model.llm_test_case_handler.repair_chromosomes.return_value = None
-        mock_model.call_llm_for_uncovered_targets = MagicMock(return_value="test response")
         mock_llm_agent.return_value = mock_model
 
         algorithm = LLMOSAAlgorithm()
@@ -98,7 +97,7 @@ def test_target_initial_uncovered_goals_no_llm_call(llmosa_algorithm):
     llmosa_algorithm._target_initial_uncovered_goals()
 
     # Assert
-    llmosa_algorithm.model.call_llm_for_uncovered_targets.assert_not_called()
+    llmosa_algorithm.model.llm_test_case_handler.generate_chromosomes.assert_not_called()
 
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
@@ -289,7 +288,6 @@ def test_coverage_in_range(mock_get_coverage_report, llmosa_algorithm):
 
     # Mock other necessary objects
     llmosa_algorithm.test_cluster.accessible_objects_under_test = []
-    llmosa_algorithm.model.call_llm_for_uncovered_targets.return_value = []
     handler = llmosa_algorithm.model.llm_test_case_handler
     handler.get_test_case_chromosomes_from_llm_results.return_value = []
 
@@ -377,7 +375,6 @@ def test_calculate_gao_coverage_map(
 
     # Mock other necessary objects
     llmosa_algorithm.model = MagicMock()
-    llmosa_algorithm.model.call_llm_for_uncovered_targets.return_value = []
     handler = llmosa_algorithm.model.llm_test_case_handler
     handler.get_test_case_chromosomes_from_llm_results.return_value = []
 
@@ -862,6 +859,41 @@ def test_inflight_state_is_cleared_when_background_query_fails(mock_config, llmo
 
     assert llmosa_algorithm._inflight_purpose is None
     assert llmosa_algorithm._inflight_skip_counted is False
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_stall_result_is_counted_when_query_finishes_between_checks(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    finished = False
+    delivered = False
+
+    def poll():
+        nonlocal delivered, finished
+        if finished and not delivered:
+            delivered = True
+            return LLMGeneration(chromosomes=[chromosome])
+        # The background query finishes right after this poll() saw it running.
+        finished = True
+        return None
+
+    def is_in_progress():
+        return not finished
+
+    strategy = MagicMock()
+    strategy.poll.side_effect = poll
+    strategy.is_in_progress.side_effect = is_in_progress
+    llmosa_algorithm._llm_query_strategy = strategy
+    llmosa_algorithm._inflight_purpose = CallPurpose.STALL
+    llmosa_algorithm._population = []
+
+    llmosa_algorithm._poll_and_handle_stall(MagicMock())
+    assert llmosa_algorithm._inflight_purpose is CallPurpose.STALL
+    llmosa_algorithm._poll_and_handle_stall(MagicMock())
+
+    assert llmosa_algorithm._population == [chromosome]
+    assert _stat_value(RuntimeVariable.LLMStallTestsPublished) == 1
+    assert llmosa_algorithm._inflight_purpose is None
 
 
 def test_execute_and_repair_drops_repeated_working_tests(llmosa_algorithm):

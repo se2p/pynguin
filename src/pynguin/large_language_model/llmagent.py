@@ -845,27 +845,6 @@ class LLMAgent:  # noqa: PLR0904
             api_signatures=describe_module_api(import_module(config.configuration.module_name)),
         )
 
-    def call_llm_for_uncovered_targets(
-        self,
-        gao_coverage_map: dict[GenericCallableAccessibleObject, float],
-        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
-    ):
-        """Queries the language model for uncovered targets.
-
-        Args:
-            gao_coverage_map (dict): Maps callable objects to coverage percentages.
-            diagnostics (dict): Optional per-callable diagnostic hints describing why
-                a target is uncovered (e.g. never reached, one-sided branch).
-
-        Returns:
-            Any: Result of the query based on the constructed prompt.
-        """
-        return self.query(
-            _uncovered_targets_prompt(gao_coverage_map, diagnostics),
-            purpose=CallPurpose.UNCOVERED_TARGETS.value,
-            targets=_target_names(gao_coverage_map),
-        )
-
     @staticmethod
     def build_uncovered_targets_prompt(
         gao_coverage_map: dict[GenericCallableAccessibleObject, float],
@@ -898,7 +877,7 @@ class LLMAgent:  # noqa: PLR0904
             Any: Result of the query based on the constructed prompt.
         """
         return await self.query_async(
-            _uncovered_targets_prompt(gao_coverage_map, diagnostics),
+            self.build_uncovered_targets_prompt(gao_coverage_map, diagnostics),
             purpose=CallPurpose.UNCOVERED_TARGETS.value,
             targets=_target_names(gao_coverage_map),
         )

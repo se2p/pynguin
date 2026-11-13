@@ -8,8 +8,10 @@
 
 Every logical LLM call made through ``LLMAgent`` (one prompt, including the
 retries the client performs for it) is described by an :class:`LLMCallRecord`.
-Calls that use an ``LLMClient`` directly, such as LLM type inference, are not
-traced and not counted in the outcome runtime variables.  When
+Calls that use an LLM client directly are not traced and not counted in the
+outcome runtime variables: LLM type inference, the single generation call of the
+``LLM`` algorithm (``generator._run_llm``) and the refinement calls
+(``refinement.llm_client``).  When
 ``large_language_model.trace_dir`` is set, each record is appended as one JSON
 line to ``llm_calls.jsonl`` in that directory.
 """
