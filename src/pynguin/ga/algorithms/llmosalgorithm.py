@@ -91,7 +91,10 @@ def _describe_failures(failing: list[tcc.TestCaseChromosome]) -> str:
         parts.append(f"```python\n{code.strip()}\n```\nIn this test, {error}.")
     if len(failing) > _MAX_REPORTED_FAILURES:
         parts.append(f"({len(failing) - _MAX_REPORTED_FAILURES} more failing tests omitted.)")
-    parts.append("Return corrected versions of these tests.")
+    parts.append(
+        "Return only corrected versions of these failing tests; leave out the tests "
+        "that already worked."
+    )
     return "\n\n".join(parts)
 
 
@@ -243,12 +246,16 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             stall_tracker: State tracker for stall detection.
         """
         pending = self._llm_query_strategy.poll()
-        if pending is not None:
-            purpose, self._inflight_purpose = self._inflight_purpose, None
-            if pending.chromosomes:
-                self._integrate_llm_chromosomes(pending.chromosomes)
-                if purpose is CallPurpose.STALL:
-                    count(RuntimeVariable.LLMStallTestsPublished, len(pending.chromosomes))
+        purpose = self._inflight_purpose
+        if pending is not None or not self._llm_query_strategy.is_in_progress():
+            # The background query delivered its result, or finished without one
+            # (e.g. it raised): nothing is in flight any more.
+            self._inflight_purpose = None
+            self._inflight_skip_counted = False
+        if pending is not None and pending.chromosomes:
+            self._integrate_llm_chromosomes(pending.chromosomes)
+            if purpose is CallPurpose.STALL:
+                count(RuntimeVariable.LLMStallTestsPublished, len(pending.chromosomes))
 
         if config.configuration.large_language_model.call_llm_on_stall_detection:
             current_covered = len(self._archive.covered_goals)
@@ -302,9 +309,12 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             if repaired is None:
                 break
             generation = repaired
-            newly_working = self._filter_working_test_cases(generation.chromosomes)
+            # A repaired response may repeat tests that already work; keep one copy.
+            known = {chromosome.test_case for chromosome in working}
+            candidates = [c for c in generation.chromosomes if c.test_case not in known]
+            newly_working = self._filter_working_test_cases(candidates)
             working += newly_working
-            failing = _without(generation.chromosomes, newly_working)
+            failing = _without(candidates, newly_working)
         return working
 
     def _log_common_failure(self, chromosomes: list[tcc.TestCaseChromosome]) -> None:
@@ -484,7 +494,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             count(RuntimeVariable.LLMStallSkippedBudget)
             return
         if self._llm_query_strategy.is_in_progress():
-            count(RuntimeVariable.LLMStallSkippedInFlight)
+            # Counted once per in-flight query by _poll_and_handle_stall.
             return
 
         targets_map, diagnostics = self._select_uncovered_targets()

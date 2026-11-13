@@ -6,8 +6,10 @@
 #
 """Structured traces and outcome statistics for individual LLM calls.
 
-Every logical LLM call (one prompt, including the retries the client performs
-for it) is described by an :class:`LLMCallRecord`.  When
+Every logical LLM call made through ``LLMAgent`` (one prompt, including the
+retries the client performs for it) is described by an :class:`LLMCallRecord`.
+Calls that use an ``LLMClient`` directly, such as LLM type inference, are not
+traced and not counted in the outcome runtime variables.  When
 ``large_language_model.trace_dir`` is set, each record is appended as one JSON
 line to ``llm_calls.jsonl`` in that directory.
 """

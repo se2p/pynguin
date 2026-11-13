@@ -1170,10 +1170,11 @@ class LLMConfiguration:
 
     trace_dir: str = ""
     """Directory for a structured trace of the LLM calls (empty disables tracing).
-    When set, every logical LLM call is appended as one JSON line to
-    ``llm_calls.jsonl`` in this directory: call id, purpose, targets, prompt,
-    response, latency, token counts, retries, outcome, deserialisation counts,
-    repair attempt index and parent call id."""
+    When set, every logical LLM call made through Pynguin's LLM agent (test
+    generation, repair, assertions, local search; not LLM type inference) is
+    appended as one JSON line to ``llm_calls.jsonl`` in this directory: call id,
+    purpose, targets, prompt, response, latency, token counts, retries, outcome,
+    deserialisation counts, repair attempt index and parent call id."""
 
     repair_attempts: int = 0
     """How often an LLM response produced during the search (initial population,

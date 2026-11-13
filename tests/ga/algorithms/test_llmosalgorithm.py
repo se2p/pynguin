@@ -831,15 +831,57 @@ def test_stall_skipped_for_budget_is_counted(mock_config, llmosa_algorithm):
 
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
-def test_stall_skipped_in_flight_is_counted(mock_config, llmosa_algorithm):
+def test_stall_intervention_skips_query_in_flight_without_counting(mock_config, llmosa_algorithm):
     mock_config.configuration.large_language_model.max_llm_interventions = -1
     llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=True)
     llmosa_algorithm._llm_query_strategy = MagicMock()
     llmosa_algorithm._llm_query_strategy.is_in_progress.return_value = True
+    llmosa_algorithm._select_uncovered_targets = MagicMock()
 
     llmosa_algorithm._maybe_intervene_on_stall()
 
-    assert _stat_value(RuntimeVariable.LLMStallSkippedInFlight) == 1
+    llmosa_algorithm._select_uncovered_targets.assert_not_called()
+    # In-flight skips are counted once per query by _poll_and_handle_stall.
+    assert not _stat_value(RuntimeVariable.LLMStallSkippedInFlight)
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_inflight_state_is_cleared_when_background_query_fails(mock_config, llmosa_algorithm):
+    mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+    strategy = MagicMock()
+    strategy.execute.return_value = None
+    strategy.is_in_progress.return_value = True
+    llmosa_algorithm._llm_query_strategy = strategy
+    llmosa_algorithm._dispatch_llm_query(CallPurpose.STALL, MagicMock())
+    llmosa_algorithm._inflight_skip_counted = True
+
+    # The background query raised: poll() yields None and nothing is in progress.
+    strategy.poll.return_value = None
+    strategy.is_in_progress.return_value = False
+    llmosa_algorithm._poll_and_handle_stall(MagicMock())
+
+    assert llmosa_algorithm._inflight_purpose is None
+    assert llmosa_algorithm._inflight_skip_counted is False
+
+
+def test_execute_and_repair_drops_repeated_working_tests(llmosa_algorithm):
+    working = _executed_chromosome()
+    failing = _executed_chromosome(exceptions={0: ValueError("bad")})
+    repeated = _executed_chromosome()
+    repeated.test_case = working.test_case
+    fixed = _executed_chromosome()
+    generation = LLMGeneration(chromosomes=[working, failing], response="r")
+    handler = llmosa_algorithm.model.llm_test_case_handler
+    handler.repair_chromosomes.side_effect = [
+        LLMGeneration(chromosomes=[repeated, fixed], response="r2", repairs_used=1)
+    ]
+    llmosa_algorithm._filter_working_test_cases = MagicMock(side_effect=[[working], [fixed]])
+
+    result = llmosa_algorithm._execute_and_repair(generation)
+
+    assert result == [working, fixed]
+    second_call = llmosa_algorithm._filter_working_test_cases.call_args_list[1]
+    assert second_call.args[0] == [fixed]
 
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")

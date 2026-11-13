@@ -14,6 +14,7 @@ import inspect
 import logging
 import threading
 import time
+from itertools import starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -339,13 +340,14 @@ def _target_names(gao_coverage_map: dict[GenericCallableAccessibleObject, float]
     return [target_name(gao) for gao in gao_coverage_map]
 
 
-def _new_record(  # noqa: PLR0917
+def _new_record(
     request: RenderedRequest,
     prompt: Prompt,
-    purpose: str | None,
-    targets: Sequence[str],
-    parent_call_id: str | None,
-    repair_attempt: int,
+    *,
+    purpose: str | None = None,
+    targets: Sequence[str] = (),
+    parent_call_id: str | None = None,
+    repair_attempt: int = 0,
 ) -> LLMCallRecord:
     """Creates the trace record for a call that is about to be made.
 
@@ -583,7 +585,14 @@ class LLMAgent:  # noqa: PLR0904
             The response (None if the call failed) and the record of the call.
         """
         request = prompt.render_request()
-        record = _new_record(request, prompt, purpose, targets, parent_call_id, repair_attempt)
+        record = _new_record(
+            request,
+            prompt,
+            purpose=purpose,
+            targets=targets,
+            parent_call_id=parent_call_id,
+            repair_attempt=repair_attempt,
+        )
         prompt_text = request.messages[-1]["content"]
         self._llm_logical_queries += 1
 
@@ -641,7 +650,7 @@ class LLMAgent:  # noqa: PLR0904
             The response from the OpenAI API, or None if the response is empty.
         """
         request = prompt.render_request()
-        record = _new_record(request, prompt, purpose, targets, None, 0)
+        record = _new_record(request, prompt, purpose=purpose, targets=targets)
         prompt_text = request.messages[-1]["content"]
         self._llm_logical_queries += 1
 
@@ -697,10 +706,7 @@ class LLMAgent:  # noqa: PLR0904
             return []
 
         requests = [p.render_request() for p in prompts]
-        records = [
-            _new_record(req, prompt, None, (), None, 0)
-            for req, prompt in zip(requests, prompts, strict=True)
-        ]
+        records = list(starmap(_new_record, zip(requests, prompts, strict=True)))
         responses, uncached_indices = self._lookup_cached(requests, records)
         uncached_requests = [requests[i] for i in uncached_indices]
         self._llm_logical_queries += len(requests)

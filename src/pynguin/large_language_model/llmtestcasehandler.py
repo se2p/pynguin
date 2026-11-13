@@ -338,11 +338,11 @@ class LLMTestCaseHandler:
         assert generation.response is not None
         return self._repair(
             ConversationRepairPrompt(generation.prompt, generation.response, error_message),
-            generation.call_id,
-            generation.targets,
-            generation.repairs_used,
             context,
-            may_repair,
+            parent_call_id=generation.call_id,
+            targets=generation.targets,
+            repairs_used=generation.repairs_used,
+            may_repair=may_repair,
         )
 
     @staticmethod
@@ -356,13 +356,14 @@ class LLMTestCaseHandler:
             return False
         return may_repair is None or may_repair()
 
-    def _repair(  # noqa: PLR0917
+    def _repair(
         self,
         prompt: ConversationRepairPrompt,
+        context: ChromosomeContext,
+        *,
         parent_call_id: str | None,
         targets: Sequence[str],
         repairs_used: int,
-        context: ChromosomeContext,
         may_repair: Callable[[], bool] | None,
     ) -> LLMGeneration:
         count(RuntimeVariable.LLMRepairCalls)
@@ -407,11 +408,11 @@ class LLMTestCaseHandler:
             assert response is not None
             return self._repair(
                 ConversationRepairPrompt(prompt, response, reason),
-                record.call_id,
-                record.targets,
-                repairs_used,
                 context,
-                may_repair,
+                parent_call_id=record.call_id,
+                targets=record.targets,
+                repairs_used=repairs_used,
+                may_repair=may_repair,
             )
         return LLMGeneration(
             chromosomes=[

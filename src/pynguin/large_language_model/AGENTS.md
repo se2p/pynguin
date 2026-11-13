@@ -44,6 +44,7 @@ The LLM integration provides AI-assisted test generation capabilities:
 - **Call tracing** (`tracing.py`): Structured per-call records
   - `LLMCallRecord`: purpose, targets, prompt, response, latency, tokens, retries, outcome,
     deserialisation counts, repair attempt index and parent call id of one logical call.
+  - Covers calls made through `LLMAgent`; direct `LLMClient` users (type inference) are not traced.
   - Written as JSON lines to `<trace_dir>/llm_calls.jsonl` when `large_language_model.trace_dir` is set.
   - Feeds the `LLMCallsSucceeded` / `LLMCallsFailed` / `LLMCallsTimedOut` runtime variables.
   - Search-time calls go through `LLMTestCaseHandler.generate_chromosomes`, which parses the

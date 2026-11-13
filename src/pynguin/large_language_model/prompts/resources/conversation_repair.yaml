@@ -11,7 +11,7 @@ user_message_template: |
 
   {{ error_message }}
 
-  Fix the problem and return the complete corrected test module.
+  Fix the problem and return the corrected tests as a complete test module with its imports.
   Keep the same imports of the module under test, call only names that exist in it,
   and use only plain statements and `assert`s inside each `test_*` function.
   Return only Python code inside a single ```python code block.

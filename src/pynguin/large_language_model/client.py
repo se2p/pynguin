@@ -154,11 +154,19 @@ class LLMClient(abc.ABC):
     """Abstract base class for LLM clients."""
 
     @abc.abstractmethod
-    def send(self, request: RenderedRequest) -> str | None:
+    def send(
+        self,
+        request: RenderedRequest,
+        timeout: float | None = None,
+        usage: CallUsage | None = None,
+    ) -> str | None:
         """Sends a rendered request to the LLM.
 
         Args:
             request: The request payload.
+            timeout: Per-attempt timeout in seconds overriding the configured
+                ``request_timeout``; *None* uses the configured value.
+            usage: Optional per-call usage that the client fills in.
 
         Returns:
             The LLM response content or None on failure.
