@@ -46,9 +46,9 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         offspring_population: list[tcc.TestCaseChromosome] = []
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
-            parent_2 = self._selection_function.select(self._population)[0]
+            parent_2 = self._select_mate(parent_1)
             offspring_1 = cast("tcc.TestCaseChromosome", parent_1.clone())
-            offspring_2 = cast("tcc.TestCaseChromosome", parent_2.clone())
+            offspring_2 = parent_2.clone()
 
             # Apply crossover
             if randomness.next_float() <= config.configuration.search_algorithm.crossover_rate:
@@ -88,6 +88,17 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
 
         self._logger.debug("Number of offsprings = %d", len(offspring_population))
         return offspring_population
+
+    def _select_mate(self, parent_1: tcc.TestCaseChromosome) -> tcc.TestCaseChromosome:
+        """Selects the second parent for breeding.
+
+        Args:
+            parent_1: The first parent.
+
+        Returns:
+            The second parent, selected from the whole population.
+        """
+        return self._selection_function.select(self._population)[0]
 
     @staticmethod
     def _mutate(offspring: tcc.TestCaseChromosome) -> None:

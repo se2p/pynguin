@@ -153,6 +153,21 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
 
+    # Number of species in the population (speciation)
+    SpeciesCountTimeline = "SpeciesCountTimeline"
+
+    # Share of the population taken by the largest species (speciation)
+    LargestSpeciesShareTimeline = "LargestSpeciesShareTimeline"
+
+    # Individuals kept only by min-survivors or newborn protection (speciation)
+    ProtectedIndividualsTimeline = "ProtectedIndividualsTimeline"
+
+    # Newborn species protected in the population (speciation)
+    ProtectedSpeciesTimeline = "ProtectedSpeciesTimeline"
+
+    # Total number of species founded during the search (speciation)
+    SpeciesFounded = "SpeciesFounded"
+
     # Number of executed test cases
     Executed = "Executed"
 

@@ -226,6 +226,15 @@ llm_blend_max_evaluations = 0
 llm_blend_keep_raw = true
 llm_lineage_elitism_generations = 0
 llm_lineage_elitism_max_fraction = 0.1
+speciation = false
+speciation_track_only = false
+speciation_metric = "METHOD_CALL_JACCARD"
+speciation_threshold = 0.5
+speciation_max_species_share = 1.0
+speciation_min_survivors = 0
+speciation_newborn_protection = 0
+speciation_restrict_mating = false
+speciation_fitness_sharing = false
 
 [mio]
 exploitation_starts_at_percent = 0.5
@@ -406,7 +415,13 @@ def expected_txt(tmp_path):
  'llm_blend_goal_crossovers=0, llm_blend_mutants=0, '
  'llm_blend_tournament_crossovers=0, llm_blend_max_evaluations=0, '
  'llm_blend_keep_raw=True, llm_lineage_elitism_generations=0, '
- 'llm_lineage_elitism_max_fraction=0.1), '
+ 'llm_lineage_elitism_max_fraction=0.1, speciation=False, '
+ 'speciation_track_only=False, '
+ 'speciation_metric=<SpeciationMetric.METHOD_CALL_JACCARD: '
+ "'METHOD_CALL_JACCARD'>, speciation_threshold=0.5, "
+ 'speciation_max_species_share=1.0, speciation_min_survivors=0, '
+ 'speciation_newborn_protection=0, speciation_restrict_mating=False, '
+ 'speciation_fitness_sharing=False), '
  'mio=MIOConfiguration(initial_config=MIOPhaseConfiguration(number_of_tests_per_target=10, '
  'random_test_or_from_archive_probability=0.5, number_of_mutations=1), '
  'focused_config=MIOPhaseConfiguration(number_of_tests_per_target=1, '
@@ -691,6 +706,24 @@ True
 1.68
 --search_algorithm.selection
 RANK_SELECTION
+--search_algorithm.speciation
+False
+--search_algorithm.speciation_fitness_sharing
+False
+--search_algorithm.speciation_max_species_share
+1.0
+--search_algorithm.speciation_metric
+METHOD_CALL_JACCARD
+--search_algorithm.speciation_min_survivors
+0
+--search_algorithm.speciation_newborn_protection
+0
+--search_algorithm.speciation_restrict_mating
+False
+--search_algorithm.speciation_threshold
+0.5
+--search_algorithm.speciation_track_only
+False
 --search_algorithm.statement_insertion_probability
 0.5
 --search_algorithm.test_change_probability

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.stats as stat
@@ -406,3 +407,21 @@ def test_blend_target_goals_are_uncovered_current_goals(lldynamosa_algorithm):
     lldynamosa_algorithm._archive.uncovered_goals = [uncovered, locked]
 
     assert lldynamosa_algorithm._blend_target_goals() == [uncovered]
+
+
+@patch("pynguin.ga.algorithms.lldynamosaalgorithm.config")
+def test_lldynamosa_generate_tests_sets_up_speciation(mock_config, lldynamosa_algorithm):
+    mock_config.configuration.large_language_model.hybrid_initial_population = False
+    mock_config.configuration.local_search.local_search = False
+    config.configuration.search_algorithm.speciation = True
+    lldynamosa_algorithm.resources_left = MagicMock(return_value=False)
+    lldynamosa_algorithm._get_random_population = MagicMock(return_value=[])
+    lldynamosa_algorithm._target_initial_uncovered_goals = MagicMock()
+    lldynamosa_algorithm.before_search_start = MagicMock()
+    lldynamosa_algorithm.before_first_search_iteration = MagicMock()
+    lldynamosa_algorithm.create_test_suite = MagicMock()
+
+    lldynamosa_algorithm.generate_tests()
+
+    assert lldynamosa_algorithm._species_assigner is not None
+    assert lldynamosa_algorithm._speciation_options is not None
