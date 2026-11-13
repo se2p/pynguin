@@ -509,7 +509,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
 
         Returns:
             The test cases to add to the population: all of them, unless blending is
-            enabled and ``llm_blend_keep_raw`` is off.
+            enabled and ``llm_blend_keep_raw`` is off. In that case, only the archive
+            is updated with them.
         """
         counts = self._blend_counts()
         brood = [channel for channel in BLEND_CHANNELS for _ in range(max(counts[channel], 0))]
@@ -518,6 +519,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             if brood:
                 self._blend_queue.append((chromosome, list(brood)))
         if brood and not config.configuration.search_algorithm.llm_blend_keep_raw:
+            # They do not compete, but the archive keeps the goals they cover.
+            self._update_goals_with(llm_chromosomes)
             return []
         return llm_chromosomes
 
@@ -624,7 +627,10 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
     def _apply_lineage_elitism(self, union: list[tcc.TestCaseChromosome]) -> None:
         """Puts the best member of each young lineage back if selection dropped them all.
 
-        A re-inserted member replaces the worst population member that does not belong
+        The best member is the one closest to an uncovered goal; rank and crowding
+        distance are not used, because the ranking stops after the first fronts that
+        fill the population, so dropped members carry stale or unset values. A
+        re-inserted member replaces the worst population member that does not belong
         to a young lineage, so the population size stays the same.
 
         Args:
@@ -640,6 +646,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         cap = math.floor(search_config.llm_lineage_elitism_max_fraction * search_config.population)
         present = self._lineage.roots_in(self._population)
         protected = set(young)
+        goals = list(self._blend_target_goals())
         reinserted: list[tcc.TestCaseChromosome] = []
         for root in young:
             if len(reinserted) >= cap:
@@ -649,7 +656,12 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             members = [member for member in union if self._lineage.root_of(member) == root]
             if not members:
                 continue
-            best = min(members, key=lambda member: (member.rank, -member.distance))
+            best = min(
+                members,
+                key=lambda member: min(
+                    (member.get_fitness_for(goal) for goal in goals), default=0.0
+                ),
+            )
             replace_at = next(
                 (
                     index

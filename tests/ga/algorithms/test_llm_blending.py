@@ -105,8 +105,12 @@ def test_register_drops_raw_tests_if_not_kept(algorithm):
         llm_blend_mutants=1, llm_blend_keep_raw=False
     )
 
-    assert algorithm._register_injected_chromosomes([_Chromosome()]) == []
+    injected = _Chromosome()
+    algorithm._archive.update = MagicMock()
+
+    assert algorithm._register_injected_chromosomes([injected]) == []
     assert len(algorithm._blend_queue) == 1
+    algorithm._archive.update.assert_called_once_with([injected])
 
 
 def test_integrate_prepends_and_registers(algorithm):
@@ -255,18 +259,21 @@ def test_elitism_reinserts_best_member_in_place_of_the_worst(algorithm):
     config.configuration.search_algorithm = _search_config(
         population=4, llm_lineage_elitism_generations=2, llm_lineage_elitism_max_fraction=0.5
     )
+    goal = MagicMock()
+    algorithm._archive.uncovered_goals = [goal]
     (injected,) = _injected(algorithm)
-    injected.rank = 3
-    worse = _Chromosome(rank=2)
-    better = _Chromosome(rank=1, distance=1.0)
-    best = _Chromosome(rank=1, distance=3.0)
-    for offspring in (worse, better, best):
+    injected._fitness = {goal: 5.0}
+    # Rank and distance are stale or unset (-1) for dropped members and are ignored.
+    unranked = _Chromosome(fitness={goal: 4.0}, rank=-1)
+    better = _Chromosome(fitness={goal: 2.0}, rank=3, distance=0.0)
+    best = _Chromosome(fitness={goal: 1.0}, rank=5)
+    for offspring in (unranked, better, best):
         algorithm._lineage.derive(offspring, 0, BlendChannel.MUTANT, 0)
     population = [_Chromosome() for _ in range(4)]
     algorithm._population = list(population)
     algorithm._archive.update = MagicMock()
 
-    algorithm._apply_lineage_elitism([*population, injected, worse, better, best])
+    algorithm._apply_lineage_elitism([*population, injected, unranked, better, best])
 
     assert algorithm._population == [*population[:3], best]
     algorithm._archive.update.assert_called_once_with([best])

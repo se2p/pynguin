@@ -143,7 +143,9 @@ class LineageTracker:
         Returns:
             The root lineage id, or None if the chromosome has no injected ancestor.
         """
-        record = self._records.get(chromosome.lineage)  # type: ignore[arg-type]
+        if chromosome.lineage is None:
+            return None
+        record = self._records.get(chromosome.lineage)
         return None if record is None else record.root
 
     def roots_in(self, chromosomes: Iterable[tcc.TestCaseChromosome]) -> set[int]:
