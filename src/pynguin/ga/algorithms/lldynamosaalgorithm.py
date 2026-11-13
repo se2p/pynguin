@@ -173,6 +173,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             stat.track_output_variable(
                 RuntimeVariable.LLMBlockingTimeSeconds, self._llm_query_strategy.blocked_seconds
             )
+            self._report_problem_card_stats()
 
         self.after_search_finish()
         return self.create_test_suite(

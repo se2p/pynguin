@@ -14,7 +14,9 @@ from unittest.mock import MagicMock, patch
 
 import pynguin.configuration as config
 import pynguin.generator as gen
+import pynguin.utils.statistics.stats as stat
 from pynguin.large_language_model.client import OpenAIClient
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     from pynguin.large_language_model.request import RenderedRequest
@@ -33,7 +35,9 @@ def test_lldynamosa_prompt_lists_uncovered_goals(tmp_path: pathlib.Path) -> None
         ),
         seeding=config.SeedingConfiguration(seed=42),
         large_language_model=config.LLMConfiguration(
-            call_llm_for_uncovered_targets=True, tests_per_query=2
+            call_llm_for_uncovered_targets=True,
+            tests_per_query=2,
+            problem_cards=list(config.ProblemCardType),
         ),
     )
     gen.set_configuration(configuration)
@@ -47,14 +51,27 @@ def test_lldynamosa_prompt_lists_uncovered_goals(tmp_path: pathlib.Path) -> None
         patch("pynguin.large_language_model.client.require_api_key") as mock_key,
         patch("pynguin.large_language_model.llmagent.openai.OpenAI"),
         patch.object(OpenAIClient, "send", autospec=True, side_effect=record_prompt),
+        patch.object(stat, "track_output_variable", wraps=stat.track_output_variable) as tracked,
     ):
         mock_key.return_value = MagicMock()
         mock_key.return_value.get_secret_value.return_value = "test-api-key"
         assert gen.run_pynguin() == gen.ReturnCode.OK
 
     assert len(prompts) == 1
+    card_stats = [
+        call.args[1]
+        for call in tracked.call_args_list
+        if call.args[0] == RuntimeVariable.LLMProblemCardStats
+    ]
+    assert len(card_stats) == 1
+    assert "CDG_BOTTLENECK=" in card_stats[0]
     prompt = prompts[0]
     assert "- The function difficult_branches" in prompt
     # Random inputs essentially never hit x == 1337, the condition on line 10.
     assert "Branch outcomes never taken: line 10 (True)" in prompt
     assert "Write exactly 2 test functions." in prompt
+    # The inner condition on line 11 only runs when the one on line 10 is True.
+    assert (
+        "Hint: the condition at line 11 is only evaluated when the condition at line 10 is True"
+        in prompt
+    )

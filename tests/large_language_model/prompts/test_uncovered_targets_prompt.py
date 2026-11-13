@@ -9,6 +9,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pynguin.configuration import ProblemCardType
+from pynguin.large_language_model.problem_cards import ProblemCard
 from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
 )
@@ -94,7 +96,14 @@ def test_build_callables_prompt_section_includes_diagnostics(module_info):
         module_info["path"],
         diagnostics={
             foo: TargetDiagnosis(
-                hints=("never reached; construct valid inputs",),
+                cards=(
+                    ProblemCard(
+                        ProblemCardType.UNREACHED_CALLABLE,
+                        foo,
+                        None,
+                        "never reached; construct valid inputs",
+                    ),
+                ),
                 uncovered_lines=(3, 4, 5, 9),
                 missing_branches=((2, False),),
             )

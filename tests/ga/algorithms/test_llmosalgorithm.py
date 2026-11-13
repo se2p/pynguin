@@ -475,50 +475,6 @@ def test_get_random_population_non_hybrid(mock_config, llmosa_algorithm):
     )
 
 
-def _annotation(line_no, existing, covered, br_existing=0, br_covered=0):
-    return LineAnnotation(
-        line_no=line_no,
-        total=CoverageEntry(existing=existing, covered=covered),
-        branches=CoverageEntry(existing=br_existing, covered=br_covered),
-        branchless_code_objects=CoverageEntry(existing=0, covered=0),
-        lines=CoverageEntry(existing=0, covered=0),
-    )
-
-
-@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines")
-def test_diagnose_callable_never_reached(mock_getsourcelines, llmosa_algorithm):
-    mock_getsourcelines.return_value = (["l1", "l2"], 10)  # lines 10-11
-    annotations = [_annotation(10, 3, 0), _annotation(11, 2, 0)]
-    gao = MagicMock(spec=GenericCallableAccessibleObject)
-    hint = llmosa_algorithm._diagnose_callable(gao, annotations)
-    assert "never reached" in hint
-
-
-@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines")
-def test_diagnose_callable_branch_polarity(mock_getsourcelines, llmosa_algorithm):
-    mock_getsourcelines.return_value = (["l1", "l2"], 10)
-    # Reached (covered > 0) but a branch on line 10 only took one of two outcomes.
-    annotations = [_annotation(10, 3, 2, br_existing=2, br_covered=1), _annotation(11, 2, 2)]
-    gao = MagicMock(spec=GenericCallableAccessibleObject)
-    hint = llmosa_algorithm._diagnose_callable(gao, annotations)
-    assert "only took one outcome" in hint
-    assert "10" in hint
-
-
-@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines")
-def test_diagnose_callable_no_hint_when_covered(mock_getsourcelines, llmosa_algorithm):
-    mock_getsourcelines.return_value = (["l1"], 10)
-    annotations = [_annotation(10, 3, 3, br_existing=2, br_covered=2)]
-    gao = MagicMock(spec=GenericCallableAccessibleObject)
-    assert not llmosa_algorithm._diagnose_callable(gao, annotations)
-
-
-@patch("pynguin.ga.algorithms.llmosalgorithm.inspect.getsourcelines", side_effect=OSError)
-def test_diagnose_callable_unavailable_source(mock_getsourcelines, llmosa_algorithm):  # noqa: ARG001
-    gao = MagicMock(spec=GenericCallableAccessibleObject)
-    assert not llmosa_algorithm._diagnose_callable(gao, [])
-
-
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
 def test_enough_budget_for_llm_guard_disabled(mock_config, llmosa_algorithm):
     mock_config.configuration.large_language_model.min_remaining_budget_for_llm = -1
@@ -1156,25 +1112,74 @@ def test_maybe_intervene_on_stall_sends_llm_queries_per_stall_queries(
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.collect_uncovered_goals")
 @patch("pynguin.ga.algorithms.llmosalgorithm.source_range")
-def test_diagnose_targets_combines_uncovered_goals_and_hints(
+def test_diagnose_targets_combines_uncovered_goals_and_problem_cards(
     mock_source_range, mock_collect, llmosa_algorithm
 ):
-    with_goals_and_hint, hint_only, nothing, no_source = (
+    with_goals_and_card, card_only, nothing, no_source = (
         MagicMock(spec=GenericCallableAccessibleObject) for _ in range(4)
     )
     mock_source_range.side_effect = lambda gao: None if gao is no_source else (1, 5)
-    mock_collect.return_value = {with_goals_and_hint: TargetDiagnosis(uncovered_lines=(3,))}
-    hints = {with_goals_and_hint: "hint a", hint_only: "hint b"}
-    llmosa_algorithm._diagnose_callable = MagicMock(side_effect=lambda gao, _: hints.get(gao, ""))
+    mock_collect.return_value = {with_goals_and_card: TargetDiagnosis(uncovered_lines=(3,))}
+    card_a, card_b = MagicMock(), MagicMock()
+    llmosa_algorithm._problem_cards = MagicMock()
+    llmosa_algorithm._problem_cards.build.return_value = {
+        with_goals_and_card: (card_a,),
+        card_only: (card_b,),
+    }
+    executed = MagicMock(spec=tcc.TestCaseChromosome)
+    not_executed = MagicMock(spec=tcc.TestCaseChromosome)
+    not_executed.get_last_execution_result.return_value = None
+    llmosa_algorithm._population = [executed, not_executed]
+    llmosa_algorithm._archive.solutions = OrderedSet([executed])
 
     result = llmosa_algorithm._diagnose_targets(
-        [with_goals_and_hint, hint_only, nothing, no_source], []
+        [with_goals_and_card, card_only, nothing, no_source], []
     )
 
     assert result == {
-        with_goals_and_hint: TargetDiagnosis(hints=("hint a",), uncovered_lines=(3,)),
-        hint_only: TargetDiagnosis(hints=("hint b",)),
+        with_goals_and_card: TargetDiagnosis(cards=(card_a,), uncovered_lines=(3,)),
+        card_only: TargetDiagnosis(cards=(card_b,)),
     }
     ranges, goals, _ = mock_collect.call_args.args
-    assert set(ranges) == {with_goals_and_hint, hint_only, nothing}
+    assert set(ranges) == {with_goals_and_card, card_only, nothing}
     assert goals is llmosa_algorithm._archive.uncovered_goals
+    contexts = list(llmosa_algorithm._problem_cards.build.call_args.args[0])
+    assert [context.target for context in contexts] == [with_goals_and_card, card_only, nothing]
+    assert contexts[0].executions == [
+        (executed.test_case, executed.get_last_execution_result.return_value)
+    ]
+
+
+def test_query_llm_for_targets_publishes_cards_and_records_admitted(llmosa_algorithm):
+    gao = MagicMock(spec=GenericCallableAccessibleObject)
+    card = MagicMock()
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    llmosa_algorithm._problem_cards = MagicMock()
+    handler = llmosa_algorithm.model.llm_test_case_handler
+    handler.get_test_case_chromosomes_from_llm_results.return_value = [chromosome]
+
+    result = llmosa_algorithm._query_llm_for_targets(
+        {gao: 0.0}, {gao: TargetDiagnosis(cards=(card,))}
+    )
+
+    assert result == [chromosome]
+    llmosa_algorithm._problem_cards.mark_published.assert_called_once_with([card])
+    llmosa_algorithm._problem_cards.record_admitted.assert_called_once_with([card], [chromosome])
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.stat")
+def test_report_problem_card_stats(mock_stat, llmosa_algorithm):
+    goal, solution = MagicMock(), MagicMock()
+    llmosa_algorithm._archive.covered_goals = OrderedSet([goal])
+    llmosa_algorithm._archive.get_covering_solution.return_value = solution
+    llmosa_algorithm._problem_cards = MagicMock()
+    llmosa_algorithm._problem_cards.format_stats.return_value = "stats"
+
+    llmosa_algorithm._report_problem_card_stats()
+
+    llmosa_algorithm._problem_cards.record_survivors.assert_called_once_with(
+        llmosa_algorithm._archive.solutions, {goal: solution}
+    )
+    mock_stat.track_output_variable.assert_called_once_with(
+        RuntimeVariable.LLMProblemCardStats, "stats"
+    )

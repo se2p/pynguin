@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
     import pynguin.ga.computations as ff
     import pynguin.ga.testsuitechromosome as tsc
+    from pynguin.testcase.execution_result import ExecutionResult
+    from pynguin.testcase.testcase import TestCase
 
 import operator
 
@@ -40,6 +42,7 @@ from pynguin.large_language_model.llmtestcasehandler import (
     LLMGeneration,
     reset_statement_ratio,
 )
+from pynguin.large_language_model.problem_cards import ProblemCardBuilder, ProblemCardContext
 from pynguin.large_language_model.query_strategy import get_query_strategy
 from pynguin.large_language_model.targets import (
     TargetDiagnosis,
@@ -183,6 +186,12 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         self._blend_queue: list[tuple[tcc.TestCaseChromosome, list[BlendChannel]]] = []
         # Offspring of the current generation, which are part of the union in evolve().
         self._last_offspring: list[tcc.TestCaseChromosome] = []
+        llm_config = config.configuration.large_language_model
+        self._problem_cards = ProblemCardBuilder(
+            llm_config.problem_cards,
+            max_cards_per_target=llm_config.max_problem_cards_per_target,
+            cooldown=llm_config.problem_card_cooldown,
+        )
 
     def _target_initial_uncovered_goals(self) -> None:
         """Performs an LLM intervention to improve coverage before search iteration."""
@@ -503,6 +512,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             stat.track_output_variable(
                 RuntimeVariable.LLMBlockingTimeSeconds, self._llm_query_strategy.blocked_seconds
             )
+            self._report_problem_card_stats()
 
         return self._finalize_generation()
 
@@ -888,21 +898,54 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             line_annotations: Per-line coverage annotations for the module.
 
         Returns:
-            A diagnosis for every target that has an uncovered goal or a hint.
+            A diagnosis for every target that has an uncovered goal or a problem card.
         """
+        subject_properties = self.executor.subject_properties
         ranges = {gao: rng for gao in targets if (rng := source_range(gao)) is not None}
         goal_diagnoses = collect_uncovered_goals(
-            ranges, self._uncovered_goals_for_targeting(), self.executor.subject_properties
+            ranges, self._uncovered_goals_for_targeting(), subject_properties
+        )
+        # All goals of the run, not only the archive's: DynaMOSA's archive only knows
+        # the goals it unlocked, but a problem card may be about a locked one.
+        covered = self._archive.covered_goals
+        uncovered_goals = [
+            goal for goal in self._test_case_fitness_functions if goal not in covered
+        ]
+        executions = self._executions_for_problem_cards()
+        cards = self._problem_cards.build(
+            ProblemCardContext(
+                target=gao,
+                source_range=rng,
+                line_annotations=line_annotations,
+                uncovered_goals=uncovered_goals,
+                subject_properties=subject_properties,
+                executions=executions,
+            )
+            for gao, rng in ranges.items()
         )
         diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] = {}
         for gao in ranges:
-            hint = self._diagnose_callable(gao, line_annotations)
-            diagnosis = goal_diagnoses.get(gao, TargetDiagnosis())
-            if hint:
-                diagnosis = dataclasses.replace(diagnosis, hints=(hint,))
+            diagnosis = dataclasses.replace(
+                goal_diagnoses.get(gao, TargetDiagnosis()), cards=cards.get(gao, ())
+            )
             if diagnosis:
                 diagnostics[gao] = diagnosis
         return diagnostics
+
+    def _executions_for_problem_cards(self) -> list[tuple[TestCase, ExecutionResult]]:
+        """The current test cases with their last execution result.
+
+        Returns:
+            One entry per executed test case of the population and the archive.
+        """
+        executions = []
+        seen: set[int] = set()
+        for chromosome in [*self._population, *self._archive.solutions]:
+            result = chromosome.get_last_execution_result()
+            if result is not None and id(chromosome) not in seen:
+                seen.add(id(chromosome))
+                executions.append((chromosome.test_case, result))
+        return executions
 
     def _query_llm_for_targets(
         self,
@@ -926,6 +969,8 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         if not targets_map:
             return LLMGeneration(chromosomes=[])
 
+        cards = [card for diagnosis in diagnostics.values() for card in diagnosis.cards]
+        self._problem_cards.mark_published(cards)
         generation = self.model.llm_test_case_handler.generate_chromosomes(
             self.model.build_uncovered_targets_prompt(targets_map, diagnostics),
             self._llm_context(),
@@ -935,7 +980,21 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         )
         if purpose is CallPurpose.STALL and generation.response is not None:
             count(RuntimeVariable.LLMStallResponsesReceived)
+        self._problem_cards.record_admitted(cards, generation.chromosomes)
         return generation
+
+    def _report_problem_card_stats(self) -> None:
+        """Counts the surviving LLM test cases and tracks the problem card statistics."""
+        archive = self._archive
+        covered = {
+            goal: solution
+            for goal in archive.covered_goals
+            if (solution := archive.get_covering_solution(goal)) is not None
+        }
+        self._problem_cards.record_survivors(archive.solutions, covered)
+        stat.track_output_variable(
+            RuntimeVariable.LLMProblemCardStats, self._problem_cards.format_stats()
+        )
 
     def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
         """Identifies uncovered targets, queries an LLM for test cases.
@@ -947,58 +1006,6 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         """
         targets_map, diagnostics = self._select_uncovered_targets()
         return self._query_llm_for_targets(targets_map, diagnostics).chromosomes
-
-    @staticmethod
-    def _diagnose_callable(
-        gao: GenericCallableAccessibleObject,
-        line_annotations: list[LineAnnotation],
-    ) -> str:
-        """Derive a diagnostic "problem card" for an uncovered callable.
-
-        Uses the per-line coverage annotations already computed for the search to
-        explain *why* a callable is uncovered, so the LLM can target the gap:
-
-        * **Reachability** -- none of the callable's lines were covered, i.e. it was
-          never reached (setup likely fails before the invocation).
-        * **Branch polarity** -- a branch inside the callable only ever took one
-          outcome, so the opposite outcome needs to be triggered.
-
-        Args:
-            gao: The uncovered callable.
-            line_annotations: Per-line coverage annotations for the module.
-
-        Returns:
-            A short hint string, or ``""`` when nothing informative can be derived.
-        """
-        try:
-            source_lines, start_line = inspect.getsourcelines(gao.callable)
-        except (TypeError, OSError):
-            return ""
-        end_line = start_line + len(source_lines) - 1
-
-        covered = 0
-        total = 0
-        one_sided_branch_lines: list[int] = []
-        for annotation in line_annotations:
-            if start_line <= annotation.line_no <= end_line:
-                covered += annotation.total.covered
-                total += annotation.total.existing
-                branches = annotation.branches
-                if branches.existing > 0 and 0 < branches.covered < branches.existing:
-                    one_sided_branch_lines.append(annotation.line_no)
-
-        if total > 0 and covered == 0:
-            return (
-                "never reached; the setup likely fails before the call is made -- "
-                "construct valid inputs/state and invoke it directly"
-            )
-        if one_sided_branch_lines:
-            lines_str = ", ".join(str(line_no) for line_no in one_sided_branch_lines)
-            return (
-                f"branch(es) at line(s) {lines_str} only took one outcome -- "
-                "vary one input/state axis to trigger the opposite outcome"
-            )
-        return ""
 
     @staticmethod
     def _coverage_in_range(

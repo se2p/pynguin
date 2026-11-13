@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
     import pynguin.ga.computations as ff
     from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.large_language_model.problem_cards import ProblemCard
     from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
 
 # How many uncovered lines and branch outcomes a prompt lists per callable.
@@ -30,7 +31,7 @@ class TargetDiagnosis:
     """What a prompt tells the LLM about one uncovered callable.
 
     Attributes:
-        hints: Free-text hints on why the callable is uncovered.
+        cards: Problem cards: diagnoses of why the callable is uncovered.
         uncovered_lines: Line numbers of the uncovered line goals, ascending.
         missing_branches: ``(line, outcome)`` pairs of branch outcomes that were never
             taken, ascending.
@@ -38,7 +39,7 @@ class TargetDiagnosis:
             lists above to keep the prompt short.
     """
 
-    hints: tuple[str, ...] = ()
+    cards: tuple[ProblemCard, ...] = ()
     uncovered_lines: tuple[int, ...] = ()
     missing_branches: tuple[tuple[int, bool], ...] = ()
     omitted_goals: int = 0
@@ -47,9 +48,9 @@ class TargetDiagnosis:
         """Whether the diagnosis tells the LLM anything.
 
         Returns:
-            ``True`` if it has a hint or lists an uncovered goal.
+            ``True`` if it has a problem card or lists an uncovered goal.
         """
-        return bool(self.hints or self.uncovered_lines or self.missing_branches)
+        return bool(self.cards or self.uncovered_lines or self.missing_branches)
 
 
 def source_range(gao: GenericCallableAccessibleObject) -> tuple[int, int] | None:
@@ -129,7 +130,7 @@ def collect_uncovered_goals(
         subject_properties: The properties of the subject under test.
 
     Returns:
-        A diagnosis without hints for every callable that has an uncovered goal.
+        A diagnosis without problem cards for every callable that has an uncovered goal.
     """
     lines: dict[GenericCallableAccessibleObject, set[int]] = {}
     branches: dict[GenericCallableAccessibleObject, set[tuple[int, bool]]] = {}
@@ -201,5 +202,5 @@ def describe(diagnosis: TargetDiagnosis) -> list[str]:
         described.append(f"Branch outcomes never taken: {outcomes}")
     if diagnosis.omitted_goals:
         described.append(f"... and {diagnosis.omitted_goals} more uncovered goals")
-    described.extend(f"Hint: {hint}" for hint in diagnosis.hints)
+    described.extend(f"Hint: {card.text}" for card in diagnosis.cards)
     return described

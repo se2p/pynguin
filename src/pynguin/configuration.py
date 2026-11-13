@@ -255,6 +255,29 @@ class StatisticsBackend(str, enum.Enum):
     """Write statistics to a CSV file."""
 
 
+class ProblemCardType(str, enum.Enum):
+    """The kinds of diagnosis an uncovered-targets prompt can give for a callable."""
+
+    UNREACHED_CALLABLE = "UNREACHED_CALLABLE"
+    """None of the callable's lines were covered."""
+
+    BRANCH_POLARITY_GAP = "BRANCH_POLARITY_GAP"
+    """A branch inside the callable only ever took one outcome."""
+
+    EXCEPTION_BARRIER = "EXCEPTION_BARRIER"
+    """Tests that call the callable raise before the call is reached."""
+
+    CDG_BOTTLENECK = "CDG_BOTTLENECK"
+    """A condition is never evaluated because the condition it depends on never took
+    the required outcome."""
+
+    TYPE_NEVER_ATTEMPTED = "TYPE_NEVER_ATTEMPTED"
+    """A parameter accepts several types, but some of them were never passed."""
+
+    ENVIRONMENT_BARRIER = "ENVIRONMENT_BARRIER"
+    """Calls of the callable fail with a file system or network error."""
+
+
 class CoverageMetric(str, enum.Enum):
     """The different available coverage metrics available for optimisation."""
 
@@ -1179,6 +1202,23 @@ class LLMConfiguration:
     tests_per_query: int = 0
     """How many test functions an uncovered-targets query asks the LLM to write.  Set to
     0 to ask for no particular number and let the model decide."""
+
+    problem_cards: list[ProblemCardType] = dataclasses.field(
+        default_factory=lambda: [
+            ProblemCardType.UNREACHED_CALLABLE,
+            ProblemCardType.BRANCH_POLARITY_GAP,
+        ]
+    )
+    """The kinds of problem card (diagnosis of why a callable is uncovered) that an
+    uncovered-targets prompt may contain."""
+
+    max_problem_cards_per_target: int = 3
+    """The maximum number of problem cards a prompt shows per callable.  Cards are
+    chosen in the order of ``problem_cards``."""
+
+    problem_card_cooldown: int = 0
+    """The number of uncovered-targets queries after a query that do not repeat its
+    problem cards.  0 sends a card whenever it applies."""
 
     coverage_threshold: float = 1
     """The coverage threshold when to call the LLM for low-coverage targets.

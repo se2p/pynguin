@@ -97,7 +97,7 @@ def test_initialization():
     [
         "__init__",
         "_enough_budget_for_llm",
-        "_diagnose_callable",
+        "_diagnose_targets",
         "_get_random_population",
         "_breed_next_generation",
     ],

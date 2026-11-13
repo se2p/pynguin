@@ -9,8 +9,10 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.coveragegoals as bg
+from pynguin.configuration import ProblemCardType
 from pynguin.instrumentation.tracer import LineMetaData, SubjectProperties
 from pynguin.large_language_model import targets
+from pynguin.large_language_model.problem_cards import ProblemCard
 from pynguin.large_language_model.targets import (
     TargetDiagnosis,
     collect_uncovered_goals,
@@ -106,8 +108,9 @@ def test_format_line_numbers(lines, expected):
 
 
 def test_describe_lists_goals_then_hints():
+    card = ProblemCard(ProblemCardType.UNREACHED_CALLABLE, MagicMock(), None, "never reached")
     diagnosis = TargetDiagnosis(
-        hints=("never reached",),
+        cards=(card,),
         uncovered_lines=(3, 4, 9),
         missing_branches=((2, False), (8, True)),
         omitted_goals=5,
@@ -123,7 +126,9 @@ def test_describe_lists_goals_then_hints():
 def test_empty_diagnosis_is_falsy():
     assert not TargetDiagnosis()
     assert not TargetDiagnosis(omitted_goals=1)
-    assert TargetDiagnosis(hints=("x",))
+    assert TargetDiagnosis(
+        cards=(ProblemCard(ProblemCardType.UNREACHED_CALLABLE, MagicMock(), None, "x"),)
+    )
     assert TargetDiagnosis(missing_branches=((1, True),))
 
 
