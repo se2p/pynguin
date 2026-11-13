@@ -6,6 +6,8 @@
 #
 """One small callable per problem card type."""
 
+from pathlib import Path
+
 
 def never_called(value: int) -> int:
     return value * 2
@@ -45,5 +47,4 @@ def describe(value: int | str | None) -> str:
 
 
 def read_config(path: str) -> str:
-    with open(path, encoding="utf-8") as file:  # noqa: PTH123
-        return file.read()
+    return Path(path).read_text(encoding="utf-8")

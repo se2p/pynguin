@@ -299,6 +299,39 @@ def test_environment_barrier(module):
     assert "tmp_path" in cards[0].text
 
 
+def test_environment_barrier_ignores_errors_of_later_statements(module):
+    target = MagicMock()
+    executions = [
+        _execution(
+            _statement("int_0 = sign(1)", accessible=target),
+            _statement("str_0 = read_config('config.ini')", accessible=MagicMock()),
+            raised={1: FileNotFoundError(2, "No such file or directory")},
+        ),
+    ]
+
+    assert extract_environment_barrier(_context(target, module.sign, executions=executions)) == []
+
+
+class _UnprintableError(Exception):
+    def __str__(self) -> str:
+        raise RuntimeError("broken __str__")
+
+
+def test_exception_barrier_survives_unprintable_exception(module):
+    target = MagicMock()
+    failing = _execution(
+        _statement("account_0 = Account(-1)"),
+        _statement("account_0.withdraw(1)", accessible=target),
+        raised={0: _UnprintableError()},
+    )
+
+    cards = extract_exception_barrier(
+        _context(target, module.Account.withdraw, executions=[failing])
+    )
+
+    assert "raises _UnprintableError --" in cards[0].text
+
+
 def _card(card_type, target, detail) -> ProblemCard:
     return ProblemCard(card_type, target, detail, f"{card_type.value} {detail}")
 

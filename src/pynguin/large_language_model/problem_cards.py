@@ -106,8 +106,12 @@ def _quote(text: str) -> str:
 
 
 def _describe_exception(exception: BaseException) -> str:
-    message = str(exception)
     name = type(exception).__name__
+    # The exception comes from the subject under test, whose __str__ may raise.
+    try:
+        message = str(exception)
+    except Exception:  # noqa: BLE001
+        message = ""
     return f"{name}: {_quote(message)}" if message else name
 
 
@@ -411,9 +415,13 @@ def extract_environment_barrier(context: ProblemCardContext) -> list[ProblemCard
         At most one card, for the most frequent such error.
     """
     errors: collections.Counter[str] = collections.Counter()
-    for _, result, position in _calls_of_target(context):
+    for test_case, result, position in _calls_of_target(context):
         for failed_at, exception in result.exceptions.items():
-            if failed_at >= position and isinstance(exception, OSError):
+            if (
+                failed_at >= position
+                and isinstance(exception, OSError)
+                and test_case.get_statement(failed_at).accessible is context.target
+            ):
                 errors[_describe_exception(exception)] += 1
     if not errors:
         return []
