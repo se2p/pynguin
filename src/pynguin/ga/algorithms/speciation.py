@@ -440,7 +440,8 @@ def select_next_population(
     """
     first_front = list(fronts[0]) if fronts else []
     builder = _PopulationBuilder(max(population_size, len(first_front)), species_of)
-    cap = math.ceil(options.max_species_share * population_size)
+    # The tolerance keeps float products such as 0.14 * 50 = 7.000000000000001 at 7.
+    cap = math.ceil(options.max_species_share * population_size - 1e-9)
 
     front_index: dict[int, int] = {}
     species_members: dict[int, list[tcc.TestCaseChromosome]] = {}

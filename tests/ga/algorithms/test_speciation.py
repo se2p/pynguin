@@ -285,6 +285,15 @@ def test_select_caps_species_from_second_front_on():
     assert outcome.reserved == []
 
 
+def test_select_cap_is_not_raised_by_float_rounding():
+    # 0.14 * 50 = 7.000000000000001 must give a cap of 7, not 8.
+    front_0 = [_Individual("a0", 0)]
+    front_1 = [_Individual(f"a{i}", 0) for i in range(1, 20)]
+    front_1 += [_Individual(f"o{i}", i) for i in range(1, 50)]
+    outcome = _select([front_0, front_1], 50, spec.SpeciationOptions(0.14))
+    assert sum(1 for ind in outcome.population if ind.species == 0) == 7
+
+
 def test_select_keeps_first_front_whole_even_above_the_cap():
     front_0 = [_Individual(f"a{i}", 0) for i in range(3)]
     front_1 = [_Individual("a3", 0), _Individual("b0", 1)]
