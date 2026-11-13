@@ -33,7 +33,7 @@ def _base_evolve(self) -> None:
     super(LLMOSAAlgorithm, self).evolve()
 
 
-def _base_breed(self, factory=None):
+def _base_breed(self, _factory=None):
     actual_factory = getattr(
         self._chromosome_factory, "test_case_chromosome_factory", self._chromosome_factory
     )

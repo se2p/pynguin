@@ -18,6 +18,7 @@ from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
+
 class _Chromosome:
     """A minimal stand-in for a test case chromosome."""
 
@@ -164,7 +165,7 @@ def test_blend_tournament_crossover_uses_selection(algorithm):
     algorithm._population = [partner]
     algorithm._selection_function.select.return_value = [partner]
 
-    def cross_over(offspring, other):
+    def cross_over(offspring, _other):
         offspring.test_case = object()
 
     algorithm._crossover_function.cross_over.side_effect = cross_over
@@ -222,7 +223,7 @@ def test_goal_crossover_falls_back_to_selection(algorithm):
     partner = _Chromosome()
     algorithm._selection_function.select.return_value = [partner]
 
-    def cross_over(offspring, other):
+    def cross_over(offspring, _other):
         offspring.test_case = object()
 
     algorithm._crossover_function.cross_over.side_effect = cross_over
@@ -330,6 +331,8 @@ def test_after_search_finish_reports_lineage_statistics(algorithm):
     with patch("pynguin.ga.algorithms.llmosalgorithm.stat") as mock_stat:
         algorithm.after_search_finish()
 
-    tracked = {call.args[0]: call.args[1] for call in mock_stat.track_output_variable.call_args_list}
+    tracked = {
+        call.args[0]: call.args[1] for call in mock_stat.track_output_variable.call_args_list
+    }
     assert tracked[RuntimeVariable.LLMInjectedTests] == 1
     assert tracked[RuntimeVariable.LLMInjectedSurvived] == 1
