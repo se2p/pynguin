@@ -21,6 +21,7 @@ from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.llmtestcasehandler import LLMGeneration
 from pynguin.large_language_model.tracing import CallPurpose
+from pynguin.large_language_model.targets import TargetDiagnosis
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -1151,3 +1152,29 @@ def test_maybe_intervene_on_stall_sends_llm_queries_per_stall_queries(
     assert llmosa_algorithm._query_llm_for_targets.call_count == 3
     assert len(chromosomes) == 3
     assert llmosa_algorithm._population == chromosomes
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.collect_uncovered_goals")
+@patch("pynguin.ga.algorithms.llmosalgorithm.source_range")
+def test_diagnose_targets_combines_uncovered_goals_and_hints(
+    mock_source_range, mock_collect, llmosa_algorithm
+):
+    with_goals_and_hint, hint_only, nothing, no_source = (
+        MagicMock(spec=GenericCallableAccessibleObject) for _ in range(4)
+    )
+    mock_source_range.side_effect = lambda gao: None if gao is no_source else (1, 5)
+    mock_collect.return_value = {with_goals_and_hint: TargetDiagnosis(uncovered_lines=(3,))}
+    hints = {with_goals_and_hint: "hint a", hint_only: "hint b"}
+    llmosa_algorithm._diagnose_callable = MagicMock(side_effect=lambda gao, _: hints.get(gao, ""))
+
+    result = llmosa_algorithm._diagnose_targets(
+        [with_goals_and_hint, hint_only, nothing, no_source], []
+    )
+
+    assert result == {
+        with_goals_and_hint: TargetDiagnosis(hints=("hint a",), uncovered_lines=(3,)),
+        hint_only: TargetDiagnosis(hints=("hint b",)),
+    }
+    ranges, goals, _ = mock_collect.call_args.args
+    assert set(ranges) == {with_goals_and_hint, hint_only, nothing}
+    assert goals is llmosa_algorithm._archive.uncovered_goals

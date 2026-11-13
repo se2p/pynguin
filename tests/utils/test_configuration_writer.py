@@ -93,6 +93,7 @@ hybrid_initial_population = false
 llm_test_case_percentage = 0.5
 enable_response_caching = false
 call_llm_for_uncovered_targets = false
+tests_per_query = 0
 coverage_threshold = 1
 call_llm_on_stall_detection = false
 stall_detection_window_seconds = 30
@@ -357,7 +358,7 @@ def expected_txt(tmp_path):
  "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
  "llm_url='', hybrid_initial_population=False, llm_test_case_percentage=0.5, "
  'enable_response_caching=False, call_llm_for_uncovered_targets=False, '
- 'coverage_threshold=1, call_llm_on_stall_detection=False, '
+ 'tests_per_query=0, coverage_threshold=1, call_llm_on_stall_detection=False, '
  'stall_detection_window_seconds=30, max_plateau_len=25, '
  'llm_queries_per_stall=1, max_llm_interventions=-1, '
  'min_remaining_budget_for_llm=45, max_context_chars=64000, max_retries=8, '
@@ -558,6 +559,8 @@ False
 30
 --large_language_model.temperature
 0.0
+--large_language_model.tests_per_query
+0
 --llm_refinement.enable_dependency_context
 False
 --llm_refinement.enable_mutation_strengthening
@@ -1067,6 +1070,7 @@ def expected_parameter_list() -> list[str]:
         "--llm_test_case_percentage 0.5",
         "--enable_response_caching False",
         "--call_llm_for_uncovered_targets False",
+        "--tests_per_query 0",
         "--coverage_threshold 1",
         "--call_llm_on_stall_detection False",
         "--max_plateau_len 25",

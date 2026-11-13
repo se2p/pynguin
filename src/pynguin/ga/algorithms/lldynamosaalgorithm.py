@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
+    from pynguin.large_language_model.targets import TargetDiagnosis
 
 import pynguin.configuration as config
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -216,7 +217,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         self,
     ) -> tuple[
         dict[GenericCallableAccessibleObject, float],
-        dict[GenericCallableAccessibleObject, str],
+        dict[GenericCallableAccessibleObject, TargetDiagnosis],
     ]:
         """Identifies the highest-priority uncovered target, priority = 1 - coverage.
 
@@ -260,12 +261,20 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         )
         filtered_gao_coverage_map = self._filter_gao_by_coverage(gao_coverage_map)
         targeted_gao_coverage_map = select_highest_priority_target(filtered_gao_coverage_map)
-
-        diagnostics = {
-            gao: self._diagnose_callable(gao, line_annotations) for gao in targeted_gao_coverage_map
-        }
-        diagnostics = {gao: hint for gao, hint in diagnostics.items() if hint}
+        diagnostics = self._diagnose_targets(targeted_gao_coverage_map, line_annotations)
         return targeted_gao_coverage_map, diagnostics
+
+    def _uncovered_goals_for_targeting(self) -> Iterable[ff.FitnessFunction]:
+        """The uncovered goals among the goals DynaMOSA currently pursues.
+
+        Goals whose control-dependence parent is still uncovered are not listed: the
+        prompt asks for the parent's outcome first, as DynaMOSA does.
+
+        Returns:
+            The currently active goals that the archive has not covered yet.
+        """
+        uncovered = self._archive.uncovered_goals
+        return [goal for goal in self._goals_manager.current_goals if goal in uncovered]
 
     def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
         """Identifies the highest-priority uncovered target, queries an LLM.

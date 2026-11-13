@@ -1176,6 +1176,10 @@ class LLMConfiguration:
     iterations start.  Like seeding, this front-loads token cost; prefer
     ``call_llm_on_stall_detection`` for the recommended stagnation-only setup."""
 
+    tests_per_query: int = 0
+    """How many test functions an uncovered-targets query asks the LLM to write.  Set to
+    0 to ask for no particular number and let the model decide."""
+
     coverage_threshold: float = 1
     """The coverage threshold when to call the LLM for low-coverage targets.
     The value must be from [0.0, 1.0]."""

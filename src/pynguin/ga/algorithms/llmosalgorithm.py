@@ -43,6 +43,11 @@ from pynguin.large_language_model.llmtestcasehandler import (
 from pynguin.large_language_model.query_strategy import get_query_strategy
 from pynguin.large_language_model.tracing import CallPurpose, count
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.large_language_model.targets import (
+    TargetDiagnosis,
+    collect_uncovered_goals,
+    source_range,
+)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -834,7 +839,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         self,
     ) -> tuple[
         dict[GenericCallableAccessibleObject, float],
-        dict[GenericCallableAccessibleObject, str],
+        dict[GenericCallableAccessibleObject, TargetDiagnosis],
     ]:
         """Identifies uncovered targets from the current archive solutions and derives diagnostics.
 
@@ -860,17 +865,49 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         )
         gao_coverage_map = self._calculate_gao_coverage_map(candidates, line_annotations)
         filtered_gao_coverage_map = self._filter_gao_by_coverage(gao_coverage_map)
-
-        diagnostics = {
-            gao: self._diagnose_callable(gao, line_annotations) for gao in filtered_gao_coverage_map
-        }
-        diagnostics = {gao: hint for gao, hint in diagnostics.items() if hint}
+        diagnostics = self._diagnose_targets(filtered_gao_coverage_map, line_annotations)
         return filtered_gao_coverage_map, diagnostics
+
+    def _uncovered_goals_for_targeting(self) -> Iterable[ff.FitnessFunction]:
+        """The uncovered goals that a prompt lists for its target callables.
+
+        Returns:
+            All goals the archive has not covered yet.
+        """
+        return self._archive.uncovered_goals
+
+    def _diagnose_targets(
+        self,
+        targets: Iterable[GenericCallableAccessibleObject],
+        line_annotations: list[LineAnnotation],
+    ) -> dict[GenericCallableAccessibleObject, TargetDiagnosis]:
+        """Describes for each target callable what is uncovered in it and why.
+
+        Args:
+            targets: The callables a query asks for.
+            line_annotations: Per-line coverage annotations for the module.
+
+        Returns:
+            A diagnosis for every target that has an uncovered goal or a hint.
+        """
+        ranges = {gao: rng for gao in targets if (rng := source_range(gao)) is not None}
+        goal_diagnoses = collect_uncovered_goals(
+            ranges, self._uncovered_goals_for_targeting(), self.executor.subject_properties
+        )
+        diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] = {}
+        for gao in ranges:
+            hint = self._diagnose_callable(gao, line_annotations)
+            diagnosis = goal_diagnoses.get(gao, TargetDiagnosis())
+            if hint:
+                diagnosis = dataclasses.replace(diagnosis, hints=(hint,))
+            if diagnosis:
+                diagnostics[gao] = diagnosis
+        return diagnostics
 
     def _query_llm_for_targets(
         self,
         targets_map: dict[GenericCallableAccessibleObject, float],
-        diagnostics: dict[GenericCallableAccessibleObject, str],
+        diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis],
         purpose: CallPurpose = CallPurpose.UNCOVERED_TARGETS,
     ) -> LLMGeneration:
         """Queries the LLM for uncovered targets and parses results into chromosomes.
@@ -880,7 +917,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
 
         Args:
             targets_map: Mapping of callables to their coverage ratio.
-            diagnostics: Mapping of callables to diagnostic hints.
+            diagnostics: Mapping of callables to their uncovered goals and hints.
             purpose: Why the query is made, for the trace and the stall counters.
 
         Returns:
