@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.stats as stat
@@ -105,6 +106,7 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, llmosa_algori
     """Tests that LLM call is made when coverage is less than 1.0 and config is set."""
     # Setup
     mock_config.configuration.large_language_model.call_llm_for_uncovered_targets = True
+    mock_config.configuration.search_algorithm = config.SearchAlgorithmConfiguration()
     test_suite_before = MagicMock(spec=tsc.TestSuiteChromosome)
     test_suite_before.get_coverage.return_value = 0.5
     test_suite_after = MagicMock(spec=tsc.TestSuiteChromosome)
@@ -139,6 +141,7 @@ def test_target_initial_uncovered_goals_filters_crashing_tests(mock_config, llmo
     """Tests that crashing/timing-out LLM test cases are dropped before population merge."""
     # Setup
     mock_config.configuration.large_language_model.call_llm_for_uncovered_targets = True
+    mock_config.configuration.search_algorithm = config.SearchAlgorithmConfiguration()
     test_suite = MagicMock(spec=tsc.TestSuiteChromosome)
     test_suite.get_coverage.return_value = 0.5
     llmosa_algorithm.create_test_suite = MagicMock(return_value=test_suite)

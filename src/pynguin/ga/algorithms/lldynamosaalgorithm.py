@@ -20,6 +20,9 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    import pynguin.ga.computations as ff
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
@@ -57,7 +60,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
                     "when it completes."
                 )
                 return
-            self._population += generation.chromosomes
+            self._population += self._register_injected_chromosomes(generation.chromosomes)
             # DynaMOSA's UpdateTargets, not archive.update(): also unlocks any goals
             # whose parent these chromosomes just covered.
             self._goals_manager.update(self._population)
@@ -75,6 +78,23 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         super()._integrate_llm_chromosomes(llm_chromosomes)
         if hasattr(self, "_goals_manager"):
             self._goals_manager.update(self._population)
+
+    def _update_goals_with(self, chromosomes: list[tcc.TestCaseChromosome]) -> None:
+        """Updates the archive and unlocks goals with chromosomes that joined late.
+
+        Args:
+            chromosomes: The chromosomes.
+        """
+        self._goals_manager.update(chromosomes)
+
+    def _blend_target_goals(self) -> Iterable[ff.FitnessFunction]:
+        """Restricts goal crossovers to the goals DynaMOSA has unlocked.
+
+        Returns:
+            The current goals that are still uncovered.
+        """
+        uncovered = self._archive.uncovered_goals
+        return [goal for goal in self._goals_manager.current_goals if goal in uncovered]
 
     def _update_archive_with_initial_tests(
         self, working_chromosomes: list[tcc.TestCaseChromosome]

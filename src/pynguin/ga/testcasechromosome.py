@@ -22,6 +22,12 @@ if TYPE_CHECKING:
 class TestCaseChromosome(chrom.Chromosome):
     """A chromosome that encodes a single test case."""
 
+    lineage: int | None = None
+    """The lineage of an injected (LLM) test this chromosome descends from, if any.
+
+    Survives cloning and mutation; on crossover, an offspring without a lineage takes
+    the lineage of the other parent."""
+
     def __init__(
         self,
         test_case: tc.TestCase | None = None,
@@ -51,6 +57,7 @@ class TestCaseChromosome(chrom.Chromosome):
             self.changed = orig.changed
             self._last_execution_result = orig._last_execution_result  # noqa: SLF001
             self._num_mutations = orig._num_mutations  # noqa: SLF001
+            self.lineage = orig.lineage
 
     @property
     def test_case(self) -> tc.TestCase:
@@ -102,6 +109,8 @@ class TestCaseChromosome(chrom.Chromosome):
         from pynguin.ga.operators.crossover import splice_test_case_chromosomes  # noqa: PLC0415
 
         splice_test_case_chromosomes(self, other, position1, position2)
+        if self.lineage is None:
+            self.lineage = other.lineage
 
     def mutate(self) -> None:  # noqa: D102
         from pynguin.ga.operators.mutation import _TEST_CASE_MUTATION  # noqa: PLC0415

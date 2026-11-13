@@ -216,6 +216,13 @@ selection = "RANK_SELECTION"
 use_archive = false
 filter_covered_targets_from_test_cluster = false
 number_of_mutations = 3
+llm_blend_goal_crossovers = 0
+llm_blend_mutants = 0
+llm_blend_tournament_crossovers = 0
+llm_blend_max_evaluations = 0
+llm_blend_keep_raw = true
+llm_lineage_elitism_generations = 0
+llm_lineage_elitism_max_fraction = 0.1
 
 [mio]
 exploitation_starts_at_percent = 0.5
@@ -392,7 +399,11 @@ def expected_txt(tmp_path):
  'change_parameter_probability=0.1, change_statement_type_probability=0.05, '
  'tournament_size=4, rank_bias=1.68, selection=<Selection.RANK_SELECTION: '
  "'RANK_SELECTION'>, use_archive=False, "
- 'filter_covered_targets_from_test_cluster=False, number_of_mutations=3), '
+ 'filter_covered_targets_from_test_cluster=False, number_of_mutations=3, '
+ 'llm_blend_goal_crossovers=0, llm_blend_mutants=0, '
+ 'llm_blend_tournament_crossovers=0, llm_blend_max_evaluations=0, '
+ 'llm_blend_keep_raw=True, llm_lineage_elitism_generations=0, '
+ 'llm_lineage_elitism_max_fraction=0.1), '
  'mio=MIOConfiguration(initial_config=MIOPhaseConfiguration(number_of_tests_per_target=10, '
  'random_test_or_from_archive_probability=0.5, number_of_mutations=1), '
  'focused_config=MIOPhaseConfiguration(number_of_tests_per_target=1, '
@@ -643,6 +654,20 @@ BRANCH
 1
 --search_algorithm.filter_covered_targets_from_test_cluster
 False
+--search_algorithm.llm_blend_goal_crossovers
+0
+--search_algorithm.llm_blend_keep_raw
+True
+--search_algorithm.llm_blend_max_evaluations
+0
+--search_algorithm.llm_blend_mutants
+0
+--search_algorithm.llm_blend_tournament_crossovers
+0
+--search_algorithm.llm_lineage_elitism_generations
+0
+--search_algorithm.llm_lineage_elitism_max_fraction
+0.1
 --search_algorithm.max_initial_tests
 10
 --search_algorithm.min_initial_tests
@@ -968,6 +993,13 @@ def expected_parameter_list() -> list[str]:
         "--use_archive False",
         "--filter_covered_targets_from_test_cluster False",
         "--number_of_mutations 3",
+        "--llm_blend_goal_crossovers 0",
+        "--llm_blend_mutants 0",
+        "--llm_blend_tournament_crossovers 0",
+        "--llm_blend_max_evaluations 0",
+        "--llm_blend_keep_raw True",
+        "--llm_lineage_elitism_generations 0",
+        "--llm_lineage_elitism_max_fraction 0.1",
         "--exploitation_starts_at_percent 0.5",
         "--initial_config.number_of_tests_per_target 10",
         "--initial_config.random_test_or_from_archive_probability 0.5",
