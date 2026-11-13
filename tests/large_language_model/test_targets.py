@@ -86,7 +86,10 @@ def test_collect_uncovered_goals_caps_the_number_of_goals(monkeypatch, subject_p
 
     result = collect_uncovered_goals({gao: (1, 20)}, goals, subject_properties)
 
-    assert result[gao] == TargetDiagnosis(uncovered_lines=(3, 4), omitted_goals=2)
+    # Branch outcomes are kept before lines.
+    assert result[gao] == TargetDiagnosis(
+        uncovered_lines=(3,), missing_branches=((2, True),), omitted_goals=2
+    )
 
 
 @pytest.mark.parametrize(

@@ -121,7 +121,7 @@ def collect_uncovered_goals(
     A goal belongs to the innermost callable whose source range contains its line,
     so goals of nested functions, lambdas and comprehensions count for the callable
     they are written in. Each callable lists at most ``MAX_GOALS_PER_TARGET`` goals,
-    lines first.
+    branch outcomes first: an uncovered line usually follows from a missing outcome.
 
     Args:
         ranges: The source range of each callable.
@@ -152,8 +152,8 @@ def collect_uncovered_goals(
         gao_branches = sorted(branches.get(gao, ()))
         if not gao_lines and not gao_branches:
             continue
-        kept_lines = gao_lines[:MAX_GOALS_PER_TARGET]
-        kept_branches = gao_branches[: MAX_GOALS_PER_TARGET - len(kept_lines)]
+        kept_branches = gao_branches[:MAX_GOALS_PER_TARGET]
+        kept_lines = gao_lines[: MAX_GOALS_PER_TARGET - len(kept_branches)]
         result[gao] = TargetDiagnosis(
             uncovered_lines=tuple(kept_lines),
             missing_branches=tuple(kept_branches),
