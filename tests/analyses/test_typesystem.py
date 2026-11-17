@@ -1188,3 +1188,26 @@ def test_get_candidate_types_for_param_spec():
     candidates = type_system.get_candidate_types_for_type_var(P)
     assert any(isinstance(c, Instance) and c.type.raw_type is int for c in candidates)
     assert any(isinstance(c, Instance) and c.type.raw_type is str for c in candidates)
+
+
+class _NewDummy:
+    def __new__(cls, size: int, *, name: str = ""):  # noqa: ARG004
+        return super().__new__(cls)
+
+
+def test_infer_type_info_new_drops_cls():
+    type_system = TypeSystem()
+    result = type_system.infer_type_info(_NewDummy.__new__, type_inference_provider=HintInference())
+    assert list(result.signature.parameters) == ["size", "name"]
+    assert result.original_parameters == {
+        "size": Instance(type_system.to_type_info(int)),
+        "name": Instance(type_system.to_type_info(str)),
+    }
+
+
+def test_infer_type_info_new_without_positional_parameter():
+    def __new__(*args):  # noqa: N807
+        return args
+
+    result = TypeSystem().infer_type_info(__new__, type_inference_provider=HintInference())
+    assert list(result.signature.parameters) == ["args"]
