@@ -232,6 +232,41 @@ def test_instantiate_generic_constructors(cluster: ModuleTestCluster):
         assert not ctor.generated_type().contains_type_vars()
 
 
+def test_instantiate_generic_constructors_keeps_constructor_callable(
+    cluster: ModuleTestCluster,
+):
+    class Box:
+        def __new__(cls, value):  # noqa: ARG004
+            return super().__new__(cls)
+
+    type_info = cluster.type_system.to_type_info(Box)
+    assert type_info is not None
+    tv_t = TypeVarType("T", raw_type_var=T)
+    type_info.type_parameters = [tv_t]
+
+    sig = InferredSignature(
+        signature=inspect.signature(Box),
+        original_return_type=NoneType(),
+        original_parameters={"value": tv_t},
+        type_system=cluster.type_system,
+    )
+    base_constructor = GenericConstructor(type_info, sig, set(), constructor=Box.__new__)
+    generics.instantiate_generic_constructors(
+        type_info=type_info,
+        generic_constructor=base_constructor,
+        expected_exceptions=set(),
+        constructor_data=_make_callable_data(base_constructor),
+        test_cluster=cluster,
+        add_to_test=True,
+    )
+
+    registered_ctors = [
+        obj for obj in cluster.accessible_objects_under_test if isinstance(obj, GenericConstructor)
+    ]
+    assert registered_ctors
+    assert all(ctor.callable is Box.__new__ for ctor in registered_ctors)
+
+
 def test_instantiate_generic_constructors_not_generator(cluster: ModuleTestCluster):
     class Box:
         def __init__(self, value):

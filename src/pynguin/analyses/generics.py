@@ -211,6 +211,7 @@ def instantiate_generic_constructors(
             subst_sig,
             expected_exceptions,
             generated_type=concrete_instance,
+            constructor=generic_constructor.callable,
         )
         inst_data = dataclasses.replace(constructor_data, accessible=inst_constructor)
 

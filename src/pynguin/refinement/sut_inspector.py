@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from pynguin.utils.timeout import TestExecutionTimeoutError, time_limit
-from pynguin.utils.type_utils import get_signature
+from pynguin.utils.type_utils import get_constructor_function, get_signature
 
 _logger = logging.getLogger(__name__)
 
@@ -519,8 +519,9 @@ class SUTInspector:
     def _extract_dependency_signature(obj: Any) -> str:
         """Extract a signature string for a dependency, with graceful fallbacks.
 
-        For classes the ``__init__`` signature is preferred over the class'
-        own signature.
+        For classes the signature of the constructor function (``__init__`` or
+        ``__new__``, see get_constructor_function) is preferred over the class' own
+        signature.
 
         Args:
             obj: The dependency object.
@@ -531,7 +532,7 @@ class SUTInspector:
         try:
             if inspect.isclass(obj):
                 try:
-                    return str(get_signature(obj.__init__))
+                    return str(get_signature(get_constructor_function(obj)[0]))
                 except Exception:  # noqa: BLE001
                     return str(get_signature(obj))
             return str(get_signature(obj))

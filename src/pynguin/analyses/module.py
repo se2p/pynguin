@@ -108,7 +108,7 @@ from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
     get_class_that_defined_method,
-    get_signature,
+    get_constructor_function,
 )
 from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, parse_json, provide_json
 
@@ -1662,68 +1662,6 @@ def __analyse_function(
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
-def _only_takes_var_args(func: Callable) -> bool:
-    """Whether the callable takes nothing but ``*args``/``**kwargs`` (besides cls/self)."""
-    try:
-        parameters = list(get_signature(func).parameters.values())[1:]
-    except (ValueError, TypeError):
-        return False
-    return len(parameters) > 0 and all(
-        param.kind in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}
-        for param in parameters
-    )
-
-
-def get_constructor_function(raw_type: type | types.UnionType) -> tuple[Callable, str]:
-    """Get the function whose parameters a call ``raw_type(...)`` needs.
-
-    A class can define its constructor parameters in ``__init__`` or in ``__new__``.
-    We look for the first pure-Python definition of each in the MRO. If there is
-    only one, it is used. If there are both, the one defined lower in the MRO is
-    used (``__new__`` if both are defined in the same class), as
-    ``inspect.signature`` does, unless it only takes ``*args``/``**kwargs`` and the
-    other one does not, e.g., a singleton ``__new__(cls, *args, **kwargs)`` next to
-    an ``__init__(self, x: int)``. If there is no pure-Python definition, e.g., for
-    C-implemented classes, ``raw_type.__init__`` is used.
-
-    Args:
-        raw_type: The class
-
-    Returns:
-        The constructor function and its name, i.e., ``__init__`` or ``__new__``.
-    """
-    # The first definition of each name in the MRO, i.e., the one Python uses.
-    found: dict[str, tuple[int, Any]] = {}
-    for depth, base in enumerate(getattr(raw_type, "__mro__", ())):
-        if base is object:
-            break
-        for name in ("__new__", "__init__"):
-            if name not in found and name in vars(base):
-                value = vars(base)[name]
-                if isinstance(value, staticmethod):
-                    value = value.__func__
-                found[name] = (depth, value)
-    python_functions = {
-        name: func for name, (_, func) in found.items() if isinstance(func, types.FunctionType)
-    }
-    if not python_functions:
-        return raw_type.__init__, "__init__"  # type: ignore[misc]
-    # Lower in the MRO wins, __new__ wins on a tie.
-    ordered = sorted(found, key=lambda name: (found[name][0], name != "__new__"))
-    chosen = ordered[0]
-    if chosen not in python_functions:
-        # The constructor is implemented in C, e.g., a class that inherits from a
-        # builtin type and a Python class.
-        return raw_type.__init__, "__init__"  # type: ignore[misc]
-    if len(python_functions) == 2:
-        other = ordered[1]
-        if _only_takes_var_args(python_functions[chosen]) and not _only_takes_var_args(
-            python_functions[other]
-        ):
-            chosen = other
-    return python_functions[chosen], chosen
-
-
 def _create_constructor_or_enum(
     type_info: TypeInfo,
     type_inference_provider: InferenceProvider,
@@ -1749,6 +1687,7 @@ def _create_constructor_or_enum(
             type_inference_provider=type_inference_provider,
         ),
         expected_exceptions,
+        constructor=constructor,  # type: ignore[arg-type]
     )
     generic.inferred_signature.return_type = test_cluster.type_system.convert_type_hint(
         type_info.raw_type
