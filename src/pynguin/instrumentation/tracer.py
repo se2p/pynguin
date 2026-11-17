@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import inspect
 import logging
+import re
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping, Sequence, Sized
@@ -29,8 +30,10 @@ import pynguin.slicer.executedinstruction as ei
 import pynguin.utils.typetracing as tt
 from pynguin.instrumentation import PynguinCompare, version
 from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation.regex_calls import RegexCall, RegexCallCollector
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.regex_distance import regex_distance
 from pynguin.utils.type_utils import (
     given_exception_matches,
     is_bytes,
@@ -1046,6 +1049,33 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
+    def executed_regex_call_part(
+        self,
+        value,
+        site_id: int,
+        index: int,
+        argc: int,
+        method_name: str,
+    ) -> None:
+        """A receiver or an argument of a potential regex call site was evaluated.
+
+        Once all parts of a call to ``match``, ``search`` or ``fullmatch`` of the
+        ``re`` module or of a compiled pattern were recorded, the edit distance of
+        the string to the pattern is remembered, such that the next predicate that
+        tests the result (``is None`` or truthiness) can use it as branch distance.
+
+        Args:
+            value: The receiver (index 0) or the argument value.
+            site_id: The identifier of the call site.
+            index: 0 for the receiver, otherwise the 1-based argument position.
+            argc: The number of positional arguments of the call.
+            method_name: The name of the called method.
+
+        Raises:
+            RuntimeError: raised when called from another thread
+        """
+
+    @abstractmethod
     def executed_exception_match(
         self,
         err: BaseException | type[BaseException],
@@ -1561,6 +1591,60 @@ def _match_keys(subject: object, keys: Iterable[object]) -> tuple[float, float]:
     return max(total_distance, 1.0), 0.0
 
 
+_NONE_COMPARISONS = frozenset({
+    PynguinCompare.IS,
+    PynguinCompare.IS_NOT,
+    PynguinCompare.EQ,
+    PynguinCompare.NE,
+})
+
+
+@dataclass(frozen=True)
+class _RegexOutcome:
+    """The outcome of a regex call that the following predicate may use.
+
+    Attributes:
+        call: The regex call.
+        matched: Whether the call returned a match object.
+        distance: The distance to a match; 0.0 if it matched, otherwise >= 1.0.
+    """
+
+    call: RegexCall
+    matched: bool
+    distance: float
+
+    @staticmethod
+    def of(call: RegexCall) -> _RegexOutcome:
+        """Evaluate a regex call.
+
+        Args:
+            call: The regex call.
+
+        Returns:
+            The outcome of the call.
+        """
+        if call.matches():
+            return _RegexOutcome(call, matched=True, distance=0.0)
+        distance = regex_distance(
+            call.pattern.pattern, call.pattern.flags, call.method, call.string
+        )
+        # The distance is a heuristic, so ensure that a non-match is never 0.
+        return _RegexOutcome(call, matched=False, distance=max(distance or 1.0, 1.0))
+
+    def produced(self, value: object) -> bool:
+        """Check whether a value can be the result of the regex call.
+
+        Args:
+            value: The tested value.
+
+        Returns:
+            True, if the value is consistent with the outcome of the call.
+        """
+        if value is None:
+            return not self.matched
+        return self.matched and isinstance(value, re.Match) and value.re is self.call.pattern
+
+
 _P = ParamSpec("_P")
 
 
@@ -1594,6 +1678,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             super().__init__()
             self.enabled = True
             self.trace = ExecutionTrace()
+            self.regex_calls = RegexCallCollector()
+            self.pending_regex_outcome: _RegexOutcome | None = None
 
     def __init__(self) -> None:  # noqa: D107
         # Contains the trace information that is generated when a module is imported
@@ -1671,6 +1757,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         new_trace = ExecutionTrace()
         new_trace.merge(self._import_trace)
         self._thread_local_state.trace = new_trace
+        self._thread_local_state.regex_calls.reset()
+        self._thread_local_state.pending_regex_outcome = None
 
     def is_disabled(self) -> bool:  # noqa: D102
         return not self._thread_local_state.enabled
@@ -1746,7 +1834,43 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                     )
                 case _:
                     raise AssertionError("Unknown compare op")
+            distance_true, distance_false = self._apply_regex_outcome(
+                value1, value2, cmp_op, distance_true, distance_false
+            )
             self._update_metrics(distance_false, distance_true, predicate)
+
+    def _apply_regex_outcome(
+        self,
+        value1,
+        value2,
+        cmp_op: PynguinCompare,
+        distance_true: float,
+        distance_false: float,
+    ) -> tuple[float, float]:
+        """Use the distance of a preceding regex call for a comparison with None.
+
+        Args:
+            value1: The first compared value.
+            value2: The second compared value.
+            cmp_op: The comparison operator.
+            distance_true: The distance to the true branch.
+            distance_false: The distance to the false branch.
+
+        Returns:
+            The possibly updated distances to the true and the false branch.
+        """
+        outcome = self._take_regex_outcome()
+        if outcome is None or outcome.matched or cmp_op not in _NONE_COMPARISONS:
+            return distance_true, distance_false
+        if value1 is not None and value2 is not None:
+            return distance_true, distance_false
+        if not outcome.produced(value2 if value1 is None else value1):
+            return distance_true, distance_false
+        # The regex call returned None; replace the 0/1 distance to the side on
+        # which the result is not None by the regex distance.
+        if cmp_op in {PynguinCompare.IS, PynguinCompare.EQ}:
+            return distance_true, outcome.distance
+        return outcome.distance, distance_false
 
     @_early_return
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
@@ -1755,6 +1879,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             distance_false = 0.0
             # Might be necessary when using Proxies.
             value = tt.unwrap(value)
+            outcome = self._take_regex_outcome()
             if value:
                 if isinstance(value, Sized):
                     # Sized instances evaluate to False if they are empty,
@@ -1772,6 +1897,14 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                     distance_false = inf
             else:
                 distance_true = 1.0
+                if (
+                    outcome is not None
+                    and not outcome.matched
+                    # Since 3.13, TO_BOOL converts the result before the predicate.
+                    and (value is None or value is False)
+                ):
+                    # A regex call returned None; guide the search towards a match.
+                    distance_true = outcome.distance
 
             self._update_metrics(distance_false, distance_true, predicate)
 
@@ -1793,6 +1926,35 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             value2 = tt.unwrap(value2)
             distance_true, distance_false = _in(value1, value2), _nin(value1, value2)
             self._update_metrics(distance_false, distance_true, predicate)
+
+    @_early_return
+    def executed_regex_call_part(  # noqa: D102
+        self,
+        value,
+        site_id: int,
+        index: int,
+        argc: int,
+        method_name: str,
+    ) -> None:
+        with self.temporarily_disable():
+            call = self._thread_local_state.regex_calls.add_part(
+                tt.unwrap(value), site_id, index, argc, method_name
+            )
+            if call is not None:
+                self._thread_local_state.pending_regex_outcome = _RegexOutcome.of(call)
+
+    def _take_regex_outcome(self) -> _RegexOutcome | None:
+        """Return and clear the outcome of the last regex call, if any.
+
+        Only the first predicate after a regex call may use its distance, so that
+        unrelated later checks are not affected.
+
+        Returns:
+            The outcome of the last regex call, if it was not consumed yet.
+        """
+        outcome = self._thread_local_state.pending_regex_outcome
+        self._thread_local_state.pending_regex_outcome = None
+        return outcome
 
     @_early_return
     def executed_exception_match(  # noqa: D102
@@ -2220,6 +2382,16 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._tracer.executed_in_presence_predicate(
             value1=value1, value2=value2, predicate=predicate
         )
+
+    def executed_regex_call_part(  # noqa: D102
+        self,
+        value,
+        site_id: int,
+        index: int,
+        argc: int,
+        method_name: str,
+    ) -> None:
+        self._tracer.executed_regex_call_part(value, site_id, index, argc, method_name)
 
     def executed_exception_match(  # noqa: D102
         self,

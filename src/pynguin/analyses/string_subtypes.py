@@ -9,6 +9,7 @@
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 import rstr
 
@@ -149,18 +150,63 @@ def infer_regex_from_methods(called_str_methods: Mapping[str, Iterable[str]]) ->
     return re.compile(builder.build())
 
 
-def generate_from_regex(regex: re.Pattern) -> str:
+class _BoundedXeger(rstr.Xeger):
+    """A string generator that repeats unbounded quantifiers only a few times."""
+
+    def __init__(self, rng: Any, repeat_limit: int) -> None:
+        super().__init__(rng)
+        self._repeat_limit = repeat_limit
+
+    def _handle_repeat(self, start_range: int, end_range: int, value: str) -> str:
+        return super()._handle_repeat(
+            start_range, min(end_range, start_range + self._repeat_limit), value
+        )
+
+
+# Strings for seeding should be short, such that mutations can still change them.
+SHORT_STRING_GENERATOR: rstr.Rstr = _BoundedXeger(RNG, repeat_limit=3)
+
+
+class _FirstChoiceRandom:
+    """A stand-in for a random generator that always makes the smallest choice."""
+
+    @staticmethod
+    def choice(population: Any) -> Any:
+        return population[0]
+
+    @staticmethod
+    def randint(low: int, high: int) -> int:  # noqa: ARG004
+        return low
+
+
+# Generates the shortest string with the first character of each class, e.g., "0.0.0"
+# for r"\d+\.\d+\.\d+", which is a boundary value.
+MINIMAL_STRING_GENERATOR: rstr.Rstr = rstr.Xeger(_FirstChoiceRandom())  # type: ignore[arg-type]
+
+
+def generate_from_regex(
+    regex: re.Pattern | str, *, short: bool = False, minimal: bool = False
+) -> str:
     """Generate a random string matching the given regex.
 
     Args:
         regex: The regex to match against.
+        short: Whether to repeat unbounded quantifiers at most a few times.
+        minimal: Whether to generate the shortest string, using the first character
+            of each character class (deterministic).
 
     Returns:
         A random string matching the regex.
     """
     pattern = regex.pattern if isinstance(regex, re.Pattern) else regex
+    if minimal:
+        generator = MINIMAL_STRING_GENERATOR
+    elif short:
+        generator = SHORT_STRING_GENERATOR
+    else:
+        generator = STRING_GENERATOR
     try:
-        return STRING_GENERATOR.xeger(pattern)
+        return generator.xeger(pattern)
     except Exception as ex:  # noqa: BLE001
         _LOGGER.warning("Could not generate string from regex: %s", ex)
         return ""

@@ -239,6 +239,17 @@ class InstrumentationSetupAction(enum.IntEnum):
 - Strings: Edit distance variants
 - Containers: Membership distance
 - Booleans: Length/magnitude-based
+- Regex results: edit distance of the string to the pattern's language (see below)
+
+**Regex calls** (`regex_calls.py`, `utils/regex_distance.py`): `visit_cfg` finds calls of
+`match`/`search`/`fullmatch` with only positional arguments in a basic block
+(`find_regex_call_sites`) and inserts hooks for the receiver (before the method load) and
+each argument (after its evaluation); the callee itself is never read because of the
+version-dependent `NULL` slot. At runtime, `executed_regex_call_part` checks whether the
+receiver is an `re.Pattern` or the `re` module, computes the edit distance to a match, and
+the next compare/bool predicate uses it as distance to the "match" side if it tests the
+call's `None` result. Subscript-style auxiliary predicates do not work here, because the
+result check always executes.
 
 ### 2. Line Coverage
 **Adapter**: `LineCoverageInstrumentationAdapter`
@@ -266,6 +277,8 @@ class InstrumentationSetupAction(enum.IntEnum):
 **Instruments**:
 - Compare operations: Captures compared values
 - String methods: `startswith()`, `endswith()`, `isalnum()`, etc.
+- Regex calls: for a non-matching `match`/`search`/`fullmatch`, a string generated from the
+  pattern (first the minimal one, e.g. `0.0.0`, then short random ones) is added
 
 **Purpose**: Seeds constant pool with values observed at runtime for better constant generation
 

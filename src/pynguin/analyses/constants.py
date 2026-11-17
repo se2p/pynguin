@@ -20,6 +20,8 @@ from pkgutil import iter_modules
 
 from setuptools import find_packages
 
+from pynguin.analyses.string_subtypes import generate_from_regex
+from pynguin.instrumentation.regex_calls import RegexCallCollector
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 
@@ -216,6 +218,11 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         super().__init__(pool, delegate, probability)
         assert max_constant_length > 0, "Length limit for constant pool elements must be positive."
         self._max_constant_length = max_constant_length
+        self._regex_calls = RegexCallCollector()
+        self._regex_seed_counts: dict[tuple[str, int], int] = {}
+
+    # How many generated strings are added to the pool per regex pattern at most.
+    MAX_REGEX_SEEDS_PER_PATTERN: ClassVar[int] = 10
 
     # A map containing the names of all string functions which are instrumented.
     # Maps those names to a function producing a value that negates the functions
@@ -248,6 +255,47 @@ class DynamicConstantProvider(DelegatingConstantProvider):
             if isinstance(value, str | bytes) and len(value) > self._max_constant_length:
                 return
             self._pool.add_constant(value)
+
+    def add_regex_call_part(
+        self,
+        value: Any,
+        site_id: int,
+        index: int,
+        argc: int,
+        method_name: str,
+    ) -> None:
+        """Entry point for the instrumented code. Record a part of a regex call.
+
+        Once all parts of a non-matching call of ``match``, ``search`` or
+        ``fullmatch`` were recorded, a string generated from the pattern that
+        matches it is added to the pool.
+
+        Args:
+            value: The receiver (index 0) or the argument value.
+            site_id: The identifier of the call site.
+            index: 0 for the receiver, otherwise the 1-based argument position.
+            argc: The number of positional arguments of the call.
+            method_name: The name of the called method.
+        """
+        call = self._regex_calls.add_part(unwrap(value), site_id, index, argc, method_name)
+        if call is None:
+            return
+        key = (call.pattern.pattern, call.pattern.flags)
+        seeded = self._regex_seed_counts.get(key, 0)
+        if seeded >= self.MAX_REGEX_SEEDS_PER_PATTERN:
+            return
+        try:
+            if call.matches():
+                return
+            # Start with the minimal string, which is a boundary value.
+            generated = generate_from_regex(call.pattern, short=True, minimal=seeded == 0)
+            if call.pattern.fullmatch(generated) is None:
+                # E.g., because of flags the generator does not know about.
+                return
+        except Exception:  # noqa: BLE001
+            return
+        self._regex_seed_counts[key] = seeded + 1
+        self.add_value(generated)
 
     def add_value_for_strings(self, value: str, name: str):
         """Entry point for the instrumented code. Add a value of a string.

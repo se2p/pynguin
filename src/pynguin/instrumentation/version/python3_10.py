@@ -23,6 +23,7 @@ from bytecode.instr import _UNSET, UNSET, Compare, Instr, Label
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.instrumentation import AST_FILENAME, PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
+from pynguin.instrumentation.regex_calls import find_regex_call_sites
 from pynguin.instrumentation.version.common import (
     COMPARE_OP_POS,
     JUMP_OP_POS,
@@ -48,9 +49,11 @@ from pynguin.instrumentation.version.common import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from bytecode import Bytecode
+
+    from pynguin.instrumentation.regex_calls import RegexCallSite
 
 __all__ = [
     "ACCESS_NAMES",
@@ -810,6 +813,91 @@ def extract_comparison(instr: Instr) -> PynguinCompare:
             raise AssertionError(f"Unknown comparison in {instr}.")
 
 
+def instrument_regex_call_sites(
+    node: cf.BasicBlockNode,
+    instructions_generator: type[InstrumentationInstructionsGenerator],
+    target: object,
+    method_name: str,
+    should_instrument_line: Callable[[int], bool] | None = None,
+) -> None:
+    """Insert hooks that record the receiver and arguments of potential regex calls.
+
+    For each call site found by `find_regex_call_sites`, the method ``method_name`` of
+    ``target`` is called with ``(value, site_id, index, argc, method_name)`` for the
+    receiver (index 0, before the method load) and for each argument (after it has been
+    evaluated). The hooks do not change the stack.
+
+    Args:
+        node: The basic block node.
+        instructions_generator: The generator for the instrumentation instructions.
+        target: The object whose method is called by the hooks.
+        method_name: The name of the method to call.
+        should_instrument_line: Decides per line number whether to add the hooks.
+    """
+    # (position in block, order at that position, sequence number, instructions); hooks
+    # that run after an instruction (order 0) must run before hooks that run before the
+    # next instruction (order 1).
+    insertions: list[tuple[int, int, int, tuple[cf.ArtificialInstr, ...]]] = []
+    for site in find_regex_call_sites(node):
+        load_instr = node.basic_block[site.load_index]
+        assert isinstance(load_instr, Instr)
+        lineno = load_instr.lineno
+        if (
+            should_instrument_line is not None
+            and isinstance(lineno, int)
+            and not should_instrument_line(lineno)
+        ):
+            continue
+
+        def hook(
+            index: int,
+            setup_action: InstrumentationSetupAction,
+            lineno: int | _UNSET | None,
+            site: RegexCallSite = site,
+        ) -> tuple[cf.ArtificialInstr, ...]:
+            return instructions_generator.generate_instructions(
+                setup_action,
+                InstrumentationMethodCall(
+                    target,
+                    method_name,
+                    (
+                        InstrumentationStackValue.FIRST,
+                        InstrumentationConstantLoad(value=site.site_id),
+                        InstrumentationConstantLoad(value=index),
+                        InstrumentationConstantLoad(value=site.argc),
+                        InstrumentationConstantLoad(value=site.method_name),
+                    ),
+                ),
+                lineno,
+            )
+
+        insertions.append((
+            site.load_index,
+            1,
+            len(insertions),
+            hook(0, InstrumentationSetupAction.COPY_FIRST, lineno),
+        ))
+        for argument_index, (block_index, stack_position) in enumerate(
+            site.argument_hooks, start=1
+        ):
+            setup_action = (
+                InstrumentationSetupAction.COPY_FIRST
+                if stack_position == 1
+                else InstrumentationSetupAction.COPY_SECOND
+            )
+            insertions.append((
+                block_index + 1,
+                0,
+                len(insertions),
+                hook(argument_index, setup_action, lineno),
+            ))
+
+    # Insert from the back, such that the recorded block indices stay valid. At the
+    # same position, the insertion that must run first is inserted last.
+    for position, _, _, instructions in sorted(insertions, reverse=True):
+        node.basic_block[before(position)] = instructions
+
+
 class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAdapter):
     """Specialized instrumentation adapter for branch coverage in Python 3.10."""
 
@@ -1333,6 +1421,16 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             lineno,
         )
+
+        # Record regex calls to provide a branch distance for checks of their result.
+        for basic_block_node in cfg.basic_block_nodes:
+            instrument_regex_call_sites(
+                basic_block_node,
+                self.instructions_generator,
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_regex_call_part.__name__,
+                None if ast_info is None else ast_info.should_track_line,
+            )
 
 
 class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter):
@@ -1972,6 +2070,22 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         self, dynamic_constant_provider: DynamicConstantProvider
     ):
         self._dynamic_constant_provider = dynamic_constant_provider
+
+    def visit_cfg(  # noqa: D102
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+    ) -> None:
+        # Seed strings matching the patterns of regex calls that did not match.
+        for node in cfg.basic_block_nodes:
+            instrument_regex_call_sites(
+                node,
+                self.instructions_generator,
+                self._dynamic_constant_provider,
+                DynamicConstantProvider.add_regex_call_part.__name__,
+                None if ast_info is None else ast_info.should_seed_line,
+            )
 
     def extract_method_name(self, instr: Instr) -> str | None:
         """Extract the method name from the instruction.

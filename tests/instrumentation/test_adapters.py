@@ -7,6 +7,7 @@
 import contextlib
 import importlib
 import os
+import re
 import string
 import sys
 from opcode import opmap
@@ -1114,3 +1115,26 @@ def test_binary_string_functions(  # noqa: PLR0917
     assert func(inp1, inp2) == result
     assert dynamic.has_constant_for(str)
     assert dynamic.get_all_constants_for(str) == OrderedSet([tracked])
+
+
+@pytest.fixture
+def regex_module():
+    module = importlib.import_module("tests.fixtures.regex.regex_checks")
+    return importlib.reload(module)
+
+
+def test_regex_call_seeds_matching_string(dynamic_instr, regex_module):
+    dynamic, instr = dynamic_instr
+    instrument_function(instr, regex_module.is_hex_color)
+    assert regex_module.is_hex_color("zzz") is False
+
+    seeded = dynamic.get_all_constants_for(str)
+    assert len(seeded) == 1
+    assert re.fullmatch(r"#[0-9a-f]{6}", next(iter(seeded)))
+
+
+def test_regex_call_no_seed_on_match(dynamic_instr, regex_module):
+    dynamic, instr = dynamic_instr
+    instrument_function(instr, regex_module.bump)
+    assert regex_module.bump("1.2.3") == "stable"
+    assert not dynamic.has_constant_for(str)

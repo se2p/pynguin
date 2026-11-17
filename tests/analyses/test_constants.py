@@ -4,6 +4,9 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import re
+from unittest import mock
+
 import pytest
 
 import pynguin.utils.typetracing as tt
@@ -113,3 +116,56 @@ def test_constant_pool_ignores_proxy_2(rpool):
     provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 5)
     provider.add_value_for_strings(tt.ObjectProxy("foo"), "isupper")
     assert rpool.get_all_constants_for(str) == OrderedSet(["foo", "FOO"])
+
+
+def _add_regex_call(provider: DynamicConstantProvider, pattern, string: str) -> None:
+    provider.add_regex_call_part(pattern, 1, 0, 1, "fullmatch")
+    provider.add_regex_call_part(tt.ObjectProxy(string), 1, 1, 1, "fullmatch")
+
+
+def test_dynamic_constant_provider_regex_call(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 50)
+    _add_regex_call(provider, re.compile(r"[a-c]{3}"), "x")
+    seeded = rpool.get_all_constants_for(str)
+    assert len(seeded) == 1
+    assert re.fullmatch(r"[a-c]{3}", next(iter(seeded)))
+
+
+def test_dynamic_constant_provider_regex_call_matching(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 50)
+    _add_regex_call(provider, re.compile(r"[a-c]{3}"), "abc")
+    assert not rpool.has_constant_for(str)
+
+
+def test_dynamic_constant_provider_regex_call_limit(pool):
+    provider = DynamicConstantProvider(pool, EmptyConstantProvider(), 0, 50)
+    for _ in range(DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN + 5):
+        _add_regex_call(provider, re.compile(r"\d{4}"), "x")
+    assert len(pool.get_all_constants_for(str)) <= (
+        DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN
+    )
+    assert provider._regex_seed_counts == {
+        (r"\d{4}", re.UNICODE): DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN
+    }
+
+
+def test_dynamic_constant_provider_regex_call_not_matching_generated(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 50)
+    # The generator does not know about the VERBOSE flag.
+    _add_regex_call(provider, re.compile(r"a b", re.VERBOSE), "x")
+    assert not rpool.has_constant_for(str)
+
+
+def test_dynamic_constant_provider_regex_call_generation_error(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 50)
+    with mock.patch(
+        "pynguin.analyses.constants.generate_from_regex", side_effect=RuntimeError("boom")
+    ):
+        _add_regex_call(provider, re.compile(r"a"), "x")
+    assert not rpool.has_constant_for(str)
+
+
+def test_dynamic_constant_provider_regex_call_not_regex(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 50)
+    _add_regex_call(provider, object(), "x")
+    assert not rpool.has_constant_for(str)
