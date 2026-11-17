@@ -163,7 +163,7 @@ def test_typeshed_inference_fills_hint_gap():
     provider = TypeshedInference(TypeSystem())
     with patch(
         "pynguin.analyses.type_inference.typeshed_client.get_stub_names",
-        side_effect=lambda name: {"foo": stub_info} if name == "fakemod_fill_gap" else None,
+        side_effect=lambda name, **_: {"foo": stub_info} if name == "fakemod_fill_gap" else None,
     ):
         result = provider.provide(foo)
 
@@ -183,7 +183,9 @@ def test_typeshed_inference_prefers_runtime_hints():
     provider = TypeshedInference(TypeSystem())
     with patch(
         "pynguin.analyses.type_inference.typeshed_client.get_stub_names",
-        side_effect=lambda name: {"foo": stub_info} if name == "fakemod_prefers_hints" else None,
+        side_effect=lambda name, **_: {"foo": stub_info}
+        if name == "fakemod_prefers_hints"
+        else None,
     ):
         result = provider.provide(foo)
 
@@ -205,7 +207,9 @@ def test_typeshed_inference_unresolvable_type_is_skipped():
     provider = TypeshedInference(TypeSystem())
     with patch(
         "pynguin.analyses.type_inference.typeshed_client.get_stub_names",
-        side_effect=lambda name: {"foo": stub_info} if name == "fakemod_unresolvable" else None,
+        side_effect=lambda name, **_: {"foo": stub_info}
+        if name == "fakemod_unresolvable"
+        else None,
     ):
         result = provider.provide(foo)
 
@@ -238,7 +242,9 @@ def test_typeshed_inference_overload_uses_first_definition():
     provider = TypeshedInference(TypeSystem())
     with patch(
         "pynguin.analyses.type_inference.typeshed_client.get_stub_names",
-        side_effect=lambda name: {"foo": overloaded_info} if name == "fakemod_overload" else None,
+        side_effect=lambda name, **_: {"foo": overloaded_info}
+        if name == "fakemod_overload"
+        else None,
     ):
         result = provider.provide(foo)
 
@@ -322,7 +328,7 @@ class Sub(Base):
     provider = TypeshedInference(TypeSystem())
     with patch(
         "pynguin.analyses.type_inference.typeshed_client.get_stub_names",
-        side_effect=lambda name: names if name == "fakemod_base_fallback" else None,
+        side_effect=lambda name, **_: names if name == "fakemod_base_fallback" else None,
     ):
         result = provider.provide(init_method)
 

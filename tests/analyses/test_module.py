@@ -29,7 +29,15 @@ from pynguin.analyses.module import (
     parse_module,
 )
 from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.typesystem import ANY, AnyType, Instance, ProperType, TypeInfo, UnionType
+from pynguin.analyses.typesystem import (
+    ANY,
+    AnyType,
+    Instance,
+    ProperType,
+    TypeInfo,
+    TypeSystem,
+    UnionType,
+)
 from pynguin.configuration import ElementVisibility
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.testcase.testcase import TestCase
@@ -1356,3 +1364,104 @@ def test_new_is_not_offered_as_method():
     }
     assert "__new__" not in method_names
     assert "method" in method_names
+# --- Constructors implemented in C (#346) -------------------------------------
+
+
+def _constructor_of(cluster, cls):
+    typ = cluster.type_system.convert_type_hint(cls)
+    constructors = [g for g in cluster.get_generators_for(typ) if isinstance(g, GenericConstructor)]
+    return next(g for g in constructors if g.owner.raw_type is cls)
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    [config.TypeInferenceStrategy.TYPE_HINTS, config.TypeInferenceStrategy.TYPESHED],
+)
+def test_c_type_constructors(strategy):
+    import datetime  # noqa: PLC0415
+    from decimal import Decimal  # noqa: PLC0415
+
+    config.configuration.type_inference.type_inference_strategy = strategy
+    cluster = generate_test_cluster("tests.fixtures.cluster.c_type_constructors")
+    int_type = cluster.type_system.convert_type_hint(int)
+
+    date = _constructor_of(cluster, datetime.date).inferred_signature
+    assert list(date.signature.parameters) == ["year", "month", "day"]
+    assert date.original_parameters == {"year": int_type, "month": int_type, "day": int_type}
+
+    # The runtime signature is used where it exists, types come from the stub.
+    decimal_signature = _constructor_of(cluster, Decimal).inferred_signature
+    assert decimal_signature.signature.parameters["value"].default == "0"
+    assert isinstance(decimal_signature.original_parameters["value"], UnionType)
+
+
+def test_c_type_constructor_python_subclass_and_python_init():
+    from tests.fixtures.cluster.c_type_constructors import OwnDate, PythonInit  # noqa: PLC0415
+
+    cluster = generate_test_cluster("tests.fixtures.cluster.c_type_constructors")
+    own = _constructor_of(cluster, OwnDate).inferred_signature
+    assert list(own.signature.parameters) == ["year", "month", "day"]
+    python_init = _constructor_of(cluster, PythonInit).inferred_signature
+    assert list(python_init.signature.parameters) == ["self", "value"]
+
+
+def test_c_type_constructor_no_inference_has_no_types():
+    import datetime  # noqa: PLC0415
+
+    config.configuration.type_inference.type_inference_strategy = config.TypeInferenceStrategy.NONE
+    cluster = generate_test_cluster("tests.fixtures.cluster.c_type_constructors")
+    date = _constructor_of(cluster, datetime.date).inferred_signature
+    assert list(date.signature.parameters) == ["year", "month", "day"]
+    assert all(isinstance(t, AnyType) for t in date.original_parameters.values())
+
+
+def test_has_python_constructor():
+    import datetime  # noqa: PLC0415
+
+    from tests.fixtures.cluster.c_type_constructors import OwnDate, PythonInit  # noqa: PLC0415
+
+    class WithNew:
+        def __new__(cls):
+            return super().__new__(cls)
+
+    def make(cls):
+        return object.__new__(cls)
+
+    class WithStaticNew:
+        __new__ = staticmethod(make)
+
+    assert module._has_python_constructor(PythonInit)
+    assert module._has_python_constructor(WithNew)
+    assert module._has_python_constructor(WithStaticNew)
+    assert not module._has_python_constructor(OwnDate)
+    assert not module._has_python_constructor(datetime.date)
+    assert not module._has_python_constructor(object)
+
+
+def test_infer_c_constructor_signature_none_without_runtime_or_stub():
+    import datetime  # noqa: PLC0415
+
+    with (
+        patch.object(module, "get_stub_constructor", return_value=None),
+        patch.object(module, "get_signature", side_effect=ValueError),
+    ):
+        assert (
+            module._infer_c_constructor_signature(datetime.date, HintInference(), TypeSystem())
+            is None
+        )
+
+
+def test_infer_c_constructor_signature_ignores_var_args_runtime_signature():
+    import datetime  # noqa: PLC0415
+    import inspect  # noqa: PLC0415
+
+    var_args = inspect.Signature([
+        inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL),
+        inspect.Parameter("kwargs", inspect.Parameter.VAR_KEYWORD),
+    ])
+    with patch.object(module, "get_signature", return_value=var_args):
+        inferred = module._infer_c_constructor_signature(
+            datetime.date, HintInference(), TypeSystem()
+        )
+    assert inferred is not None
+    assert list(inferred.signature.parameters) == ["year", "month", "day"]

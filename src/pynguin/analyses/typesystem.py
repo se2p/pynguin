@@ -2351,19 +2351,25 @@ class TypeSystem:  # noqa: PLR0904
         self,
         method: Callable,
         type_hint_provider: Callable[[Callable], dict],
+        *,
+        signature: inspect.Signature | None = None,
     ) -> InferredSignature:
         """Infers the method signature using the given type hint provider.
 
         Args:
             method: The callable
             type_hint_provider: A method that provides type hints for the given method.
+            signature: The signature to use instead of the one of the callable, e.g.,
+                one derived from a typeshed stub.
 
         Returns:
             The inference result
         """
         method_for_signature = get_method_for_signature(method)
         try:
-            method_signature = get_signature(method_for_signature)
+            method_signature = (
+                signature if signature is not None else get_signature(method_for_signature)
+            )
         except (ValueError, TypeError):
             method_signature = inspect.Signature(
                 parameters=[
