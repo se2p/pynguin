@@ -294,7 +294,7 @@ class _AnnotationResolver:
             return self.resolve(info.ast.value, module_name, depth + 1)
         if isinstance(info.ast, ast.Assign):
             return self.resolve(info.ast.value, module_name, depth + 1)
-        if isinstance(info.ast, ast.TypeAlias):
+        if sys.version_info >= (3, 12) and isinstance(info.ast, ast.TypeAlias):
             return self.resolve(info.ast.value, module_name, depth + 1)
         return UNRESOLVED
 
@@ -367,6 +367,7 @@ def _parameters_of(
     first_default = len(positional) - len(args.defaults)
     result: list[tuple[ast.arg, inspect._ParameterKind, bool]] = []
     for index, arg in enumerate(positional):
+        kind: inspect._ParameterKind
         if index < len(args.posonlyargs) or (
             # Old-style positional-only parameters, e.g., `__x`.
             arg.arg.startswith("__") and not arg.arg.endswith("__")

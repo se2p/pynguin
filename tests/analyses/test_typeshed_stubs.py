@@ -10,6 +10,7 @@ import ast
 import datetime
 import decimal
 import inspect
+import sys
 import types
 import typing
 from unittest.mock import patch
@@ -89,10 +90,11 @@ def test_simple_namespace_positional_only_and_kwargs(resolver):
     result = resolver.constructor(types.SimpleNamespace)
     assert result is not None
     signature, _ = result
-    assert _kinds(signature) == {
-        "mapping_or_iterable": P.POSITIONAL_ONLY,
-        "kwargs": P.VAR_KEYWORD,
-    }
+    kinds = _kinds(signature)
+    assert kinds["kwargs"] == P.VAR_KEYWORD
+    if sys.version_info >= (3, 13):
+        # Older versions of SimpleNamespace only take keyword arguments.
+        assert kinds["mapping_or_iterable"] == P.POSITIONAL_ONLY
 
 
 def test_overload_with_parameters_is_picked(resolver):
