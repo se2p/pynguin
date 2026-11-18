@@ -41,13 +41,13 @@ from pynguin.large_language_model.llmtestcasehandler import (
     reset_statement_ratio,
 )
 from pynguin.large_language_model.query_strategy import get_query_strategy
-from pynguin.large_language_model.tracing import CallPurpose, count
-from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.large_language_model.targets import (
     TargetDiagnosis,
     collect_uncovered_goals,
     source_range,
 )
+from pynguin.large_language_model.tracing import CallPurpose, count
+from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
