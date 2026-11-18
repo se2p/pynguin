@@ -103,6 +103,8 @@ max_retries = 8
 request_timeout = 30.0
 max_request_time = 300.0
 enable_thinking = false
+temperature = 0.0
+sampling_seed = false
 cache_dir = "~/.cache/pynguin/llm"
 max_concurrency = 5
 llm_mode = "sync"
@@ -341,9 +343,9 @@ def expected_txt(tmp_path):
  'stall_detection_window_seconds=30, max_plateau_len=25, '
  'max_llm_interventions=-1, min_remaining_budget_for_llm=45, '
  'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
- 'max_request_time=300.0, enable_thinking=False, '
- "cache_dir='~/.cache/pynguin/llm', max_concurrency=5, llm_mode=<LLMMode.SYNC: "
- "'sync'>, trace_dir='', repair_attempts=0), "
+ 'max_request_time=300.0, enable_thinking=False, temperature=0.0, '
+ "sampling_seed=False, cache_dir='~/.cache/pynguin/llm', max_concurrency=5, "
+ "llm_mode=<LLMMode.SYNC: 'sync'>, trace_dir='', repair_attempts=0), "
  'mock_generation=MockGenerationConfiguration(mock_generation_enabled=False, '
  "proxy_cache_url='', base_rules_cache_id=''), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
@@ -517,8 +519,12 @@ gpt-4o-mini
 0
 --large_language_model.request_timeout
 30.0
+--large_language_model.sampling_seed
+False
 --large_language_model.stall_detection_window_seconds
 30
+--large_language_model.temperature
+0.0
 --llm_refinement.enable_dependency_context
 False
 --llm_refinement.enable_mutation_strengthening

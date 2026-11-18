@@ -1159,6 +1159,20 @@ class LLMConfiguration:
     entirely and leave the provider's default behaviour unchanged, e.g. for a
     non-reasoning model or a provider that rejects unknown ``extra_body`` keys."""
 
+    temperature: float = 0.0
+    """The sampling temperature of every LLM request built from a prompt template.
+    The default of 0 makes the model choose its most likely answer; CodaMOSA sampled
+    at 0.8."""
+
+    sampling_seed: bool = False
+    """Whether to send a sampling seed with every LLM request, so that a run with the
+    same seed asks the endpoint for the same samples.  The seed is derived from the
+    run's seed (``seeding.seed``), the request's content, and how many requests with
+    the same content the client has sent before, so repeated queries with the same
+    prompt still get different samples.  Retries of a
+    request reuse its seed.  Endpoints may still return different samples for the same
+    seed, e.g. when they batch requests together."""
+
     cache_dir: str = "~/.cache/pynguin/llm"
     """The directory to store cached responses."""
 

@@ -13,6 +13,7 @@ import abc
 import ast
 import asyncio
 import concurrent.futures
+import hashlib
 import logging
 import random
 import re
@@ -334,6 +335,10 @@ class OpenAIClient(LLMClient):
         # requests from this client skip the doomed attempt and use the fallback directly.
         self._temperature_zero_rejected = False
 
+        # Requests sent per content key, for deriving distinct sampling seeds for
+        # repeated requests with the same content.
+        self._requests_per_key: dict[str, int] = {}
+
         # Dynamic exception lists for retrying
         self._rate_limit_errors: tuple[type[Exception], ...] = (openai.RateLimitError,)
         self._timeout_errors: tuple[type[Exception], ...] = (openai.APITimeoutError,)
@@ -417,11 +422,31 @@ class OpenAIClient(LLMClient):
             self._time_seconds = 0.0
             self._calls_with_no_python_code = 0
 
+    def _sampling_seed(self, request: RenderedRequest) -> int | None:
+        """Derives the sampling seed of a request, see ``LLMConfiguration.sampling_seed``.
+
+        Args:
+            request: The request to send.
+
+        Returns:
+            The seed, or None if sampling seeds are disabled.
+        """
+        if not config.configuration.large_language_model.sampling_seed:
+            return None
+        key = request.cache_key()
+        with self._lock:
+            previous = self._requests_per_key.get(key, 0)
+            self._requests_per_key[key] = previous + 1
+        material = f"{config.configuration.seeding.seed}:{key}:{previous}"
+        digest = hashlib.sha256(material.encode("utf-8")).digest()
+        return int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
+
     def _build_request_kwargs(
         self,
         request: RenderedRequest,
         temperature: float,
         timeout: float | None,
+        seed: int | None = None,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
             "model": request.model,
@@ -430,6 +455,8 @@ class OpenAIClient(LLMClient):
             "max_tokens": request.max_tokens,
             "stop": request.stop,
         }
+        if seed is not None:
+            kwargs["seed"] = seed
         if timeout is not None:
             kwargs["timeout"] = timeout
         if request.enable_thinking is not None:
@@ -590,6 +617,7 @@ class OpenAIClient(LLMClient):
 
         with self._lock:
             self._calls += 1
+        seed = self._sampling_seed(request)
 
         temperature = request.temperature
         with self._lock:
@@ -600,7 +628,7 @@ class OpenAIClient(LLMClient):
         for attempt in range(1, max_attempts + 1):
             start_time = time.perf_counter()
             try:
-                kwargs = self._build_request_kwargs(request, temperature, timeout)
+                kwargs = self._build_request_kwargs(request, temperature, timeout, seed)
                 with self._lock:
                     self._endpoint_requests += 1
                 response = self._client.chat.completions.create(**kwargs)
@@ -683,6 +711,7 @@ class OpenAIClient(LLMClient):
 
         with self._lock:
             self._calls += 1
+        seed = self._sampling_seed(request)
 
         temperature = request.temperature
         with self._lock:
@@ -693,7 +722,7 @@ class OpenAIClient(LLMClient):
         for attempt in range(1, max_attempts + 1):
             start_time = time.perf_counter()
             try:
-                kwargs = self._build_request_kwargs(request, temperature, timeout)
+                kwargs = self._build_request_kwargs(request, temperature, timeout, seed)
                 with self._lock:
                     self._endpoint_requests += 1
                 response = await self.async_client.chat.completions.create(**kwargs)

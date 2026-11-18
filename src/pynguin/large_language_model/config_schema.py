@@ -18,7 +18,6 @@ class PromptConfig:
 
     system_message: str | None = None
     user_message_template: str | None = None
-    temperature: float | None = None
     max_tokens: int | None = None
     stop: list[str] | None = None
 
