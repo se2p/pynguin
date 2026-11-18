@@ -1364,7 +1364,6 @@ def test_new_is_not_offered_as_method():
     }
     assert "__new__" not in method_names
     assert "method" in method_names
-# --- Constructors implemented in C (#346) -------------------------------------
 
 
 def _constructor_of(cluster, cls):
