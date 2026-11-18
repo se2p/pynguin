@@ -1156,13 +1156,13 @@ def test_query_llm_for_targets_publishes_cards_and_records_admitted(llmosa_algor
     chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     llmosa_algorithm._problem_cards = MagicMock()
     handler = llmosa_algorithm.model.llm_test_case_handler
-    handler.get_test_case_chromosomes_from_llm_results.return_value = [chromosome]
+    handler.generate_chromosomes.return_value = LLMGeneration(chromosomes=[chromosome])
 
     result = llmosa_algorithm._query_llm_for_targets(
         {gao: 0.0}, {gao: TargetDiagnosis(cards=(card,))}
     )
 
-    assert result == [chromosome]
+    assert result.chromosomes == [chromosome]
     llmosa_algorithm._problem_cards.mark_published.assert_called_once_with([card])
     llmosa_algorithm._problem_cards.record_admitted.assert_called_once_with([card], [chromosome])
 
