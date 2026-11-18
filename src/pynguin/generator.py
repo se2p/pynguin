@@ -86,7 +86,7 @@ from pynguin.utils.exceptions import (
     CannotInstrumentCompiledModuleError,
     ConfigurationException,
 )
-from pynguin.utils.forbidden_modules import check_module_allowed
+from pynguin.utils.forbidden_modules import check_configured_module_allowed
 from pynguin.utils.report import (
     get_coverage_report,
     render_coverage_report,
@@ -145,9 +145,10 @@ def run_pynguin() -> ReturnCode:
 
     Raises:
         ConfigurationException: In case the configuration is illegal
-        ForbiddenModuleError: If the module under test is forbidden
+        ForbiddenModuleError: If the module under test is forbidden and
+            check_forbidden_modules is enabled
     """
-    check_module_allowed(config.configuration.module_name)
+    check_configured_module_allowed(config.configuration)
     try:
         _LOGGER.info("Start Pynguin Test Generation…")
         if config.configuration.algorithm == config.Algorithm.LLM:

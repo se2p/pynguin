@@ -38,7 +38,7 @@ from pynguin.islands.orchestrator import run_pynguin_with_islands
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
 from pynguin.utils.exceptions import ForbiddenModuleError
-from pynguin.utils.forbidden_modules import check_module_allowed
+from pynguin.utils.forbidden_modules import check_configured_module_allowed
 from pynguin.utils.logging_utils import (
     DATE_LOG_FORMAT,
     RICH_NO_WORKER_LOG_FORMAT,
@@ -201,9 +201,9 @@ def _run_message(num_islands: int, *, use_master_worker: bool) -> str:
     return "Running Pynguin..."
 
 
-def _is_module_allowed(module_name: str) -> bool:
+def _is_module_allowed(configuration: config.Configuration) -> bool:
     try:
-        check_module_allowed(module_name)
+        check_configured_module_allowed(configuration)
     except ForbiddenModuleError as error:
         _LOGGER.error("%s", error)
         return False
@@ -252,7 +252,7 @@ to see why this happens and what you must do to prevent it."""
         log_file=parsed.log_file,
     )
 
-    if not _is_module_allowed(parsed.config.module_name):
+    if not _is_module_allowed(parsed.config):
         return ReturnCode.FORBIDDEN_MODULE.value
 
     set_configuration(parsed.config)

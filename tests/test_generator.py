@@ -398,6 +398,20 @@ def test_run_forbidden_module(tmp_path):
     run_mock.assert_not_called()
 
 
+def test_run_forbidden_module_check_disabled(tmp_path):
+    gen.set_configuration(
+        configuration=MagicMock(
+            log_file=None,
+            project_path=tmp_path,
+            module_name="semantic_release.version",
+            check_forbidden_modules=False,
+        )
+    )
+    with mock.patch("pynguin.generator._run") as run_mock:
+        gen.run_pynguin()
+    run_mock.assert_called_once()
+
+
 def test_integrate(tmp_path):
     project_path = Path().absolute()
     if project_path.name == "tests":

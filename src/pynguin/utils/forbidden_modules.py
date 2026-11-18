@@ -15,8 +15,15 @@ pushed them to its remote. Pynguin stops before importing such a module.
 from __future__ import annotations
 
 import fnmatch
+import logging
+from typing import TYPE_CHECKING
 
 from pynguin.utils.exceptions import ForbiddenModuleError
+
+if TYPE_CHECKING:
+    from pynguin.configuration import Configuration
+
+_LOGGER = logging.getLogger(__name__)
 
 # Glob patterns (``fnmatch`` syntax) of module names Pynguin must not run on.
 FORBIDDEN_MODULE_PATTERNS: tuple[str, ...] = (
@@ -51,3 +58,27 @@ def check_module_allowed(module_name: str) -> None:
     """
     if (pattern := matching_forbidden_pattern(module_name)) is not None:
         raise ForbiddenModuleError(module_name, pattern)
+
+
+def check_configured_module_allowed(configuration: Configuration) -> None:
+    """Raise if the configured module under test is forbidden and the check is on.
+
+    With ``check_forbidden_modules`` disabled, a forbidden module only causes a
+    warning.
+
+    Args:
+        configuration: The Pynguin configuration to check.
+
+    Raises:
+        ForbiddenModuleError: If the module matches a forbidden pattern and the check
+            is enabled.
+    """
+    if configuration.check_forbidden_modules:
+        check_module_allowed(configuration.module_name)
+    elif (pattern := matching_forbidden_pattern(configuration.module_name)) is not None:
+        _LOGGER.warning(
+            "Module '%s' matches forbidden pattern '%s', but the forbidden-module "
+            "check is disabled. Run it only in an isolated environment.",
+            configuration.module_name,
+            pattern,
+        )

@@ -1463,6 +1463,11 @@ class Configuration:
     Filesystem isolation provides some safety by tracking and controlling file operations,
     e.g. preventing file deletion of non-created files, but adds performance overhead."""
 
+    check_forbidden_modules: bool = True
+    """Refuse to run on modules that are known to cause harmful side effects, such as
+    python-semantic-release (see ``pynguin.utils.forbidden_modules``). Disable this
+    only when Pynguin runs in an isolated environment, e.g. a throwaway container."""
+
 
 # Singleton instance of the configuration.
 configuration = Configuration(

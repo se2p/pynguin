@@ -406,3 +406,39 @@ def test_main_forbidden_module(patch_dependencies, caplog):
         run_fn.assert_not_called()
         set_config.assert_not_called()
     assert "semantic_release.cli" in caplog.text
+
+
+def test_main_forbidden_module_check_disabled(patch_dependencies, caplog):
+    _, _, parser = patch_dependencies
+    parsed = parser.parse_args.return_value
+    parsed.config.module_name = "semantic_release.cli"
+    parsed.config.check_forbidden_modules = False
+    parsed.config.island.num_islands = 1
+    parsed.config.use_master_worker = False
+    with (
+        mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}),
+        mock.patch("pynguin.cli.run_pynguin") as run_fn,
+        caplog.at_level(logging.WARNING),
+    ):
+        run_fn.return_value = ReturnCode.OK
+        assert main(["prog"]) == ReturnCode.OK.value
+        run_fn.assert_called_once()
+    assert "check is disabled" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "arguments, expected",
+    [([], True), (["--check_forbidden_modules", "False"], False)],
+)
+def test_parse_arguments_check_forbidden_modules(tmp_path, arguments, expected):
+    parser = _create_argument_parser()
+    parsed = parser.parse_args([
+        "--module_name",
+        "hurz",
+        "--project_path",
+        str(tmp_path),
+        "--output_path",
+        str(tmp_path),
+        *arguments,
+    ])
+    assert parsed.config.check_forbidden_modules is expected
