@@ -33,10 +33,12 @@ from rich.traceback import install
 
 import pynguin.configuration as config
 from pynguin.__version__ import __version__
-from pynguin.generator import run_pynguin, set_configuration
+from pynguin.generator import ReturnCode, run_pynguin, set_configuration
 from pynguin.islands.orchestrator import run_pynguin_with_islands
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
+from pynguin.utils.exceptions import ForbiddenModuleError
+from pynguin.utils.forbidden_modules import check_module_allowed
 from pynguin.utils.logging_utils import (
     DATE_LOG_FORMAT,
     RICH_NO_WORKER_LOG_FORMAT,
@@ -189,6 +191,25 @@ def _setup_logging(
 _DANGER_ENV = "PYNGUIN_DANGER_AWARE"
 
 
+def _run_message(num_islands: int, use_master_worker: bool) -> str:  # noqa: FBT001
+    if num_islands > 1:
+        _LOGGER.debug("Using island-model parallel search (%d islands)", num_islands)
+        return f"Running Pynguin with {num_islands} islands..."
+    if use_master_worker:
+        _LOGGER.debug("Using master-worker architecture")
+        return "Running Pynguin with master-worker architecture..."
+    return "Running Pynguin..."
+
+
+def _is_module_allowed(module_name: str) -> bool:
+    try:
+        check_module_allowed(module_name)
+    except ForbiddenModuleError as error:
+        _LOGGER.error("%s", error)
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the CLI of the Pynguin automatic unit test generation framework.
 
@@ -231,19 +252,15 @@ to see why this happens and what you must do to prevent it."""
         log_file=parsed.log_file,
     )
 
+    if not _is_module_allowed(parsed.config.module_name):
+        return ReturnCode.FORBIDDEN_MODULE.value
+
     set_configuration(parsed.config)
     write_configuration()
 
     num_islands = parsed.config.island.num_islands
     use_master_worker = parsed.config.use_master_worker
-    if num_islands > 1:
-        message = f"Running Pynguin with {num_islands} islands..."
-        _LOGGER.debug("Using island-model parallel search (%d islands)", num_islands)
-    elif use_master_worker:
-        message = "Running Pynguin with master-worker architecture..."
-        _LOGGER.debug("Using master-worker architecture")
-    else:
-        message = "Running Pynguin..."
+    message = _run_message(num_islands, use_master_worker)
 
     def _dispatch() -> int:
         if num_islands > 1:

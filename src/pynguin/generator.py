@@ -86,6 +86,7 @@ from pynguin.utils.exceptions import (
     CannotInstrumentCompiledModuleError,
     ConfigurationException,
 )
+from pynguin.utils.forbidden_modules import check_module_allowed
 from pynguin.utils.report import (
     get_coverage_report,
     render_coverage_report,
@@ -118,6 +119,9 @@ class ReturnCode(enum.IntEnum):
     FINAL_METRICS_TRACKING_FAILED = 3
     """Symbolises that the final metrics tracking failed."""
 
+    FORBIDDEN_MODULE = 4
+    """Symbolises that the module under test is on the list of forbidden modules."""
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -141,7 +145,9 @@ def run_pynguin() -> ReturnCode:
 
     Raises:
         ConfigurationException: In case the configuration is illegal
+        ForbiddenModuleError: If the module under test is forbidden
     """
+    check_module_allowed(config.configuration.module_name)
     try:
         _LOGGER.info("Start Pynguin Test Generation…")
         if config.configuration.algorithm == config.Algorithm.LLM:

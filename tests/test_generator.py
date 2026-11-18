@@ -23,7 +23,7 @@ import pynguin.generator as gen
 from pynguin.configuration import CoverageMetric
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.utils.exceptions import CannotInstrumentCompiledModuleError
+from pynguin.utils.exceptions import CannotInstrumentCompiledModuleError, ForbiddenModuleError
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.timeout import TestExecutionTimeoutError
 
@@ -376,10 +376,26 @@ def test__setup_report_dir_not_required(tmp_path: Path):
 
 
 def test_run(tmp_path):
-    gen.set_configuration(configuration=MagicMock(log_file=None, project_path=tmp_path / "nope"))
+    gen.set_configuration(
+        configuration=MagicMock(log_file=None, project_path=tmp_path / "nope", module_name="foo")
+    )
     with mock.patch("pynguin.generator._run") as run_mock:
         gen.run_pynguin()
         run_mock.assert_called_once()
+
+
+def test_run_forbidden_module(tmp_path):
+    gen.set_configuration(
+        configuration=MagicMock(
+            log_file=None, project_path=tmp_path, module_name="semantic_release.version"
+        )
+    )
+    with (
+        mock.patch("pynguin.generator._run") as run_mock,
+        pytest.raises(ForbiddenModuleError),
+    ):
+        gen.run_pynguin()
+    run_mock.assert_not_called()
 
 
 def test_integrate(tmp_path):

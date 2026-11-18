@@ -34,6 +34,7 @@ def test_main_empty_argv():
                         generator_mock.return_value = ReturnCode.OK
                         parser = MagicMock()
                         parser.parse_args.return_value.config.island.num_islands = 1
+                        parser.parse_args.return_value.config.module_name = "foo"
                         parser_mock.return_value = parser
                         main()
                         assert len(parser.parse_args.call_args[0][0]) > 0
@@ -48,6 +49,7 @@ def test_main_with_argv():
                         generator_mock.return_value = ReturnCode.OK
                         parser = MagicMock()
                         parser.parse_args.return_value.config.island.num_islands = 1
+                        parser.parse_args.return_value.config.module_name = "foo"
                         parser_mock.return_value = parser
                         args = ["foo", "--help"]
                         main(args)
@@ -72,6 +74,7 @@ def patch_dependencies():
         # Default parser mock setup
         parser = MagicMock()
         parser.parse_args.return_value = MagicMock()
+        parser.parse_args.return_value.config.module_name = "foo"
         parser_mock.return_value = parser
 
         yield log_mock, parser_mock, parser
@@ -388,3 +391,18 @@ def test_parse_arguments_type_tracing_float(tmp_path):
         "0.1",
     ])
     assert parsed.config.type_inference.type_tracing == 0.1
+
+
+def test_main_forbidden_module(patch_dependencies, caplog):
+    _, _, parser = patch_dependencies
+    parser.parse_args.return_value.config.module_name = "semantic_release.cli"
+    with (
+        mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}),
+        mock.patch("pynguin.cli.run_pynguin") as run_fn,
+        mock.patch("pynguin.cli.set_configuration") as set_config,
+        caplog.at_level(logging.ERROR),
+    ):
+        assert main(["prog"]) == ReturnCode.FORBIDDEN_MODULE.value
+        run_fn.assert_not_called()
+        set_config.assert_not_called()
+    assert "semantic_release.cli" in caplog.text

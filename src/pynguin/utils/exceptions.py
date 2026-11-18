@@ -24,6 +24,24 @@ class ConfigurationException(BaseException):
     """An exception type that's raised if the generator has no proper configuration."""
 
 
+class ForbiddenModuleError(ConfigurationException):
+    """Raised if the module under test is on Pynguin's list of forbidden modules."""
+
+    def __init__(self, module_name: str, pattern: str) -> None:
+        """Create a new forbidden module error.
+
+        Args:
+            module_name: The name of the forbidden module under test
+            pattern: The forbidden-module pattern the name matched
+        """
+        super().__init__(
+            f"Module '{module_name}' matches forbidden pattern '{pattern}': Pynguin does "
+            "not generate tests for it because executing it has harmful side effects."
+        )
+        self.module_name = module_name
+        self.pattern = pattern
+
+
 class GenerationException(BaseException):
     """An exception during test generation.
 
