@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from bytecode.instr import BITFLAG2_OPCODES, BITFLAG_OPCODES, Instr
 
-from pynguin.utils.regex_distance import RegexMethod
+from pynguin.utils.regex_distance import RegexMethod, regex_distance
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -58,6 +58,9 @@ class RegexCallSite:
             which the argument is completely evaluated, and its depth on the stack
             at that point (1 = top of stack, 2 = second element).
         site_id: A unique identifier of the call site.
+        result_index: The block index of the instruction that pushes the call's result.
+        result_variable: The name of the variable the result is directly stored to,
+            e.g., ``m`` in ``m = PATTERN.match(s)``; None if it is not stored.
     """
 
     method_name: str
@@ -65,6 +68,8 @@ class RegexCallSite:
     load_index: int
     argument_hooks: tuple[tuple[int, int], ...]
     site_id: int
+    result_index: int = -1
+    result_variable: str | None = None
 
 
 def _loaded_method_name(instr: Instr) -> tuple[str, int] | None:
@@ -122,7 +127,7 @@ def _argument_hooks(
 
 def _match_call(
     instructions: Sequence[tuple[int, Instr]], start: int, callable_slots: int
-) -> tuple[int, list[tuple[int, int]]] | None:
+) -> tuple[int, list[tuple[int, int]], int] | None:
     """Find the call that consumes the method loaded at ``instructions[start]``.
 
     Args:
@@ -131,9 +136,9 @@ def _match_call(
         callable_slots: The number of stack slots that the load leaves for the call.
 
     Returns:
-        The number of arguments and, for each argument, the block index and stack depth
-        after which the argument is completely evaluated; None if the call cannot be
-        handled.
+        The number of arguments, for each argument the block index and stack depth
+        after which the argument is completely evaluated, and the position of the call
+        instruction in ``instructions``; None if the call cannot be handled.
     """
     # Number of stack slots above the receiver's base, i.e., callable (+ self or NULL)
     # + args.
@@ -141,8 +146,8 @@ def _match_call(
     # For each stack slot above the callable slots: (block index, depth after instr).
     last_push: dict[int, tuple[int, int]] = {}
     previous_name = ""
-    for position, (block_index, instr) in enumerate(instructions[start + 1 :]):
-        if position == 0 and callable_slots == 1 and instr.name == "PUSH_NULL":
+    for position, (block_index, instr) in enumerate(instructions[start + 1 :], start=start + 1):
+        if position == start + 1 and callable_slots == 1 and instr.name == "PUSH_NULL":
             # Since 3.13, NULL is pushed after the callable of a plain attribute call.
             callable_slots = depth = 2
             previous_name = instr.name
@@ -157,7 +162,7 @@ def _match_call(
                 # Keyword arguments (3.11, 3.12) or unsupported arity.
                 return None
             hooks = _argument_hooks(last_push, callable_slots, argc)
-            return None if hooks is None else (argc, hooks)
+            return None if hooks is None else (argc, hooks, position)
         try:
             pops, pushes = _pops_and_pushes(instr)
         except (AssertionError, ValueError, KeyError, TypeError):
@@ -198,7 +203,13 @@ def find_regex_call_sites(node: cf.BasicBlockNode) -> list[RegexCallSite]:
         matched = _match_call(instructions, position, callable_slots)
         if matched is None:
             continue
-        argc, hooks = matched
+        argc, hooks, call_position = matched
+        result_position = call_position
+        if instructions[call_position][1].name == "PRECALL":
+            # Python 3.11: PRECALL is followed by the CALL that pushes the result.
+            result_position += 1
+            if result_position >= len(instructions):
+                continue
         sites.append(
             RegexCallSite(
                 method_name=method_name,
@@ -206,18 +217,187 @@ def find_regex_call_sites(node: cf.BasicBlockNode) -> list[RegexCallSite]:
                 load_index=block_index,
                 argument_hooks=tuple(hooks),
                 site_id=next(_SITE_IDS),
+                result_index=instructions[result_position][0],
+                result_variable=_stored_variable(instructions, result_position + 1),
             )
         )
     return sites
 
 
+_STORE_NAMES = frozenset({"STORE_FAST", "STORE_NAME", "STORE_GLOBAL", "STORE_DEREF"})
+
+
+def _variable_name(arg: Any) -> str | None:
+    if isinstance(arg, str):
+        return arg
+    # LOAD_DEREF and STORE_DEREF take cell or free variables.
+    name = getattr(arg, "name", None)
+    return name if isinstance(name, str) else None
+
+
+def _stored_variable(instructions: Sequence[tuple[int, Instr]], position: int) -> str | None:
+    """Get the variable that the value on top of the stack is stored to.
+
+    Handles ``m = call()`` (a store directly after the call), the walrus operator
+    (``DUP_TOP`` or ``COPY 1`` before the store) and the superinstructions of 3.13+
+    that combine the store with another load or store.
+
+    Args:
+        instructions: The original instructions of the block with their block indices.
+        position: The position after the instruction that pushed the value.
+
+    Returns:
+        The variable name, or None if the value is not directly stored.
+    """
+    if position < len(instructions):
+        instr = instructions[position][1]
+        if instr.name == "DUP_TOP" or (instr.name == "COPY" and instr.arg == 1):
+            position += 1
+    if position >= len(instructions):
+        return None
+    instr = instructions[position][1]
+    if instr.name in _STORE_NAMES:
+        return _variable_name(instr.arg)
+    if instr.name in {"STORE_FAST_LOAD_FAST", "STORE_FAST_STORE_FAST"} and isinstance(
+        instr.arg, tuple
+    ):
+        return _variable_name(instr.arg[0])
+    return None
+
+
+# Instructions that test their operands; the result inherits the operands' origins.
+_TEST_NAMES = frozenset({"COMPARE_OP", "IS_OP", "TO_BOOL", "UNARY_NOT"})
+
+
+def _loaded_variables(instr: Instr) -> list[str] | None:
+    """Get the variables loaded by an instruction, one per pushed value."""
+    name = instr.name
+    if name.startswith("LOAD_FAST") and isinstance(instr.arg, tuple):
+        # 3.13+ superinstructions like LOAD_FAST_LOAD_FAST load two variables.
+        names = [_variable_name(arg) for arg in instr.arg]
+        return [name for name in names if name is not None]
+    if name.startswith("LOAD_FAST") or name in {"LOAD_NAME", "LOAD_DEREF"}:
+        variable = _variable_name(instr.arg)
+        return None if variable is None else [variable]
+    if name == "STORE_FAST_LOAD_FAST" and isinstance(instr.arg, tuple):
+        variable = _variable_name(instr.arg[1])
+        return None if variable is None else [variable]
+    return None
+
+
+Origins = frozenset[tuple[str, Any]]
+
+
+def _move_stack_entries(instr: Instr, stack: list[Origins]) -> bool:
+    """Simulate an instruction that only copies or reorders stack entries.
+
+    Args:
+        instr: The instruction.
+        stack: The abstract stack, modified in place.
+
+    Returns:
+        True, if the instruction was simulated.
+    """
+    name = instr.name
+    if name == "DUP_TOP" or (name == "COPY" and isinstance(instr.arg, int)):
+        depth = 1 if name == "DUP_TOP" else instr.arg
+        assert isinstance(depth, int)
+        stack.append(stack[-depth] if len(stack) >= depth else frozenset())
+        return True
+    if name == "SWAP" and isinstance(instr.arg, int) and len(stack) >= instr.arg:
+        stack[-1], stack[-instr.arg] = stack[-instr.arg], stack[-1]
+        return True
+    if name == "ROT_TWO" and len(stack) >= 2:
+        stack[-1], stack[-2] = stack[-2], stack[-1]
+        return True
+    return False
+
+
+def tested_origins(node: cf.BasicBlockNode, sites: Sequence[RegexCallSite]) -> Origins | None:
+    """Find where the value tested by the conditional jump of a basic block comes from.
+
+    The block is simulated on an abstract stack whose entries record their origins:
+    ``("site", site_id)`` for the result of a regex call site in the block and
+    ``("var", name)`` for a loaded variable. Tests like ``is None``, comparisons and
+    ``TO_BOOL`` pass the origins of their operands on.
+
+    Args:
+        node: The basic block node.
+        sites: The regex call sites in the block.
+
+    Returns:
+        The origins of the value tested by the block's conditional jump, or None if the
+        block does not end with a conditional jump or cannot be simulated.
+    """
+    instructions = list(node.instrumentation_original_instructions)
+    if not instructions:
+        return None
+    last = instructions[-1][1]
+    if "JUMP" not in last.name or "IF" not in last.name:
+        return None
+    site_results = {site.result_index: site.site_id for site in sites}
+    empty: Origins = frozenset()
+    stack: list[Origins] = []
+
+    def pop() -> Origins:
+        return stack.pop() if stack else empty
+
+    for block_index, instr in instructions[:-1]:
+        if _move_stack_entries(instr, stack):
+            continue
+        name = instr.name
+        try:
+            pops, pushes = _pops_and_pushes(instr)
+        except (AssertionError, ValueError, KeyError, TypeError):
+            return None
+        popped = [pop() for _ in range(pops)]
+        if block_index in site_results:
+            stack.extend([empty] * (pushes - 1))
+            stack.append(frozenset({("site", site_results[block_index])}))
+            continue
+        if name in _TEST_NAMES and pushes == 1:
+            stack.append(frozenset().union(*popped))
+            continue
+        variables = _loaded_variables(instr)
+        if variables is not None and len(variables) == pushes:
+            stack.extend(frozenset({("var", variable)}) for variable in variables)
+            continue
+        stack.extend([empty] * pushes)
+    return pop()
+
+
+def is_tested_by(site: RegexCallSite, origins: Origins) -> bool:
+    """Check whether a predicate with the given origins tests the result of a site.
+
+    Args:
+        site: The regex call site.
+        origins: The origins of the value tested by the predicate.
+
+    Returns:
+        True, if the predicate tests the call result or the variable it is stored to.
+    """
+    if ("site", site.site_id) in origins:
+        return True
+    return site.result_variable is not None and ("var", site.result_variable) in origins
+
+
 @dataclass(frozen=True)
 class RegexCall:
-    """A call of a regex matching function observed at runtime."""
+    """A call of a regex matching function observed at runtime.
+
+    Attributes:
+        pattern: The compiled pattern.
+        method: The called method.
+        string: The complete string the pattern is applied to.
+        pos: The ``pos`` argument of the call, as passed.
+        endpos: The ``endpos`` argument of the call, as passed.
+    """
 
     pattern: re.Pattern[str]
     method: RegexMethod
     string: str
+    pos: int = 0
+    endpos: int | None = None
 
     def matches(self) -> bool:
         """Check whether the call finds a match.
@@ -225,7 +405,24 @@ class RegexCall:
         Returns:
             True, if the regex call returns a match object.
         """
-        return getattr(self.pattern, self.method.value)(self.string) is not None
+        method = getattr(self.pattern, self.method.value)
+        endpos = len(self.string) if self.endpos is None else self.endpos
+        return method(self.string, self.pos, endpos) is not None
+
+    def distance(self) -> float | None:
+        """Compute the edit distance of the searched string to a match.
+
+        Returns:
+            The distance, or None if it cannot be computed.
+        """
+        return regex_distance(
+            self.pattern.pattern,
+            self.pattern.flags,
+            self.method,
+            self.string,
+            pos=self.pos,
+            endpos=self.endpos,
+        )
 
 
 def _as_int(value: Any) -> int | None:
@@ -239,10 +436,10 @@ def _interpret_call(method_name: str, receiver: Any, args: Sequence[Any]) -> Reg
         if not isinstance(receiver.pattern, str) or not isinstance(string, str):
             return None
         pos = _as_int(args[1]) if len(args) > 1 else 0
-        endpos = _as_int(args[2]) if len(args) > 2 else len(string)
-        if pos is None or endpos is None:
+        endpos = _as_int(args[2]) if len(args) > 2 else None
+        if pos is None or (len(args) > 2 and endpos is None):
             return None
-        return RegexCall(receiver, method, string[pos:endpos])
+        return RegexCall(receiver, method, string, pos, endpos)
     if receiver is re and len(args) >= 2:
         pattern, string = args[0], args[1]
         flags = args[2] if len(args) > 2 else 0

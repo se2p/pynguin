@@ -167,16 +167,34 @@ class _BoundedXeger(rstr.Xeger):
 SHORT_STRING_GENERATOR: rstr.Rstr = _BoundedXeger(RNG, repeat_limit=3)
 
 
+def _minimal_char_key(char: str) -> tuple[bool, bool, bool, str]:
+    # Prefer alphanumeric characters, then other visible ones, then " ", then the
+    # remaining whitespace, e.g., "0" for ".", "!" for r"\W" and " " for r"\s".
+    return (not char.isalnum(), char.isspace(), char != " ", char)
+
+
 class _FirstChoiceRandom:
-    """A stand-in for a random generator that always makes the smallest choice."""
+    """A stand-in for a random generator that always makes the smallest choice.
+
+    Characters are chosen by a fixed order instead of by position, because rstr builds
+    some candidate lists from sets (e.g., for negated classes), whose order depends on
+    the hash seed.
+    """
 
     @staticmethod
     def choice(population: Any) -> Any:
+        if all(isinstance(item, str) and len(item) == 1 for item in population):
+            return min(population, key=_minimal_char_key)
         return population[0]
 
     @staticmethod
     def randint(low: int, high: int) -> int:  # noqa: ARG004
         return low
+
+    @staticmethod
+    def shuffle(population: Any) -> None:  # noqa: ARG004
+        # rstr shuffles the characters of generated strings, e.g., for ".".
+        return
 
 
 # Generates the shortest string with the first character of each class, e.g., "0.0.0"

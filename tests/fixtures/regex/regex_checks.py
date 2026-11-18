@@ -47,3 +47,13 @@ def check_later(text: str, flag: object) -> bool:
     if match is None:
         return False
     return True
+
+
+def walrus(text: str) -> bool:
+    if found := VERSION_RE.search(text):
+        return found.start() == 0
+    return False
+
+
+def untested(text: str) -> bool:
+    return VERSION_RE.match(text) is not None

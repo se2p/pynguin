@@ -71,11 +71,13 @@ def test_regex_distance_unsupported(pattern, string):
 
 def test_regex_distance_too_many_states(monkeypatch):
     rd._compile_nfa.cache_clear()
+    rd._cached_distance.cache_clear()
     monkeypatch.setattr(rd, "MAX_NFA_STATES", 3)
     try:
         assert regex_distance("abcdef", 0, RegexMethod.FULLMATCH, "abc") is None
     finally:
         rd._compile_nfa.cache_clear()
+        rd._cached_distance.cache_clear()
 
 
 def test_regex_distance_large_bounded_repeat():

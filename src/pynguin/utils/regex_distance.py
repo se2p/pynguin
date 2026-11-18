@@ -283,15 +283,35 @@ def _compile_nfa(pattern: str, flags: int) -> _Nfa | None:
     return nfa
 
 
-def _anchor_holds(anchor: _Anchor | None, string: str, position: int) -> bool:
+@dataclass(frozen=True)
+class _Text:
+    r"""The part of a string that a call searches, i.e., ``string[pos:endpos]``.
+
+    Attributes:
+        chars: The searched characters.
+        at_string_start: Whether the part starts at the beginning of the string
+            (``pos == 0``); only then does ``^`` (or ``\A``) hold at its start.
+        after_newline: Whether the part directly follows a newline, in which case a
+            multiline ``^`` holds at its start.
+    """
+
+    chars: str
+    at_string_start: bool = True
+    after_newline: bool = False
+
+
+def _anchor_holds(anchor: _Anchor | None, text: _Text, position: int) -> bool:
+    string = text.chars
     length = len(string)
     match anchor:
         case None:
             return True
         case _Anchor.BEGIN:
-            return position == 0
+            return position == 0 and text.at_string_start
         case _Anchor.BEGIN_LINE:
-            return position == 0 or string[position - 1] == "\n"
+            if position == 0:
+                return text.at_string_start or text.after_newline
+            return string[position - 1] == "\n"
         case _Anchor.END:
             return position == length or (position == length - 1 and string[position] == "\n")
         case _Anchor.END_LINE:
@@ -300,7 +320,7 @@ def _anchor_holds(anchor: _Anchor | None, string: str, position: int) -> bool:
             return position == length
 
 
-def _close(nfa: _Nfa, column: list[float], string: str, position: int) -> None:
+def _close(nfa: _Nfa, column: list[float], text: _Text, position: int) -> None:
     """Relax epsilon (cost 0) and insertion (cost 1) transitions within a column.
 
     This is a 0-1 breadth-first search over the NFA states.
@@ -315,7 +335,7 @@ def _close(nfa: _Nfa, column: list[float], string: str, position: int) -> None:
         state = queue.popleft()
         cost = column[state]
         for target, anchor in nfa.states[state].epsilons:
-            if cost < column[target] and _anchor_holds(anchor, string, position):
+            if cost < column[target] and _anchor_holds(anchor, text, position):
                 column[target] = cost
                 queue.appendleft(target)
         for _, target in nfa.states[state].chars:
@@ -324,12 +344,13 @@ def _close(nfa: _Nfa, column: list[float], string: str, position: int) -> None:
                 queue.append(target)
 
 
-def _edit_distance(nfa: _Nfa, string: str, method: RegexMethod) -> float:
+def _edit_distance(nfa: _Nfa, text: _Text, method: RegexMethod) -> float:
+    string = text.chars
     inf = float("inf")
     size = len(nfa.states)
     column = [inf] * size
     column[nfa.start] = 0.0
-    _close(nfa, column, string, 0)
+    _close(nfa, column, text, 0)
     best = column[nfa.accept] if method is not RegexMethod.FULLMATCH else inf
     for position, char in enumerate(string):
         next_column = [inf] * size
@@ -346,7 +367,7 @@ def _edit_distance(nfa: _Nfa, string: str, method: RegexMethod) -> float:
             # A search may skip any prefix of the string for free.
             next_column[nfa.start] = 0.0
         column = next_column
-        _close(nfa, column, string, position + 1)
+        _close(nfa, column, text, position + 1)
         if method is not RegexMethod.FULLMATCH:
             # A match or search may ignore the remaining suffix.
             best = min(best, column[nfa.accept])
@@ -355,19 +376,43 @@ def _edit_distance(nfa: _Nfa, string: str, method: RegexMethod) -> float:
     return best
 
 
+def _clamp(value: int, length: int) -> int:
+    return min(max(value, 0), length)
+
+
+@functools.lru_cache(maxsize=1024)
+def _cached_distance(pattern: str, flags: int, method: RegexMethod, text: _Text) -> float | None:
+    nfa = _compile_nfa(pattern, flags)
+    if nfa is None:
+        return None
+    distance = _edit_distance(nfa, text, method)
+    if distance == float("inf"):
+        return None
+    return distance
+
+
 def regex_distance(
     pattern: str,
     flags: int,
     method: RegexMethod,
     string: str,
+    *,
+    pos: int = 0,
+    endpos: int | None = None,
 ) -> float | None:
     """Compute the edit distance from a string to the language of a regex.
+
+    Results are cached, because the same call is usually repeated whenever a test
+    case is executed again.
 
     Args:
         pattern: The source of the regular expression.
         flags: The flags of the compiled pattern.
         method: Whether ``match``, ``search`` or ``fullmatch`` semantics apply.
         string: The string the regex was applied to.
+        pos: The ``pos`` argument of a pattern method; clamped like :mod:`re` does.
+        endpos: The ``endpos`` argument of a pattern method; clamped like :mod:`re`
+            does. None means the end of the string.
 
     Returns:
         The minimum number of edits that make the string match, or ``None`` if the
@@ -375,12 +420,15 @@ def regex_distance(
     """
     if not isinstance(pattern, str) or not isinstance(string, str):
         return None
-    if len(string) > MAX_STRING_LENGTH:
+    length = len(string)
+    start = _clamp(pos, length)
+    end = length if endpos is None else _clamp(endpos, length)
+    chars = string[start:end] if end >= start else ""
+    if len(chars) > MAX_STRING_LENGTH:
         return None
-    nfa = _compile_nfa(pattern, flags)
-    if nfa is None:
-        return None
-    distance = _edit_distance(nfa, string, method)
-    if distance == float("inf"):
-        return None
-    return distance
+    text = _Text(
+        chars,
+        at_string_start=start == 0,
+        after_newline=start > 0 and string[start - 1] == "\n",
+    )
+    return _cached_distance(pattern, flags, method, text)

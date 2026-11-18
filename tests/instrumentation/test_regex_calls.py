@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import importlib
 import re
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 from bytecode import Bytecode
 
 from pynguin.instrumentation import controlflow as cf
+from pynguin.instrumentation import regex_calls
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.regex_calls import (
     RegexCall,
@@ -89,8 +92,31 @@ def test_collector_pattern_method():
 
 def test_collector_pattern_method_pos_endpos():
     call = _collect(RegexCallCollector(), "search", PATTERN, "ab12cd", 2, 4)
-    assert call == RegexCall(PATTERN, RegexMethod.SEARCH, "12")
+    assert call == RegexCall(PATTERN, RegexMethod.SEARCH, "ab12cd", 2, 4)
     assert call.matches()
+
+
+@pytest.mark.parametrize(
+    "pattern,string,pos,endpos",
+    [
+        # "^" does not hold at pos > 0, so slicing would wrongly report a match.
+        (r"^\d", "a1", 1, None),
+        (r"^x$", "xx", 1, 2),
+        # A negative pos is treated as 0 by re, not as an index from the end.
+        (r"a", "ab", -1, None),
+        (r"b$", "ab", 0, -5),
+    ],
+)
+def test_regex_call_pos_endpos_semantics(pattern, string, pos, endpos):
+    compiled = re.compile(pattern)
+    args = (string, pos) if endpos is None else (string, pos, endpos)
+    call = _collect(RegexCallCollector(), "search", compiled, *args)
+    assert call is not None
+    expected = compiled.search(*args) is not None
+    assert call.matches() == expected
+    distance = call.distance()
+    # None: no edit of the searched part can make "^" hold at pos > 0.
+    assert (distance == 0) == expected
 
 
 def test_collector_module_function():
@@ -189,10 +215,88 @@ def test_regex_distance_not_for_other_match_methods(regex_module, subject_proper
     assert list(true_distances.values()) == [0.0]
 
 
-def test_regex_distance_only_for_next_predicate(regex_module, subject_properties):
+@pytest.mark.parametrize("flag", [1, None])
+def test_regex_distance_only_for_predicate_testing_result(regex_module, subject_properties, flag):
     _, true_distances, false_distances = _distances(
-        subject_properties, regex_module.check_later, "zzz", 1
+        subject_properties, regex_module.check_later, "zzz", flag
     )
-    # The first predicate after the call ("flag is None") consumes the regex outcome,
-    # so the later "match is None" check keeps its 0/1 distances.
-    assert sorted([*true_distances.values(), *false_distances.values()]) == [0.0, 0.0, 1.0, 1.0]
+    # Only "match is None" tests the result; the "flag is None" check in between
+    # keeps its 0/1 distances, even if flag is None.
+    assert sorted([*true_distances.values(), *false_distances.values()]) == [0.0, 0.0, 1.0, 5.0]
+    lines = {
+        meta.line_no: predicate
+        for predicate, meta in subject_properties.existing_predicates.items()
+        if predicate in true_distances
+    }
+    match_predicate = lines[max(lines)]
+    assert 5.0 in {true_distances[match_predicate], false_distances[match_predicate]}
+
+
+def test_regex_distance_for_walrus(regex_module, subject_properties):
+    result, true_distances, false_distances = _distances(
+        subject_properties, regex_module.walrus, "1.2.x"
+    )
+    assert result is False
+    assert 1.0 in {*true_distances.values(), *false_distances.values()}
+
+
+def test_regex_call_without_testing_predicate_not_instrumented(regex_module, subject_properties):
+    tracer = subject_properties.instrumentation_tracer
+    with mock.patch.object(type(tracer.tracer), "executed_regex_call_part") as hook:
+        _distances(subject_properties, regex_module.untested, "zzz")
+    hook.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "instr,before,after",
+    [
+        (SimpleNamespace(name="DUP_TOP", arg=None), [{1}], [{1}, {1}]),
+        (SimpleNamespace(name="COPY", arg=2), [{1}, {2}], [{1}, {2}, {1}]),
+        (SimpleNamespace(name="COPY", arg=3), [{1}], [{1}, set()]),
+        (SimpleNamespace(name="SWAP", arg=2), [{1}, {2}], [{2}, {1}]),
+        (SimpleNamespace(name="ROT_TWO", arg=None), [{1}, {2}], [{2}, {1}]),
+    ],
+)
+def test_move_stack_entries(instr, before, after):
+    stack = [frozenset(entry) for entry in before]
+    assert regex_calls._move_stack_entries(instr, stack)
+    assert stack == [frozenset(entry) for entry in after]
+
+
+def test_move_stack_entries_other_instruction():
+    assert not regex_calls._move_stack_entries(SimpleNamespace(name="POP_TOP", arg=None), [])
+
+
+@pytest.mark.parametrize(
+    "names,expected",
+    [
+        ([("STORE_FAST", "m")], "m"),
+        ([("DUP_TOP", None), ("STORE_FAST", "m")], "m"),
+        ([("COPY", 1), ("STORE_NAME", "m")], "m"),
+        ([("COPY", 2), ("STORE_FAST", "m")], None),
+        ([("STORE_FAST_LOAD_FAST", ("m", "m"))], "m"),
+        ([("STORE_DEREF", SimpleNamespace(name="m"))], "m"),
+        ([("POP_TOP", None)], None),
+        ([("DUP_TOP", None)], None),
+        ([], None),
+    ],
+)
+def test_stored_variable(names, expected):
+    instructions = [
+        (index, SimpleNamespace(name=name, arg=arg)) for index, (name, arg) in enumerate(names)
+    ]
+    assert regex_calls._stored_variable(instructions, 0) == expected
+
+
+@pytest.mark.parametrize(
+    "name,arg,expected",
+    [
+        ("LOAD_FAST", "m", ["m"]),
+        ("LOAD_FAST_LOAD_FAST", ("a", "b"), ["a", "b"]),
+        ("LOAD_DEREF", SimpleNamespace(name="m"), ["m"]),
+        ("STORE_FAST_LOAD_FAST", ("a", "b"), ["b"]),
+        ("LOAD_CONST", 1, None),
+    ],
+)
+def test_loaded_variables(name, arg, expected):
+    assert regex_calls._loaded_variables(SimpleNamespace(name=name, arg=arg)) == expected

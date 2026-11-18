@@ -241,15 +241,18 @@ class InstrumentationSetupAction(enum.IntEnum):
 - Booleans: Length/magnitude-based
 - Regex results: edit distance of the string to the pattern's language (see below)
 
-**Regex calls** (`regex_calls.py`, `utils/regex_distance.py`): `visit_cfg` finds calls of
+**Regex calls** (`regex_calls.py`, `utils/regex_distance.py`): `leave_cfg` (called after all
+nodes were visited, so all predicates are registered) finds calls of
 `match`/`search`/`fullmatch` with only positional arguments in a basic block
-(`find_regex_call_sites`) and inserts hooks for the receiver (before the method load) and
-each argument (after its evaluation); the callee itself is never read because of the
-version-dependent `NULL` slot. At runtime, `executed_regex_call_part` checks whether the
-receiver is an `re.Pattern` or the `re` module, computes the edit distance to a match, and
-the next compare/bool predicate uses it as distance to the "match" side if it tests the
-call's `None` result. Subscript-style auxiliary predicates do not work here, because the
-result check always executes.
+(`find_regex_call_sites`) and the predicates that test their result, directly or through
+the variable it is stored to (`tested_origins` simulates each predicate block's stack).
+Only such sites get hooks for the receiver (before the method load) and each argument
+(after its evaluation), which pass the testing predicate ids; the callee itself is never
+read because of the version-dependent `NULL` slot. At runtime, `executed_regex_call_part`
+checks whether the receiver is an `re.Pattern` or the `re` module, computes the edit
+distance to a match (honouring `pos`/`endpos`, cached), and those predicates use it once as
+distance to the "match" side if they test the call's `None` result. Subscript-style
+auxiliary predicates do not work here, because the result check always executes.
 
 ### 2. Line Coverage
 **Adapter**: `LineCoverageInstrumentationAdapter`
@@ -278,7 +281,8 @@ result check always executes.
 - Compare operations: Captures compared values
 - String methods: `startswith()`, `endswith()`, `isalnum()`, etc.
 - Regex calls: for a non-matching `match`/`search`/`fullmatch`, a string generated from the
-  pattern (first the minimal one, e.g. `0.0.0`, then short random ones) is added
+  pattern (first the minimal one, e.g. `0.0.0`, then short random ones; at most 10
+  attempts per pattern) is added
 
 **Purpose**: Seeds constant pool with values observed at runtime for better constant generation
 

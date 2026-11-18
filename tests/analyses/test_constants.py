@@ -144,9 +144,40 @@ def test_dynamic_constant_provider_regex_call_limit(pool):
     assert len(pool.get_all_constants_for(str)) <= (
         DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN
     )
-    assert provider._regex_seed_counts == {
+    assert provider._regex_seed_attempts == {
         (r"\d{4}", re.UNICODE): DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN
     }
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        # rstr shuffles the characters generated for ".".
+        r"key=.+",
+        # The minimal string "0" does not match, a random one may.
+        r"^(?!0)\d+$",
+    ],
+)
+def test_dynamic_constant_provider_regex_call_minimal_fallback(pool, pattern):
+    provider = DynamicConstantProvider(pool, EmptyConstantProvider(), 0, 50)
+    for _ in range(DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN + 5):
+        _add_regex_call(provider, re.compile(pattern), "zz")
+    seeded = pool.get_all_constants_for(str)
+    assert seeded
+    assert all(re.fullmatch(pattern, value) for value in seeded)
+    assert provider._regex_seed_attempts == {
+        (pattern, re.UNICODE): DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN
+    }
+
+
+def test_dynamic_constant_provider_regex_call_attempts_bounded(rpool):
+    provider = DynamicConstantProvider(rpool, EmptyConstantProvider(), 0, 50)
+    with mock.patch("pynguin.analyses.constants.generate_from_regex", return_value="") as generate:
+        for _ in range(DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN + 5):
+            _add_regex_call(provider, re.compile(r"a"), "x")
+    # The first attempt tries the minimal and a random string, the others one each.
+    assert generate.call_count == DynamicConstantProvider.MAX_REGEX_SEEDS_PER_PATTERN + 1
+    assert not rpool.has_constant_for(str)
 
 
 def test_dynamic_constant_provider_regex_call_not_matching_generated(rpool):

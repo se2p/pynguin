@@ -903,9 +903,9 @@ def test_executed_match_keys_predicate(subject_properties: SubjectProperties):
 _VERSION_RE = re.compile(r"\d+\.\d+")
 
 
-def _regex_call(tracer, pattern, string, method="match") -> None:
-    tracer.executed_regex_call_part(pattern, 3, 0, 1, method)
-    tracer.executed_regex_call_part(tt.ObjectProxy(string), 3, 1, 1, method)
+def _regex_call(tracer, pattern, string, method="match", predicates=(0,)) -> None:
+    tracer.executed_regex_call_part(pattern, 3, 0, 1, method, predicates)
+    tracer.executed_regex_call_part(tt.ObjectProxy(string), 3, 1, 1, method, predicates)
 
 
 def _distances(subject_properties: SubjectProperties) -> tuple[dict, dict]:
@@ -957,13 +957,13 @@ def test_regex_outcome_ignored_for_other_comparisons(
     subject_properties.register_predicate(MagicMock(code_object_id=1))
     tracer = subject_properties.instrumentation_tracer
     with tracer:
-        _regex_call(tracer, _VERSION_RE, "a")
+        _regex_call(tracer, _VERSION_RE, "a", predicates=(0, 1))
         tracer.executed_compare_predicate(value1, value2, 0, cmp_op)
-        # The outcome was consumed by the first predicate.
+        # The outcome of predicate 0 was used up, the one of predicate 1 is unaffected.
         tracer.executed_compare_predicate(None, None, 1, PynguinCompare.IS)
     true_distances, false_distances = _distances(subject_properties)
     assert true_distances[1] == 0.0
-    assert false_distances[1] == 1.0
+    assert false_distances[1] == 3.0
 
 
 @pytest.mark.parametrize("value", [None, False])
@@ -986,6 +986,34 @@ def test_regex_outcome_consumed_by_truthy_bool_predicate(subject_properties: Sub
         tracer.executed_bool_predicate(None, 1)
     true_distances, _ = _distances(subject_properties)
     assert true_distances[1] == 1.0
+
+
+def test_regex_outcome_only_for_testing_predicates(subject_properties: SubjectProperties):
+    subject_properties.register_predicate(MagicMock(code_object_id=0))
+    subject_properties.register_predicate(MagicMock(code_object_id=0))
+    tracer = subject_properties.instrumentation_tracer
+    with tracer:
+        _regex_call(tracer, _VERSION_RE, "a", predicates=(1,))
+        # An unrelated predicate in between neither gets nor uses up the outcome.
+        tracer.executed_bool_predicate(value=False, predicate=0)
+        tracer.executed_compare_predicate(None, None, 0, PynguinCompare.IS)
+        tracer.executed_bool_predicate(None, 1)
+        # The outcome is used once.
+        tracer.executed_bool_predicate(None, 1)
+    true_distances, _ = _distances(subject_properties)
+    assert true_distances[0] == 0.0
+    assert true_distances[1] == 1.0
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.executed_predicates == {0: 2, 1: 2}
+
+
+def test_regex_outcome_without_predicates(subject_properties: SubjectProperties):
+    subject_properties.register_predicate(MagicMock(code_object_id=0))
+    tracer = subject_properties.instrumentation_tracer
+    with tracer:
+        _regex_call(tracer, _VERSION_RE, "a", predicates=())
+        tracer.executed_bool_predicate(None, 0)
+    assert _distances(subject_properties) == ({0: 1.0}, {0: 0.0})
 
 
 def test_regex_outcome_unsupported_pattern(subject_properties: SubjectProperties):

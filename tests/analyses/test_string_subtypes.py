@@ -5,7 +5,10 @@
 #  SPDX-License-Identifier: MIT
 """Tests for the string subtype inference."""
 
+import os
 import re
+import subprocess  # noqa: S404
+import sys
 
 import pytest
 
@@ -123,3 +126,47 @@ def test_generate_from_invalid_regex(monkeypatch):
     regex = re.compile(r".*")
     s = generate_from_regex(regex)
     assert not s
+
+
+@pytest.mark.parametrize(
+    "pattern,expected",
+    [
+        (r"\d+\.\d+\.\d+", "0.0.0"),
+        (r"[A-Z]{2}-\d{3}", "AA-000"),
+        (r"key=.+", "key=0"),
+        (r"\W", "!"),
+        (r"[^a]", "0"),
+        (r"\s", " "),
+        (r"(foo|bar)", "foo"),
+    ],
+)
+def test_generate_minimal_from_regex(pattern, expected):
+    generated = generate_from_regex(re.compile(pattern), minimal=True)
+    assert generated == expected
+    assert re.fullmatch(pattern, generated)
+
+
+def test_generate_minimal_from_regex_independent_of_hash_seed():
+    code = (
+        "from pynguin.analyses.string_subtypes import generate_from_regex;"
+        "print(generate_from_regex(r'\\W[^a]\\S', minimal=True))"
+    )
+    outputs = {
+        subprocess.run(  # noqa: S603
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={**os.environ, "PYTHONHASHSEED": str(seed)},
+        ).stdout
+        for seed in range(4)
+    }
+    assert len(outputs) == 1
+
+
+def test_generate_short_from_regex():
+    regex = re.compile(r"a+b*")
+    for _ in range(20):
+        generated = generate_from_regex(regex, short=True)
+        assert regex.fullmatch(generated)
+        assert len(generated) <= 8

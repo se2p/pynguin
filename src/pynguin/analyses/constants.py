@@ -219,9 +219,10 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         assert max_constant_length > 0, "Length limit for constant pool elements must be positive."
         self._max_constant_length = max_constant_length
         self._regex_calls = RegexCallCollector()
-        self._regex_seed_counts: dict[tuple[str, int], int] = {}
+        self._regex_seed_attempts: dict[tuple[str, int], int] = {}
 
-    # How many generated strings are added to the pool per regex pattern at most.
+    # How often strings are generated per regex pattern at most; each attempt adds at
+    # most one string to the pool.
     MAX_REGEX_SEEDS_PER_PATTERN: ClassVar[int] = 10
 
     # A map containing the names of all string functions which are instrumented.
@@ -281,21 +282,27 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         if call is None:
             return
         key = (call.pattern.pattern, call.pattern.flags)
-        seeded = self._regex_seed_counts.get(key, 0)
-        if seeded >= self.MAX_REGEX_SEEDS_PER_PATTERN:
+        attempts = self._regex_seed_attempts.get(key, 0)
+        if attempts >= self.MAX_REGEX_SEEDS_PER_PATTERN:
             return
         try:
             if call.matches():
                 return
-            # Start with the minimal string, which is a boundary value.
-            generated = generate_from_regex(call.pattern, short=True, minimal=seeded == 0)
-            if call.pattern.fullmatch(generated) is None:
-                # E.g., because of flags the generator does not know about.
-                return
         except Exception:  # noqa: BLE001
             return
-        self._regex_seed_counts[key] = seeded + 1
-        self.add_value(generated)
+        # Count the attempt even if it fails, such that a pattern the generator cannot
+        # handle does not cause work (and warnings) on every call.
+        self._regex_seed_attempts[key] = attempts + 1
+        # Start with the minimal string, which is a boundary value, and fall back to a
+        # short random one if it does not match, e.g., because of a lookahead.
+        try:
+            for minimal in (True, False) if attempts == 0 else (False,):
+                generated = generate_from_regex(call.pattern, short=True, minimal=minimal)
+                if call.pattern.fullmatch(generated) is not None:
+                    self.add_value(generated)
+                    return
+        except Exception:  # noqa: BLE001
+            return
 
     def add_value_for_strings(self, value: str, name: str):
         """Entry point for the instrumented code. Add a value of a string.
