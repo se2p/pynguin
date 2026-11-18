@@ -96,6 +96,7 @@ coverage_threshold = 1
 call_llm_on_stall_detection = false
 stall_detection_window_seconds = 30
 max_plateau_len = 25
+llm_queries_per_stall = 1
 max_llm_interventions = -1
 min_remaining_budget_for_llm = 45
 max_context_chars = 64000
@@ -339,9 +340,9 @@ def expected_txt(tmp_path):
  'enable_response_caching=False, call_llm_for_uncovered_targets=False, '
  'coverage_threshold=1, call_llm_on_stall_detection=False, '
  'stall_detection_window_seconds=30, max_plateau_len=25, '
- 'max_llm_interventions=-1, min_remaining_budget_for_llm=45, '
- 'max_context_chars=64000, max_retries=8, request_timeout=30.0, '
- 'max_request_time=300.0, enable_thinking=False, '
+ 'llm_queries_per_stall=1, max_llm_interventions=-1, '
+ 'min_remaining_budget_for_llm=45, max_context_chars=64000, max_retries=8, '
+ 'request_timeout=30.0, max_request_time=300.0, enable_thinking=False, '
  "cache_dir='~/.cache/pynguin/llm', max_concurrency=5, llm_mode=<LLMMode.SYNC: "
  "'sync'>, trace_dir='', repair_attempts=0), "
  'mock_generation=MockGenerationConfiguration(mock_generation_enabled=False, '
@@ -495,6 +496,8 @@ False
 False
 --large_language_model.llm_mode
 SYNC
+--large_language_model.llm_queries_per_stall
+1
 --large_language_model.llm_test_case_percentage
 0.5
 --large_language_model.max_concurrency

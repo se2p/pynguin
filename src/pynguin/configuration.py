@@ -1116,7 +1116,14 @@ class LLMConfiguration:
     max_plateau_len: int = 25
     """The number of iterations without a coverage change before soliciting the LLM.
     Only used as a fallback when ``stall_detection_window_seconds`` is <= 0; the
-    time-based window is preferred because iteration duration varies widely."""
+    time-based window is preferred because iteration duration varies widely.  As in
+    CodaMOSA, the length doubles ("backs off") after a stall query whose test cases
+    neither stay in the population nor increase coverage."""
+
+    llm_queries_per_stall: int = 1
+    """The number of LLM queries sent for the selected targets at each stall (CodaMOSA's
+    M, which it set to 10).  Only used when ``call_llm_on_stall_detection`` is enabled.
+    Repeated queries only differ if the prompt's temperature is above 0."""
 
     max_llm_interventions: int = -1
     """The maximum number of allowed stall-triggered LLM interventions per run.

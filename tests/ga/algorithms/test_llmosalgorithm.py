@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import pynguin.ga.algorithms.llmosalgorithm as llmosa_module
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.stats as stat
@@ -919,6 +920,7 @@ def test_execute_and_repair_drops_repeated_working_tests(llmosa_algorithm):
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
 def test_sync_stall_query_counts_submitted_and_published(mock_config, llmosa_algorithm):
     mock_config.configuration.large_language_model.max_llm_interventions = -1
+    mock_config.configuration.large_language_model.llm_queries_per_stall = 1
     llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=True)
     llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
     chromosomes = [MagicMock(spec=tcc.TestCaseChromosome) for _ in range(2)]
@@ -1020,3 +1022,117 @@ def test_generate_tests_reports_search_llm_statistics(mock_config, llmosa_algori
         RuntimeVariable.LLMStallSkippedInFlight,
     ):
         assert _stat_value(variable) == 0
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_stall_tracker_reset_keeps_and_back_off_doubles_the_plateau_length(mock_config):
+    """Tests that only back_off doubles the plateau length of the iteration heuristic."""
+    mock_config.configuration.large_language_model.stall_detection_window_seconds = 0
+    mock_config.configuration.large_language_model.max_plateau_len = 25
+    tracker = llmosa_module._StallTracker(0)
+
+    tracker.reset()
+    assert tracker.max_plateau_len == 25
+
+    tracker.back_off()
+    assert tracker.max_plateau_len == 50
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_stall_tracker_back_off_keeps_the_plateau_length_with_a_time_window(mock_config):
+    """Tests that back_off does nothing when stalls are detected by wall-clock time."""
+    mock_config.configuration.large_language_model.stall_detection_window_seconds = 30
+    mock_config.configuration.large_language_model.max_plateau_len = 25
+    tracker = llmosa_module._StallTracker(0)
+
+    tracker.back_off()
+
+    assert tracker.max_plateau_len == 25
+
+
+@pytest.mark.parametrize(
+    "stayed,current_covered,backs_off",
+    [
+        (False, 3, True),
+        (True, 3, False),
+        (False, 4, False),
+    ],
+)
+def test_back_off_only_if_no_llm_test_case_stayed_and_coverage_did_not_grow(
+    llmosa_algorithm, stayed, current_covered, backs_off
+):
+    """Tests the back-off decision one generation after a stall query."""
+    llm_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    other = MagicMock(spec=tcc.TestCaseChromosome)
+    llmosa_algorithm._population = [other, llm_chromosome] if stayed else [other]
+    llmosa_algorithm._back_off_check = ([llm_chromosome], 3)
+    tracker = MagicMock()
+
+    llmosa_algorithm._back_off_if_query_did_not_help(tracker, current_covered)
+
+    assert tracker.back_off.called == backs_off
+    assert llmosa_algorithm._back_off_check is None
+
+
+def _generation_per_query(*_):
+    return LLMGeneration(chromosomes=[MagicMock(spec=tcc.TestCaseChromosome)], response="r")
+
+
+def test_query_llm_repeatedly_sends_the_given_number_of_queries(llmosa_algorithm):
+    """Tests that a stall sends the same query the configured number of times."""
+    llmosa_algorithm.resources_left = MagicMock(return_value=True)
+    llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=True)
+    llmosa_algorithm._query_llm_for_targets = MagicMock(side_effect=_generation_per_query)
+
+    generation = llmosa_algorithm._query_llm_repeatedly({MagicMock(): 0.0}, {}, 3)
+
+    assert llmosa_algorithm._query_llm_for_targets.call_count == 3
+    assert all(
+        call.args[2] is CallPurpose.STALL
+        for call in llmosa_algorithm._query_llm_for_targets.call_args_list
+    )
+    assert len(generation.chromosomes) == 3
+    assert generation.response == "r"
+
+
+def test_query_llm_repeatedly_stops_when_the_search_budget_is_used_up(llmosa_algorithm):
+    """Tests that no further query is sent once the search budget is exhausted."""
+    llmosa_algorithm.resources_left = MagicMock(return_value=False)
+    llmosa_algorithm._query_llm_for_targets = MagicMock(side_effect=_generation_per_query)
+
+    generation = llmosa_algorithm._query_llm_repeatedly({MagicMock(): 0.0}, {}, 10)
+
+    assert llmosa_algorithm._query_llm_for_targets.call_count == 1
+    assert len(generation.chromosomes) == 1
+
+
+def test_query_llm_repeatedly_stops_when_too_little_search_time_remains(llmosa_algorithm):
+    """Tests that the late-budget guard also applies between the queries of a stall."""
+    llmosa_algorithm.resources_left = MagicMock(return_value=True)
+    llmosa_algorithm._enough_budget_for_llm = MagicMock(side_effect=[True, False])
+    llmosa_algorithm._query_llm_for_targets = MagicMock(side_effect=_generation_per_query)
+
+    generation = llmosa_algorithm._query_llm_repeatedly({MagicMock(): 0.0}, {}, 10)
+
+    assert llmosa_algorithm._query_llm_for_targets.call_count == 2
+    assert len(generation.chromosomes) == 2
+
+
+@patch("pynguin.ga.algorithms.llmosalgorithm.config")
+def test_maybe_intervene_on_stall_sends_llm_queries_per_stall_queries(
+    mock_config, llmosa_algorithm
+):
+    """Tests that a stall intervention integrates the test cases of all its queries."""
+    llm_config = mock_config.configuration.large_language_model
+    llm_config.max_llm_interventions = -1
+    llm_config.min_remaining_budget_for_llm = -1
+    llm_config.llm_queries_per_stall = 3
+    llmosa_algorithm.resources_left = MagicMock(return_value=True)
+    llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
+    llmosa_algorithm._query_llm_for_targets = MagicMock(side_effect=_generation_per_query)
+
+    chromosomes = llmosa_algorithm._maybe_intervene_on_stall()
+
+    assert llmosa_algorithm._query_llm_for_targets.call_count == 3
+    assert len(chromosomes) == 3
+    assert llmosa_algorithm._population == chromosomes
