@@ -14,6 +14,7 @@ import inspect
 import logging
 import threading
 import time
+from itertools import starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -38,6 +39,14 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
 )
 from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
+)
+from pynguin.large_language_model.tracing import (
+    CallOutcome,
+    CallPurpose,
+    CallUsage,
+    LLMCallRecord,
+    track_outcome,
+    write_record,
 )
 from pynguin.refinement.api_signatures import describe_module_api
 from pynguin.refinement.sut_inspector import SUTInspector
@@ -315,6 +324,97 @@ def _uncovered_targets_prompt(
     )
 
 
+def target_name(gao: GenericCallableAccessibleObject) -> str:
+    """Names a targeted callable in the LLM call trace.
+
+    Args:
+        gao: The targeted callable.
+
+    Returns:
+        Its qualified name, or its string representation if it has none.
+    """
+    return getattr(gao.callable, "__qualname__", None) or str(gao)
+
+
+def _target_names(gao_coverage_map: dict[GenericCallableAccessibleObject, float]) -> list[str]:
+    return [target_name(gao) for gao in gao_coverage_map]
+
+
+def _new_record(
+    request: RenderedRequest,
+    prompt: Prompt,
+    *,
+    purpose: str | None = None,
+    targets: Sequence[str] = (),
+    parent_call_id: str | None = None,
+    repair_attempt: int = 0,
+) -> LLMCallRecord:
+    """Creates the trace record for a call that is about to be made.
+
+    Args:
+        request: The request that will be sent.
+        prompt: The prompt the request was rendered from.
+        purpose: Why the call is made; defaults to the prompt's resource name.
+        targets: The names of the callables the call targets.
+        parent_call_id: The call whose response a repair call asks to fix.
+        repair_attempt: The repair attempt index (0 for an original call).
+
+    Returns:
+        The new record.
+    """
+    if purpose is None:
+        resource_name = getattr(type(prompt), "_resource_name", None)
+        purpose = resource_name if isinstance(resource_name, str) else CallPurpose.OTHER.value
+    return LLMCallRecord(
+        purpose=purpose,
+        prompt=[dict(message) for message in request.messages],
+        targets=list(targets),
+        parent_call_id=parent_call_id,
+        repair_attempt=repair_attempt,
+    )
+
+
+def _note_error(usage: CallUsage, error: BaseException) -> None:
+    """Remembers an error the client raised instead of returning a response.
+
+    Args:
+        usage: The usage of the failed call.
+        error: The raised error.
+    """
+    usage.error = repr(error)
+    usage.timed_out = usage.timed_out or isinstance(error, TimeoutError)
+
+
+def _finish_record(
+    record: LLMCallRecord,
+    response: str | None,
+    usage: CallUsage | None,
+    started: float,
+) -> None:
+    """Completes a record once its call has returned and counts its outcome.
+
+    Args:
+        record: The record to complete.
+        response: The response, or None if the call failed.
+        usage: The per-call usage the client filled in, or None for a cache hit.
+        started: The ``time.perf_counter()`` value when the call started.
+    """
+    record.response = response
+    record.latency_seconds = time.perf_counter() - started
+    if usage is None:
+        record.outcome = CallOutcome.CACHE_HIT
+    else:
+        record.input_tokens = usage.input_tokens
+        record.output_tokens = usage.output_tokens
+        record.retries = usage.retries
+        if response is not None:
+            record.outcome = CallOutcome.OK
+        else:
+            record.outcome = CallOutcome.TIMEOUT if usage.timed_out else CallOutcome.FAILED
+            record.error = usage.error or "no response"
+    track_outcome(record.outcome)
+
+
 class LLMAgent:  # noqa: PLR0904
     """A class to interact with OpenAI's language model for generating unit tests."""
 
@@ -437,16 +537,62 @@ class LLMAgent:  # noqa: PLR0904
         self._llm_calls_with_no_python_code = usage["calls_with_no_python_code"]
         self._llm_endpoint_requests = usage["endpoint_requests"]
 
-    def query(self, prompt: Prompt) -> str | None:
+    def query(
+        self,
+        prompt: Prompt,
+        *,
+        purpose: str | None = None,
+        targets: Sequence[str] = (),
+    ) -> str | None:
         """Sends a query to the OpenAI API and returns the response.
 
+        The call is written to the LLM call trace (if enabled).
+
         Args:
             prompt: The prompt object to build the query.
+            purpose: Why the call is made, for the trace; defaults to the prompt's name.
+            targets: The names of the callables the call targets, for the trace.
 
         Returns:
             The response from the OpenAI API, or None if the response is empty.
         """
+        response, record = self.query_traced(prompt, purpose=purpose, targets=targets)
+        write_record(record)
+        return response
+
+    def query_traced(
+        self,
+        prompt: Prompt,
+        *,
+        purpose: str | None = None,
+        targets: Sequence[str] = (),
+        parent_call_id: str | None = None,
+        repair_attempt: int = 0,
+    ) -> tuple[str | None, LLMCallRecord]:
+        """Sends a query and returns the response with the record describing the call.
+
+        The record is not written to the trace, so the caller can add the
+        deserialisation result first and then pass it to ``tracing.write_record``.
+
+        Args:
+            prompt: The prompt object to build the query.
+            purpose: Why the call is made, for the trace; defaults to the prompt's name.
+            targets: The names of the callables the call targets, for the trace.
+            parent_call_id: The call whose response a repair call asks to fix.
+            repair_attempt: The repair attempt index (0 for an original call).
+
+        Returns:
+            The response (None if the call failed) and the record of the call.
+        """
         request = prompt.render_request()
+        record = _new_record(
+            request,
+            prompt,
+            purpose=purpose,
+            targets=targets,
+            parent_call_id=parent_call_id,
+            repair_attempt=repair_attempt,
+        )
         prompt_text = request.messages[-1]["content"]
         self._llm_logical_queries += 1
 
@@ -455,19 +601,22 @@ class LLMAgent:  # noqa: PLR0904
             if cached_response is not None:
                 self._llm_cache_hits += 1
                 self._log_and_track_llm_stats()
-                return cached_response
+                _finish_record(record, cached_response, None, time.perf_counter())
+                return cached_response, record
 
         start_time = time.time_ns()
+        started = time.perf_counter()
         self._llm_calls_counter += 1
+        usage = CallUsage()
+        response_text: str | None = None
 
         try:
-            response_text = self._client.send(request)
+            response_text = self._client.send(request, usage=usage)
 
             if response_text:
                 save_prompt_info_to_file(prompt_text, response_text)
-            return response_text
-
         except Exception as e:  # noqa: BLE001
+            _note_error(usage, e)
             _logger.error(
                 "An error occurred while querying the OpenAI API. Model: %s, Prompt: %s, Error: %s",
                 self._model_name,
@@ -478,19 +627,30 @@ class LLMAgent:  # noqa: PLR0904
             self._llm_calls_timer += time.time_ns() - start_time
             self._sync_usage()
             self._log_and_track_llm_stats()
+        _finish_record(record, response_text, usage, started)
+        return response_text, record
 
-        return None
-
-    async def query_async(self, prompt: Prompt) -> str | None:
+    async def query_async(
+        self,
+        prompt: Prompt,
+        *,
+        purpose: str | None = None,
+        targets: Sequence[str] = (),
+    ) -> str | None:
         """Sends an asynchronous query to the OpenAI API and returns the response.
 
+        The call is written to the LLM call trace (if enabled).
+
         Args:
             prompt: The prompt object to build the query.
+            purpose: Why the call is made, for the trace; defaults to the prompt's name.
+            targets: The names of the callables the call targets, for the trace.
 
         Returns:
             The response from the OpenAI API, or None if the response is empty.
         """
         request = prompt.render_request()
+        record = _new_record(request, prompt, purpose=purpose, targets=targets)
         prompt_text = request.messages[-1]["content"]
         self._llm_logical_queries += 1
 
@@ -499,19 +659,23 @@ class LLMAgent:  # noqa: PLR0904
             if cached_response is not None:
                 self._llm_cache_hits += 1
                 self._log_and_track_llm_stats()
+                _finish_record(record, cached_response, None, time.perf_counter())
+                write_record(record)
                 return cached_response
 
         start_time = time.time_ns()
+        started = time.perf_counter()
         self._llm_calls_counter += 1
+        usage = CallUsage()
+        response_text: str | None = None
 
         try:
-            response_text = await self._client.send_async(request)
+            response_text = await self._client.send_async(request, usage=usage)
 
             if response_text:
                 save_prompt_info_to_file(prompt_text, response_text)
-            return response_text
-
         except Exception as e:  # noqa: BLE001
+            _note_error(usage, e)
             _logger.error(
                 "An error occurred while querying the OpenAI API. Model: %s, Prompt: %s, Error: %s",
                 self._model_name,
@@ -522,8 +686,9 @@ class LLMAgent:  # noqa: PLR0904
             self._llm_calls_timer += time.time_ns() - start_time
             self._sync_usage()
             self._log_and_track_llm_stats()
-
-        return None
+        _finish_record(record, response_text, usage, started)
+        write_record(record)
+        return response_text
 
     async def query_batch_async(
         self, prompts: Sequence[Prompt], max_concurrency: int | None = None
@@ -541,21 +706,9 @@ class LLMAgent:  # noqa: PLR0904
             return []
 
         requests = [p.render_request() for p in prompts]
-        cache_enabled = getattr(
-            config.configuration.large_language_model, "enable_response_caching", False
-        )
-        responses: list[str | None] = [None] * len(prompts)
-        uncached_indices: list[int] = []
-        uncached_requests: list[RenderedRequest] = []
-
-        for i, req in enumerate(requests):
-            if cache_enabled:
-                cached = self.cache.get(req)
-                if cached is not None:
-                    responses[i] = cached
-                    continue
-            uncached_indices.append(i)
-            uncached_requests.append(req)
+        records = list(starmap(_new_record, zip(requests, prompts, strict=True)))
+        responses, uncached_indices = self._lookup_cached(requests, records)
+        uncached_requests = [requests[i] for i in uncached_indices]
         self._llm_logical_queries += len(requests)
         self._llm_cache_hits += len(requests) - len(uncached_requests)
 
@@ -564,11 +717,13 @@ class LLMAgent:  # noqa: PLR0904
             return responses
 
         start_time = time.time_ns()
+        started = time.perf_counter()
         self._llm_calls_counter += len(uncached_requests)
+        usages = [CallUsage() for _ in uncached_requests]
 
         try:
             results = await self._client.send_batch_async(
-                uncached_requests, max_concurrency=max_concurrency
+                uncached_requests, max_concurrency=max_concurrency, usages=usages
             )
             for idx, res, req in zip(uncached_indices, results, uncached_requests, strict=False):
                 responses[idx] = res
@@ -582,6 +737,8 @@ class LLMAgent:  # noqa: PLR0904
                     len(uncached_requests),
                 )
         except Exception as e:  # noqa: BLE001
+            for usage in usages:
+                _note_error(usage, e)
             _logger.error(
                 "An error occurred during batch querying the OpenAI API. Error: %s",
                 e,
@@ -591,7 +748,40 @@ class LLMAgent:  # noqa: PLR0904
             self._sync_usage()
             self._log_and_track_llm_stats()
 
+        for idx, usage in zip(uncached_indices, usages, strict=True):
+            _finish_record(records[idx], responses[idx], usage, started)
+            write_record(records[idx])
         return responses
+
+    def _lookup_cached(
+        self, requests: list[RenderedRequest], records: list[LLMCallRecord]
+    ) -> tuple[list[str | None], list[int]]:
+        """Looks the requests of a batch up in the response cache.
+
+        The records of the cache hits are completed and written to the trace.
+
+        Args:
+            requests: The requests of the batch.
+            records: The trace records, parallel to ``requests``.
+
+        Returns:
+            The cached responses (None where there is none) and the indices of the
+            requests that still have to be sent.
+        """
+        responses: list[str | None] = [None] * len(requests)
+        if not getattr(config.configuration.large_language_model, "enable_response_caching", False):
+            return responses, list(range(len(requests)))
+        uncached_indices: list[int] = []
+        cached_at = time.perf_counter()
+        for i, req in enumerate(requests):
+            cached = self.cache.get(req)
+            if cached is None:
+                uncached_indices.append(i)
+                continue
+            responses[i] = cached
+            _finish_record(records[i], cached, None, cached_at)
+            write_record(records[i])
+        return responses, uncached_indices
 
     def query_batch(
         self, prompts: Sequence[Prompt], max_concurrency: int | None = None
@@ -618,6 +808,15 @@ class LLMAgent:  # noqa: PLR0904
             The generated test cases as a string or
             None if no test cases were generated.
         """
+        return self.query(self.build_test_generation_prompt(), purpose=CallPurpose.INITIAL.value)
+
+    @staticmethod
+    def build_test_generation_prompt() -> TestCaseGenerationPrompt:
+        """Builds the prompt asking for tests for the whole module under test.
+
+        Returns:
+            The prompt.
+        """
         module_code = get_module_source_code()
         module_path = get_module_path()
 
@@ -637,7 +836,7 @@ class LLMAgent:  # noqa: PLR0904
                     max_examples=ref_config.max_usage_examples,
                 )
 
-        prompt = TestCaseGenerationPrompt(
+        return TestCaseGenerationPrompt(
             module_code,
             get_importable_module_path(module_path),
             dependencies=dependencies,
@@ -645,24 +844,22 @@ class LLMAgent:  # noqa: PLR0904
             visibility_instructions=get_visibility_instructions(),
             api_signatures=describe_module_api(import_module(config.configuration.module_name)),
         )
-        return self.query(prompt)
 
-    def call_llm_for_uncovered_targets(
-        self,
+    @staticmethod
+    def build_uncovered_targets_prompt(
         gao_coverage_map: dict[GenericCallableAccessibleObject, float],
         diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
-    ):
-        """Queries the language model for uncovered targets.
+    ) -> UncoveredTargetsPrompt:
+        """Builds the prompt asking for tests that cover the given targets.
 
         Args:
-            gao_coverage_map (dict): Maps callable objects to coverage percentages.
-            diagnostics (dict): Optional per-callable diagnostic hints describing why
-                a target is uncovered (e.g. never reached, one-sided branch).
+            gao_coverage_map: Maps callable objects to coverage percentages.
+            diagnostics: Optional per-callable hints describing why a target is uncovered.
 
         Returns:
-            Any: Result of the query based on the constructed prompt.
+            The prompt.
         """
-        return self.query(_uncovered_targets_prompt(gao_coverage_map, diagnostics))
+        return _uncovered_targets_prompt(gao_coverage_map, diagnostics)
 
     async def call_llm_for_uncovered_targets_async(
         self,
@@ -679,7 +876,11 @@ class LLMAgent:  # noqa: PLR0904
         Returns:
             Any: Result of the query based on the constructed prompt.
         """
-        return await self.query_async(_uncovered_targets_prompt(gao_coverage_map, diagnostics))
+        return await self.query_async(
+            self.build_uncovered_targets_prompt(gao_coverage_map, diagnostics),
+            purpose=CallPurpose.UNCOVERED_TARGETS.value,
+            targets=_target_names(gao_coverage_map),
+        )
 
     def extract_python_code_from_llm_output(self, llm_output: str | None) -> str:
         """Extracts Python code blocks from the LLM output.

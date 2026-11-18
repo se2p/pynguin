@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm, _GoalsManager
-from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm, _StallTracker
+from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm, _StallTracker, _timed
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -50,14 +50,14 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             self._logger.info("Coverage before LLM call: %5f", coverage_before)
             stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
 
-            llm_chromosomes = self._query_initial_targets()
-            if llm_chromosomes is None:
+            generation = self._query_initial_targets()
+            if generation is None:
                 self._logger.info(
                     "Initial LLM query runs in the background; its result is integrated "
                     "when it completes."
                 )
                 return
-            self._population += llm_chromosomes
+            self._population += generation.chromosomes
             # DynaMOSA's UpdateTargets, not archive.update(): also unlocks any goals
             # whose parent these chromosomes just covered.
             self._goals_manager.update(self._population)
@@ -108,13 +108,18 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
+        self._reset_llm_statistics()
+        pre_search_time = 0.0
         if config.configuration.large_language_model.hybrid_initial_population:
-            self._seed_archive_from_llm()
+            pre_search_time += _timed(self._seed_archive_from_llm)
 
         self._population = self._get_random_population()
         self._goals_manager.update(self._population)
 
-        self._target_initial_uncovered_goals()
+        pre_search_time += _timed(self._target_initial_uncovered_goals)
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.LLMPreSearchTime, pre_search_time
+        )
 
         # Calculate dominance ranks and crowding distance
         fronts = self._ranking_function.compute_ranking_assignment(
@@ -246,4 +251,4 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             A list of `TestCaseChromosome` objects derived from the LLM query result.
         """
         targets_map, diagnostics = self._select_uncovered_targets()
-        return self._query_llm_for_targets(targets_map, diagnostics)
+        return self._query_llm_for_targets(targets_map, diagnostics).chromosomes

@@ -301,30 +301,7 @@ def test_clear_cache(monkeypatch):
     mock_cache.clear.assert_called_once()
 
 
-def test_call_llm_for_uncovered_targets(monkeypatch):
-    """Test call_llm_for_uncovered_targets method."""
-    # Mock the necessary functions
-    monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.get_module_source_code",
-        lambda: "def test_function():\n    pass",
-    )
-    monkeypatch.setattr(
-        "pynguin.large_language_model.llmagent.get_module_path", lambda: Path("/path/to/module.py")
-    )
-
-    # Create a mock agent
-    agent = MagicMock(spec=LLMAgent)
-    agent.query.return_value = "Test response"
-
-    # Call the method
-    with patch.object(LLMAgent, "query", return_value="Test response"):
-        result = LLMAgent.call_llm_for_uncovered_targets(agent, {})
-
-    # Check the result
-    assert result == "Test response"
-
-
-def test_call_llm_for_uncovered_targets_sync_and_async_build_the_same_prompt(monkeypatch):
+def test_call_llm_for_uncovered_targets_async_builds_the_uncovered_targets_prompt(monkeypatch):
     monkeypatch.setattr(
         "pynguin.large_language_model.llmagent.get_module_source_code", lambda: "def f():\n    pass"
     )
@@ -339,23 +316,22 @@ def test_call_llm_for_uncovered_targets_sync_and_async_build_the_same_prompt(mon
         "pynguin.large_language_model.llmagent.UncoveredTargetsPrompt", prompt_class
     )
     agent = MagicMock(spec=LLMAgent)
-    agent.query.return_value = "sync response"
+    agent.build_uncovered_targets_prompt = LLMAgent.build_uncovered_targets_prompt
     agent.query_async = AsyncMock(return_value="async response")
     gao = MagicMock()
 
-    sync_result = LLMAgent.call_llm_for_uncovered_targets(agent, {gao: 0.5}, {gao: "hint"})
     async_result = asyncio.run(
         LLMAgent.call_llm_for_uncovered_targets_async(agent, {gao: 0.5}, {gao: "hint"})
     )
 
-    assert sync_result == "sync response"
     assert async_result == "async response"
-    assert prompt_class.call_count == 2
-    sync_call, async_call = prompt_class.call_args_list
-    assert sync_call == async_call
+    prompt_class.assert_called_once()
+    async_call = prompt_class.call_args
     assert async_call.kwargs["visibility_instructions"] == "visibility"
     assert async_call.kwargs["diagnostics"] == {gao: "hint"}
-    agent.query_async.assert_awaited_once_with(prompt_class.return_value)
+    agent.query_async.assert_awaited_once_with(
+        prompt_class.return_value, purpose="uncovered-targets", targets=[str(gao)]
+    )
 
 
 def test_extract_python_code_no_code(monkeypatch):
@@ -640,7 +616,7 @@ def test_query_batch_keeps_successful_responses_and_tokens(monkeypatch):
     )
     agent = LLMAgent()
 
-    async def fake_send_async(request, timeout=None):  # noqa: ARG001
+    async def fake_send_async(request, timeout=None, usage=None):  # noqa: ARG001
         await asyncio.sleep(0)
         if request.messages[-1]["content"] == "p1":
             raise TimeoutError("Request timed out.")

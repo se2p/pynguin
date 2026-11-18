@@ -17,6 +17,7 @@ from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.ga.algorithms.lldynamosaalgorithm import LLDynaMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.llmtestcasehandler import LLMGeneration
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -47,7 +48,6 @@ def lldynamosa_algorithm():
         mock_model = MagicMock()
         mock_model.llm_calls_counter = 0
         mock_model.llm_test_case_handler = MagicMock()
-        mock_model.call_llm_for_uncovered_targets = MagicMock(return_value="test response")
         mock_llm_agent.return_value = mock_model
 
         algorithm = LLDynaMOSAAlgorithm()
@@ -135,7 +135,7 @@ def test_target_initial_uncovered_goals_no_llm_call(lldynamosa_algorithm):
 
     lldynamosa_algorithm._target_initial_uncovered_goals()
 
-    lldynamosa_algorithm.model.call_llm_for_uncovered_targets.assert_not_called()
+    lldynamosa_algorithm.model.build_uncovered_targets_prompt.assert_not_called()
 
 
 @patch("pynguin.ga.algorithms.lldynamosaalgorithm.config")
@@ -154,7 +154,7 @@ def test_target_initial_uncovered_goals_with_llm_call(mock_config, lldynamosa_al
         return_value=({MagicMock(): 0.5}, {})
     )
     lldynamosa_algorithm._query_llm_for_targets = MagicMock(
-        return_value=[MagicMock(spec=tcc.TestCaseChromosome)]
+        return_value=LLMGeneration(chromosomes=[MagicMock(spec=tcc.TestCaseChromosome)])
     )
 
     with patch.object(stat, "track_output_variable") as mock_track:
@@ -179,7 +179,9 @@ def test_maybe_intervene_on_stall_updates_goals_manager(lldynamosa_algorithm):
     llm_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     mock_gao = MagicMock(spec=GenericCallableAccessibleObject)
     lldynamosa_algorithm._select_uncovered_targets = MagicMock(return_value=({mock_gao: 0.0}, {}))
-    lldynamosa_algorithm._query_llm_for_targets = MagicMock(return_value=[llm_chromosome])
+    lldynamosa_algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=[llm_chromosome])
+    )
     existing_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     lldynamosa_algorithm._population = [existing_chromosome]
 
@@ -255,7 +257,7 @@ def test_target_uncovered_callables_queries_single_highest_priority(
 
     test_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     handler = lldynamosa_algorithm.model.llm_test_case_handler
-    handler.get_test_case_chromosomes_from_llm_results.return_value = [test_chromosome]
+    handler.generate_chromosomes.return_value = LLMGeneration(chromosomes=[test_chromosome])
 
     with (
         patch("pynguin.ga.algorithms.lldynamosaalgorithm.config") as mock_config,
@@ -297,8 +299,8 @@ def test_target_uncovered_callables_queries_single_highest_priority(
 
     assert len(result) == 1
     assert result[0] == test_chromosome
-    lldynamosa_algorithm.model.call_llm_for_uncovered_targets.assert_called_once()
-    call_args = lldynamosa_algorithm.model.call_llm_for_uncovered_targets.call_args
+    lldynamosa_algorithm.model.build_uncovered_targets_prompt.assert_called_once()
+    call_args = lldynamosa_algorithm.model.build_uncovered_targets_prompt.call_args
     queried_gao_coverage_map = call_args[0][0]
     assert len(queried_gao_coverage_map) == 1
 

@@ -18,6 +18,7 @@ import pynguin.ga.testcasechromosome as tcc
 from pynguin.configuration import LLMMode
 from pynguin.ga.algorithms.lldynamosaalgorithm import LLDynaMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
+from pynguin.large_language_model.llmtestcasehandler import LLMGeneration
 from pynguin.large_language_model.query_strategy import (
     AsyncLLMQueryStrategy,
     SyncLLMQueryStrategy,
@@ -45,7 +46,9 @@ def test_llmosa_sync_mode_stall_intervention(monkeypatch):
 
     llm_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
-    algorithm._query_llm_for_targets = MagicMock(return_value=[llm_chromosome])
+    algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=[llm_chromosome])
+    )
 
     initial_chrom = MagicMock(spec=tcc.TestCaseChromosome)
     algorithm._population = [initial_chrom]
@@ -71,7 +74,7 @@ def test_llmosa_async_mode_stall_intervention(monkeypatch):
 
     def slow_query_targets(*_args, **_kwargs):
         time.sleep(0.05)
-        return [llm_chromosome]
+        return LLMGeneration(chromosomes=[llm_chromosome])
 
     algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
     algorithm._query_llm_for_targets = MagicMock(side_effect=slow_query_targets)
@@ -90,8 +93,8 @@ def test_llmosa_async_mode_stall_intervention(monkeypatch):
         time.sleep(0.01)
 
     completed = algorithm._llm_query_strategy.poll()
-    assert completed == [llm_chromosome]
-    algorithm._integrate_llm_chromosomes(completed)
+    assert completed.chromosomes == [llm_chromosome]
+    algorithm._integrate_llm_chromosomes(completed.chromosomes)
 
     assert algorithm._population == [llm_chromosome, initial_chrom]
     algorithm._llm_query_strategy.shutdown()
@@ -109,7 +112,9 @@ def test_lldynamosa_async_mode_integrates_and_updates_goals(monkeypatch):
 
     llm_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
-    algorithm._query_llm_for_targets = MagicMock(return_value=[llm_chromosome])
+    algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=[llm_chromosome])
+    )
 
     initial_chrom = MagicMock(spec=tcc.TestCaseChromosome)
     algorithm._population = [initial_chrom]
@@ -123,8 +128,8 @@ def test_lldynamosa_async_mode_integrates_and_updates_goals(monkeypatch):
         time.sleep(0.01)
 
     completed = algorithm._llm_query_strategy.poll()
-    assert completed == [llm_chromosome]
-    algorithm._integrate_llm_chromosomes(completed)
+    assert completed.chromosomes == [llm_chromosome]
+    algorithm._integrate_llm_chromosomes(completed.chromosomes)
 
     assert algorithm._population == [llm_chromosome, initial_chrom]
     algorithm._goals_manager.update.assert_called_once_with(algorithm._population)
@@ -138,7 +143,9 @@ def test_target_uncovered_callables_delegates_to_select_and_query():
     mock_chromosomes = [MagicMock(spec=tcc.TestCaseChromosome)]
 
     algorithm._select_uncovered_targets = MagicMock(return_value=(mock_targets, mock_diagnostics))
-    algorithm._query_llm_for_targets = MagicMock(return_value=mock_chromosomes)
+    algorithm._query_llm_for_targets = MagicMock(
+        return_value=LLMGeneration(chromosomes=mock_chromosomes)
+    )
 
     result = algorithm.target_uncovered_callables()
 
@@ -162,7 +169,7 @@ def test_async_archive_update_concurrent_with_llm_query(monkeypatch):
 
     def slow_query_targets(*_args, **_kwargs):
         time.sleep(0.05)
-        return [llm_chromosome]
+        return LLMGeneration(chromosomes=[llm_chromosome])
 
     algorithm._query_llm_for_targets = MagicMock(side_effect=slow_query_targets)
 
@@ -179,8 +186,8 @@ def test_async_archive_update_concurrent_with_llm_query(monkeypatch):
         time.sleep(0.01)
 
     completed = algorithm._llm_query_strategy.poll()
-    assert completed == [llm_chromosome]
-    algorithm._integrate_llm_chromosomes(completed)
+    assert completed.chromosomes == [llm_chromosome]
+    algorithm._integrate_llm_chromosomes(completed.chromosomes)
 
     assert llm_chromosome in algorithm._population
     algorithm._llm_query_strategy.shutdown()
@@ -300,7 +307,7 @@ def _initial_targeting_algorithm(monkeypatch, mode, query_seconds=0.0):
 
     def query_targets(*_args, **_kwargs):
         time.sleep(query_seconds)
-        return [llm_chromosome]
+        return LLMGeneration(chromosomes=[llm_chromosome])
 
     algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.5}, {}))
     algorithm._query_llm_for_targets = MagicMock(side_effect=query_targets)
@@ -338,7 +345,7 @@ def test_initial_llm_query_in_async_mode_is_integrated_by_poll(monkeypatch):
     while algorithm._llm_query_strategy.is_in_progress() and time.time() < timeout:
         time.sleep(0.01)
     completed = algorithm._llm_query_strategy.poll()
-    algorithm._integrate_llm_chromosomes(completed)
+    algorithm._integrate_llm_chromosomes(completed.chromosomes)
 
     assert algorithm._population == [llm_chromosome]
     assert algorithm._llm_query_strategy.blocked_seconds == 0.0

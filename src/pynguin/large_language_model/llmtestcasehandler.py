@@ -6,24 +6,38 @@
 #
 """This module holds logic for converting LLM output to test cases and other utils."""
 
+from __future__ import annotations
+
+import dataclasses
 import datetime
 import logging
-from collections.abc import Iterable
+import threading
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.stats as stat
-from pynguin.analyses.module import TestCluster
-from pynguin.ga.computations import CoverageFunction, FitnessFunction
 from pynguin.large_language_model.parsing.deserializer import (
+    DeserializationResult,
     Disposition,
     ParseStatus,
     deserialize_code_to_testcases,
 )
-from pynguin.testcase.testfactory import TestFactory
+from pynguin.large_language_model.prompts.conversationrepairprompt import (
+    ConversationRepairPrompt,
+)
+from pynguin.large_language_model.tracing import CallPurpose, LLMCallRecord, count, write_record
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
+
+    from pynguin.analyses.module import TestCluster
+    from pynguin.ga.computations import CoverageFunction, FitnessFunction
+    from pynguin.large_language_model.prompts.prompt import Prompt
+    from pynguin.testcase.testfactory import TestFactory
 
 _logger = logging.getLogger(__name__)
 
@@ -40,6 +54,142 @@ _DISPOSITION_STATISTICS: dict[Disposition, RuntimeVariable] = {
     Disposition.ASSERTION_KEPT_RAW: RuntimeVariable.LLMAssertionKeptRaw,
     Disposition.ASSERTION_DROPPED: RuntimeVariable.LLMAssertionDropped,
 }
+
+_ADMITTED_STATEMENTS = (
+    Disposition.ADMITTED,
+    Disposition.ADMITTED_UNRESOLVED_CALL,
+    Disposition.ADMITTED_IMPORT,
+    Disposition.ADMITTED_COMPOUND,
+)
+_DROPPED_STATEMENTS = (
+    Disposition.DROPPED_UNKNOWN_NAMES,
+    Disposition.DROPPED_UNSUPPORTED_SHAPE,
+)
+
+# Guards the run-wide admitted/dropped totals behind ``LLMParsedStatementRatio``;
+# responses may be parsed on the search thread and on a background LLM thread.
+_RATIO_LOCK = threading.Lock()
+_statement_totals = {"admitted": 0, "dropped": 0}
+
+
+@dataclasses.dataclass(frozen=True)
+class ChromosomeContext:
+    """What is needed to turn parsed LLM test cases into search chromosomes."""
+
+    test_cluster: TestCluster
+    test_factory: TestFactory
+    fitness_functions: Iterable[FitnessFunction]
+    coverage_functions: Iterable[CoverageFunction]
+
+
+@dataclasses.dataclass
+class LLMGeneration:
+    """The chromosomes produced by an LLM call, with the conversation that led to them.
+
+    The conversation is kept so that the response can be sent back for repair later,
+    e.g. once executing the chromosomes showed that they raise.
+    """
+
+    chromosomes: list[tcc.TestCaseChromosome]
+    prompt: Prompt | None = None
+    """The prompt of the last call, None if no call was made."""
+    response: str | None = None
+    """The response to the last call, None if it failed."""
+    call_id: str | None = None
+    """The trace id of the last call."""
+    targets: list[str] = dataclasses.field(default_factory=list)
+    repairs_used: int = 0
+    """How many repair calls were made for the original call so far."""
+
+
+def _track_statement_ratio(result: DeserializationResult) -> None:
+    """Adds a parse result to the run-wide ``LLMParsedStatementRatio``.
+
+    Args:
+        result: The deserialisation result.
+    """
+    with _RATIO_LOCK:
+        _statement_totals["admitted"] += sum(result.counts[d] for d in _ADMITTED_STATEMENTS)
+        _statement_totals["dropped"] += sum(result.counts[d] for d in _DROPPED_STATEMENTS)
+        total = _statement_totals["admitted"] + _statement_totals["dropped"]
+        if total > 0:
+            stat.set_output_variable_for_runtime_variable(
+                RuntimeVariable.LLMParsedStatementRatio, _statement_totals["admitted"] / total
+            )
+
+
+def reset_statement_ratio() -> None:
+    """Resets the run-wide totals behind ``LLMParsedStatementRatio``."""
+    with _RATIO_LOCK:
+        _statement_totals["admitted"] = 0
+        _statement_totals["dropped"] = 0
+
+
+def _deserialization_summary(result: DeserializationResult | None) -> dict:
+    """Summarises a parse result for the LLM call trace.
+
+    Args:
+        result: The deserialisation result, None if there was no response to parse.
+
+    Returns:
+        A JSON-serialisable summary.
+    """
+    if result is None:
+        return {"status": None, "test_cases": 0, "counts": {}}
+    return {
+        "status": result.status.value,
+        "test_cases": len(result.test_cases),
+        "counts": {d.value: result.counts[d] for d in Disposition if result.counts[d]},
+        "import_names_repaired": result.import_names_repaired,
+        "import_names_dropped": result.import_names_dropped,
+    }
+
+
+def _syntax_error(code: str) -> str | None:
+    """Describes the syntax error in a piece of code, without executing it.
+
+    Args:
+        code: The code to check.
+
+    Returns:
+        A description of the syntax error, or None if the code compiles.
+    """
+    try:
+        compile(code, "<llm response>", "exec")
+    except SyntaxError as error:
+        return f"Your code is not valid Python: {error.msg} (line {error.lineno})."
+    return None
+
+
+def _unusable_reason(code: str, result: DeserializationResult) -> str | None:
+    """Explains why a parsed response yields no usable test, for a repair prompt.
+
+    Args:
+        code: The Python code extracted from the response.
+        result: The deserialisation result of that code.
+
+    Returns:
+        The explanation, or None if the response yields at least one usable statement.
+    """
+    if result.status is ParseStatus.UNPARSEABLE or not result.test_cases:
+        # The deserializer salvages what it can from broken code, so a syntax error
+        # often shows up as a response without tests rather than as UNPARSEABLE.
+        syntax_error = _syntax_error(code)
+        if syntax_error is not None:
+            return syntax_error
+    if result.status is ParseStatus.UNPARSEABLE:
+        return "Your code could not be parsed."
+    if sum(result.counts[d] for d in _ADMITTED_STATEMENTS) > 0:
+        return None
+    unknown = result.counts[Disposition.DROPPED_UNKNOWN_NAMES]
+    shape = result.counts[Disposition.DROPPED_UNSUPPORTED_SHAPE]
+    if unknown + shape == 0:
+        return "Your answer contains no `test_*` functions with statements."
+    return (
+        "None of the statements in your tests could be used: "
+        f"{unknown} referenced names that are not defined or imported, and "
+        f"{shape} had an unsupported form (e.g. several assignment targets)."
+    )
 
 
 class LLMTestCaseHandler:
@@ -83,7 +233,23 @@ class LLMTestCaseHandler:
         """
         if llm_query_results is None:
             return []
+        _, deserialization_result = self._deserialize(llm_query_results, test_cluster)
+        if deserialization_result.status is ParseStatus.UNPARSEABLE:
+            return []
+        return deserialization_result.test_cases
 
+    def _deserialize(
+        self, llm_query_results: str, test_cluster: TestCluster
+    ) -> tuple[str, DeserializationResult]:
+        """Extracts the code from a response, deserialises it and tracks the statistics.
+
+        Args:
+            llm_query_results: The raw LLM response.
+            test_cluster: Test cluster used during deserialization.
+
+        Returns:
+            The extracted code and its deserialisation result.
+        """
         save_llm_tests_to_file(llm_query_results, "llm_query_results.txt")
         llm_test_cases_str = self.extract_test_cases_from_llm_output(llm_query_results)
 
@@ -96,7 +262,7 @@ class LLMTestCaseHandler:
                 "Failed to deserialize test cases %s",
                 llm_test_cases_str,
             )
-            return []
+            return llm_test_cases_str, deserialization_result
 
         test_cases = deserialization_result.test_cases
 
@@ -113,8 +279,157 @@ class LLMTestCaseHandler:
         stat.track_output_variable(
             RuntimeVariable.LLMImportNamesDropped, deserialization_result.import_names_dropped
         )
+        _track_statement_ratio(deserialization_result)
 
-        return test_cases
+        return llm_test_cases_str, deserialization_result
+
+    def generate_chromosomes(
+        self,
+        prompt: Prompt,
+        context: ChromosomeContext,
+        purpose: str,
+        targets: Sequence[str] = (),
+        may_repair: Callable[[], bool] | None = None,
+    ) -> LLMGeneration:
+        """Queries the LLM, parses the response and repairs unusable responses.
+
+        Each call, including every repair call, is written once to the LLM call trace
+        together with its deserialisation result.  A response that cannot be parsed or
+        whose statements are all dropped is sent back with the error, in the same
+        conversation, up to ``large_language_model.repair_attempts`` times.
+
+        Args:
+            prompt: The prompt to send.
+            context: Turns parsed test cases into chromosomes.
+            purpose: Why the call is made, for the trace.
+            targets: The names of the targeted callables, for the trace.
+            may_repair: Asked before each repair call; returning False (e.g. because
+                the search budget is used up) stops repairing.
+
+        Returns:
+            The chromosomes from the last call, with that call's conversation.
+        """
+        response, record = self._model.query_traced(prompt, purpose=purpose, targets=targets)
+        return self._parse_and_repair(
+            prompt, response, record, context, repairs_used=0, may_repair=may_repair
+        )
+
+    def repair_chromosomes(
+        self,
+        generation: LLMGeneration,
+        error_message: str,
+        context: ChromosomeContext,
+        may_repair: Callable[[], bool] | None = None,
+    ) -> LLMGeneration | None:
+        """Asks the LLM to fix the response behind a generation that turned out unusable.
+
+        Args:
+            generation: The generation whose response is to be repaired.
+            error_message: What went wrong with the generation's chromosomes.
+            context: Turns parsed test cases into chromosomes.
+            may_repair: Asked before each repair call; returning False stops repairing.
+
+        Returns:
+            The repaired generation, or None if no repair call is allowed.
+        """
+        if not self._can_repair(generation.response, generation.repairs_used, may_repair):
+            return None
+        assert generation.prompt is not None
+        assert generation.response is not None
+        return self._repair(
+            ConversationRepairPrompt(generation.prompt, generation.response, error_message),
+            context,
+            parent_call_id=generation.call_id,
+            targets=generation.targets,
+            repairs_used=generation.repairs_used,
+            may_repair=may_repair,
+        )
+
+    @staticmethod
+    def _can_repair(
+        response: str | None, repairs_used: int, may_repair: Callable[[], bool] | None
+    ) -> bool:
+        if response is None:
+            # Nothing to repair: the call itself failed.
+            return False
+        if repairs_used >= config.configuration.large_language_model.repair_attempts:
+            return False
+        return may_repair is None or may_repair()
+
+    def _repair(
+        self,
+        prompt: ConversationRepairPrompt,
+        context: ChromosomeContext,
+        *,
+        parent_call_id: str | None,
+        targets: Sequence[str],
+        repairs_used: int,
+        may_repair: Callable[[], bool] | None,
+    ) -> LLMGeneration:
+        count(RuntimeVariable.LLMRepairCalls)
+        _logger.info(
+            "Asking the LLM to repair its response (attempt %d): %s",
+            repairs_used + 1,
+            prompt.error_message,
+        )
+        response, record = self._model.query_traced(
+            prompt,
+            purpose=CallPurpose.REPAIR.value,
+            targets=targets,
+            parent_call_id=parent_call_id,
+            repair_attempt=repairs_used + 1,
+        )
+        return self._parse_and_repair(
+            prompt, response, record, context, repairs_used=repairs_used + 1, may_repair=may_repair
+        )
+
+    def _parse_and_repair(
+        self,
+        prompt: Prompt,
+        response: str | None,
+        record: LLMCallRecord,
+        context: ChromosomeContext,
+        *,
+        repairs_used: int,
+        may_repair: Callable[[], bool] | None,
+    ) -> LLMGeneration:
+        test_cases: list[tc.TestCase] = []
+        reason: str | None = None
+        result: DeserializationResult | None = None
+        if response is not None:
+            code, result = self._deserialize(response, context.test_cluster)
+            reason = _unusable_reason(code, result)
+            if result.status is ParseStatus.OK:
+                test_cases = result.test_cases
+        record.deserialization = _deserialization_summary(result)
+        write_record(record)
+
+        if reason is not None and self._can_repair(response, repairs_used, may_repair):
+            assert response is not None
+            return self._repair(
+                ConversationRepairPrompt(prompt, response, reason),
+                context,
+                parent_call_id=record.call_id,
+                targets=record.targets,
+                repairs_used=repairs_used,
+                may_repair=may_repair,
+            )
+        return LLMGeneration(
+            chromosomes=[
+                _create_test_case_chromosome(
+                    test_case,
+                    context.test_factory,
+                    context.fitness_functions,
+                    context.coverage_functions,
+                )
+                for test_case in test_cases
+            ],
+            prompt=prompt,
+            response=response,
+            call_id=record.call_id,
+            targets=list(record.targets),
+            repairs_used=repairs_used,
+        )
 
     def get_test_case_chromosomes_from_llm_results(
         self,

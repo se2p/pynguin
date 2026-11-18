@@ -1168,6 +1168,25 @@ class LLMConfiguration:
     llm_mode: LLMMode = LLMMode.SYNC
     """The execution mode for LLM queries in search algorithms (sync or async)."""
 
+    trace_dir: str = ""
+    """Directory for a structured trace of the LLM calls (empty disables tracing).
+    When set, every logical LLM call made through Pynguin's LLM agent (test
+    generation in the LLM-based search algorithms, repair, assertions, local
+    search) is appended as one JSON line to ``llm_calls.jsonl`` in this directory: call id,
+    purpose, targets, prompt, response, latency, token counts, retries, outcome,
+    deserialisation counts, repair attempt index and parent call id.  Calls that
+    bypass the agent are not traced: LLM type inference, the single generation
+    call of the ``LLM`` algorithm, and the refinement calls."""
+
+    repair_attempts: int = 0
+    """How often an LLM response produced during the search (initial population,
+    uncovered targets, stall queries) is sent back for repair.  A repair is asked for
+    in the same conversation, with the error, when the response cannot be parsed,
+    all its statements are dropped, or (where Pynguin executes the LLM tests before
+    using them) some of the resulting tests raise or time out; then only those
+    tests are sent back.  Repair calls count against the search
+    budget.  ``0`` disables repair."""
+
 
 @dataclasses.dataclass
 class MockGenerationConfiguration:

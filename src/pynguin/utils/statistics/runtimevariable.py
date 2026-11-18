@@ -316,6 +316,41 @@ class RuntimeVariable(str, enum.Enum):
     # Number of seconds LLM queries took
     LLMQueryTime = "LLMQueryTime"
 
+    # Logical LLM calls that returned a response from the endpoint (cache hits excluded)
+    LLMCallsSucceeded = "LLMCallsSucceeded"
+
+    # Logical LLM calls that failed without a response for a reason other than a timeout
+    LLMCallsFailed = "LLMCallsFailed"
+
+    # Logical LLM calls that failed because the request timed out
+    LLMCallsTimedOut = "LLMCallsTimedOut"
+
+    # Share of LLM statements admitted to a test case, over all responses parsed during
+    # the search (admitted / (admitted + dropped))
+    LLMParsedStatementRatio = "LLMParsedStatementRatio"
+
+    # Wall-clock seconds spent on LLM work before the first search iteration
+    # (initial population seeding and the initial uncovered-targets query)
+    LLMPreSearchTime = "LLMPreSearchTime"
+
+    # Number of stall-triggered LLM queries that were sent
+    LLMStallQueriesSubmitted = "LLMStallQueriesSubmitted"
+
+    # Number of stall-triggered LLM queries that returned a response
+    LLMStallResponsesReceived = "LLMStallResponsesReceived"
+
+    # Number of test cases from stall-triggered LLM queries added to the population
+    LLMStallTestsPublished = "LLMStallTestsPublished"
+
+    # Number of detected stalls without an LLM query because too little budget remained
+    LLMStallSkippedBudget = "LLMStallSkippedBudget"
+
+    # Number of detected stalls without an LLM query because one was still in flight
+    LLMStallSkippedInFlight = "LLMStallSkippedInFlight"
+
+    # Number of LLM calls asking the LLM to repair one of its responses during the search
+    LLMRepairCalls = "LLMRepairCalls"
+
     # Total of LLM test cases tha are merged into the population
     TotalLTCs = "TotalLTCs"
 
