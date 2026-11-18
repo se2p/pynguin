@@ -191,7 +191,7 @@ def _setup_logging(
 _DANGER_ENV = "PYNGUIN_DANGER_AWARE"
 
 
-def _run_message(num_islands: int, use_master_worker: bool) -> str:  # noqa: FBT001
+def _run_message(num_islands: int, *, use_master_worker: bool) -> str:
     if num_islands > 1:
         _LOGGER.debug("Using island-model parallel search (%d islands)", num_islands)
         return f"Running Pynguin with {num_islands} islands..."
@@ -260,7 +260,7 @@ to see why this happens and what you must do to prevent it."""
 
     num_islands = parsed.config.island.num_islands
     use_master_worker = parsed.config.use_master_worker
-    message = _run_message(num_islands, use_master_worker)
+    message = _run_message(num_islands, use_master_worker=use_master_worker)
 
     def _dispatch() -> int:
         if num_islands > 1:

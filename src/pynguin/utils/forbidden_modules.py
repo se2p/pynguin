@@ -18,11 +18,11 @@ import fnmatch
 
 from pynguin.utils.exceptions import ForbiddenModuleError
 
+# Glob patterns (``fnmatch`` syntax) of module names Pynguin must not run on.
 FORBIDDEN_MODULE_PATTERNS: tuple[str, ...] = (
     "semantic_release",
     "semantic_release.*",
 )
-"""Glob patterns (``fnmatch`` syntax) of module names Pynguin must not run on."""
 
 
 def matching_forbidden_pattern(module_name: str) -> str | None:
