@@ -104,7 +104,12 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, get_class_that_defined_method
+from pynguin.utils.type_utils import (
+    COLLECTIONS,
+    PRIMITIVES,
+    get_class_that_defined_method,
+    get_constructor_function,
+)
 from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, parse_json, provide_json
 
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
@@ -1415,7 +1420,7 @@ def __get_mccabe_complexity(tree: ASTFunctionDef | None) -> int | None:
 
 
 def __is_constructor(method_name: str) -> bool:
-    return method_name == "__init__"
+    return method_name in {"__init__", "__new__"}
 
 
 def __is_annotate(method_name: str) -> bool:
@@ -1674,13 +1679,15 @@ def _create_constructor_or_enum(
             return None
         return generic
 
+    constructor, _ = get_constructor_function(type_info.raw_type)
     generic = GenericConstructor(
         type_info,
         test_cluster.type_system.infer_type_info(
-            type_info.raw_type.__init__,  # type: ignore[misc]
+            constructor,
             type_inference_provider=type_inference_provider,
         ),
         expected_exceptions,
+        constructor=constructor,  # type: ignore[arg-type]
     )
     generic.inferred_signature.return_type = test_cluster.type_system.convert_type_hint(
         type_info.raw_type
@@ -1703,7 +1710,12 @@ def __analyse_class(
         # Tuple is problematic...
         return
 
-    constructor_ast = get_function_node_from_ast(class_ast, "__init__")
+    constructor_name = (
+        "__init__"
+        if issubclass(type_info.raw_type, enum.Enum)  # type: ignore[arg-type]
+        else get_constructor_function(type_info.raw_type)[1]
+    )
+    constructor_ast = get_function_node_from_ast(class_ast, constructor_name)
     description = get_function_description(constructor_ast)
     expected_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)

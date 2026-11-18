@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import importlib
+import inspect
 import itertools
 import sys
 from logging import Logger
@@ -33,6 +34,7 @@ from pynguin.configuration import ElementVisibility
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.testcase.testcase import TestCase
 from pynguin.testcase.testfactory import TestFactory
+from pynguin.utils import type_utils
 from pynguin.utils.exceptions import (
     CannotInstrumentCompiledModuleError,
     ConstructionFailedException,
@@ -1280,3 +1282,77 @@ def test_analyse_included_classes_skips_unimportable_c_extension():
     )
     assert FakeCExtClass in seen_classes
     assert test_cluster.num_accessible_objects_under_test() == 0
+
+
+@pytest.mark.parametrize(
+    "class_name, constructor_name, defined_in, parameters",
+    [
+        ("OnlyNew", "__new__", "OnlyNew", ["size"]),
+        ("GenericNewSpecificInit", "__init__", "GenericNewSpecificInit", ["x"]),
+        ("SpecificNewGenericInit", "__new__", "SpecificNewGenericInit", ["x"]),
+        ("Style", "__new__", "Style", ["rules", "value"]),
+        ("InitOverridesInheritedNew", "__init__", "InitOverridesInheritedNew", ["size", "extra"]),
+        ("InheritsNew", "__new__", "OnlyNew", ["size"]),
+        ("OnlyInit", "__init__", "OnlyInit", ["y"]),
+    ],
+)
+def test_get_constructor_function(class_name, constructor_name, defined_in, parameters):
+    fixture = importlib.import_module("tests.fixtures.cluster.new_constructors")
+    func, name = type_utils.get_constructor_function(getattr(fixture, class_name))
+    assert name == constructor_name
+    assert func is vars(getattr(fixture, defined_in))[constructor_name] or (
+        func is vars(getattr(fixture, defined_in))[constructor_name].__func__
+    )
+    cluster = generate_test_cluster("tests.fixtures.cluster.new_constructors")
+    constructor = next(
+        acc
+        for acc in cluster.accessible_objects_under_test
+        if isinstance(acc, GenericConstructor)
+        and acc.owner is not None
+        and acc.owner.name == class_name
+    )
+    assert constructor.callable is func
+    assert list(constructor.inferred_signature.original_parameters) == parameters
+    assert [
+        name for name in constructor.inferred_signature.signature.parameters if name != "self"
+    ] == parameters
+
+
+@pytest.mark.parametrize("class_name", ["NoConstructor", "DictAndPython"])
+def test_get_constructor_function_falls_back_to_init(class_name):
+    fixture = importlib.import_module("tests.fixtures.cluster.new_constructors")
+    clazz = getattr(fixture, class_name)
+    assert type_utils.get_constructor_function(clazz) == (clazz.__init__, "__init__")
+
+
+def test_new_constructor_types_and_raises():
+    cluster = generate_test_cluster("tests.fixtures.cluster.new_constructors")
+    constructor = next(
+        acc
+        for acc in cluster.accessible_objects_under_test
+        if isinstance(acc, GenericConstructor)
+        and acc.owner is not None
+        and acc.owner.name == "OnlyNew"
+    )
+    assert constructor.inferred_signature.original_parameters["size"] == Instance(
+        cluster.type_system.to_type_info(int)
+    )
+    # The constructor's source is __new__, e.g., for the LLM's per-callable coverage.
+    source_lines, _ = inspect.getsourcelines(constructor.callable)
+    assert source_lines[0].strip() == "def __new__(cls, size: int):"
+    data = cluster.function_data_for_accessibles[constructor]
+    assert data.tree is not None
+    assert data.tree.name == "__new__"
+    assert data.description is not None
+    assert data.description.raises == {"ValueError"}
+
+
+def test_new_is_not_offered_as_method():
+    cluster = generate_test_cluster("tests.fixtures.cluster.new_constructors")
+    method_names = {
+        acc.method_name
+        for acc in cluster.accessible_objects_under_test
+        if isinstance(acc, GenericMethod)
+    }
+    assert "__new__" not in method_names
+    assert "method" in method_names

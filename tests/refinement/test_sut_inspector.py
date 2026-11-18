@@ -342,6 +342,27 @@ def test_extract_dependency_signature_for_function():
     assert SUTInspector._extract_dependency_signature(helper) == "(alpha, beta)"
 
 
+class _NewDefinedBox:
+    def __new__(cls, size: int):  # noqa: ARG004
+        return super().__new__(cls)
+
+
+class _InitDefinedBox:  # noqa: B903
+    def __init__(self, size: int) -> None:
+        self.size = size
+
+
+@pytest.mark.parametrize(
+    "clazz, expected",
+    [
+        (_NewDefinedBox, "(cls, size: 'int')"),
+        (_InitDefinedBox, "(self, size: 'int') -> 'None'"),
+    ],
+)
+def test_extract_dependency_signature_uses_constructor_function(clazz, expected):
+    assert SUTInspector._extract_dependency_signature(clazz) == expected
+
+
 def test_extract_dependency_description_first_line_only():
     def helper():
         """First line.

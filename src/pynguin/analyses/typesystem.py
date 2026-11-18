@@ -1914,6 +1914,24 @@ class InferredSignature:
         return tvs
 
 
+def _drop_cls_parameter(signature: inspect.Signature) -> inspect.Signature:
+    """Drop the leading positional ``cls`` parameter of a ``__new__`` signature.
+
+    Args:
+        signature: The signature of a ``__new__`` method.
+
+    Returns:
+        The signature without its first parameter, if that is positional.
+    """
+    parameters = list(signature.parameters.values())
+    if parameters and parameters[0].kind in {
+        inspect.Parameter.POSITIONAL_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    }:
+        return signature.replace(parameters=parameters[1:])
+    return signature
+
+
 class TypeSystem:  # noqa: PLR0904
     """Implements Pynguin's internal type system.
 
@@ -2362,6 +2380,11 @@ class TypeSystem:  # noqa: PLR0904
                 ],
                 return_annotation=inspect.Signature.empty,
             )
+
+        if getattr(method, "__name__", None) == "__new__":
+            # __new__ is an implicit static method that takes the class as first
+            # argument, which is passed implicitly when calling the class.
+            method_signature = _drop_cls_parameter(method_signature)
 
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
