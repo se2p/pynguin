@@ -36,6 +36,7 @@ subprocess = false
 subprocess_if_recommended = true
 use_master_worker = true
 filesystem_isolation = false
+check_forbidden_modules = true
 
 [test_case_output]
 output_path = ""
@@ -434,7 +435,7 @@ def expected_txt(tmp_path):
  'ls_different_type_primitive_probability=0.3, '
  'ls_different_type_collection_probability=0.3, ls_dict_max_insertions=10, '
  'ls_llm_whole_module=False), use_master_worker=True, '
- 'filesystem_isolation=False)')"""  # noqa:E501
+ 'filesystem_isolation=False, check_forbidden_modules=True)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -445,6 +446,8 @@ def expected_txt(tmp_path):
 def expected_parameters() -> str:
     return """--algorithm
 RANDOM
+--check_forbidden_modules
+True
 --element_visibility
 PUBLIC
 --filesystem_isolation
