@@ -14,10 +14,10 @@ from unittest.mock import MagicMock, patch
 
 import pynguin.configuration as config
 import pynguin.generator as gen
-from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.client import OpenAIClient
 
 if TYPE_CHECKING:
-    from pynguin.large_language_model.prompts.prompt import Prompt
+    from pynguin.large_language_model.request import RenderedRequest
 
 
 def test_lldynamosa_prompt_lists_uncovered_goals(tmp_path: pathlib.Path) -> None:
@@ -39,14 +39,14 @@ def test_lldynamosa_prompt_lists_uncovered_goals(tmp_path: pathlib.Path) -> None
     gen.set_configuration(configuration)
     prompts: list[str] = []
 
-    def record_prompt(_agent: LLMAgent, prompt: Prompt) -> str:
-        prompts.append(prompt.build_prompt())
+    def record_prompt(_client: OpenAIClient, request: RenderedRequest, **_kwargs) -> str:
+        prompts.append(request.messages[-1]["content"])
         return "def test_x():\n    difficult_branches('a', 1337, 42)\n"
 
     with (
         patch("pynguin.large_language_model.client.require_api_key") as mock_key,
         patch("pynguin.large_language_model.llmagent.openai.OpenAI"),
-        patch.object(LLMAgent, "query", autospec=True, side_effect=record_prompt),
+        patch.object(OpenAIClient, "send", autospec=True, side_effect=record_prompt),
     ):
         mock_key.return_value = MagicMock()
         mock_key.return_value.get_secret_value.return_value = "test-api-key"
