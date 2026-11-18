@@ -20,6 +20,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.large_language_model.llmtestcasehandler import LLMGeneration
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -69,7 +70,9 @@ def _run(algorithm_kind, subject_properties, on_iteration=None):
         algorithm._logger = MagicMock(Logger)
         algorithm.model = MagicMock()
         deliveries = [[algorithm._get_random_chromosome() for _ in range(INJECTED)]]
-        algorithm._llm_query_strategy.poll = lambda: deliveries.pop() if deliveries else None
+        algorithm._llm_query_strategy.poll = lambda: (
+            LLMGeneration(chromosomes=deliveries.pop()) if deliveries else None
+        )
         if on_iteration is not None:
             original = algorithm.after_search_iteration
 

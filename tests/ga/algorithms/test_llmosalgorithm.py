@@ -755,6 +755,13 @@ def test_generate_tests_seeds_archive_when_hybrid(mock_config, llmosa_algorithm)
     llmosa_algorithm._seed_archive_from_llm.assert_called_once()
 
 
+def _disable_blending(mock_config):
+    search_config = mock_config.configuration.search_algorithm
+    search_config.llm_blend_goal_crossovers = 0
+    search_config.llm_blend_mutants = 0
+    search_config.llm_blend_tournament_crossovers = 0
+
+
 def _stat_value(variable):
     output_variable = stat.statistics_tracker.output_variables.get(variable.name)
     return None if output_variable is None else output_variable.value
@@ -866,6 +873,7 @@ def test_inflight_state_is_cleared_when_background_query_fails(mock_config, llmo
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
 def test_stall_result_is_counted_when_query_finishes_between_checks(mock_config, llmosa_algorithm):
+    _disable_blending(mock_config)
     mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
     chromosome = MagicMock(spec=tcc.TestCaseChromosome)
     finished = False
@@ -921,6 +929,7 @@ def test_execute_and_repair_drops_repeated_working_tests(llmosa_algorithm):
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
 def test_sync_stall_query_counts_submitted_and_published(mock_config, llmosa_algorithm):
+    _disable_blending(mock_config)
     mock_config.configuration.large_language_model.max_llm_interventions = -1
     llmosa_algorithm._enough_budget_for_llm = MagicMock(return_value=True)
     llmosa_algorithm._select_uncovered_targets = MagicMock(return_value=({MagicMock(): 0.0}, {}))
@@ -939,6 +948,7 @@ def test_sync_stall_query_counts_submitted_and_published(mock_config, llmosa_alg
 
 @patch("pynguin.ga.algorithms.llmosalgorithm.config")
 def test_async_stall_result_is_published_when_polled(mock_config, llmosa_algorithm):
+    _disable_blending(mock_config)
     mock_config.configuration.large_language_model.call_llm_on_stall_detection = True
     strategy = MagicMock()
     strategy.execute.return_value = None
@@ -975,6 +985,7 @@ def test_async_initial_targets_result_is_not_counted_as_stall(llmosa_algorithm):
 
     with patch("pynguin.ga.algorithms.llmosalgorithm.config") as mock_config:
         mock_config.configuration.large_language_model.call_llm_on_stall_detection = False
+        _disable_blending(mock_config)
         llmosa_algorithm._poll_and_handle_stall(MagicMock())
 
     assert len(llmosa_algorithm._population) == 1
