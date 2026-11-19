@@ -13,6 +13,8 @@ import inspect
 import queue
 from typing import TYPE_CHECKING
 
+from pynguin.islands.migration import unpack
+
 if TYPE_CHECKING:
     import multiprocess.managers as mp_managers
 
@@ -69,6 +71,14 @@ class WorkerStatsReport:
     input_tokens: int
     output_tokens: int
     estimated_cost_usd: float
+    logical_queries: int = 0
+    """Logical queries of the worker's LLM agent, cache hits included."""
+    endpoint_requests: int = 0
+    """Requests sent to the LLM endpoint, each retry counted."""
+    cache_hits: int = 0
+    """Logical queries served from the response cache."""
+    targets_without_callable: int = 0
+    """Targets dropped without a query because no callable starts at their first line."""
 
 
 class LLMWorkerChannel:
@@ -91,6 +101,14 @@ class LLMWorkerChannel:
         self._island_id = island_id
         self._status_queue = status_queue
         self._result_inbox = result_inbox
+
+    def open_connections(self) -> None:
+        """Opens this thread's connection to the Manager holding the queues now.
+
+        The queue proxies otherwise open it on first use.
+        """
+        self._status_queue.qsize()
+        self._result_inbox.qsize()
 
     def report(self, status: StatusReport) -> None:
         """Sends a status report to the worker's shared inbox.
@@ -119,7 +137,7 @@ class LLMWorkerChannel:
 
     def _try_get_nowait(self) -> LLMWorkerResult | None:
         try:
-            return self._result_inbox.get_nowait()
+            return unpack(self._result_inbox.get_nowait())
         except queue.Empty:
             return None
 

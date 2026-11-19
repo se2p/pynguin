@@ -6,6 +6,7 @@
 #
 """Tests for the island orchestrator."""
 
+import gc
 import os
 import signal
 import subprocess  # noqa: S404
@@ -23,8 +24,10 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.generator import ReturnCode
 from pynguin.islands import orchestrator
 from pynguin.islands.island import IslandResult
+from pynguin.islands.llm_worker_protocol import WorkerStatsReport
 from pynguin.islands.migration_algorithm import MigrationStats
 from pynguin.islands.orchestrator import run_pynguin_with_islands
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 _CANNED_LLM_TEST_CASE_SOURCE = (
@@ -178,6 +181,39 @@ def test_run_pynguin_with_islands_merges_two_islands_into_one_suite(tmp_path):
     exported_files = list(tmp_path.glob("test_*.py"))
     assert len(exported_files) == 1
     assert "def test_" in exported_files[0].read_text()
+
+
+def test_run_pynguin_with_islands_merges_without_the_garbage_collector(tmp_path, monkeypatch):
+    collector_enabled_during_merge = []
+
+    def assemble(*_args):
+        collector_enabled_during_merge.append(gc.isenabled())
+        return gen.ReturnCode.OK
+
+    monkeypatch.setattr(orchestrator, "assemble_final_suite", assemble)
+    base_configuration = _base_configuration(tmp_path)
+    gen.set_configuration(base_configuration)
+
+    result = run_pynguin_with_islands(base_configuration)
+
+    assert result == gen.ReturnCode.OK
+    assert collector_enabled_during_merge == [False]
+    assert gc.isenabled()
+
+
+def test_run_pynguin_with_islands_stops_the_islands_when_collecting_a_result_fails(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        orchestrator, "_collect_island_result", MagicMock(side_effect=RuntimeError("collect"))
+    )
+    base_configuration = _base_configuration(tmp_path)
+    gen.set_configuration(base_configuration)
+
+    with pytest.raises(RuntimeError, match="collect"):
+        run_pynguin_with_islands(base_configuration)
+
+    assert mp.active_children() == []
 
 
 def test_run_pynguin_with_islands_goal_triggered_migration_produces_valid_merged_suite(tmp_path):
@@ -367,7 +403,32 @@ def test_start_llm_worker_starts_the_worker_and_closes_its_pipe_end():
 
 
 def _send_result(sending_connection):
-    sending_connection.send("result")
+    sending_connection.send(IslandResult(0, [], ReturnCode.OK))
+
+
+def _send_failed_result(sending_connection):
+    sending_connection.send(IslandResult(0, [], ReturnCode.SETUP_FAILED))
+
+
+def _write_a_truncated_message(sending_connection):
+    os.write(sending_connection.fileno(), b"13\n\x80garbage")
+
+
+def _send_an_unpicklable_message(sending_connection):
+    sending_connection.send_bytes(b"not a pickle")
+
+
+def _abort_tracing():
+    raise TracingAbortedException
+
+
+class _AbortsTracingWhenReceived:
+    def __reduce__(self):
+        return _abort_tracing, ()
+
+
+def _send_a_message_that_aborts_tracing_when_received(sending_connection):
+    sending_connection.send(_AbortsTracingWhenReceived())
 
 
 def _exit_without_sending(_sending_connection):
@@ -382,6 +443,25 @@ def _start_with_pipe(target):
     return process, receiving_connection
 
 
+def _report_whether_closed(connection, sending_connection):
+    sending_connection.send(connection.closed)
+
+
+def test_result_pipe_receiving_end_is_closed_in_forked_processes():
+    receiving_connection, _sending_connection = orchestrator._result_pipe()
+    probe_receiving_connection, probe_sending_connection = mp.Pipe(duplex=False)
+    process = mp.get_context("fork").Process(
+        target=_report_whether_closed, args=(receiving_connection, probe_sending_connection)
+    )
+    process.start()
+
+    closed_in_child = probe_receiving_connection.recv()
+    process.join(timeout=30)
+
+    assert closed_in_child is True
+    assert not receiving_connection.closed
+
+
 def test_collect_island_result_returns_the_sent_result_and_joins_the_process():
     process, receiving_connection = _start_with_pipe(_send_result)
 
@@ -389,12 +469,22 @@ def test_collect_island_result_returns_the_sent_result_and_joins_the_process():
         process, receiving_connection, time.monotonic() + 30
     )
 
-    assert result == "result"
+    assert result == IslandResult(0, [], ReturnCode.OK)
     assert not process.is_alive()
 
 
-def test_collect_island_result_returns_none_when_the_island_dies_without_sending():
-    process, receiving_connection = _start_with_pipe(_exit_without_sending)
+@pytest.mark.parametrize(
+    "island",
+    [
+        _send_failed_result,
+        _exit_without_sending,
+        _write_a_truncated_message,
+        _send_an_unpicklable_message,
+        _send_a_message_that_aborts_tracing_when_received,
+    ],
+)
+def test_collect_island_result_returns_none_without_a_successful_result(island):
+    process, receiving_connection = _start_with_pipe(island)
 
     result = orchestrator._collect_island_result(
         process, receiving_connection, time.monotonic() + 30
@@ -538,6 +628,52 @@ def test_report_coverage_timeline_adds_the_best_coverage_so_far_across_islands()
         (3_000_000_000, 0.6),
         (4_000_000_000, 0.9),
     ]
+
+
+def test_report_coverage_timeline_merges_line_coverage_timelines_when_tracked():
+    stat.track_line_coverage_over_time(MagicMock(return_value=0.0))
+    first_timeline = [(1_000_000_000, 0.7), (3_000_000_000, 0.8)]
+    results = [
+        IslandResult(0, [], ReturnCode.OK, line_coverage_timeline=first_timeline),
+        IslandResult(1, [], ReturnCode.OK, line_coverage_timeline=[(2_000_000_000, 0.75)]),
+    ]
+
+    orchestrator._report_coverage_timeline(results)
+
+    assert stat.get_sequence_samples(RuntimeVariable.LineCoverageTimeline) == [
+        (1_000_000_000, 0.7),
+        (2_000_000_000, 0.75),
+        (3_000_000_000, 0.8),
+    ]
+
+
+def test_report_coverage_timeline_leaves_line_coverage_timeline_untracked_by_default():
+    orchestrator._report_coverage_timeline([IslandResult(0, [], ReturnCode.OK)])
+
+    assert not stat.tracks_sequence(RuntimeVariable.LineCoverageTimeline)
+
+
+def test_track_llm_worker_stats_tracks_logical_queries_endpoint_requests_and_cache_hits():
+    orchestrator._track_llm_worker_stats(
+        WorkerStatsReport(
+            4,
+            12.5,
+            100,
+            50,
+            0.0,
+            logical_queries=4,
+            endpoint_requests=6,
+            cache_hits=1,
+            targets_without_callable=2,
+        )
+    )
+
+    tracked = dict(stat.statistics_tracker.variables_generator)
+    assert tracked[RuntimeVariable.TotalLLMWorkerQueries] == 4
+    assert tracked[RuntimeVariable.TotalLLMWorkerLogicalQueries] == 4
+    assert tracked[RuntimeVariable.TotalLLMWorkerEndpointRequests] == 6
+    assert tracked[RuntimeVariable.TotalLLMWorkerCacheHits] == 1
+    assert tracked[RuntimeVariable.TotalLLMWorkerTargetsWithoutCallable] == 2
 
 
 def test_report_search_effort_sums_iterations_and_takes_the_longest_search_time():

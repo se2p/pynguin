@@ -43,6 +43,11 @@ class OutputSuppressionContext:
     - OS level: redirects file descriptor 0 to ``/dev/null`` and saves file
       descriptors 0/1/2 via ``os.dup`` so that if the SUT closes or modifies them,
       they are cleanly restored on exit.
+
+    It also restores the root logger's handlers on exit. The SUT may replace them,
+    and a test-execution thread that is stopped never runs the SUT code that would
+    undo this. Pynguin's own log records would then reach a handler defined in the
+    instrumented SUT, which aborts when it runs outside the test-execution thread.
     """
 
     # Repeatedly opening/closing devnull caused problems.
@@ -56,9 +61,10 @@ class OutputSuppressionContext:
         self._restored = False
         self._restored_lock = threading.Lock()
         self._saved_fds: dict[int, int] = {}
+        self._saved_root_handlers: list[logging.Handler] = []
 
     def restore(self) -> None:
-        """Restore stdin, stdout, and stderr at both Python and OS level."""
+        """Restore stdin, stdout, and stderr at both levels, and the root logger's handlers."""
         with self._restored_lock:
             if self._restored:
                 return
@@ -74,8 +80,10 @@ class OutputSuppressionContext:
             sys.stdin = sys.__stdin__
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
+            logging.root.handlers = self._saved_root_handlers
 
     def __enter__(self) -> None:
+        self._saved_root_handlers = list(logging.root.handlers)
         # Save OS-level fds before the SUT has a chance to close them.
         for fd in (0, 1, 2):
             with contextlib.suppress(OSError):

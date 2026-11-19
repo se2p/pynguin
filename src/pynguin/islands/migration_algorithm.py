@@ -23,7 +23,7 @@ from pynguin.ga.operators.selection import (
     SelectionFunction,
     TruncationSelection,
 )
-from pynguin.islands.migration import MigrationMessage, compute_test_case_hash
+from pynguin.islands.migration import MigrationMessage, compute_test_case_hash, portable_test_case
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
@@ -164,12 +164,10 @@ class IslandMigrationExtension:
             solution = search.covering_solution(target)
             if solution is None:
                 continue
-            clone = solution.test_case.clone()
-            content_hash = compute_test_case_hash(clone)
-            if content_hash in self._seen_migration_hashes:
-                self.stats.dedup_drops += 1
+            outgoing = self._prepare_outgoing(solution.test_case)
+            if outgoing is None:
                 continue
-            self._seen_migration_hashes.add(content_hash)
+            content_hash, migrant = outgoing
             branch_fitness = cast("bg.BranchCoverageTestFitness", target)
             goal = cast("bg.BranchGoal", branch_fitness.goal)
             self._migration_channel.broadcast(
@@ -177,7 +175,7 @@ class IslandMigrationExtension:
                     source_island=self._island_id,
                     covered_goal=goal,
                     content_hash=content_hash,
-                    test_case=clone,
+                    test_case=migrant,
                 )
             )
             self.stats.goal_triggered_sent += 1
@@ -209,19 +207,17 @@ class IslandMigrationExtension:
         )
         sent = 0
         for chromosome in migrants:
-            clone = chromosome.test_case.clone()
-            content_hash = compute_test_case_hash(clone)
-            if content_hash in self._seen_migration_hashes:
-                self.stats.dedup_drops += 1
+            outgoing = self._prepare_outgoing(chromosome.test_case)
+            if outgoing is None:
                 continue
-            self._seen_migration_hashes.add(content_hash)
+            content_hash, migrant = outgoing
             self._migration_channel.send_to(
                 destination,
                 MigrationMessage(
                     source_island=self._island_id,
                     covered_goal=None,
                     content_hash=content_hash,
-                    test_case=clone,
+                    test_case=migrant,
                 ),
             )
             sent += 1
@@ -232,6 +228,24 @@ class IslandMigrationExtension:
             sent,
             destination,
         )
+
+    def _prepare_outgoing(self, test_case: tc.TestCase) -> tuple[str, tc.TestCase] | None:
+        """Prepare a test case for sending unless this island already exchanged it.
+
+        Args:
+            test_case: The test case to send.
+
+        Returns:
+            The test case's content hash and a portable copy of it, or None if the
+            island already sent or received it, or it cannot be sent.
+        """
+        content_hash = compute_test_case_hash(test_case)
+        if content_hash in self._seen_migration_hashes:
+            self.stats.dedup_drops += 1
+            return None
+        self._seen_migration_hashes.add(content_hash)
+        migrant = portable_test_case(test_case)
+        return None if migrant is None else (content_hash, migrant)
 
     def _drain_incoming_migrants(self, search: DynaMOSASearchView) -> int:
         """Add unseen migrants from this island's inbox to the search.

@@ -25,6 +25,7 @@ from inspect import isclass
 from typing import Any
 
 import libcst as cst
+from multiprocess.reduction import ForkingPickler
 
 if sys.version_info >= (3, 14):
     import annotationlib
@@ -116,6 +117,37 @@ def is_type_picklable(typ: Any) -> bool:
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def multiprocess_pickling_error(obj: object) -> Exception | None:
+    """The error multiprocess's pickler raises for an object, if any.
+
+    multiprocess pickles what it sends to another process with its own pickler,
+    which can pickle some objects the standard pickler cannot and vice versa.
+
+    Args:
+        obj: The object to check.
+
+    Returns:
+        The exception pickling the object raised, or None if it can be pickled.
+    """
+    try:
+        ForkingPickler.dumps(obj)
+    except Exception as error:  # noqa: BLE001
+        return error
+    return None
+
+
+def is_multiprocess_picklable(obj: object) -> bool:
+    """Check whether multiprocess can pickle an object to send it to another process.
+
+    Args:
+        obj: The object to check.
+
+    Returns:
+        Whether multiprocess's pickler can pickle the object.
+    """
+    return multiprocess_pickling_error(obj) is None
 
 
 def is_none_type(typ: type | None) -> bool:

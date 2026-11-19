@@ -112,6 +112,31 @@ def test_setup_hook():
 
 
 @pytest.mark.parametrize(
+    "output_variables,expected",
+    [
+        ([], {config.CoverageMetric.BRANCH}),
+        (
+            [RuntimeVariable.LineCoverageTimeline],
+            {config.CoverageMetric.BRANCH, config.CoverageMetric.LINE},
+        ),
+    ],
+)
+def test_setup_hook_traces_lines_for_the_line_coverage_timeline(output_variables, expected):
+    gen.set_configuration(
+        configuration=MagicMock(
+            log_file=None,
+            module_name="test_module",
+            search_algorithm=MagicMock(coverage_metrics=[config.CoverageMetric.BRANCH]),
+            statistics_output=MagicMock(output_variables=output_variables),
+        )
+    )
+    with mock.patch.object(gen, "install_import_hook") as hook_mock:
+        gen._setup_import_hook(None)
+
+    assert hook_mock.call_args.kwargs["coverage_metrics"] == expected
+
+
+@pytest.mark.parametrize(
     "optimize,track,existing,added",
     [
         (
@@ -989,6 +1014,24 @@ def test_verify_config_periodic_migration_full_per_island_uses_base_population(t
     )
     gen.set_configuration(configuration)
     gen._verify_config()
+
+
+def test_setup_and_check_inspects_sut_objects_with_instrumented_attribute_lookup(tmp_path):
+    project_path = Path().absolute()
+    if project_path.name == "tests":
+        project_path /= ".."  # pragma: no cover
+    gen.set_configuration(
+        config.Configuration(
+            module_name="tests.fixtures.cluster.attribute_dict",
+            project_path=str(project_path),
+            test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+            statistics_output=config.StatisticsOutputConfiguration(
+                report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
+            ),
+        )
+    )
+
+    assert gen._setup_and_check() is not None
 
 
 def test_check_sut_uses_random_false_when_random_not_loaded():

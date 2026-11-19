@@ -32,7 +32,7 @@ from pynguin.testcase.execution_result import ExecutionResult
 from pynguin.utils import randomness
 from pynguin.utils.statistics import stats as stat
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.type_utils import is_type_picklable
+from pynguin.utils.type_utils import is_type_picklable, multiprocess_pickling_error
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Generator, Iterable
@@ -588,15 +588,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _is_picklable(obj: object) -> bool:
-        try:
-            ForkingPickler.dumps(obj)
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                f"Unpicklable {type(obj).__name__}",
-                exception,
-            )
-            return False
-        return True
+        exception = multiprocess_pickling_error(obj)
+        if exception is None:
+            return True
+        SubprocessTestCaseExecutor._log_different_results(
+            f"Unpicklable {type(obj).__name__}",
+            exception,
+        )
+        return False
 
     @staticmethod
     def _create_new_reference_bindings(

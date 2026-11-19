@@ -35,6 +35,7 @@ from pynguin.utils.type_utils import (
     is_enum,
     is_ignorable_type,
     is_list,
+    is_multiprocess_picklable,
     is_none_type,
     is_numeric,
     is_optional_parameter,
@@ -44,6 +45,7 @@ from pynguin.utils.type_utils import (
     is_string,
     is_tuple,
     is_type_picklable,
+    multiprocess_pickling_error,
 )
 
 
@@ -553,6 +555,18 @@ def test_is_type_picklable():
         assert is_type_picklable(list[scanner]) is False
     except (ImportError, AttributeError):
         pass
+
+
+@pytest.mark.parametrize("obj", [[1, "a"], int, {"key": (1, 2.0)}])
+def test_multiprocess_picklable(obj):
+    assert multiprocess_pickling_error(obj) is None
+    assert is_multiprocess_picklable(obj) is True
+
+
+def test_multiprocess_unpicklable_reports_error():
+    generator = (x for x in [1])
+    assert isinstance(multiprocess_pickling_error(generator), TypeError)
+    assert is_multiprocess_picklable(generator) is False
 
 
 @pytest.mark.skipif(sys.version_info < (3, 14), reason="Annotations are deferred from Python 3.14")

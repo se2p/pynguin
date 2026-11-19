@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import gc
 import logging
 import signal
 import threading
@@ -17,6 +18,8 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import multiprocess as mp
+import multiprocess.connection as mp_conn
+import multiprocess.util as mp_util
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
@@ -28,12 +31,12 @@ from pynguin.islands.llm_worker_protocol import build_llm_worker_channels
 from pynguin.islands.migration import MigrationChannel, build_migration_inboxes
 from pynguin.islands.migration_algorithm import MigrationStats
 from pynguin.islands.population_allocation import compute_island_population_size
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import types
 
-    import multiprocess.connection as mp_conn
     import multiprocess.managers as mp_managers
 
     from pynguin.analyses.constants import ConstantProvider
@@ -64,6 +67,23 @@ _RESULT_GRACE_SECONDS = 300
 # process would have to redo the whole setup instead. generator._verify_config()
 # rejects island mode on platforms without fork.
 _FORK_START_METHOD = "fork"
+
+
+def _result_pipe() -> tuple[mp_conn.Connection, mp_conn.Connection]:
+    """Create the pipe through which a child process sends its result.
+
+    Every process forked afterward inherits the orchestrator's receiving end. The
+    SUT code an island executes can read from and close arbitrary file descriptors,
+    e.g., when it opens an int as a file name, and could thus consume or close
+    another process's result. Each forked process therefore closes its copy of the
+    receiving end right after the fork.
+
+    Returns:
+        The orchestrator's receiving end and the child's sending end.
+    """
+    receiving_connection, sending_connection = mp.Pipe(duplex=False)
+    mp_util.register_after_fork(receiving_connection, mp_conn.Connection.close)
+    return receiving_connection, sending_connection
 
 
 def _fan_out_island_configs(
@@ -166,7 +186,7 @@ def _setup_channels(
         result_inboxes=result_inboxes,
         broadcast_inboxes=broadcast_inboxes,
     )
-    llm_worker_connection, worker_sending_connection = mp.Pipe(duplex=False)
+    llm_worker_connection, worker_sending_connection = _result_pipe()
     llm_worker_process = mp.get_context(_FORK_START_METHOD).Process(
         target=llm_worker_main,
         args=(worker_task, worker_sending_connection, test_cluster),
@@ -255,12 +275,14 @@ def run_pynguin_with_islands(base_configuration: config.Configuration) -> Return
         ]
 
         _shutdown_llm_worker(channels)
-    except KeyboardInterrupt:
+    except BaseException:
+        # The island and LLM-worker processes are not daemonic, so the exit handler
+        # of multiprocess would otherwise wait for them, possibly forever.
         child_processes = [process for process, _ in processes_and_connections]
         if channels is not None and channels.llm_worker_process is not None:
             child_processes.append(channels.llm_worker_process)
         _LOGGER.info(
-            "Island run interrupted; stopping %d island and LLM worker process(es)",
+            "Island run interrupted or failed; stopping %d island and LLM worker process(es)",
             len(child_processes),
         )
         _stop_child_processes(child_processes, channels.manager if channels is not None else None)
@@ -276,7 +298,16 @@ def run_pynguin_with_islands(base_configuration: config.Configuration) -> Return
     _report_search_effort(results)
     _report_migration_stats(results)
 
-    return assemble_final_suite(results, executor, test_cluster, constant_provider)
+    # The merge executes the tests again. The garbage collector would run SUT
+    # finalizers, which can wait forever for a lock a stopped test-execution thread
+    # left held, so it is off until the merged suite is exported.
+    collecting = gc.isenabled()
+    gc.disable()
+    try:
+        return assemble_final_suite(results, executor, test_cluster, constant_provider)
+    finally:
+        if collecting:
+            gc.enable()
 
 
 def _start_islands(
@@ -298,7 +329,7 @@ def _start_islands(
         processes_and_connections: Receives each island process and its result pipe.
     """
     for island_config in island_configs:
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+        receiving_connection, sending_connection = _result_pipe()
         island_id = island_config.island.island_id
         task = IslandTask(
             island_id,
@@ -388,6 +419,23 @@ def _join_or_kill(process: mp.Process) -> None:
         process.join()
 
 
+def _best_so_far(timelines: list[list[tuple[int, float]]]) -> list[tuple[int, float]]:
+    """Merges timelines into the best value any of them has reached at each sample.
+
+    Args:
+        timelines: (time_stamp_ns, value) samples, one list per island.
+
+    Returns:
+        The merged samples in ascending time-stamp order.
+    """
+    best = 0.0
+    merged = []
+    for time_stamp, value in sorted(sample for timeline in timelines for sample in timeline):
+        best = max(best, value)
+        merged.append((time_stamp, best))
+    return merged
+
+
 def _report_coverage_timeline(results: list[IslandResult]) -> None:
     """Merges the islands' CoverageTimelines into the orchestrator's one.
 
@@ -395,10 +443,16 @@ def _report_coverage_timeline(results: list[IslandResult]) -> None:
     never writes statistics. The merged curve is the best coverage any island has
     reached so far, a lower bound of the merged suite's coverage at that time. The
     final merged suite's coverage is added after it when the result is finalized.
+    The LineCoverageTimeline, if tracked, is merged the same way.
 
     Args:
         results: One IslandResult per island.
     """
+    if stat.tracks_sequence(RuntimeVariable.LineCoverageTimeline):
+        stat.add_sequence_samples(
+            RuntimeVariable.LineCoverageTimeline,
+            _best_so_far([result.line_coverage_timeline for result in results]),
+        )
     for result in results:
         _LOGGER.info(
             "Island %d coverage over time (s, coverage): %s",
@@ -409,12 +463,7 @@ def _report_coverage_timeline(results: list[IslandResult]) -> None:
             ],
         )
 
-    merged_samples = sorted(sample for result in results for sample in result.coverage_timeline)
-    best_so_far = 0.0
-    merged_timeline = []
-    for time_stamp, coverage in merged_samples:
-        best_so_far = max(best_so_far, coverage)
-        merged_timeline.append((time_stamp, best_so_far))
+    merged_timeline = _best_so_far([result.coverage_timeline for result in results])
     _LOGGER.info(
         "Best coverage across all islands over time (s, coverage): %s",
         [(time_stamp / 1_000_000_000, coverage) for time_stamp, coverage in merged_timeline],
@@ -480,6 +529,9 @@ def _receive_and_join(
 
     Waiting is bounded, so a process that hangs without sending anything, e.g. in a
     native call of the SUT, is stopped instead of blocking the orchestrator forever.
+    The SUT code an island executes can write to its own end of the pipe, e.g., when
+    it writes to an int it takes for a file descriptor, so a message that cannot be
+    received is treated like no message.
 
     Args:
         process: The child process.
@@ -487,7 +539,8 @@ def _receive_and_join(
         timeout_seconds: How long to wait for the message.
 
     Returns:
-        The received message, or None if the process died or hung without sending one.
+        The received message, or None if the process died or hung without sending
+        one, or sent one that cannot be received.
     """
     message: Any | None = None
     try:
@@ -501,6 +554,8 @@ def _receive_and_join(
             )
     except EOFError:
         _LOGGER.error("Process %s died without sending anything", process.name)
+    except (Exception, TracingAbortedException) as error:
+        _LOGGER.error("Process %s sent a message that cannot be received: %r", process.name, error)
     if message is not None:
         process.join(timeout=_JOIN_TIMEOUT_SECONDS)
     if process.is_alive():
@@ -522,9 +577,14 @@ def _collect_island_result(
             its result.
 
     Returns:
-        The island's result, or None if it died or hung without sending one.
+        The island's result, or None if its search failed or it died or hung
+        without sending one.
     """
-    return _receive_and_join(process, receiving_connection, max(0.0, deadline - time.monotonic()))
+    result = _receive_and_join(process, receiving_connection, max(0.0, deadline - time.monotonic()))
+    if result is not None and result.return_code is not ReturnCode.OK:
+        _LOGGER.error("Island %d failed, leaving it out of the merge", result.island_id)
+        return None
+    return result
 
 
 def _collect_llm_worker_result(
@@ -551,6 +611,16 @@ def _track_llm_worker_stats(stats_report: WorkerStatsReport) -> None:
         stats_report: The worker's accumulated stats for this run.
     """
     stat.track_output_variable(RuntimeVariable.TotalLLMWorkerQueries, stats_report.queries_issued)
+    stat.track_output_variable(
+        RuntimeVariable.TotalLLMWorkerLogicalQueries, stats_report.logical_queries
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TotalLLMWorkerEndpointRequests, stats_report.endpoint_requests
+    )
+    stat.track_output_variable(RuntimeVariable.TotalLLMWorkerCacheHits, stats_report.cache_hits)
+    stat.track_output_variable(
+        RuntimeVariable.TotalLLMWorkerTargetsWithoutCallable, stats_report.targets_without_callable
+    )
     stat.track_output_variable(
         RuntimeVariable.TotalLLMWorkerQueryTimeSeconds, stats_report.total_latency_seconds
     )

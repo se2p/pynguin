@@ -23,29 +23,43 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.constants import ConstantProvider
     from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
     from pynguin.islands.island import IslandResult
     from pynguin.testcase.execution import TestCaseExecutor
+    from pynguin.testcase.execution_result import ExecutionResult
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _deduplicate_by_source(results: list[IslandResult]) -> list[tc.TestCase]:
+def _deduplicate_by_source(
+    results: list[IslandResult],
+) -> list[tuple[tc.TestCase, ExecutionResult | None]]:
     """Remove duplicate test cases produced by different islands.
 
     Test cases are compared using their source code without generated assertions.
     This avoids treating the same test as different only because its assertions
-    differ between islands.
+    differ between islands. The execution traces of duplicates are merged, so the
+    kept test case covers everything any island recorded for it.
 
     Args:
         results: One IslandResult per island.
 
     Returns:
-        The deduplicated test cases, first-island-wins on hash collisions.
+        The deduplicated test cases with their execution results, first-island-wins
+        on hash collisions.
     """
-    seen: dict[str, tc.TestCase] = {}
+    seen: dict[str, tuple[tc.TestCase, ExecutionResult | None]] = {}
     for result in results:
-        for test_case in result.test_cases:
-            seen.setdefault(compute_test_case_hash(test_case), test_case)
+        execution_results = result.execution_results or [None] * len(result.test_cases)
+        for test_case, execution_result in zip(result.test_cases, execution_results, strict=True):
+            key = compute_test_case_hash(test_case)
+            kept_test_case, kept_result = seen.setdefault(key, (test_case, execution_result))
+            if execution_result is None or execution_result is kept_result:
+                continue
+            if kept_result is None:
+                seen[key] = (kept_test_case, execution_result)
+            else:
+                kept_result.execution_trace.merge(execution_result.execution_trace)
     return list(seen.values())
 
 
@@ -79,6 +93,41 @@ def prepare_orchestrator_setup(
     return setup_result
 
 
+def _instantiate_strategy_for_merge(
+    executor: TestCaseExecutor,
+    test_cluster: ModuleTestCluster,
+    constant_provider: ConstantProvider,
+) -> GenerationAlgorithm:
+    """Build the strategy whose test factory and fitness functions the merge uses.
+
+    The strategy is never run, since the islands' own searches found the test cases;
+    it only provides correctly wired test factory, fitness and coverage functions via
+    the existing factory code path. The factory builds these alike for DYNAMOSA and
+    LLDYNAMOSA, so islands that ran LLDYNAMOSA get a DYNAMOSA strategy: constructing
+    LLDYNAMOSA creates an LLM client, which creates its cache directory, and after the
+    islands' searches the SUT may have made that directory inaccessible, e.g., by
+    changing permissions in the home directory, which would abort the run before its
+    statistics are written.
+
+    Args:
+        executor: The orchestrator's executor.
+        test_cluster: The orchestrator's test cluster.
+        constant_provider: The orchestrator's constant provider.
+
+    Returns:
+        The strategy, for the configured algorithm or DYNAMOSA instead of LLDYNAMOSA.
+    """
+    algorithm = config.configuration.algorithm
+    if algorithm is config.Algorithm.LLDYNAMOSA:
+        config.configuration.algorithm = config.Algorithm.DYNAMOSA
+    try:
+        return generator._instantiate_test_generation_strategy(  # noqa: SLF001
+            executor, test_cluster, constant_provider
+        )
+    finally:
+        config.configuration.algorithm = algorithm
+
+
 def assemble_final_suite(
     results: list[IslandResult],
     executor: TestCaseExecutor,
@@ -88,8 +137,10 @@ def assemble_final_suite(
     """Merge the island results into a single test suite.
 
     Duplicate test cases are removed before creating chromosomes with the
-    orchestrator's executor and fitness functions. Process-local island state is
-    not reused.
+    orchestrator's executor and fitness functions. Each chromosome keeps the
+    execution result its island recorded, so its coverage is the one the search
+    measured, as for the final suite of a single-process search; a test case
+    without one is executed again.
 
     The merged suite is then finalized using the same steps as the single-process
     search. The number of merged islands and test cases before and after
@@ -119,18 +170,16 @@ def assemble_final_suite(
         RuntimeVariable.IslandDuplicateTestCasesRemoved, num_before_dedup - len(deduplicated)
     )
 
-    # Built only to harvest correctly-wired test_factory/fitness/coverage functions
-    # via the existing factory code path -- never run, since these test cases were
-    # already found by the islands' own searches.
-    strategy = generator._instantiate_test_generation_strategy(  # noqa: SLF001
-        executor, test_cluster, constant_provider
-    )
+    strategy = _instantiate_strategy_for_merge(executor, test_cluster, constant_provider)
 
     chromosomes = []
-    for test_case in deduplicated:
+    for test_case, execution_result in deduplicated:
         chromosome = tcc.TestCaseChromosome(test_case=test_case, test_factory=strategy.test_factory)
         for fitness_function in strategy.test_case_fitness_functions:
             chromosome.add_fitness_function(fitness_function)
+        if execution_result is not None:
+            chromosome.set_last_execution_result(execution_result)
+            chromosome.changed = False
         chromosomes.append(chromosome)
     merged_suite = strategy.create_test_suite(chromosomes)
 
