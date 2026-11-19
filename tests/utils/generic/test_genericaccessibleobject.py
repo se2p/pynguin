@@ -263,6 +263,25 @@ def test_generic_function_is_generator(type_system):
     assert coro.is_coroutine
 
 
+def test_generic_function_is_generator_with_wrapped_callables(type_system):
+    def gen_func():
+        yield 1
+
+    def wraps_generator():
+        return gen_func()
+
+    def wrapper_loop():
+        return 1
+
+    wraps_generator.__wrapped__ = gen_func
+    wrapper_loop.__wrapped__ = wrapper_loop
+    mock_signature = MagicMock()
+    mock_signature.return_type = type_system.convert_type_hint(None)
+
+    assert GenericFunction(wraps_generator, mock_signature).is_generator
+    assert not GenericFunction(wrapper_loop, mock_signature).is_generator
+
+
 def test_generic_method_is_generator(type_system):
     class GeneratorClass:
         def gen_m(self):
