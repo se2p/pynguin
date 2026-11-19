@@ -11,11 +11,13 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
+import math
 import time
 from typing import TYPE_CHECKING
 
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
+from pynguin.ga.algorithms.llmlineage import BLEND_CHANNELS, BlendChannel, LineageTracker
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
     import pynguin.ga.chromosomefactory as cf
+    import pynguin.ga.computations as ff
     import pynguin.ga.testsuitechromosome as tsc
 
 import operator
@@ -38,6 +41,7 @@ from pynguin.large_language_model.llmtestcasehandler import (
 )
 from pynguin.large_language_model.query_strategy import get_query_strategy
 from pynguin.large_language_model.tracing import CallPurpose, count
+from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -157,6 +161,13 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         # Whether the current in-flight query already caused a stall to be skipped,
         # so a stall that lasts several iterations is only counted once.
         self._inflight_skip_counted = False
+        # Lineages of injected LLM test cases, for blending, elitism and statistics.
+        self._lineage = LineageTracker()
+        self._generation = 0
+        # Injected test cases with the blend channels they still have to be bred with.
+        self._blend_queue: list[tuple[tcc.TestCaseChromosome, list[BlendChannel]]] = []
+        # Offspring of the current generation, which are part of the union in evolve().
+        self._last_offspring: list[tcc.TestCaseChromosome] = []
 
     def _target_initial_uncovered_goals(self) -> None:
         """Performs an LLM intervention to improve coverage before search iteration."""
@@ -177,7 +188,9 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
                 )
                 return
             working_chromosomes = self._execute_and_repair(generation)
-            self._population = working_chromosomes + self._population
+            self._population = (
+                self._register_injected_chromosomes(working_chromosomes) + self._population
+            )
             self._archive.update(self._population)
 
             coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
@@ -471,11 +484,214 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         Args:
             llm_chromosomes: List of test case chromosomes from the LLM.
         """
-        self._population = llm_chromosomes + self._population
+        self._population = self._register_injected_chromosomes(llm_chromosomes) + self._population
         self._logger.info(
             "Added %d LLM test case chromosomes to the population.",
             len(llm_chromosomes),
         )
+
+    @staticmethod
+    def _blend_counts() -> dict[BlendChannel, int]:
+        search_config = config.configuration.search_algorithm
+        return {
+            BlendChannel.GOAL_CROSSOVER: search_config.llm_blend_goal_crossovers,
+            BlendChannel.MUTANT: search_config.llm_blend_mutants,
+            BlendChannel.TOURNAMENT_CROSSOVER: search_config.llm_blend_tournament_crossovers,
+        }
+
+    def _register_injected_chromosomes(
+        self, llm_chromosomes: list[tcc.TestCaseChromosome]
+    ) -> list[tcc.TestCaseChromosome]:
+        """Starts a lineage for each injected test case and queues it for blending.
+
+        Args:
+            llm_chromosomes: The LLM test cases that enter the population.
+
+        Returns:
+            The test cases to add to the population: all of them, unless blending is
+            enabled and ``llm_blend_keep_raw`` is off. In that case, only the archive
+            is updated with them.
+        """
+        counts = self._blend_counts()
+        brood = [channel for channel in BLEND_CHANNELS for _ in range(max(counts[channel], 0))]
+        for chromosome in llm_chromosomes:
+            self._lineage.inject(chromosome, self._generation)
+            if brood:
+                self._blend_queue.append((chromosome, list(brood)))
+        if brood and not config.configuration.search_algorithm.llm_blend_keep_raw:
+            # They do not compete, but the archive keeps the goals they cover.
+            self._update_goals_with(llm_chromosomes)
+            return []
+        return llm_chromosomes
+
+    def _breed_llm_broods(self) -> list[tcc.TestCaseChromosome]:
+        """Breeds the queued broods of injected test cases, up to the evaluation cap.
+
+        Returns:
+            The blended offspring, each starting a sub-lineage of its injected test.
+        """
+        cap = config.configuration.search_algorithm.llm_blend_max_evaluations
+        limit = cap if cap > 0 else math.inf
+        brood: list[tcc.TestCaseChromosome] = []
+        while self._blend_queue and len(brood) < limit:
+            injected, channels = self._blend_queue[0]
+            root = self._lineage.root_of(injected)
+            assert root is not None
+            while channels and len(brood) < limit:
+                channel = channels.pop(0)
+                offspring = self._blend(injected, channel)
+                if offspring is not None:
+                    self._lineage.derive(offspring, root, channel, self._generation)
+                    brood.append(offspring)
+            if not channels:
+                self._blend_queue.pop(0)
+        return brood
+
+    def _blend(
+        self, injected: tcc.TestCaseChromosome, channel: BlendChannel
+    ) -> tcc.TestCaseChromosome | None:
+        """Breeds one offspring of an injected test case.
+
+        Args:
+            injected: The injected test case.
+            channel: The blend channel to use.
+
+        Returns:
+            The offspring, or None if it is empty or equal to the injected test case.
+        """
+        offspring = injected.clone()
+        if channel is BlendChannel.MUTANT:
+            for _ in range(config.configuration.search_algorithm.number_of_mutations):
+                self._mutate(offspring)
+        else:
+            partner = (
+                self._goal_crossover_partner(injected)
+                if channel is BlendChannel.GOAL_CROSSOVER
+                else None
+            )
+            if partner is None:
+                partner = self._selection_function.select(self._population)[0]
+            try:
+                self._crossover_function.cross_over(offspring, partner.clone())
+            except ConstructionFailedException:
+                self._logger.debug("Blending crossover failed.")
+                return None
+        if offspring.size() == 0 or offspring.test_case == injected.test_case:
+            return None
+        return offspring
+
+    def _blend_target_goals(self) -> Iterable[ff.FitnessFunction]:
+        """Returns the uncovered goals a goal crossover may aim at.
+
+        Returns:
+            The uncovered goals of the archive.
+        """
+        return self._archive.uncovered_goals
+
+    def _goal_crossover_partner(
+        self, injected: tcc.TestCaseChromosome
+    ) -> tcc.TestCaseChromosome | None:
+        """Picks the partner of a goal crossover.
+
+        The target is the uncovered goal the injected test case gets closest to; the
+        partner is the population member outside its lineage that gets closest to the
+        same goal.
+
+        Args:
+            injected: The injected test case.
+
+        Returns:
+            The partner, or None if there is no uncovered goal or no candidate.
+        """
+        goals = list(self._blend_target_goals())
+        root = self._lineage.root_of(injected)
+        candidates = [
+            member
+            for member in self._population
+            if member is not injected and self._lineage.root_of(member) != root
+        ]
+        if not goals or not candidates:
+            return None
+        target = min(goals, key=injected.get_fitness_for)
+        return min(candidates, key=lambda member: member.get_fitness_for(target))
+
+    def evolve(self) -> None:
+        """Runs one evolution step, then applies lineage bookkeeping and elitism."""
+        previous_population = list(self._population)
+        self._last_offspring = []
+        super().evolve()
+        self._lineage.observe(self._population)
+        self._apply_lineage_elitism(previous_population + self._last_offspring)
+        self._generation += 1
+
+    def _apply_lineage_elitism(self, union: list[tcc.TestCaseChromosome]) -> None:
+        """Puts the best member of each young lineage back if selection dropped them all.
+
+        The best member is the one closest to an uncovered goal; rank and crowding
+        distance are not used, because the ranking stops after the first fronts that
+        fill the population, so dropped members carry stale or unset values. A
+        re-inserted member replaces the worst population member that does not belong
+        to a young lineage, so the population size stays the same.
+
+        Args:
+            union: The parents and offspring that the last selection chose from.
+        """
+        search_config = config.configuration.search_algorithm
+        generations = search_config.llm_lineage_elitism_generations
+        if generations <= 0:
+            return
+        young = self._lineage.young_roots(self._generation, generations)
+        if not young:
+            return
+        cap = math.floor(search_config.llm_lineage_elitism_max_fraction * search_config.population)
+        present = self._lineage.roots_in(self._population)
+        protected = set(young)
+        goals = list(self._blend_target_goals())
+        reinserted: list[tcc.TestCaseChromosome] = []
+        for root in young:
+            if len(reinserted) >= cap:
+                break
+            if root in present:
+                continue
+            members = [member for member in union if self._lineage.root_of(member) == root]
+            if not members:
+                continue
+            best = min(
+                members,
+                key=lambda member: min(
+                    (member.get_fitness_for(goal) for goal in goals), default=0.0
+                ),
+            )
+            replace_at = next(
+                (
+                    index
+                    for index in range(len(self._population) - 1, -1, -1)
+                    if self._lineage.root_of(self._population[index]) not in protected
+                ),
+                None,
+            )
+            if replace_at is None:
+                self._population.append(best)
+            else:
+                self._population[replace_at] = best
+            reinserted.append(best)
+        if reinserted:
+            self._lineage.reinsertions += len(reinserted)
+            self._update_goals_with(reinserted)
+
+    def _update_goals_with(self, chromosomes: list[tcc.TestCaseChromosome]) -> None:
+        """Updates the archive with chromosomes that joined the population late.
+
+        Args:
+            chromosomes: The chromosomes.
+        """
+        self._archive.update(chromosomes)
+
+    def after_search_finish(self) -> None:
+        """Reports the lineage statistics, then notifies the search observers."""
+        for variable, value in self._lineage.statistics(self._population).items():
+            stat.track_output_variable(variable, value)
+        super().after_search_finish()
 
     def _maybe_intervene_on_stall(self) -> None:
         """Query the LLM for uncovered targets on a stall, respecting cap and budget.
@@ -782,4 +998,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             "test_case_chromosome_factory",
             self._chromosome_factory,
         )
-        return super()._breed_next_generation(actual_factory)
+        offspring = super()._breed_next_generation(actual_factory)
+        offspring.extend(self._breed_llm_broods())
+        self._last_offspring = offspring
+        return offspring

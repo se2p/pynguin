@@ -354,6 +354,34 @@ class RuntimeVariable(str, enum.Enum):
     # Total of LLM test cases tha are merged into the population
     TotalLTCs = "TotalLTCs"
 
+    # LLM test cases injected into the population during the search
+    LLMInjectedTests = "LLMInjectedTests"
+
+    # Injected LLM test cases with a lineage member in the population after the first
+    # selection following their injection
+    LLMInjectedAdmitted = "LLMInjectedAdmitted"
+
+    # Injected LLM test cases with a lineage member in the final population
+    LLMInjectedSurvived = "LLMInjectedSurvived"
+
+    # Offspring blended from injected LLM test cases, per channel
+    LLMBlendGoalCrossoverBred = "LLMBlendGoalCrossoverBred"
+    LLMBlendMutantBred = "LLMBlendMutantBred"
+    LLMBlendTournamentCrossoverBred = "LLMBlendTournamentCrossoverBred"
+
+    # Blended offspring that made it into the population after their first selection
+    LLMBlendGoalCrossoverAdmitted = "LLMBlendGoalCrossoverAdmitted"
+    LLMBlendMutantAdmitted = "LLMBlendMutantAdmitted"
+    LLMBlendTournamentCrossoverAdmitted = "LLMBlendTournamentCrossoverAdmitted"
+
+    # Blended offspring with a descendant in the final population
+    LLMBlendGoalCrossoverSurvived = "LLMBlendGoalCrossoverSurvived"
+    LLMBlendMutantSurvived = "LLMBlendMutantSurvived"
+    LLMBlendTournamentCrossoverSurvived = "LLMBlendTournamentCrossoverSurvived"
+
+    # Lineage members put back into the population by lineage elitism
+    LLMLineageElitismReinsertions = "LLMLineageElitismReinsertions"
+
     # LLM statements admitted to a test case and resolved against the cluster
     LLMAdmitted = "LLMAdmitted"
 

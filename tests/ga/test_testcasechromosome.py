@@ -674,3 +674,31 @@ def test_fitness_cache_not_invalidated_without_mutation(default_test_case):
 
     assert chromosome.get_fitness() == 1.0
     assert fitness_function.compute_fitness.call_count == 1
+
+
+# --------------------------------------------------------------------------------
+# Lineage
+# --------------------------------------------------------------------------------
+
+
+def test_lineage_default_none(test_case_chromosome):
+    assert test_case_chromosome.lineage is None
+
+
+def test_lineage_survives_clone(test_case_chromosome):
+    test_case_chromosome.lineage = 3
+    assert test_case_chromosome.clone().lineage == 3
+
+
+@pytest.mark.parametrize(
+    "own,other,expected",
+    [(None, None, None), (None, 2, 2), (1, 2, 1), (1, None, 1)],
+)
+def test_lineage_after_cross_over(default_test_case, own, other, expected):
+    offspring = tcc.TestCaseChromosome(default_test_case)
+    partner = tcc.TestCaseChromosome(default_test_case.clone())
+    offspring.lineage = own
+    partner.lineage = other
+    with mock.patch("pynguin.ga.operators.crossover.splice_test_case_chromosomes"):
+        offspring.cross_over(partner, 0, 0)
+    assert offspring.lineage == expected

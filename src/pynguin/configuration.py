@@ -978,6 +978,40 @@ class SearchAlgorithmConfiguration:
     number_of_mutations: int = 3
     """Number of mutations that should be applied in one breeding step."""
 
+    llm_blend_goal_crossovers: int = 0
+    """LLM-based algorithms only. Number of offspring bred from each injected LLM test
+    by crossover with the population member closest to the uncovered goal that the
+    injected test gets closest to. 0 disables this channel."""
+
+    llm_blend_mutants: int = 0
+    """LLM-based algorithms only. Number of mutants bred from each injected LLM test.
+    0 disables this channel."""
+
+    llm_blend_tournament_crossovers: int = 0
+    """LLM-based algorithms only. Number of offspring bred from each injected LLM test
+    by crossover with a partner picked by the selection operator. 0 disables this
+    channel."""
+
+    llm_blend_max_evaluations: int = 0
+    """LLM-based algorithms only. Maximum number of blended offspring added per
+    generation; the remaining offspring are bred in the next generations. 0 means no
+    limit."""
+
+    llm_blend_keep_raw: bool = True
+    """LLM-based algorithms only. Whether injected LLM tests join the population
+    themselves. If False, only their blended offspring compete; this only applies when
+    at least one blend channel is enabled."""
+
+    llm_lineage_elitism_generations: int = 0
+    """LLM-based algorithms only. For this many generations after an LLM test was
+    injected, the best member of its lineage is put back into the population if
+    selection dropped all of them. 0 disables lineage elitism."""
+
+    llm_lineage_elitism_max_fraction: float = 0.1
+    """LLM-based algorithms only. Maximum number of members lineage elitism puts back
+    per generation, as a fraction of the population size. They replace the worst
+    members of the population."""
+
 
 @dataclasses.dataclass
 class StringStatementConfiguration:
