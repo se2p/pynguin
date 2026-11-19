@@ -702,6 +702,48 @@ def test_verify_config_migration_allows_lldynamosa(tmp_path):
     gen._verify_config()
 
 
+def _speciation_configuration(tmp_path, algorithm, **search_options):
+    return config.Configuration(
+        algorithm=algorithm,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        search_algorithm=config.SearchAlgorithmConfiguration(**search_options),
+    )
+
+
+@pytest.mark.parametrize("option", ["speciation", "speciation_track_only"])
+@pytest.mark.parametrize(
+    "algorithm", [config.Algorithm.MOSA, config.Algorithm.MIO, config.Algorithm.WHOLE_SUITE]
+)
+def test_verify_config_speciation_requires_dynamosa_or_lldynamosa(tmp_path, algorithm, option):
+    gen.set_configuration(_speciation_configuration(tmp_path, algorithm, **{option: True}))
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"Speciation requires algorithm to be DYNAMOSA or LLDYNAMOSA",
+    ):
+        gen._verify_config()
+
+
+@pytest.mark.parametrize("algorithm", [config.Algorithm.DYNAMOSA, config.Algorithm.LLDYNAMOSA])
+def test_verify_config_speciation_allows_dynamosa_and_lldynamosa(tmp_path, algorithm):
+    gen.set_configuration(_speciation_configuration(tmp_path, algorithm, speciation=True))
+    gen._verify_config()
+
+
+def test_verify_config_rejects_invalid_speciation_options(tmp_path):
+    gen.set_configuration(
+        _speciation_configuration(
+            tmp_path,
+            config.Algorithm.DYNAMOSA,
+            speciation_track_only=True,
+            speciation_max_species_share=0.0,
+        )
+    )
+    with pytest.raises(gen.ConfigurationException, match=r"speciation_max_species_share"):
+        gen._verify_config()
+
+
 @pytest.mark.parametrize(
     "migration_strategy",
     [config.MigrationStrategy.GOAL_TRIGGERED, config.MigrationStrategy.DISABLED],

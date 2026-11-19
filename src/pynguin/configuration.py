@@ -282,6 +282,16 @@ class Selection(str, enum.Enum):
     """Tournament selection.  Use `tournament_size` to set size."""
 
 
+class SpeciationMetric(str, enum.Enum):
+    """Distance metrics for grouping test cases into species."""
+
+    METHOD_CALL_JACCARD = "METHOD_CALL_JACCARD"
+    """Jaccard distance of the sets of names called in the test cases."""
+
+    TRACE_BRANCH_JACCARD = "TRACE_BRANCH_JACCARD"
+    """Jaccard distance of the sets of branches covered by the test cases."""
+
+
 @dataclasses.dataclass
 class StatisticsOutputConfiguration:
     """Configuration related to output."""
@@ -1011,6 +1021,42 @@ class SearchAlgorithmConfiguration:
     """LLM-based algorithms only. Maximum number of members lineage elitism puts back
     per generation, as a fraction of the population size. They replace the worst
     members of the population."""
+
+    speciation: bool = False
+    """Group the test cases of DynaMOSA (and LLDynaMOSA) into species and use the
+    species in selection, see the other `speciation_*` options."""
+
+    speciation_track_only: bool = False
+    """Assign species and record the speciation statistics without changing the
+    selection.  Has no effect if `speciation` is enabled."""
+
+    speciation_metric: SpeciationMetric = SpeciationMetric.METHOD_CALL_JACCARD
+    """The distance metric used to assign test cases to species."""
+
+    speciation_threshold: float = 0.5
+    """Maximum distance of a test case to a species' representative to join that
+    species.  Expects values in [0,1]."""
+
+    speciation_max_species_share: float = 1.0
+    """Maximum share of the next population a single species may take, applied from
+    the second front on.  The first (preference) front is always kept whole.  Expects
+    values in (0,1]; 1.0 disables the cap."""
+
+    speciation_min_survivors: int = 0
+    """Number of members each species keeps in the next population, if it has
+    them."""
+
+    speciation_newborn_protection: int = 0
+    """Number of generations a newly founded species keeps at least its best member
+    in the next population.  0 disables the protection."""
+
+    speciation_restrict_mating: bool = False
+    """Select the second parent from the species of the first parent, if that
+    species has more than one member in the population."""
+
+    speciation_fitness_sharing: bool = False
+    """Divide the crowding distance of each test case by the size of its species
+    before a front is cut."""
 
 
 @dataclasses.dataclass

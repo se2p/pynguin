@@ -247,6 +247,19 @@ class _SearchStatistics:
                 RuntimeVariable.TotalExceptionsTimeline
             )
         )
+        for variable in (
+            RuntimeVariable.SpeciesCountTimeline,
+            RuntimeVariable.ProtectedIndividualsTimeline,
+            RuntimeVariable.ProtectedSpeciesTimeline,
+        ):
+            self._sequence_output_variable_factories[variable.name] = (
+                ovf.DirectSequenceOutputVariableFactory.get_integer(variable)
+            )
+        self._sequence_output_variable_factories[
+            RuntimeVariable.LargestSpeciesShareTimeline.name
+        ] = ovf.DirectSequenceOutputVariableFactory.get_float(
+            RuntimeVariable.LargestSpeciesShareTimeline
+        )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:
         """Set start time for sequence data.

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import TYPE_CHECKING, Protocol, cast
 
 import networkx as nx
@@ -18,6 +19,11 @@ import pynguin.ga.coveragegoals as bg
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
+from pynguin.ga.algorithms.speciation import (
+    SpeciationOptions,
+    SpeciesAssigner,
+    select_next_population,
+)
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.testcase.localsearch import TestSuiteLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
@@ -31,6 +37,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
     from pynguin.ga.algorithms.archive import CoverageArchive
+    from pynguin.ga.operators.ranking import RankedFronts
     from pynguin.instrumentation.controlflow import BasicBlockNode
     from pynguin.instrumentation.tracer import CodeObjectMetaData, SubjectProperties
 
@@ -88,6 +95,13 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         super().__init__()
         self._goals_manager: _GoalsManager
         self._generation_extensions: list[GenerationExtension] = []
+        # Speciation: the assigner exists if species are tracked; the options exist
+        # if species also drive selection.
+        self._species_assigner: SpeciesAssigner | None = None
+        self._speciation_options: SpeciationOptions | None = None
+        self._generation = 0
+        self._protected_individuals = 0
+        self._protected_species = 0
 
     def add_generation_extension(self, extension: GenerationExtension) -> None:
         """Add an extension to the DynaMOSA generation loop.
@@ -199,6 +213,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             fast_epsilon_dominance_assignment(
                 fronts.get_sub_front(i), self._goals_manager.current_goals
             )
+        self._init_speciation(fronts)
 
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
         while self.resources_left() and len(self._archive.uncovered_goals) > 0:
@@ -232,6 +247,23 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             union, self._goals_manager.current_goals
         )
 
+        all_fronts = [fronts.get_sub_front(i) for i in range(fronts.get_number_of_sub_fronts())]
+        if self._species_assigner is not None:
+            self._generation += 1
+            self._species_assigner.assign(
+                [individual for front in all_fronts for individual in front], self._generation
+            )
+        if self._speciation_options is not None:
+            self._population = self._select_with_species(all_fronts, self._speciation_options)
+        else:
+            self._select_plain(fronts)
+        if self._species_assigner is not None:
+            self._species_assigner.update_representatives(self._population)
+            self._record_species_statistics()
+
+        self._goals_manager.update(self._population)
+
+    def _select_plain(self, fronts: RankedFronts[tcc.TestCaseChromosome]) -> None:
         # Form the next population using “preference sorting and non-dominated
         # sorting” on the updated set of goals
         remain = max(
@@ -262,7 +294,140 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             front.sort(key=lambda t: t.distance, reverse=True)
             self._population.extend(front[k] for k in range(remain))
 
-        self._goals_manager.update(self._population)
+    def _init_speciation(self, fronts: RankedFronts[tcc.TestCaseChromosome]) -> None:
+        """Sets up speciation from the configuration and assigns the initial species.
+
+        Args:
+            fronts: The ranked fronts of the initial population.
+        """
+        search = config.configuration.search_algorithm
+        self._generation = 0
+        self._protected_individuals = 0
+        self._protected_species = 0
+        if not search.speciation and not search.speciation_track_only:
+            self._species_assigner = None
+            self._speciation_options = None
+            return
+        options = SpeciationOptions.from_configuration()
+        self._speciation_options = options if search.speciation else None
+        self._species_assigner = SpeciesAssigner(
+            search.speciation_metric, search.speciation_threshold
+        )
+        ordered = [
+            individual
+            for i in range(fronts.get_number_of_sub_fronts())
+            for individual in fronts.get_sub_front(i)
+        ]
+        self._species_assigner.assign(ordered, self._generation)
+        self._species_assigner.update_representatives(ordered)
+        self._record_species_statistics()
+
+    def _select_with_species(
+        self,
+        fronts: list[list[tcc.TestCaseChromosome]],
+        options: SpeciationOptions,
+    ) -> list[tcc.TestCaseChromosome]:
+        """Selects the next population with species-capped selection.
+
+        Args:
+            fronts: The ranked fronts of the union, best first.
+            options: The speciation options.
+
+        Returns:
+            The next population.
+        """
+        assigner = self._species_assigner
+        assert assigner is not None
+        for front in fronts:
+            fast_epsilon_dominance_assignment(front, self._goals_manager.current_goals)
+
+        def species_of(individual: tcc.TestCaseChromosome) -> int:
+            species_id = assigner.species_of(individual)
+            assert species_id is not None
+            return species_id
+
+        population_size = config.configuration.search_algorithm.population
+        protected_species = frozenset(
+            species_id
+            for species_id in assigner.species
+            if assigner.is_newborn(species_id, self._generation, options.newborn_protection)
+        )
+        reserves = options.min_survivors > 0 or bool(protected_species)
+        # The plain selection is only needed to count the individuals kept by
+        # reservations; it must run before fitness sharing changes the crowding
+        # distances.
+        plain_ids: set[int] = set()
+        if reserves:
+            plain = select_next_population(
+                fronts, population_size, species_of, SpeciationOptions()
+            ).population
+            plain_ids = {id(individual) for individual in plain}
+        outcome = select_next_population(
+            fronts, population_size, species_of, options, protected_species
+        )
+        self._protected_individuals = sum(
+            1 for individual in outcome.reserved if id(individual) not in plain_ids
+        )
+        self._protected_species = sum(
+            1
+            for species_id in protected_species
+            if any(species_of(individual) == species_id for individual in outcome.population)
+        )
+        return outcome.population
+
+    def _select_mate(self, parent_1: tcc.TestCaseChromosome) -> tcc.TestCaseChromosome:
+        """Selects the second parent, from the first parent's species if restricted.
+
+        Args:
+            parent_1: The first parent.
+
+        Returns:
+            The second parent.
+        """
+        assigner = self._species_assigner
+        if (
+            assigner is None
+            or self._speciation_options is None
+            or not config.configuration.search_algorithm.speciation_restrict_mating
+        ):
+            return super()._select_mate(parent_1)
+        species_id = assigner.species_of(parent_1)
+        if species_id is None:
+            return super()._select_mate(parent_1)
+        members = [
+            individual
+            for individual in self._population
+            if assigner.species_of(individual) == species_id
+        ]
+        if len(members) < 2:
+            return super()._select_mate(parent_1)
+        return self._selection_function.select(members)[0]
+
+    def _record_species_statistics(self) -> None:
+        """Records the speciation statistics of the current population."""
+        assigner = self._species_assigner
+        assert assigner is not None
+        counts = Counter(
+            species_id
+            for individual in self._population
+            if (species_id := assigner.species_of(individual)) is not None
+        )
+        largest_share = max(counts.values()) / len(self._population) if counts else 0.0
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.SpeciesCountTimeline, len(counts)
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.LargestSpeciesShareTimeline, largest_share
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.ProtectedIndividualsTimeline, self._protected_individuals
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.ProtectedSpeciesTimeline, self._protected_species
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.SpeciesFounded, assigner.number_of_species_founded
+        )
 
     def local_search(self) -> None:
         """Runs local search."""

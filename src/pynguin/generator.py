@@ -71,6 +71,7 @@ from pynguin.analyses.constants import (
 )
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.mutation_analysis.controller import create_mutation_controller
+from pynguin.ga.algorithms.speciation import SpeciationOptions
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.islands.population_allocation import minimum_island_population_size
@@ -475,6 +476,17 @@ def _verify_config() -> None:
                 f"migrant_rank_bias ({island_config.migrant_rank_bias}) must be in the "
                 "range (1, 2] for rank selection of periodic migrants."
             )
+    search = config.configuration.search_algorithm
+    if search.speciation or search.speciation_track_only:
+        if config.configuration.algorithm not in {
+            config.Algorithm.DYNAMOSA,
+            config.Algorithm.LLDYNAMOSA,
+        }:
+            raise ConfigurationException(
+                "Speciation requires algorithm to be DYNAMOSA or LLDYNAMOSA -- only "
+                "their selection uses species."
+            )
+        SpeciationOptions.from_configuration()
     _verify_llm_worker_config(migration_active=migration_active)
 
 

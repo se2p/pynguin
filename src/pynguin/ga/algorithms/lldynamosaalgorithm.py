@@ -149,6 +149,7 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             fast_epsilon_dominance_assignment(
                 fronts.get_sub_front(i), self._goals_manager.current_goals
             )
+        self._init_speciation(fronts)
 
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
