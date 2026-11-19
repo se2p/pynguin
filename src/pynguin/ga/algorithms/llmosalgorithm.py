@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import inspect
 import logging
@@ -138,6 +139,12 @@ class _StallTracker:
         """Resets tracking state after an intervention."""
         self.plateau_counter = 0
         self.last_gain_time = time.time()
+
+    def back_off(self) -> None:
+        """Doubles the plateau length after an intervention that did not help.
+
+        CodaMOSA's back-off; it applies to the iteration-count heuristic only.
+        """
         if self._llm_config.stall_detection_window_seconds <= 0:
             self.max_plateau_len *= 2
 
@@ -161,6 +168,9 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         # Whether the current in-flight query already caused a stall to be skipped,
         # so a stall that lasts several iterations is only counted once.
         self._inflight_skip_counted = False
+        # The test cases of the last stall query and the number of goals covered
+        # before it, until the next generation shows whether the query helped.
+        self._back_off_check: tuple[list[tcc.TestCaseChromosome], int] | None = None
         # Lineages of injected LLM test cases, for blending, elitism and statistics.
         self._lineage = LineageTracker()
         self._generation = 0
@@ -272,17 +282,47 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             self._integrate_llm_chromosomes(pending.chromosomes)
             if purpose is CallPurpose.STALL:
                 count(RuntimeVariable.LLMStallTestsPublished, len(pending.chromosomes))
+                self._back_off_check = (
+                    pending.chromosomes,
+                    stall_tracker.last_length_of_covered_goals,
+                )
 
         if config.configuration.large_language_model.call_llm_on_stall_detection:
             current_covered = len(self._archive.covered_goals)
+            self._back_off_if_query_did_not_help(stall_tracker, current_covered)
             if stall_tracker.check_stall(current_covered):
                 if self._llm_query_strategy.is_in_progress():
                     if not self._inflight_skip_counted:
                         count(RuntimeVariable.LLMStallSkippedInFlight)
                         self._inflight_skip_counted = True
                 else:
-                    self._maybe_intervene_on_stall()
+                    llm_chromosomes = self._maybe_intervene_on_stall()
+                    if llm_chromosomes is not None:
+                        self._back_off_check = (llm_chromosomes, current_covered)
                     stall_tracker.reset()
+
+    def _back_off_if_query_did_not_help(
+        self, stall_tracker: _StallTracker, current_covered: int
+    ) -> None:
+        """Backs off if the last stall query's test cases did not help the search.
+
+        Called one generation after the test cases joined the population. As in
+        CodaMOSA, the query did not help if none of its test cases stayed in the
+        population; a coverage gain since the query also counts as help, since the
+        mutants of these test cases cannot be told apart from other offspring.
+
+        Args:
+            stall_tracker: State tracker for stall detection.
+            current_covered: Current number of covered goals in archive.
+        """
+        if self._back_off_check is None:
+            return
+        llm_chromosomes, covered_before = self._back_off_check
+        self._back_off_check = None
+        kept = {id(chromosome) for chromosome in self._population}
+        stayed = any(id(chromosome) in kept for chromosome in llm_chromosomes)
+        if not stayed and current_covered <= covered_before:
+            stall_tracker.back_off()
 
     def _seed_archive_from_llm(self) -> None:
         """Seed valid LLM test cases directly into the archive before search iteration 0."""
@@ -693,44 +733,85 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             stat.track_output_variable(variable, value)
         super().after_search_finish()
 
-    def _maybe_intervene_on_stall(self) -> None:
+    def _maybe_intervene_on_stall(self) -> list[tcc.TestCaseChromosome] | None:
         """Query the LLM for uncovered targets on a stall, respecting cap and budget.
 
         Skips the query when the maximum number of interventions has been reached or
         when too little search budget remains for the query to return and be
         integrated in time (late-budget guard).
+
+        Returns:
+            The test case chromosomes the queries produced, possibly none, or None if
+            no query was sent or it runs in the background.
         """
         llm_config = config.configuration.large_language_model
         max_llm_int = llm_config.max_llm_interventions
         under_cap = max_llm_int < 0 or self._stall_intervention_count < max_llm_int
         if not under_cap:
-            return
+            return None
         if not self._enough_budget_for_llm():
             self._logger.info(
                 "Skipping stall LLM query: less than %ds of search budget remain.",
                 llm_config.min_remaining_budget_for_llm,
             )
             count(RuntimeVariable.LLMStallSkippedBudget)
-            return
+            return None
         if self._llm_query_strategy.is_in_progress():
             # Counted once per in-flight query by _poll_and_handle_stall.
-            return
+            return None
 
         targets_map, diagnostics = self._select_uncovered_targets()
         if not targets_map:
-            return
+            return None
 
         self._stall_intervention_count += 1
-        count(RuntimeVariable.LLMStallQueriesSubmitted)
         generation = self._dispatch_llm_query(
             CallPurpose.STALL,
             functools.partial(
-                self._query_llm_for_targets, targets_map, diagnostics, CallPurpose.STALL
+                self._query_llm_repeatedly,
+                targets_map,
+                diagnostics,
+                llm_config.llm_queries_per_stall,
             ),
         )
-        if generation is not None and generation.chromosomes:
+        if generation is None:
+            return None
+        if generation.chromosomes:
             self._integrate_llm_chromosomes(generation.chromosomes)
             count(RuntimeVariable.LLMStallTestsPublished, len(generation.chromosomes))
+        return generation.chromosomes
+
+    def _query_llm_repeatedly(
+        self,
+        targets_map: dict[GenericCallableAccessibleObject, float],
+        diagnostics: dict[GenericCallableAccessibleObject, str],
+        queries: int,
+    ) -> LLMGeneration:
+        """Sends the same stall query several times, as CodaMOSA's M queries per stall.
+
+        Before each further query it applies the same late-budget guard as before
+        the first one: the search must still have resources left and at least
+        ``min_remaining_budget_for_llm`` seconds, so that the queries of one stall
+        cannot run past the end of the search.
+
+        Args:
+            targets_map: Mapping of callables to their coverage ratio.
+            diagnostics: Mapping of callables to diagnostic hints.
+            queries: How many queries to send, at least one.
+
+        Returns:
+            The test case chromosomes of all queries, with the conversation of the
+            last one.
+        """
+        chromosomes: list[tcc.TestCaseChromosome] = []
+        generation = LLMGeneration(chromosomes=[])
+        for query in range(max(1, queries)):
+            if query > 0 and not (self.resources_left() and self._enough_budget_for_llm()):
+                break
+            count(RuntimeVariable.LLMStallQueriesSubmitted)
+            generation = self._query_llm_for_targets(targets_map, diagnostics, CallPurpose.STALL)
+            chromosomes += generation.chromosomes
+        return dataclasses.replace(generation, chromosomes=chromosomes)
 
     def _enough_budget_for_llm(self) -> bool:
         """Whether enough search time remains to fire a stall-triggered LLM query.

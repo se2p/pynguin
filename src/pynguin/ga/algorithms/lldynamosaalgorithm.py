@@ -110,13 +110,17 @@ class LLDynaMOSAAlgorithm(LLMOSAAlgorithm, DynaMOSAAlgorithm):
             len(self._archive.solutions),
         )
 
-    def _maybe_intervene_on_stall(self) -> None:
+    def _maybe_intervene_on_stall(self) -> list[tcc.TestCaseChromosome] | None:
         """Query the LLM on a stall, then unlock any goals the result just covered.
 
         Unlike MOSA, DynaMOSA gates goals by parent coverage, so newly covered goals
         must be unlocked immediately to avoid losing coverage during truncation.
+
+        Returns:
+            The test case chromosomes the queries produced, possibly none, or None if
+            no query was sent or it runs in the background.
         """
-        super()._maybe_intervene_on_stall()
+        return super()._maybe_intervene_on_stall()
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
