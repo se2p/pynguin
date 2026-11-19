@@ -224,6 +224,52 @@ def test_append_test_case_from_resolves_head_references_in_sorted_order(monkeypa
     assert drawn == [["i"], ["s"]]
 
 
+@pytest.mark.parametrize("existing", ["existing", "parameters"])
+def test_append_test_case_from_keeps_keyword_labels_of_renamed_variables(existing):
+    self_tc = make_test_case(assign(existing, "{'b': 3}", bound_type=dict))
+    other = make_test_case(
+        assign("argument_spec", "{'a': 1}", bound_type=dict),
+        assign("parameters", "{'a': 2}", bound_type=dict),
+        assign(
+            "result",
+            "dict(argument_spec=argument_spec, parameters=parameters)",
+            bound_type=dict,
+        ),
+    )
+
+    self_tc.append_test_case_from(other, 2)
+
+    code = self_tc.to_code()
+    assert f"dict(argument_spec={existing}, parameters={existing})" in code
+    compile(code, "<test case>", "exec")
+
+
+def test_variable_renamer_keeps_attribute_names_and_keyword_labels():
+    node = cst.parse_statement("x = obj.data + f(data=data)\n")
+
+    renamed = node.visit(tc._VariableRenamer({"data": "var_1"}))
+
+    assert cst.Module(body=[renamed]).code == "x = obj.data + f(data=var_1)\n"
+
+
+def test_next_var_name_skips_names_bound_by_statements():
+    test_case = make_test_case(int_stmt("var_0", 1), int_stmt("var_2", 2))
+
+    assert [test_case.next_var_name() for _ in range(3)] == ["var_1", "var_3", "var_4"]
+
+
+def test_append_test_case_from_does_not_rebind_a_variable_of_this_test_case():
+    self_tc = make_test_case(assign("var_0", "{'b': 3}", bound_type=dict))
+    other = make_test_case(
+        assign("parameters", "{'a': 2}", bound_type=dict),
+        assign("result", "dict(parameters=parameters)", bound_type=dict),
+    )
+
+    self_tc.append_test_case_from(other, 1)
+
+    assert self_tc.to_code() == "var_0 = {'b': 3}\nvar_1 = dict(parameters=var_0)\n"
+
+
 def test_remove_unused_variables_preserves_asserted_variable():
     s0 = int_stmt("var_0", 1)
     assertion = ObjectAssertion("var_0", 1)

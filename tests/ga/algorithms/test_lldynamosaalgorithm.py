@@ -107,8 +107,12 @@ def test_inherits_llmosa_methods_unchanged(method_name):
 
 
 def test_inherits_evolve_from_dynamosa_not_mosa():
-    """Use DynaMOSAAlgorithm.evolve() to preserve dynamic-target behavior in the MRO."""
-    assert LLDynaMOSAAlgorithm.evolve is DynaMOSAAlgorithm.evolve
+    """LLMOSA's evolve() wrapper must delegate to DynaMOSAAlgorithm.evolve()."""
+    assert LLDynaMOSAAlgorithm.evolve is LLMOSAAlgorithm.evolve
+    mro = LLDynaMOSAAlgorithm.__mro__
+    after_llmosa = mro[mro.index(LLMOSAAlgorithm) + 1 :]
+    first_evolve = next(cls for cls in after_llmosa if "evolve" in vars(cls))
+    assert first_evolve is DynaMOSAAlgorithm
 
 
 @pytest.mark.parametrize(
@@ -383,3 +387,22 @@ def test_lldynamosa_generate_tests_no_seeding_when_not_hybrid(mock_config, lldyn
     lldynamosa_algorithm.generate_tests()
 
     lldynamosa_algorithm._seed_archive_from_llm.assert_not_called()
+
+
+def test_update_goals_with_unlocks_goals(lldynamosa_algorithm):
+    lldynamosa_algorithm._goals_manager = MagicMock()
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+
+    lldynamosa_algorithm._update_goals_with([chromosome])
+
+    lldynamosa_algorithm._goals_manager.update.assert_called_once_with([chromosome])
+
+
+def test_blend_target_goals_are_uncovered_current_goals(lldynamosa_algorithm):
+    covered, uncovered, locked = MagicMock(), MagicMock(), MagicMock()
+    lldynamosa_algorithm._goals_manager = MagicMock()
+    lldynamosa_algorithm._goals_manager.current_goals = [covered, uncovered]
+    lldynamosa_algorithm._archive = MagicMock()
+    lldynamosa_algorithm._archive.uncovered_goals = [uncovered, locked]
+
+    assert lldynamosa_algorithm._blend_target_goals() == [uncovered]

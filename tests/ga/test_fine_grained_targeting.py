@@ -93,6 +93,25 @@ def test_ensure_controlling_predicates_for_pure_statement():
     assert goals[0].value is True
 
 
+def test_ensure_controlling_predicates_skips_nodes_excluded_from_coverage():
+    subject_props = SubjectProperties()
+    code = compile("if x:\n    y = 1", "<string>", "exec")
+    cfg = CFG.from_bytecode(Bytecode.from_code(code))
+    cdg = ControlDependenceGraph.compute(cfg)
+    excluded = [
+        node
+        for node in cdg.graph.nodes
+        if any(instr.lineno == 2 for instr in getattr(node, "original_instructions", ()))
+    ]
+    cdg.graph.remove_nodes_from(excluded)
+    subject_props.register_code_object(
+        0, CodeObjectMetaData(code_object=code, parent_code_object_id=None, cfg=cfg, cdg=cdg)
+    )
+
+    assert excluded
+    assert subject_props.ensure_controlling_predicates_for_lines({2}) == set()
+
+
 def _instrument_target(
     subject_properties: SubjectProperties, function_name: str, line_range: str
 ) -> types.FunctionType:

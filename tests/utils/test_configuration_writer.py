@@ -36,6 +36,7 @@ subprocess = false
 subprocess_if_recommended = true
 use_master_worker = true
 filesystem_isolation = false
+check_forbidden_modules = true
 
 [test_case_output]
 output_path = ""
@@ -104,6 +105,8 @@ max_retries = 8
 request_timeout = 30.0
 max_request_time = 300.0
 enable_thinking = false
+temperature = 0.0
+sampling_seed = false
 cache_dir = "~/.cache/pynguin/llm"
 max_concurrency = 5
 llm_mode = "sync"
@@ -217,6 +220,13 @@ selection = "RANK_SELECTION"
 use_archive = false
 filter_covered_targets_from_test_cluster = false
 number_of_mutations = 3
+llm_blend_goal_crossovers = 0
+llm_blend_mutants = 0
+llm_blend_tournament_crossovers = 0
+llm_blend_max_evaluations = 0
+llm_blend_keep_raw = true
+llm_lineage_elitism_generations = 0
+llm_lineage_elitism_max_fraction = 0.1
 
 [mio]
 exploitation_starts_at_percent = 0.5
@@ -343,8 +353,9 @@ def expected_txt(tmp_path):
  'llm_queries_per_stall=1, max_llm_interventions=-1, '
  'min_remaining_budget_for_llm=45, max_context_chars=64000, max_retries=8, '
  'request_timeout=30.0, max_request_time=300.0, enable_thinking=False, '
- "cache_dir='~/.cache/pynguin/llm', max_concurrency=5, llm_mode=<LLMMode.SYNC: "
- "'sync'>, trace_dir='', repair_attempts=0), "
+ "temperature=0.0, sampling_seed=False, cache_dir='~/.cache/pynguin/llm', "
+ "max_concurrency=5, llm_mode=<LLMMode.SYNC: 'sync'>, trace_dir='', "
+ 'repair_attempts=0), '
  'mock_generation=MockGenerationConfiguration(mock_generation_enabled=False, '
  "proxy_cache_url='', base_rules_cache_id=''), "
  'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
@@ -393,7 +404,11 @@ def expected_txt(tmp_path):
  'change_parameter_probability=0.1, change_statement_type_probability=0.05, '
  'tournament_size=4, rank_bias=1.68, selection=<Selection.RANK_SELECTION: '
  "'RANK_SELECTION'>, use_archive=False, "
- 'filter_covered_targets_from_test_cluster=False, number_of_mutations=3), '
+ 'filter_covered_targets_from_test_cluster=False, number_of_mutations=3, '
+ 'llm_blend_goal_crossovers=0, llm_blend_mutants=0, '
+ 'llm_blend_tournament_crossovers=0, llm_blend_max_evaluations=0, '
+ 'llm_blend_keep_raw=True, llm_lineage_elitism_generations=0, '
+ 'llm_lineage_elitism_max_fraction=0.1), '
  'mio=MIOConfiguration(initial_config=MIOPhaseConfiguration(number_of_tests_per_target=10, '
  'random_test_or_from_archive_probability=0.5, number_of_mutations=1), '
  'focused_config=MIOPhaseConfiguration(number_of_tests_per_target=1, '
@@ -435,7 +450,7 @@ def expected_txt(tmp_path):
  'ls_different_type_primitive_probability=0.3, '
  'ls_different_type_collection_probability=0.3, ls_dict_max_insertions=10, '
  'ls_llm_whole_module=False), use_master_worker=True, '
- 'filesystem_isolation=False)')"""  # noqa:E501
+ 'filesystem_isolation=False, check_forbidden_modules=True)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -446,6 +461,8 @@ def expected_txt(tmp_path):
 def expected_parameters() -> str:
     return """--algorithm
 RANDOM
+--check_forbidden_modules
+True
 --element_visibility
 PUBLIC
 --filesystem_isolation
@@ -520,8 +537,12 @@ gpt-4o-mini
 0
 --large_language_model.request_timeout
 30.0
+--large_language_model.sampling_seed
+False
 --large_language_model.stall_detection_window_seconds
 30
+--large_language_model.temperature
+0.0
 --llm_refinement.enable_dependency_context
 False
 --llm_refinement.enable_mutation_strengthening
@@ -646,6 +667,20 @@ BRANCH
 1
 --search_algorithm.filter_covered_targets_from_test_cluster
 False
+--search_algorithm.llm_blend_goal_crossovers
+0
+--search_algorithm.llm_blend_keep_raw
+True
+--search_algorithm.llm_blend_max_evaluations
+0
+--search_algorithm.llm_blend_mutants
+0
+--search_algorithm.llm_blend_tournament_crossovers
+0
+--search_algorithm.llm_lineage_elitism_generations
+0
+--search_algorithm.llm_lineage_elitism_max_fraction
+0.1
 --search_algorithm.max_initial_tests
 10
 --search_algorithm.min_initial_tests
@@ -971,6 +1006,13 @@ def expected_parameter_list() -> list[str]:
         "--use_archive False",
         "--filter_covered_targets_from_test_cluster False",
         "--number_of_mutations 3",
+        "--llm_blend_goal_crossovers 0",
+        "--llm_blend_mutants 0",
+        "--llm_blend_tournament_crossovers 0",
+        "--llm_blend_max_evaluations 0",
+        "--llm_blend_keep_raw True",
+        "--llm_lineage_elitism_generations 0",
+        "--llm_lineage_elitism_max_fraction 0.1",
         "--exploitation_starts_at_percent 0.5",
         "--initial_config.number_of_tests_per_target 10",
         "--initial_config.random_test_or_from_archive_probability 0.5",

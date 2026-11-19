@@ -127,6 +127,42 @@ class TestB:
     assert len(result.test_cases) == 2
 
 
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "y = dict(a=var_0, a=var_0)",
+        "y = var_0(target=var_0, target=var_0)",
+        "y = yield var_0",
+    ],
+)
+def test_deserialize_code_to_testcases_drops_test_that_does_not_compile(test_cluster, statement):
+    """A test libcst parses but Python cannot compile is not returned."""
+    code = f"""
+def test_invalid():
+    var_0 = 2
+    {statement}
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert result.test_cases == []
+
+
+def test_deserialize_code_to_testcases_keeps_compiling_test_next_to_invalid_one(test_cluster):
+    """Only the test that does not compile is dropped, not the others of the response."""
+    code = """
+def test_invalid():
+    var_0 = 2
+    y = dict(a=var_0, a=var_0)
+
+def test_valid():
+    e = [1, 2]
+"""
+    result = deserialize_code_to_testcases(code, test_cluster)
+    assert result.status is ParseStatus.OK
+    assert len(result.test_cases) == 1
+    assert "e = [1, 2]" in result.test_cases[0].to_code()
+
+
 # ---------------------------------------------------------------------------
 # Variable renaming
 # ---------------------------------------------------------------------------

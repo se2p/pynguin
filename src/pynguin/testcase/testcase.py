@@ -100,7 +100,14 @@ class _NameCollector(cst.CSTTransformer):
 
 
 class _VariableRenamer(cst.CSTTransformer):
-    """Rename ``var_N`` style variable references according to a mapping."""
+    """Rename ``var_N`` style variable references according to a mapping.
+
+    Keyword labels (``f(name=...)``) and attribute names (``obj.name``) are ``Name``
+    nodes as well, but name no variable. They keep their text, so that a variable
+    that shares its name with a keyword label, as in LLM-written tests like
+    ``f(data=data)``, is renamed without renaming the label: renaming two labels to
+    the same variable would repeat a keyword, which does not compile.
+    """
 
     def __init__(self, rename: dict[str, str]) -> None:
         """Initializes the renamer.
@@ -126,6 +133,34 @@ class _VariableRenamer(cst.CSTTransformer):
         if new is not None:
             return updated_node.with_changes(value=new)
         return updated_node
+
+    def leave_Arg(  # noqa: N802
+        self, original_node: cst.Arg, updated_node: cst.Arg
+    ) -> cst.Arg:
+        """Keep the keyword label of an argument.
+
+        Args:
+            original_node: The original argument.
+            updated_node: The argument with its names renamed.
+
+        Returns:
+            The argument with its original keyword label.
+        """
+        return updated_node.with_changes(keyword=original_node.keyword)
+
+    def leave_Attribute(  # noqa: N802
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.Attribute:
+        """Keep the attribute name of an attribute access.
+
+        Args:
+            original_node: The original attribute access.
+            updated_node: The attribute access with its names renamed.
+
+        Returns:
+            The attribute access with its original attribute name.
+        """
+        return updated_node.with_changes(attr=original_node.attr)
 
 
 def _root_receiver(node: cst.CSTNode) -> str | None:
@@ -689,13 +724,21 @@ class TestCase:  # noqa: PLR0904
     # ------------------------------------------------------------------
 
     def next_var_name(self) -> str:
-        """Allocate and return the next ``var_N`` name.
+        """Allocate and return the next ``var_N`` name that no statement binds yet.
+
+        Statements from LLM-written tests keep their own variable names, which can
+        be ``var_N`` names the counter has not reached; reusing one would rebind,
+        and thereby overwrite, that variable.
 
         Returns:
             The next variable name.
         """
+        bound = {stmt.bound_variable for stmt in self._statements}
         name = f"var_{self._var_counter}"
         self._var_counter += 1
+        while name in bound:
+            name = f"var_{self._var_counter}"
+            self._var_counter += 1
         return name
 
     def variables_of_type(self, t: type) -> list[str]:

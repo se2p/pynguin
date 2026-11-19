@@ -978,6 +978,40 @@ class SearchAlgorithmConfiguration:
     number_of_mutations: int = 3
     """Number of mutations that should be applied in one breeding step."""
 
+    llm_blend_goal_crossovers: int = 0
+    """LLM-based algorithms only. Number of offspring bred from each injected LLM test
+    by crossover with the population member closest to the uncovered goal that the
+    injected test gets closest to. 0 disables this channel."""
+
+    llm_blend_mutants: int = 0
+    """LLM-based algorithms only. Number of mutants bred from each injected LLM test.
+    0 disables this channel."""
+
+    llm_blend_tournament_crossovers: int = 0
+    """LLM-based algorithms only. Number of offspring bred from each injected LLM test
+    by crossover with a partner picked by the selection operator. 0 disables this
+    channel."""
+
+    llm_blend_max_evaluations: int = 0
+    """LLM-based algorithms only. Maximum number of blended offspring added per
+    generation; the remaining offspring are bred in the next generations. 0 means no
+    limit."""
+
+    llm_blend_keep_raw: bool = True
+    """LLM-based algorithms only. Whether injected LLM tests join the population
+    themselves. If False, only their blended offspring compete; this only applies when
+    at least one blend channel is enabled."""
+
+    llm_lineage_elitism_generations: int = 0
+    """LLM-based algorithms only. For this many generations after an LLM test was
+    injected, the best member of its lineage is put back into the population if
+    selection dropped all of them. 0 disables lineage elitism."""
+
+    llm_lineage_elitism_max_fraction: float = 0.1
+    """LLM-based algorithms only. Maximum number of members lineage elitism puts back
+    per generation, as a fraction of the population size. They replace the worst
+    members of the population."""
+
 
 @dataclasses.dataclass
 class StringStatementConfiguration:
@@ -1165,6 +1199,20 @@ class LLMConfiguration:
     until requests exceed ``request_timeout``.  Set to ``None`` to omit the field
     entirely and leave the provider's default behaviour unchanged, e.g. for a
     non-reasoning model or a provider that rejects unknown ``extra_body`` keys."""
+
+    temperature: float = 0.0
+    """The sampling temperature of every LLM request built from a prompt template.
+    The default of 0 makes the model choose its most likely answer; CodaMOSA sampled
+    at 0.8."""
+
+    sampling_seed: bool = False
+    """Whether to send a sampling seed with every LLM request, so that a run with the
+    same seed asks the endpoint for the same samples.  The seed is derived from the
+    run's seed (``seeding.seed``), the request's content, and how many requests with
+    the same content the client has sent before, so repeated queries with the same
+    prompt still get different samples.  Retries of a
+    request reuse its seed.  Endpoints may still return different samples for the same
+    seed, e.g. when they batch requests together."""
 
     cache_dir: str = "~/.cache/pynguin/llm"
     """The directory to store cached responses."""
@@ -1488,6 +1536,11 @@ class Configuration:
     """Whether to use filesystem isolation during test execution.
     Filesystem isolation provides some safety by tracking and controlling file operations,
     e.g. preventing file deletion of non-created files, but adds performance overhead."""
+
+    check_forbidden_modules: bool = True
+    """Refuse to run on modules that are known to cause harmful side effects, such as
+    python-semantic-release (see ``pynguin.utils.forbidden_modules``). Disable this
+    only when Pynguin runs in an isolated environment, e.g. a throwaway container."""
 
 
 # Singleton instance of the configuration.
