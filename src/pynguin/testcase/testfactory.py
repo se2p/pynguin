@@ -15,9 +15,11 @@ It emits :mod:`libcst` nodes directly and refers to variables by *name*
 
 from __future__ import annotations
 
+import builtins
 import collections.abc
 import inspect
 import logging
+import sys
 import types
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -128,6 +130,23 @@ def _holds_callable(raw: type | None) -> bool:
         return issubclass(raw, collections.abc.Callable)  # type: ignore[arg-type]
     except TypeError:
         return False
+
+
+def _follow(obj: Any, path: list[str]) -> Any:
+    """Follow a chain of attribute names starting at *obj*.
+
+    Args:
+        obj: The object to start at.
+        path: The attribute names.
+
+    Returns:
+        The object at the end of the chain, or ``None`` if an attribute is missing.
+    """
+    for part in path:
+        obj = getattr(obj, part, None)
+        if obj is None:
+            return None
+    return obj
 
 
 def _raw_type_or_none(raw: type | types.UnionType) -> type | None:
@@ -831,10 +850,7 @@ class TestFactory:
                 test_case, replacement.inferred_signature, cursor, 0, accessible=replacement
             )
             owner = replacement.owner
-            class_name = owner.name if owner is not None else "object"
-            func: cst.BaseExpression = cst.Attribute(
-                value=cst.Name(self._module_alias()), attr=cst.Name(class_name)
-            )
+            func: cst.BaseExpression = self._class_reference(owner)
             bound_type = _raw_type_or_none(owner.raw_type) if owner is not None else None
             return cst.Call(func=func, args=args), bound_type, cursor
         if isinstance(replacement, gao.GenericMethod):
@@ -1050,11 +1066,7 @@ class TestFactory:
             test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
         )
         owner = accessible.owner
-        class_name = owner.name if owner is not None else "object"
-        func = cst.Attribute(
-            value=cst.Name(self._module_alias()),
-            attr=cst.Name(class_name),
-        )
+        func = self._class_reference(owner)
         bound_type = _raw_type_or_none(owner.raw_type) if owner is not None else None
         return cst.Call(func=func, args=args), bound_type, cursor
 
@@ -1083,16 +1095,11 @@ class TestFactory:
         owner_raw = _raw_type_or_none(accessible.owner.raw_type)
         func: cst.BaseExpression
         if accessible.is_classmethod() or accessible.is_static():
-            owner = accessible.owner
-            class_name = owner.name if owner is not None else "object"
             receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
             if receiver is not None and randomness.next_bool():
                 func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
             else:
-                class_node = cst.Attribute(
-                    value=cst.Name(self._module_alias()),
-                    attr=cst.Name(class_name),
-                )
+                class_node = self._class_reference(accessible.owner)
                 func = cst.Attribute(value=class_node, attr=cst.Name(method_name))
         else:
             receiver = (
@@ -1166,16 +1173,9 @@ class TestFactory:
             A tuple of (attribute node, bound type).
         """
         owner = accessible.owner
-        enum_name = owner.name if owner is not None else "Enum"
         members = list(getattr(accessible, "names", []) or [])
         member = randomness.choice(members) if members else "value"
-        node = cst.Attribute(
-            value=cst.Attribute(
-                value=cst.Name(self._module_alias()),
-                attr=cst.Name(enum_name),
-            ),
-            attr=cst.Name(member),
-        )
+        node = cst.Attribute(value=self._class_reference(owner), attr=cst.Name(member))
         bound_type = _raw_type_or_none(owner.raw_type) if owner is not None else None
         return node, bound_type
 
@@ -2591,11 +2591,8 @@ class TestFactory:
             args = self._regen_args_in_place(
                 test_case, accessible.inferred_signature, position, accessible=accessible
             )
-            owner = accessible.owner
-            class_name = owner.name if owner is not None else "object"
             new_call: cst.BaseExpression = cst.Call(
-                func=cst.Attribute(value=cst.Name(self._module_alias()), attr=cst.Name(class_name)),
-                args=args,
+                func=self._class_reference(accessible.owner), args=args
             )
         elif isinstance(accessible, gao.GenericMethod):
             method_name = _method_call_name(accessible)
@@ -2633,13 +2630,10 @@ class TestFactory:
                 accessible,
             )
         elif isinstance(accessible, gao.GenericEnum):
-            owner = accessible.owner
-            enum_name = owner.name if owner is not None else "Enum"
             members = list(getattr(accessible, "names", []) or [])
             member = randomness.choice(members) if members else "value"
             new_call = cst.Attribute(
-                value=cst.Attribute(value=cst.Name(self._module_alias()), attr=cst.Name(enum_name)),
-                attr=cst.Name(member),
+                value=self._class_reference(accessible.owner), attr=cst.Name(member)
             )
         elif isinstance(accessible, gao.GenericField):
             owner_raw = _raw_type_or_none(accessible.owner.raw_type)
@@ -2920,6 +2914,46 @@ class TestFactory:
         if not candidates:
             return None
         return randomness.choice(candidates)
+
+    def _class_reference(self, owner: Any) -> cst.BaseExpression:
+        """Return an expression that refers to the class *owner* in a test case.
+
+        Test cases only see the module under test (under its alias) and builtins.
+        A class that the module under test does not import by its name, e.g.,
+        ``datetime.date`` in a module that does ``import datetime``, is reached
+        through the name it is reachable under, e.g., ``module_.datetime.date``.
+        Builtin classes are referred to by their name.
+
+        Args:
+            owner: The TypeInfo of the class.
+
+        Returns:
+            The expression referring to the class.
+        """
+        alias = self._module_alias()
+        name = owner.name if owner is not None else "object"
+        fallback = _attribute_chain(f"{alias}.{name}")
+        raw = _raw_type_or_none(owner.raw_type) if owner is not None else None
+        sut = sys.modules.get(config.configuration.module_name)
+        if raw is None or sut is None:
+            return fallback
+        qualname = getattr(raw, "__qualname__", name)
+        path = qualname.split(".") if "<locals>" not in qualname else [name]
+        if _follow(sut, path) is raw:
+            # Defined in or imported by name into the module under test.
+            return _attribute_chain(".".join([alias, *path]))
+        if raw.__module__ == "builtins" and getattr(builtins, name, None) is raw:
+            return cst.Name(name)
+        for attribute, value in vars(sut).items():
+            if not isinstance(attribute, str) or not attribute.isidentifier():
+                continue
+            if value is raw:
+                # Imported under another name, e.g., ``from x import C as D``.
+                return _attribute_chain(f"{alias}.{attribute}")
+            if isinstance(value, types.ModuleType) and _follow(value, path) is raw:
+                # Reachable via an imported module, e.g., ``import datetime``.
+                return _attribute_chain(".".join([alias, attribute, *path]))
+        return fallback
 
     def _module_alias(self) -> str:
         """Return the import alias for the module under test.

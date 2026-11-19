@@ -71,9 +71,11 @@ from pynguin.analyses.syntaxtree import (
     get_function_description,
     get_function_node_from_ast,
 )
+from pynguin.analyses.typeshed_stubs import get_stub_constructor, only_takes_var_args
 from pynguin.analyses.typesystem import (
     ANY,
     AnyType,
+    InferredSignature,
     Instance,
     NoneType,
     ProperType,
@@ -109,6 +111,7 @@ from pynguin.utils.type_utils import (
     PRIMITIVES,
     get_class_that_defined_method,
     get_constructor_function,
+    get_signature,
 )
 from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, parse_json, provide_json
 
@@ -1662,6 +1665,75 @@ def __analyse_function(
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
+def _has_python_constructor(raw_type: type | types.UnionType) -> bool:
+    """Whether a class or one of its bases defines ``__init__`` or ``__new__`` in Python.
+
+    Args:
+        raw_type: The class
+
+    Returns:
+        False if the constructor is implemented in C, e.g., for ``datetime.date``.
+    """
+    for base in getattr(raw_type, "__mro__", ()):
+        if base is object:
+            break
+        for name in ("__new__", "__init__"):
+            value = vars(base).get(name)
+            if isinstance(value, staticmethod | classmethod):
+                value = value.__func__
+            if isinstance(value, types.FunctionType):
+                return True
+    return False
+
+
+def _infer_c_constructor_signature(
+    raw_type: type,
+    type_inference_provider: InferenceProvider,
+    type_system: TypeSystem,
+) -> InferredSignature | None:
+    """Infers the constructor signature of a class implemented in C.
+
+    The runtime signature of ``raw_type.__init__`` is useless for such classes, it is
+    the inherited ``object.__init__``. Instead, we use the signature of the class
+    itself, if the runtime provides one (e.g., ``Decimal(value='0', context=None)``),
+    and otherwise the constructor declared in the class's typeshed stub (e.g.,
+    ``date(year, month, day)``). Parameter types always come from the stub, as such
+    classes have no type hints at runtime.
+
+    Args:
+        raw_type: The class
+        type_inference_provider: The configured type inference provider
+        type_system: The type system
+
+    Returns:
+        The inferred signature, or None if neither the runtime nor a stub provides
+        a usable signature.
+    """
+    signature: inspect.Signature | None
+    try:
+        signature = get_signature(raw_type)
+    except (ValueError, TypeError):
+        signature = None
+    # Parsing stubs takes time; there is nothing to look up for a parameterless one.
+    stub = (
+        None
+        if signature is not None and not signature.parameters
+        else get_stub_constructor(raw_type)
+    )
+    if signature is None or only_takes_var_args(signature):
+        signature = stub[0] if stub is not None else None
+    if signature is None:
+        return None
+    hints: dict[str, Any] = {}
+    if stub is not None and not isinstance(type_inference_provider, NoInference):
+        hints = {name: hint for name, hint in stub[1].items() if name in signature.parameters}
+    return type_system.infer_signature(
+        raw_type.__init__,  # type: ignore[misc]
+        lambda _: hints,
+        signature=signature,
+    )
+
+
 def _create_constructor_or_enum(
     type_info: TypeInfo,
     type_inference_provider: InferenceProvider,
@@ -1680,12 +1752,25 @@ def _create_constructor_or_enum(
         return generic
 
     constructor, _ = get_constructor_function(type_info.raw_type)
-    generic = GenericConstructor(
-        type_info,
-        test_cluster.type_system.infer_type_info(
+    inferred_signature: InferredSignature | None = None
+    if (
+        isinstance(type_info.raw_type, type)
+        # Pynguin creates primitives and collections itself, see __analyse_class.
+        and type_info.raw_type not in PRIMITIVES
+        and type_info.raw_type not in COLLECTIONS
+        and not _has_python_constructor(type_info.raw_type)
+    ):
+        inferred_signature = _infer_c_constructor_signature(
+            type_info.raw_type, type_inference_provider, test_cluster.type_system
+        )
+    if inferred_signature is None:
+        inferred_signature = test_cluster.type_system.infer_type_info(
             constructor,
             type_inference_provider=type_inference_provider,
-        ),
+        )
+    generic = GenericConstructor(
+        type_info,
+        inferred_signature,
         expected_exceptions,
         constructor=constructor,  # type: ignore[arg-type]
     )

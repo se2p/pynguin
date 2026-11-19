@@ -1890,3 +1890,64 @@ def test_testfactory_emit_generic_constructor_and_method():
     code = test_case.to_code()
     assert "Box(" in code
     cst.parse_module(code)
+
+
+# ---------------------------------------------------------------------------
+# Class references
+# ---------------------------------------------------------------------------
+
+
+def _class_reference_code(cls) -> str:
+    import tests.fixtures.cluster.c_type_constructors  # noqa: F401, PLC0415
+
+    config.configuration.module_name = "tests.fixtures.cluster.c_type_constructors"
+    node = _make_factory()._class_reference(TypeInfo(cls))
+    return cst.Module(body=[]).code_for_node(node)
+
+
+def test_class_reference_through_imported_module():
+    import datetime  # noqa: PLC0415
+
+    assert _class_reference_code(datetime.date) == "c_type_constructors_.datetime.date"
+
+
+def test_class_reference_imported_by_name():
+    from decimal import Decimal  # noqa: PLC0415
+
+    assert _class_reference_code(Decimal) == "c_type_constructors_.Decimal"
+
+
+def test_class_reference_imported_under_other_name():
+    assert _class_reference_code(types.SimpleNamespace) == "c_type_constructors_.Namespace"
+
+
+def test_class_reference_nested_class():
+    from tests.fixtures.cluster.c_type_constructors import Outer  # noqa: PLC0415
+
+    assert _class_reference_code(Outer.Inner) == "c_type_constructors_.Outer.Inner"
+
+
+def test_class_reference_builtin():
+    assert _class_reference_code(ValueError) == "ValueError"
+
+
+def test_class_reference_unreachable_falls_back():
+    assert _class_reference_code(collections.OrderedDict) == "c_type_constructors_.OrderedDict"
+
+
+def test_class_reference_unknown_module_falls_back():
+    config.configuration.module_name = "pynguin_not_imported_module"
+    node = _make_factory()._class_reference(TypeInfo(collections.OrderedDict))
+    assert cst.Module(body=[]).code_for_node(node) == "pynguin_not_imported_module_.OrderedDict"
+
+
+def test_class_reference_local_class_falls_back():
+    class Local:
+        pass
+
+    assert _class_reference_code(Local) == "c_type_constructors_.Local"
+
+
+def test_follow():
+    assert tf._follow(collections, ["abc", "Iterable"]) is collections.abc.Iterable
+    assert tf._follow(collections, ["missing", "Iterable"]) is None

@@ -40,6 +40,7 @@ except ImportError:
 
 
 import pynguin.configuration as config
+from pynguin.analyses.typeshed_stubs import TypeshedStubs
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
 from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
     TypeAndSubtypeInferencePrompt,
@@ -789,8 +790,6 @@ class TypeshedInference(InferenceProvider):
     back to the type information declared in typeshed's stub files.
     """
 
-    _MAX_BASE_CLASS_HOPS = 3
-
     def __init__(self, type_system: TypeSystem) -> None:
         """Initializes the typeshed-backed inference provider.
 
@@ -800,8 +799,7 @@ class TypeshedInference(InferenceProvider):
         super().__init__()
         self._hint_inference = HintInference()
         self._type_str_parser = TypeStrParser(type_system)
-        self._resolver = typeshed_client.Resolver()
-        self._stub_names_cache: dict[str, typeshed_client.NameDict | None] = {}
+        self._stubs = TypeshedStubs()
 
     def provide(self, method: Callable) -> dict[str, Any]:
         """Provides type hints, using typeshed stubs to fill gaps in runtime hints.
@@ -849,93 +847,6 @@ class TypeshedInference(InferenceProvider):
             types_by_name["return"] = ast.unparse(function.returns)
         return types_by_name
 
-    def _get_stub_names(self, module_name: str) -> typeshed_client.NameDict | None:
-        """Returns the (cached) top-level names defined in a module's stub."""
-        if module_name not in self._stub_names_cache:
-            try:
-                self._stub_names_cache[module_name] = typeshed_client.get_stub_names(module_name)
-            except Exception:  # noqa: BLE001
-                _LOGGER.debug("Failed to load typeshed stub for module '%s'", module_name)
-                self._stub_names_cache[module_name] = None
-        return self._stub_names_cache[module_name]
-
-    def _resolve_imported(
-        self, info: typeshed_client.NameInfo, module_name: str
-    ) -> typeshed_client.NameInfo | None:
-        """Follows ``ImportedName`` indirections to the concrete definition."""
-        max_hops = self._MAX_BASE_CLASS_HOPS
-        hops = 0
-        while isinstance(info.ast, typeshed_client.ImportedName) and hops < max_hops:
-            imported = info.ast
-            target_module = imported.module_name or module_name
-            resolved = self._resolver.get_fully_qualified_name(f"{target_module}.{imported.name}")
-            if not isinstance(resolved, typeshed_client.ImportedInfo):
-                return None
-            info = resolved.info
-            hops += 1
-        return None if isinstance(info.ast, typeshed_client.ImportedName) else info
-
-    def _get_member(
-        self,
-        node_dict: typeshed_client.NameDict,
-        name: str,
-        owner_info: typeshed_client.NameInfo | None,
-        module_name: str,
-    ) -> typeshed_client.NameInfo | None:
-        """Looks up ``name`` in ``node_dict``, falling back to base classes."""
-        info = node_dict.get(name)
-        if info is not None:
-            return self._resolve_imported(info, module_name)
-        if owner_info is None or not isinstance(owner_info.ast, ast.ClassDef):
-            return None
-        return self._resolve_via_bases(owner_info.ast, name, module_name, depth=0)
-
-    def _resolve_via_bases(
-        self, class_def: ast.ClassDef, name: str, module_name: str, depth: int
-    ) -> typeshed_client.NameInfo | None:
-        """Searches base classes (bounded depth) for an inherited member."""
-        if depth >= self._MAX_BASE_CLASS_HOPS:
-            return None
-        for base_expr in class_def.bases:
-            head = self._base_head_name(base_expr)
-            if head is None:
-                continue
-            base_info, base_module = self._resolve_base_name(head, module_name)
-            if base_info is None or not isinstance(base_info.ast, ast.ClassDef):
-                continue
-            member = (base_info.child_nodes or {}).get(name)
-            if member is not None:
-                resolved_member = self._resolve_imported(member, base_module)
-                if resolved_member is not None:
-                    return resolved_member
-            deeper = self._resolve_via_bases(base_info.ast, name, base_module, depth + 1)
-            if deeper is not None:
-                return deeper
-        return None
-
-    def _resolve_base_name(
-        self, head: str, module_name: str
-    ) -> tuple[typeshed_client.NameInfo | None, str]:
-        """Resolves a base class's leading identifier to a NameInfo + its module."""
-        local_names = self._get_stub_names(module_name)
-        if local_names and head in local_names:
-            return self._resolve_imported(local_names[head], module_name), module_name
-        builtin_names = self._get_stub_names("builtins")
-        if builtin_names and head in builtin_names:
-            return self._resolve_imported(builtin_names[head], "builtins"), "builtins"
-        return None, module_name
-
-    @staticmethod
-    def _base_head_name(expr: ast.expr) -> str | None:
-        """Extracts the leading identifier from a base-class expression."""
-        if isinstance(expr, ast.Name):
-            return expr.id
-        if isinstance(expr, ast.Attribute):
-            return expr.attr
-        if isinstance(expr, ast.Subscript):
-            return TypeshedInference._base_head_name(expr.value)
-        return None
-
     def _resolve_stub_function(
         self, method: Callable
     ) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
@@ -951,20 +862,7 @@ class TypeshedInference(InferenceProvider):
             module_name = getattr(owner, "__module__", None)
         if not module_name or not qualname or "<locals>" in qualname:
             return None
-        names = self._get_stub_names(module_name)
-        if not names:
-            return None
-
-        node_dict: typeshed_client.NameDict = names
-        owner_info: typeshed_client.NameInfo | None = None
-        info: typeshed_client.NameInfo | None = None
-        for part in qualname.split("."):
-            info = self._get_member(node_dict, part, owner_info, module_name)
-            if info is None:
-                return None
-            owner_info = info
-            node_dict = info.child_nodes or {}
-
+        info, _ = self._stubs.lookup(module_name, qualname)
         if info is None:
             return None
         ast_node: Any = info.ast
