@@ -12,6 +12,7 @@ import asyncio
 import builtins
 import contextlib
 import importlib
+import keyword
 import logging
 import re
 import sys
@@ -284,8 +285,73 @@ def _direct_module_import(
     if sys.modules.get(real_name) is not value:
         return None
     if real_name == name:
-        return f"import {name}\n"
-    return f"import {real_name} as {name}\n"
+        return _import_source(name)
+    return _import_source(real_name, name)
+
+
+def _has_keyword_component(module: str) -> bool:
+    """Whether an import statement cannot name a module.
+
+    A module whose dotted name contains a keyword, e.g. ``ansible.plugins.action.assert``,
+    can be imported with :func:`importlib.import_module`, but not with an ``import`` or
+    ``from ... import`` statement.
+
+    Args:
+        module: The dotted module name.
+
+    Returns:
+        Whether a component of the name is a keyword.
+    """
+    return any(keyword.iskeyword(part) for part in module.split("."))
+
+
+def _import_source(module: str, alias: str | None = None) -> str:
+    """Provide the source that imports a module, bound to an alias if given.
+
+    Args:
+        module: The dotted module name.
+        alias: The name to bind the module to, or None for a plain import.
+
+    Returns:
+        ``import module [as alias]``, or the equivalent ``importlib`` calls if an
+        import statement cannot name the module.
+    """
+    if not _has_keyword_component(module):
+        return f"import {module}\n" if alias is None else f"import {module} as {alias}\n"
+    binding = "" if alias is None else f"{alias} = "
+    return f"import importlib\n{binding}importlib.import_module({module!r})\n"
+
+
+def _from_import_source(module: str, names: list[str]) -> str:
+    """Provide the source that imports names from a module.
+
+    Args:
+        module: The dotted module name.
+        names: The names to import, each ``name`` or ``name as alias``.
+
+    Returns:
+        ``from module import names``, or the equivalent ``importlib`` calls and
+        assignments if an import statement cannot name the module.
+    """
+    if not _has_keyword_component(module):
+        return f"from {module} import {', '.join(names)}\n"
+    lines = ["import importlib\n"]
+    for entry in names:
+        name, _, alias = entry.partition(" as ")
+        lines.append(f"{alias or name} = importlib.import_module({module!r}).{name}\n")
+    return "".join(lines)
+
+
+def _parse_statements(source: str) -> list[cst.SimpleStatementLine]:
+    """Parse import source into its statements.
+
+    Args:
+        source: Source made of simple statements, one per line.
+
+    Returns:
+        The parsed statements.
+    """
+    return [cast("cst.SimpleStatementLine", stmt) for stmt in cst.parse_module(source).body]
 
 
 def _build_sut_import_statements(
@@ -345,23 +411,15 @@ def _build_sut_import_statements(
 
     stmts: list[cst.SimpleStatementLine] = [
         cast("cst.SimpleStatementLine", cst.parse_statement("import sys\n")),
-        cast("cst.SimpleStatementLine", cst.parse_statement(f"import {canonical_name}\n")),
+        *_parse_statements(_import_source(canonical_name)),
         cast(
             "cst.SimpleStatementLine",
             cst.parse_statement(f"{module_alias} = sys.modules['{canonical_name}']\n"),
         ),
     ]
-    stmts.extend(
-        cast("cst.SimpleStatementLine", cst.parse_statement(source)) for source in module_imports
-    )
+    stmts.extend(stmt for source in module_imports for stmt in _parse_statements(source))
     if from_names:
-        names_str = ", ".join(from_names)
-        stmts.append(
-            cast(
-                "cst.SimpleStatementLine",
-                cst.parse_statement(f"from {canonical_name} import {names_str}\n"),
-            )
-        )
+        stmts.extend(_parse_statements(_from_import_source(canonical_name, from_names)))
     return stmts
 
 
@@ -1235,15 +1293,16 @@ class TestSuiteWriter:
                 else f"{exc_type.__name__} as {exc_name}"
             )
         for mod in sorted(by_module):
-            names = ", ".join(sorted(set(by_module[mod])))
-            exc_import_stmts.append(cst.parse_statement(f"from {mod} import {names}\n"))
+            exc_import_stmts.extend(
+                _parse_statements(_from_import_source(mod, sorted(set(by_module[mod]))))
+            )
 
         # Import the modules referenced by ``isinstance`` assertions under the alias the
         # assertion rendering uses.
         assertion_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         for mod in sorted(used_isinstance_modules):
             alias = isinstance_module_aliases[mod]
-            assertion_import_stmts.append(cst.parse_statement(f"import {mod} as {alias}\n"))
+            assertion_import_stmts.extend(_parse_statements(_import_source(mod, alias)))
 
         # Build the full module: [sys.path preamble +] import(s) + test functions
         if needs_magicmock:

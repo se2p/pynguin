@@ -23,6 +23,7 @@ name.
 from __future__ import annotations
 
 import os
+import runpy
 import subprocess  # noqa: S404
 import sys
 import types
@@ -1021,6 +1022,54 @@ def test_build_sut_import_statements_structure():
     assert f"accessible_ = sys.modules['{module_name}']" in code
     assert f"from {module_name} import" in code
     assert "simple_function" in code
+
+
+def test_build_sut_import_statements_module_name_with_keyword(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """A module whose name contains a keyword is imported with importlib, and it works."""
+    package = tmp_path / "kwsut"
+    package.mkdir()
+    (package / "__init__.py").write_text("")
+    (package / "assert.py").write_text("def foo(x):\n    return x + 1\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    header = tmp_path / "test_header.py"
+    try:
+        code = cst.Module(
+            body=export._build_sut_import_statements("kwsut.assert", used_names={"foo"})
+        ).code
+        header.write_text(code)
+        namespace = runpy.run_path(str(header))
+    finally:
+        sys.modules.pop("kwsut.assert", None)
+        sys.modules.pop("kwsut", None)
+
+    assert "import kwsut.assert" not in code
+    assert "importlib.import_module('kwsut.assert')" in code
+    assert namespace["foo"](1) == 2
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        (export._import_source("os.path"), "import os.path\n"),
+        (export._import_source("os.path", "p"), "import os.path as p\n"),
+        (
+            export._import_source("pkg.assert", "m"),
+            "import importlib\nm = importlib.import_module('pkg.assert')\n",
+        ),
+        (export._from_import_source("os", ["sep", "path as p"]), "from os import sep, path as p\n"),
+        (
+            export._from_import_source("pkg.assert", ["Error", "Other as O"]),
+            "import importlib\n"
+            "Error = importlib.import_module('pkg.assert').Error\n"
+            "O = importlib.import_module('pkg.assert').Other\n",
+        ),
+    ],
+)
+def test_import_sources_use_importlib_only_for_names_with_keyword(source, expected):
+    """Import statements stay as they are unless a module name contains a keyword."""
+    assert source == expected
 
 
 def test_build_sut_import_statements_unimportable_module():
