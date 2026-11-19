@@ -20,8 +20,8 @@ from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.llmtestcasehandler import LLMGeneration
-from pynguin.large_language_model.tracing import CallPurpose
 from pynguin.large_language_model.targets import TargetDiagnosis
+from pynguin.large_language_model.tracing import CallPurpose
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )

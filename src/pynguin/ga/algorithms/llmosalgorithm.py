@@ -799,7 +799,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
     def _query_llm_repeatedly(
         self,
         targets_map: dict[GenericCallableAccessibleObject, float],
-        diagnostics: dict[GenericCallableAccessibleObject, str],
+        diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis],
         queries: int,
     ) -> LLMGeneration:
         """Sends the same stall query several times, as CodaMOSA's M queries per stall.
@@ -811,7 +811,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
 
         Args:
             targets_map: Mapping of callables to their coverage ratio.
-            diagnostics: Mapping of callables to diagnostic hints.
+            diagnostics: Mapping of callables to their uncovered goals and hints.
             queries: How many queries to send, at least one.
 
         Returns:
