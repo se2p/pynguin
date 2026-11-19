@@ -130,21 +130,17 @@ class Prompt(abc.ABC):
             messages.append({"role": "user", "content": user_content})
 
         # Single source of truth:
-        # - model comes ONLY from the run configuration.
-        # - temperature / max_tokens / stop come ONLY from the per-prompt YAML.
-        model = config.configuration.large_language_model.model_name
-
-        temperature = self._config.temperature
-        if temperature is None:
-            raise ValueError("Prompt YAML must define 'temperature' (defaults.yaml provides it).")
+        # - model and temperature come ONLY from the run configuration.
+        # - max_tokens / stop come ONLY from the per-prompt YAML.
+        llm_config = config.configuration.large_language_model
 
         return RenderedRequest(
             messages=messages,
-            model=model,
-            temperature=temperature,
+            model=llm_config.model_name,
+            temperature=llm_config.temperature,
             max_tokens=self._config.max_tokens,
             stop=self._config.stop,
-            enable_thinking=config.configuration.large_language_model.enable_thinking,
+            enable_thinking=llm_config.enable_thinking,
         )
 
     def render_request(self) -> RenderedRequest:

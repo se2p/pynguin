@@ -71,7 +71,8 @@ Jinja2 prompt templates configured via YAML files:
 - **Prompt Configurations** (`resources/*.yaml`): YAML templates specifying:
   - `system_message_template`: System role prompt template.
   - `user_message_template`: User request prompt template.
-  - `temperature` / `max_tokens` / `stop` / `model` overrides.
+  - `max_tokens` / `stop` overrides. Model and temperature come only from
+    `config.configuration.large_language_model`; a prompt YAML cannot set them.
 
 - **Prompt Subclasses**:
   - `TestCaseGenerationPrompt`

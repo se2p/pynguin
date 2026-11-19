@@ -6,7 +6,10 @@
 #
 """Tests for the new TestCaseGenerationPrompt template-based class."""
 
+import pytest
+
 import pynguin.configuration as config
+from pynguin.large_language_model.config_schema import PromptConfig
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import TestCaseGenerationPrompt
 from pynguin.large_language_model.request import RenderedRequest
@@ -72,10 +75,10 @@ def test_testcasegenerationprompt_render():
 
 def test_prompt_parameter_overrides(monkeypatch):
     # Single source of truth:
-    # - model comes ONLY from the run configuration.
-    # - temperature / max_tokens come ONLY from the per-prompt YAML.
+    # - model and temperature come ONLY from the run configuration.
+    # - max_tokens comes ONLY from the per-prompt YAML.
 
-    # 1. Defaults come from defaults.yaml (temperature=0.0, max_tokens=null).
+    # 1. Defaults: temperature 0.0 from the configuration, max_tokens=null from defaults.yaml.
     prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "gpt-4o-mini")
 
@@ -91,9 +94,10 @@ def test_prompt_parameter_overrides(monkeypatch):
     assert rendered.temperature == 0.0
     assert rendered.max_tokens is None
 
-    # 2. A prompt-specific YAML (refinement) sets neither temperature nor max_tokens,
-    #    so both inherit the defaults.  No prompt caps its output: truncation cuts code
-    #    off mid-token, which is unrecoverable rather than merely shorter.
+    # 2. A prompt-specific YAML (refinement) sets no max_tokens, so it inherits the
+    #    default, and it gets the configured temperature like every prompt.  No prompt
+    #    caps its output: truncation cuts code off mid-token, which is unrecoverable
+    #    rather than merely shorter.
     class DummyRefinementPrompt(Prompt):
         _resource_name = "refinement"
 
@@ -105,9 +109,29 @@ def test_prompt_parameter_overrides(monkeypatch):
     assert rendered_ref.temperature == 0.0
     assert rendered_ref.max_tokens is None
 
-    # 3. Model always follows the run configuration, even for refinement;
-    #    temperature stays the resolved YAML value regardless of run config.
+    # 3. Model always follows the run configuration, even for refinement.
     monkeypatch.setattr(config.configuration.large_language_model, "model_name", "custom-model")
     rendered_ref_overridden = ref_prompt.render(prompt="fix this")
     assert rendered_ref_overridden.model == "custom-model"
     assert rendered_ref_overridden.temperature == 0.0
+
+
+def test_configured_temperature_is_sent(monkeypatch):
+    monkeypatch.setattr(config.configuration.large_language_model, "temperature", 0.8)
+    prompt = TestCaseGenerationPrompt("def foo():\n    pass", "example/path.py")
+
+    rendered = prompt.render(
+        module_code="def foo():\n    pass",
+        module_path="example/path.py",
+        dependencies="",
+        usage_examples="",
+        visibility_instructions="",
+        api_signatures="",
+    )
+
+    assert rendered.temperature == 0.8
+
+
+def test_prompt_yaml_cannot_set_the_temperature():
+    with pytest.raises(ValueError, match="temperature"):
+        PromptConfig.from_dict({"temperature": 0.5})
