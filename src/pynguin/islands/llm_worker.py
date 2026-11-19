@@ -28,7 +28,13 @@ from pynguin.islands.llm_worker_protocol import (
     WorkerStatsReport,
     callable_first_line,
 )
-from pynguin.islands.migration import MigrationChannel, MigrationMessage, compute_test_case_hash
+from pynguin.islands.migration import (
+    MigrationChannel,
+    MigrationMessage,
+    compute_test_case_hash,
+    pack,
+    portable_test_case,
+)
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
 from pynguin.utils.logging_utils import WorkerFormatting
@@ -187,6 +193,7 @@ class _LLMQueryWorker:
             else None
         )
         self._queries_issued = 0
+        self._targets_without_callable = 0
         self._total_latency_seconds = 0.0
 
     async def run(self) -> WorkerStatsReport:
@@ -229,6 +236,10 @@ class _LLMQueryWorker:
             input_tokens=self._agent.llm_input_tokens,
             output_tokens=self._agent.llm_output_tokens,
             estimated_cost_usd=self._estimate_cost(),
+            logical_queries=self._agent.llm_logical_queries,
+            endpoint_requests=self._agent.llm_endpoint_requests,
+            cache_hits=self._agent.llm_cache_hits,
+            targets_without_callable=self._targets_without_callable,
         )
 
     def _estimate_cost(self) -> float:
@@ -314,6 +325,13 @@ class _LLMQueryWorker:
         try:
             gao = self._gao_by_first_line.get(first_line)
             if gao is None:
+                self._targets_without_callable += 1
+                self._logger.info(
+                    "LLM worker drops island %d, line %d: no callable of the test cluster "
+                    "starts there",
+                    island_id,
+                    first_line,
+                )
                 return
             input_tokens_before = self._agent.llm_input_tokens
             output_tokens_before = self._agent.llm_output_tokens
@@ -363,15 +381,20 @@ class _LLMQueryWorker:
             self._sem.release()
 
     def _deliver(self, target_island: int, first_line: int, test_case: tc.TestCase) -> None:
-        content_hash = compute_test_case_hash(test_case)
+        migrant = portable_test_case(test_case)
+        if migrant is None:
+            return
+        content_hash = compute_test_case_hash(migrant)
         routing = self._task.configuration.llm_worker.immigration_routing
         if routing is config.ImmigrationRouting.TARGETED or self._broadcast_channel is None:
             self._task.result_inboxes[target_island].put(
-                LLMWorkerResult(
-                    target_island=target_island,
-                    first_line=first_line,
-                    test_case=test_case,
-                    content_hash=content_hash,
+                pack(
+                    LLMWorkerResult(
+                        target_island=target_island,
+                        first_line=first_line,
+                        test_case=migrant,
+                        content_hash=content_hash,
+                    )
                 )
             )
         else:
@@ -380,6 +403,6 @@ class _LLMQueryWorker:
                     source_island=-1,
                     covered_goal=None,
                     content_hash=content_hash,
-                    test_case=test_case,
+                    test_case=migrant,
                 )
             )

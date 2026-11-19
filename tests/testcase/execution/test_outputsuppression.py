@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import contextlib
+import logging
 import os
 import sys
 from unittest.mock import patch
@@ -217,3 +218,22 @@ def test_restore_then_exit_is_safe():
     assert sys.stdin is sys.__stdin__
     assert sys.stdout is sys.__stdout__
     assert sys.stderr is sys.__stderr__
+
+
+def test_root_logger_handlers_replaced_inside_context_are_restored():
+    original_handlers = list(logging.root.handlers)
+    with OutputSuppressionContext():
+        logging.root.handlers = [logging.NullHandler()]
+    assert logging.root.handlers == original_handlers
+
+
+def test_explicit_restore_removes_a_root_logger_handler_added_inside_context():
+    """Calling restore() directly (timeout path) also restores the root logger's handlers."""
+    original_handlers = list(logging.root.handlers)
+    ctx = OutputSuppressionContext()
+    ctx.__enter__()  # noqa: PLC2801
+    logging.root.addHandler(logging.NullHandler())
+
+    ctx.restore()
+
+    assert logging.root.handlers == original_handlers

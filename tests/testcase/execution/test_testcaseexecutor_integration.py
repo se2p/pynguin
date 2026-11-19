@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import logging
 import threading
 import types
 from typing import TYPE_CHECKING
@@ -52,7 +53,9 @@ MODULE_SHADOWED_SUBMODULE = "tests.fixtures.examples.shadowed_submodule.shadowed
 
 @contextlib.contextmanager
 def _executor_for(
-    module_name: str, subject_properties: SubjectProperties
+    module_name: str,
+    subject_properties: SubjectProperties,
+    maximum_test_execution_timeout: int = 5,
 ) -> Iterator[TestCaseExecutor]:
     """Install the import hook, (re)load *module_name* instrumented, yield an executor.
 
@@ -65,7 +68,9 @@ def _executor_for(
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)
             importlib.reload(module)
-        yield TestCaseExecutor(subject_properties)
+        yield TestCaseExecutor(
+            subject_properties, maximum_test_execution_timeout=maximum_test_execution_timeout
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -308,3 +313,31 @@ def test_timed_out_uninstrumented_thread_is_stopped(
 
     assert result.timeout
     assert set(threading.enumerate()) <= threads_before
+
+
+MODULE_LOGGING_REDIRECT = "tests.fixtures.examples.logging_redirect"
+
+
+def test_timed_out_thread_that_cannot_be_stopped_does_not_reach_pynguin_logging(
+    subject_properties: SubjectProperties, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pynguin logs nothing through a root logger handler that a stuck SUT thread installed.
+
+    The SUT's handler is instrumented and aborts outside the test-execution thread.
+    The thread cannot be stopped because no exception can be raised in it. A real
+    pending exception would make Python 3.11 hang in ``join`` under coverage.
+    """
+    monkeypatch.setattr(
+        "pynguin.testcase.execution._raise_in_thread", lambda _thread, _exception_type: False
+    )
+    with _executor_for(
+        MODULE_LOGGING_REDIRECT, subject_properties, maximum_test_execution_timeout=1
+    ) as executor:
+        sut = importlib.import_module(MODULE_LOGGING_REDIRECT)
+        try:
+            result = executor.execute(make_test_case(stmt("redirect_root_logging_and_block()")))
+        finally:
+            sut.release.set()
+
+    assert result.timeout
+    assert not any(isinstance(handler, sut.RedirectingHandler) for handler in logging.root.handlers)

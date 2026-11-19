@@ -6,6 +6,8 @@
 #
 from unittest.mock import MagicMock
 
+import pytest
+
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.testcase as tc
@@ -15,6 +17,7 @@ from pynguin.generator import ReturnCode
 from pynguin.islands import aggregation
 from pynguin.islands.island import IslandResult
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
+from pynguin.testcase.execution_result import ExecutionResult
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -33,7 +36,7 @@ def test_deduplicate_by_source_drops_identical_test_cases():
         IslandResult(1, [duplicate], ReturnCode.OK),
     ]
 
-    deduplicated = aggregation._deduplicate_by_source(results)
+    deduplicated = [test_case for test_case, _ in aggregation._deduplicate_by_source(results)]
 
     assert len(deduplicated) == 2
     assert shared in deduplicated
@@ -53,6 +56,75 @@ def test_deduplicate_by_source_keeps_all_distinct_test_cases():
 def test_deduplicate_by_source_handles_empty_results():
     assert aggregation._deduplicate_by_source([]) == []
     assert aggregation._deduplicate_by_source([IslandResult(0, [], ReturnCode.OK)]) == []
+
+
+def _result_covering(predicate: int) -> ExecutionResult:
+    result = ExecutionResult()
+    result.execution_trace.true_distances[predicate] = 0.0
+    return result
+
+
+def test_deduplicate_by_source_merges_the_traces_of_duplicates():
+    shared = _fake_test_case("def test_0():\n    pass\n")
+    first, second = _result_covering(0), _result_covering(1)
+    results = [
+        IslandResult(0, [shared], ReturnCode.OK, execution_results=[first]),
+        IslandResult(
+            1,
+            [_fake_test_case("def test_0():\n    pass\n")],
+            ReturnCode.OK,
+            execution_results=[second],
+        ),
+    ]
+
+    assert aggregation._deduplicate_by_source(results) == [(shared, first)]
+    assert first.execution_trace.true_distances == {0: 0.0, 1: 0.0}
+
+
+def test_deduplicate_by_source_takes_a_duplicate_result_when_the_kept_one_has_none():
+    shared = _fake_test_case("def test_0():\n    pass\n")
+    recorded = _result_covering(0)
+    results = [
+        IslandResult(0, [shared], ReturnCode.OK, execution_results=[None]),
+        IslandResult(
+            1,
+            [_fake_test_case("def test_0():\n    pass\n")],
+            ReturnCode.OK,
+            execution_results=[recorded],
+        ),
+    ]
+
+    assert aggregation._deduplicate_by_source(results) == [(shared, recorded)]
+
+
+def test_assemble_final_suite_reuses_the_recorded_execution_results(monkeypatch):
+    strategy = MagicMock(test_case_fitness_functions=[])
+    monkeypatch.setattr(
+        generator, "_instantiate_test_generation_strategy", MagicMock(return_value=strategy)
+    )
+    monkeypatch.setattr(
+        generator, "finalize_generation_result", MagicMock(return_value=ReturnCode.OK)
+    )
+    recorded = _result_covering(0)
+    results = [
+        IslandResult(
+            0,
+            [
+                _fake_test_case("def test_0():\n    pass\n"),
+                _fake_test_case("def test_1():\n    pass\n"),
+            ],
+            ReturnCode.OK,
+            execution_results=[recorded, None],
+        )
+    ]
+
+    aggregation.assemble_final_suite(results, MagicMock(), MagicMock(), MagicMock())
+
+    with_result, without_result = strategy.create_test_suite.call_args.args[0]
+    assert with_result.get_last_execution_result() is recorded
+    assert not with_result.changed
+    assert without_result.get_last_execution_result() is None
+    assert without_result.changed
 
 
 def test_assemble_final_suite_tracks_dedup_statistics(monkeypatch):
@@ -82,6 +154,46 @@ def test_assemble_final_suite_tracks_dedup_statistics(monkeypatch):
     assert tracked[RuntimeVariable.IslandTestCasesBeforeDedup] == 4
     assert tracked[RuntimeVariable.IslandTestCasesAfterDedup] == 2
     assert tracked[RuntimeVariable.IslandDuplicateTestCasesRemoved] == 2
+
+
+@pytest.mark.parametrize(
+    ("configured", "instantiated"),
+    [
+        (config.Algorithm.LLDYNAMOSA, config.Algorithm.DYNAMOSA),
+        (config.Algorithm.DYNAMOSA, config.Algorithm.DYNAMOSA),
+        (config.Algorithm.MOSA, config.Algorithm.MOSA),
+    ],
+)
+def test_strategy_for_merge_is_built_without_the_llm(monkeypatch, configured, instantiated):
+    monkeypatch.setattr(config.configuration, "algorithm", configured)
+    seen = []
+    strategy = MagicMock()
+
+    def instantiate(*_args):
+        seen.append(config.configuration.algorithm)
+        return strategy
+
+    monkeypatch.setattr(generator, "_instantiate_test_generation_strategy", instantiate)
+
+    result = aggregation._instantiate_strategy_for_merge(MagicMock(), MagicMock(), MagicMock())
+
+    assert result is strategy
+    assert seen == [instantiated]
+    assert config.configuration.algorithm is configured
+
+
+def test_strategy_for_merge_restores_the_algorithm_when_building_fails(monkeypatch):
+    monkeypatch.setattr(config.configuration, "algorithm", config.Algorithm.LLDYNAMOSA)
+    monkeypatch.setattr(
+        generator,
+        "_instantiate_test_generation_strategy",
+        MagicMock(side_effect=RuntimeError("broken")),
+    )
+
+    with pytest.raises(RuntimeError, match="broken"):
+        aggregation._instantiate_strategy_for_merge(MagicMock(), MagicMock(), MagicMock())
+
+    assert config.configuration.algorithm is config.Algorithm.LLDYNAMOSA
 
 
 def _prepare_with_coverage_metrics(monkeypatch, coverage_metrics):

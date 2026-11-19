@@ -36,6 +36,12 @@ class _FakeTestCase:
     def to_code(self) -> str:
         return self.source
 
+    def clone(self) -> "_FakeTestCase":
+        return _FakeTestCase(self.source)
+
+    def statements(self) -> list:
+        return []
+
 
 class _StubTestCaseHandler:
     def get_test_cases_from_llm_results(self, raw_result, test_cluster):
@@ -46,6 +52,9 @@ class _StubAgent:
     def __init__(self):
         self.llm_input_tokens = 0
         self.llm_output_tokens = 0
+        self.llm_logical_queries = 0
+        self.llm_endpoint_requests = 0
+        self.llm_cache_hits = 0
         self.llm_test_case_handler = _StubTestCaseHandler()
         self.calls = []
         self.concurrent = 0
@@ -60,6 +69,8 @@ class _StubAgent:
         self.calls.append(dict(gao_coverage_map))
         self.llm_input_tokens += 10
         self.llm_output_tokens += 20
+        self.llm_logical_queries += 1
+        self.llm_endpoint_requests += 2
         with self._lock:
             self.concurrent -= 1
         return "raw"
@@ -236,7 +247,27 @@ def test_run_processes_reports_and_returns_stats(tmp_path):
     assert stats.queries_issued == 1
     assert stats.input_tokens == 10
     assert stats.output_tokens == 20
+    assert stats.logical_queries == 1
+    assert stats.endpoint_requests == 2
+    assert stats.cache_hits == 0
     assert len(agent.calls) == 1
+
+
+def test_run_counts_targets_without_callable_and_does_not_query_them(tmp_path):
+    worker, status_queue, _result_inboxes, agent = _build_worker(tmp_path, max_in_flight=1)
+
+    async def _drive():
+        run = asyncio.create_task(worker.run())
+        status_queue.put(StatusReport(island_id=0, first_line=30, coverage=0.0, covered=False))
+        await asyncio.sleep(0.3)
+        status_queue.put(None)
+        return await run
+
+    stats = asyncio.run(_drive())
+
+    assert stats.targets_without_callable == 1
+    assert stats.queries_issued == 0
+    assert agent.calls == []
 
 
 def test_run_drops_pending_targets_on_shutdown(tmp_path):

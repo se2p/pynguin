@@ -259,13 +259,25 @@ def _setup_import_hook(
 ) -> SubjectProperties:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
     subject_properties = SubjectProperties()
+    coverage_metrics = set(config.configuration.search_algorithm.coverage_metrics)
+    if _tracks_line_coverage_over_time():
+        # Only traced for the timeline; the search goals still follow coverage_metrics.
+        coverage_metrics.add(config.CoverageMetric.LINE)
 
     install_import_hook(
         config.configuration.module_name,
         subject_properties,
+        coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     return subject_properties
+
+
+def _tracks_line_coverage_over_time() -> bool:
+    return (
+        RuntimeVariable.LineCoverageTimeline
+        in config.configuration.statistics_output.output_variables
+    )
 
 
 def _package_module_names(top_level: str) -> list[str]:
@@ -622,6 +634,10 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
             subject_properties=subject_properties,
             maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
             test_execution_time_per_statement=stop.test_execution_time_per_statement,
+        )
+    if _tracks_line_coverage_over_time():
+        stat.track_line_coverage_over_time(
+            ff.TestSuiteLineCoverageFunction(executor).compute_coverage
         )
     _track_sut_data(subject_properties, test_cluster)
     _setup_random_number_generator()

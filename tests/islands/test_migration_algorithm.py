@@ -21,7 +21,7 @@ from pynguin.utils import randomness
 
 @dataclasses.dataclass
 class _FakeTestCase:
-    """A plain stand-in for TestCase -- only to_code()/clone() are exercised here."""
+    """A plain stand-in for TestCase -- only to_code()/clone()/statements() are exercised."""
 
     source: str
 
@@ -30,6 +30,9 @@ class _FakeTestCase:
 
     def clone(self) -> "_FakeTestCase":
         return _FakeTestCase(self.source)
+
+    def statements(self) -> list:
+        return []
 
 
 @pytest.fixture

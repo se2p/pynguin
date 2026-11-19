@@ -22,7 +22,7 @@ import pynguin.utils.statistics.statisticsbackend as sb
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
 
 class _StatisticsTracker:
@@ -105,6 +105,27 @@ class _StatisticsTracker:
                 with time stamps in nanoseconds since the sequence start time
         """
         self._search_statistics.add_sequence_samples(variable, samples)
+
+    def track_line_coverage_over_time(
+        self, line_coverage: Callable[[chrom.Chromosome], float]
+    ) -> None:
+        """Records the LineCoverageTimeline from now on.
+
+        Args:
+            line_coverage: Computes the line coverage of an individual
+        """
+        self._search_statistics.track_line_coverage_over_time(line_coverage)
+
+    def tracks_sequence(self, variable: RuntimeVariable) -> bool:
+        """Whether samples are recorded for a sequence output variable.
+
+        Args:
+            variable: The sequence variable, e.g., RuntimeVariable.LineCoverageTimeline
+
+        Returns:
+            True if the variable has a sequence factory
+        """
+        return self._search_statistics.tracks_sequence(variable)
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.
@@ -295,6 +316,31 @@ class _SearchStatistics:
         factory = self._sequence_output_variable_factories[variable.name]
         for time_stamp, value in samples:
             factory.add_sample(time_stamp, value)
+
+    def track_line_coverage_over_time(
+        self, line_coverage: Callable[[chrom.Chromosome], float]
+    ) -> None:
+        """Records the LineCoverageTimeline from now on.
+
+        Args:
+            line_coverage: Computes the line coverage of an individual
+        """
+        factory = self._LineCoverageSequenceOutputVariableFactory(line_coverage)
+        factory.set_start_time(self._start_time)
+        self._sequence_output_variable_factories[RuntimeVariable.LineCoverageTimeline.name] = (
+            factory
+        )
+
+    def tracks_sequence(self, variable: RuntimeVariable) -> bool:
+        """Whether samples are recorded for a sequence output variable.
+
+        Args:
+            variable: The sequence variable, e.g., RuntimeVariable.LineCoverageTimeline
+
+        Returns:
+            True if the variable has a sequence factory
+        """
+        return variable.name in self._sequence_output_variable_factories
 
     def current_individual(self, individual: chrom.Chromosome) -> None:
         """Called when a new individual is sent.
@@ -513,6 +559,14 @@ class _SearchStatistics:
         def get_value(self, individual: chrom.Chromosome) -> float:
             return individual.get_coverage()
 
+    class _LineCoverageSequenceOutputVariableFactory(ovf.SequenceOutputVariableFactory):
+        def __init__(self, line_coverage: Callable[[chrom.Chromosome], float]) -> None:
+            super().__init__(RuntimeVariable.LineCoverageTimeline)
+            self._line_coverage = line_coverage
+
+        def get_value(self, individual: chrom.Chromosome) -> float:
+            return self._line_coverage(individual)
+
     class _SizeSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.SizeTimeline, 0)
@@ -543,6 +597,8 @@ search_statistics = statistics_tracker.search_statistics
 set_sequence_start_time = statistics_tracker.set_sequence_start_time
 get_sequence_samples = statistics_tracker.get_sequence_samples
 add_sequence_samples = statistics_tracker.add_sequence_samples
+track_line_coverage_over_time = statistics_tracker.track_line_coverage_over_time
+tracks_sequence = statistics_tracker.tracks_sequence
 current_individual = statistics_tracker.current_individual
 set_output_variable = statistics_tracker.set_output_variable
 set_output_variable_for_runtime_variable = (

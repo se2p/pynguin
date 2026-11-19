@@ -141,6 +141,10 @@ class RuntimeVariable(str, enum.Enum):
     # Obtained coverage (of the chosen testing criterion(s)) at different points in time
     CoverageTimeline = "CoverageTimeline"
 
+    # Obtained line coverage at different points in time, whatever criteria the search
+    # optimises; requesting it makes the search trace lines as well
+    LineCoverageTimeline = "LineCoverageTimeline"
+
     # Obtained size values at different points in time
     SizeTimeline = "SizeTimeline"
 
@@ -519,6 +523,21 @@ class RuntimeVariable(str, enum.Enum):
 
     # Number of LLM queries issued by the async worker
     TotalLLMWorkerQueries = "TotalLLMWorkerQueries"
+
+    # Number of logical LLM queries of the async worker (cache hits and endpoint
+    # requests alike)
+    TotalLLMWorkerLogicalQueries = "TotalLLMWorkerLogicalQueries"
+
+    # Number of LLM endpoint requests of the async worker (each retry counts)
+    TotalLLMWorkerEndpointRequests = "TotalLLMWorkerEndpointRequests"
+
+    # Number of logical LLM queries of the async worker served from the response cache
+    TotalLLMWorkerCacheHits = "TotalLLMWorkerCacheHits"
+
+    # Number of targets the async worker dropped without a query because no callable of
+    # the test cluster starts at their first line, e.g. a protected method, a nested
+    # function, or module-level code
+    TotalLLMWorkerTargetsWithoutCallable = "TotalLLMWorkerTargetsWithoutCallable"
 
     # Total wall-clock seconds spent on async worker LLM queries
     TotalLLMWorkerQueryTimeSeconds = "TotalLLMWorkerQueryTimeSeconds"

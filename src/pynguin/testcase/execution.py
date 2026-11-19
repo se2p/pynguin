@@ -386,9 +386,7 @@ def _force_stop_thread(thread: threading.Thread, timeout: float) -> bool:
     while thread.is_alive():
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            _LOGGER.warning("Could not stop timed-out test-execution thread %s", thread.name)
             return False
-        _LOGGER.debug("Forcefully stopping timed-out test-execution thread %s", thread.name)
         _raise_in_thread(thread, TracingAbortedException)
         thread.join(timeout=min(_FORCE_STOP_RETRY_INTERVAL, remaining))
     return True
@@ -537,19 +535,24 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                 )
             )
             if thread.is_alive():
+                # Nothing is logged until the restore: the root logger may still have a
+                # handler the SUT installed, which aborts outside the test-execution thread.
                 # Kills the thread at its next tracer check (instrumented code only)
                 self._subject_properties.instrumentation_tracer.stop()
                 # Wait for the thread so that stdout/stderr is not redirected anymore
-                _LOGGER.debug("Waiting for thread to finish")
                 thread.join(
                     timeout=min(_TRACER_STOP_GRACE_PERIOD, self._maximum_test_execution_timeout)
                 )
-                if thread.is_alive():
-                    # Uninstrumented code, e.g., a mutant, never checks the tracer.
-                    _force_stop_thread(thread, self._maximum_test_execution_timeout)
+                # Uninstrumented code, e.g., a mutant, never checks the tracer.
+                stopped = not thread.is_alive() or _force_stop_thread(
+                    thread, self._maximum_test_execution_timeout
+                )
                 # Restore stdout and stderr if it was not already done by the thread
-                _LOGGER.debug("Restoring stdout and stderr")
                 output_suppression_context.restore()
+                if not stopped:
+                    _LOGGER.warning(
+                        "Could not stop timed-out test-execution thread %s", thread.name
+                    )
                 result = ExecutionResult(timeout=True)
                 _LOGGER.warning("Experienced timeout from test-case execution")
             else:

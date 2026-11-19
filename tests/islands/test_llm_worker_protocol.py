@@ -15,6 +15,7 @@ from pynguin.islands.llm_worker_protocol import (
     build_llm_worker_channels,
     callable_first_line,
 )
+from pynguin.islands.migration import pack
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -73,7 +74,7 @@ def test_drain_incoming_delivers_only_to_the_addressed_island():
     with mp.Manager() as manager:
         _status_queue, result_inboxes, channels = build_llm_worker_channels(2, manager)
         result = _fake_result(target_island=1, first_line=17)
-        result_inboxes[1].put(result)
+        result_inboxes[1].put(pack(result))
 
         assert channels[1].drain_incoming() == [result]
         assert channels[0].drain_incoming() == []
