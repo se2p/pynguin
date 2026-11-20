@@ -813,6 +813,21 @@ class InstrumentationAdapter(Protocol):
         """
         return
 
+    def leave_cfg(
+        self,
+        ast_info: AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+    ) -> None:
+        """Called after all nodes of the CFG were visited by all adapters.
+
+        Args:
+            ast_info: The AST info, if it exists.
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+        """
+        return
+
 
 class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances.
@@ -1636,6 +1651,9 @@ class InstrumentationTransformer:
         for node in cfg.basic_block_nodes:
             for adapter in self._instrumentation_adapters:
                 adapter.visit_node(ast_info, cfg, code_object_id, node)
+
+        for adapter in self._instrumentation_adapters:
+            adapter.leave_cfg(ast_info, cfg, code_object_id)
 
         instrumented_code = cfg.bytecode_cfg.to_code()
 

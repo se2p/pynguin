@@ -23,6 +23,11 @@ from bytecode.instr import _UNSET, UNSET, Compare, Instr, Label
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.instrumentation import AST_FILENAME, PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
+from pynguin.instrumentation.regex_calls import (
+    find_regex_call_sites,
+    is_tested_by,
+    tested_origins,
+)
 from pynguin.instrumentation.version.common import (
     COMPARE_OP_POS,
     JUMP_OP_POS,
@@ -48,9 +53,11 @@ from pynguin.instrumentation.version.common import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from bytecode import Bytecode
+
+    from pynguin.instrumentation.regex_calls import RegexCallSite
 
 __all__ = [
     "ACCESS_NAMES",
@@ -810,6 +817,103 @@ def extract_comparison(instr: Instr) -> PynguinCompare:
             raise AssertionError(f"Unknown comparison in {instr}.")
 
 
+def instrument_regex_call_sites(  # noqa: PLR0917
+    node: cf.BasicBlockNode,
+    sites: Sequence[RegexCallSite],
+    instructions_generator: type[InstrumentationInstructionsGenerator],
+    target: object,
+    method_name: str,
+    should_instrument_line: Callable[[int], bool] | None = None,
+    extra_arguments: Callable[[RegexCallSite], tuple[tuple[int, ...], ...] | None] | None = None,
+) -> None:
+    """Insert hooks that record the receiver and arguments of potential regex calls.
+
+    For each call site (found by `find_regex_call_sites` before any hook of this
+    function was inserted into the node), the method ``method_name`` of ``target`` is
+    called with ``(value, site_id, index, argc, method_name, *extra)`` for the receiver
+    (index 0, before the method load) and for each argument (after it has been
+    evaluated). The hooks do not change the stack.
+
+    Args:
+        node: The basic block node.
+        sites: The regex call sites of the node.
+        instructions_generator: The generator for the instrumentation instructions.
+        target: The object whose method is called by the hooks.
+        method_name: The name of the method to call.
+        should_instrument_line: Decides per line number whether to add the hooks.
+        extra_arguments: Provides additional constant arguments per site; a site for
+            which it returns None is not instrumented.
+    """
+    # (position in block, order at that position, sequence number, instructions); hooks
+    # that run after an instruction (order 0) must run before hooks that run before the
+    # next instruction (order 1).
+    insertions: list[tuple[int, int, int, tuple[cf.ArtificialInstr, ...]]] = []
+    for site in sites:
+        maybe_extra = () if extra_arguments is None else extra_arguments(site)
+        if maybe_extra is None:
+            continue
+        site_extra: tuple[tuple[int, ...], ...] = maybe_extra
+        load_instr = node.basic_block[site.load_index]
+        assert isinstance(load_instr, Instr)
+        lineno = load_instr.lineno
+        if (
+            should_instrument_line is not None
+            and isinstance(lineno, int)
+            and not should_instrument_line(lineno)
+        ):
+            continue
+
+        def hook(
+            index: int,
+            setup_action: InstrumentationSetupAction,
+            lineno: int | _UNSET | None,
+            site: RegexCallSite = site,
+            extra: tuple[tuple[int, ...], ...] = site_extra,
+        ) -> tuple[cf.ArtificialInstr, ...]:
+            return instructions_generator.generate_instructions(
+                setup_action,
+                InstrumentationMethodCall(
+                    target,
+                    method_name,
+                    (
+                        InstrumentationStackValue.FIRST,
+                        InstrumentationConstantLoad(value=site.site_id),
+                        InstrumentationConstantLoad(value=index),
+                        InstrumentationConstantLoad(value=site.argc),
+                        InstrumentationConstantLoad(value=site.method_name),
+                        *(InstrumentationConstantLoad(value=value) for value in extra),
+                    ),
+                ),
+                lineno,
+            )
+
+        insertions.append((
+            site.load_index,
+            1,
+            len(insertions),
+            hook(0, InstrumentationSetupAction.COPY_FIRST, lineno),
+        ))
+        for argument_index, (block_index, stack_position) in enumerate(
+            site.argument_hooks, start=1
+        ):
+            setup_action = (
+                InstrumentationSetupAction.COPY_FIRST
+                if stack_position == 1
+                else InstrumentationSetupAction.COPY_SECOND
+            )
+            insertions.append((
+                block_index + 1,
+                0,
+                len(insertions),
+                hook(argument_index, setup_action, lineno),
+            ))
+
+    # Insert from the back, such that the recorded block indices stay valid. At the
+    # same position, the insertion that must run first is inserted last.
+    for position, _, _, instructions in sorted(insertions, reverse=True):
+        node.basic_block[before(position)] = instructions
+
+
 class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAdapter):
     """Specialized instrumentation adapter for branch coverage in Python 3.10."""
 
@@ -1333,6 +1437,74 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             lineno,
         )
+
+    def leave_cfg(  # noqa: D102
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+    ) -> None:
+        # The predicates of all nodes are registered at this point.
+        self._instrument_regex_calls(ast_info, cfg, code_object_id)
+
+    def _instrument_regex_calls(
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+    ) -> None:
+        """Record regex calls to provide a branch distance for checks of their result.
+
+        A call site is only instrumented if a predicate of the code object tests its
+        result, directly (``if R.match(s):``) or through the variable it is stored to
+        (``m = R.match(s)`` ... ``if m is None:``). The predicates are passed to the
+        hooks, so that only they use the call's distance.
+
+        Args:
+            ast_info: The AST information, if any.
+            cfg: The control flow graph of the code object.
+            code_object_id: The id of the code object.
+        """
+        predicate_of_node = {
+            id(meta.node): predicate_id
+            for predicate_id, meta in self._subject_properties.existing_predicates.items()
+            if meta.code_object_id == code_object_id and not meta.is_auxiliary
+        }
+        # Analyse all nodes before inserting any hook, as a site and the predicate
+        # testing its result may be in different nodes.
+        sites_of_node = []
+        all_sites = []
+        for node in cfg.basic_block_nodes:
+            sites = find_regex_call_sites(node)
+            sites_of_node.append((node, sites))
+            all_sites.extend(sites)
+        if not all_sites:
+            return
+        tested: list[tuple[int, frozenset]] = []
+        for node, sites in sites_of_node:
+            predicate_id = predicate_of_node.get(id(node))
+            if predicate_id is None:
+                continue
+            origins = tested_origins(node, sites)
+            if origins:
+                tested.append((predicate_id, origins))
+
+        def predicates_of(site: RegexCallSite) -> tuple[tuple[int, ...], ...] | None:
+            predicates = tuple(
+                predicate_id for predicate_id, origins in tested if is_tested_by(site, origins)
+            )
+            return (predicates,) if predicates else None
+
+        for node, sites in sites_of_node:
+            instrument_regex_call_sites(
+                node,
+                sites,
+                self.instructions_generator,
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_regex_call_part.__name__,
+                None if ast_info is None else ast_info.should_track_line,
+                predicates_of,
+            )
 
 
 class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter):
@@ -1972,6 +2144,23 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         self, dynamic_constant_provider: DynamicConstantProvider
     ):
         self._dynamic_constant_provider = dynamic_constant_provider
+
+    def visit_cfg(  # noqa: D102
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+    ) -> None:
+        # Seed strings matching the patterns of regex calls that did not match.
+        for node in cfg.basic_block_nodes:
+            instrument_regex_call_sites(
+                node,
+                find_regex_call_sites(node),
+                self.instructions_generator,
+                self._dynamic_constant_provider,
+                DynamicConstantProvider.add_regex_call_part.__name__,
+                None if ast_info is None else ast_info.should_seed_line,
+            )
 
     def extract_method_name(self, instr: Instr) -> str | None:
         """Extract the method name from the instruction.

@@ -81,7 +81,7 @@ class InstrumentationStackValue(enum.IntEnum):
 class InstrumentationConstantLoad:
     """Represents a constant load used in instrumentation."""
 
-    value: int | str | bool | enum.Enum | None
+    value: int | str | bool | enum.Enum | tuple[int, ...] | None
 
 
 @dataclass(frozen=True)
