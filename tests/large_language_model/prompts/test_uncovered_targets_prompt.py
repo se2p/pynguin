@@ -9,9 +9,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pynguin.configuration import ProblemCardType
+from pynguin.large_language_model.problem_cards import ProblemCard
 from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
 )
+from pynguin.large_language_model.targets import TargetDiagnosis
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericConstructor,
     GenericFunction,
@@ -91,16 +94,61 @@ def test_build_callables_prompt_section_includes_diagnostics(module_info):
         [foo, bar],
         module_info["code"],
         module_info["path"],
-        diagnostics={foo: "never reached; construct valid inputs"},
+        diagnostics={
+            foo: TargetDiagnosis(
+                cards=(
+                    ProblemCard(
+                        ProblemCardType.UNREACHED_CALLABLE,
+                        foo,
+                        None,
+                        "never reached; construct valid inputs",
+                    ),
+                ),
+                uncovered_lines=(3, 4, 5, 9),
+                missing_branches=((2, False),),
+            )
+        },
     )
     result = prompt.build_callables_prompt_section()
 
-    # foo carries its hint; bar (no diagnostic) does not get a bracketed hint.
-    assert (
-        "- The function foo(a: int) -> str [hint: never reached; construct valid inputs]" in result
+    # foo lists its goals and hint; bar (no diagnosis) only has its header.
+    assert result[0] == (
+        "- The function foo(a: int) -> str\n"
+        "  - Uncovered lines: 3-5, 9\n"
+        "  - Branch outcomes never taken: line 2 (False)\n"
+        "  - Hint: never reached; construct valid inputs"
     )
-    assert "- The method bar of class MyClass(self, x: float) -> None" in result
-    assert not any("[hint:" in item and "bar" in item for item in result)
+    assert result[1] == "- The method bar of class MyClass(self, x: float) -> None"
+
+
+def test_build_prompt_renders_diagnosis_as_nested_list(module_info):
+    foo = make_generic_function("foo")
+    prompt = UncoveredTargetsPrompt(
+        [foo],
+        module_info["code"],
+        module_info["path"],
+        diagnostics={foo: TargetDiagnosis(uncovered_lines=(7,))},
+    )
+    result = prompt.build_prompt()
+
+    assert "- The function foo(a: int) -> str\n  - Uncovered lines: 7\n" in result
+    assert "aim each test" in result  # the instruction explaining the goal lists
+
+
+@pytest.mark.parametrize("tests_per_query", [0, 3])
+def test_build_prompt_asks_for_tests_per_query(module_info, tests_per_query):
+    prompt = UncoveredTargetsPrompt(
+        [make_generic_function("foo")],
+        module_info["code"],
+        module_info["path"],
+        tests_per_query=tests_per_query,
+    )
+    result = prompt.build_prompt()
+
+    if tests_per_query:
+        assert f"Write exactly {tests_per_query} test functions." in result
+    else:
+        assert "Write exactly" not in result
 
 
 def test_skips_unknown_callable_type(module_info):

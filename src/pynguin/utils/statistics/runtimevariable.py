@@ -311,6 +311,11 @@ class RuntimeVariable(str, enum.Enum):
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
+    # Problem card counters per card type: for each enabled type, the cards
+    # extracted, selected and published, and the test cases admitted, surviving and
+    # the goals they cover, joined by slashes
+    LLMProblemCardStats = "LLMProblemCardStats"
+
     # Seconds the synchronous search loop spent blocked waiting for LLM responses
     LLMBlockingTimeSeconds = "LLMBlockingTimeSeconds"
 

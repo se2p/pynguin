@@ -97,7 +97,7 @@ def test_initialization():
     [
         "__init__",
         "_enough_budget_for_llm",
-        "_diagnose_callable",
+        "_diagnose_targets",
         "_get_random_population",
         "_breed_next_generation",
     ],
@@ -425,3 +425,17 @@ def test_lldynamosa_generate_tests_sets_up_speciation(mock_config, lldynamosa_al
 
     assert lldynamosa_algorithm._species_assigner is not None
     assert lldynamosa_algorithm._speciation_options is not None
+
+
+def test_uncovered_goals_for_targeting_lists_only_active_uncovered_goals(lldynamosa_algorithm):
+    active_uncovered, active_covered, inactive_uncovered = MagicMock(), MagicMock(), MagicMock()
+    lldynamosa_algorithm._goals_manager.current_goals = OrderedSet([
+        active_uncovered,
+        active_covered,
+    ])
+    lldynamosa_algorithm._archive.uncovered_goals = OrderedSet([
+        active_uncovered,
+        inactive_uncovered,
+    ])
+
+    assert list(lldynamosa_algorithm._uncovered_goals_for_targeting()) == [active_uncovered]

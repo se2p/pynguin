@@ -8,6 +8,9 @@ user_message_template: |
   ### Task
   Pynguin failed to cover the following callables. Write additional pytest tests that
   specifically exercise them, covering their statements and branches.
+  {% if tests_per_query > 0 -%}
+  Write exactly {{ tests_per_query }} test functions.
+  {% endif %}
 
   ### Uncovered callables
   {% for target in uncovered_targets -%}
@@ -17,11 +20,14 @@ user_message_template: |
   - Use pytest only; do not use the `unittest` module.
   - Derive imports from the module path: for `a/b/c.py`, import via `from a.b.c import ...`.
   - Focus each test on reaching an uncovered callable and its branches.
+  - When a callable lists uncovered lines or branch outcomes never taken, aim each test
+    at some of them. "line 14 (False)" means the condition at line 14 has never
+    evaluated to False; choose inputs or state that make it do so.
   - Only wrap calls in `with pytest.raises(...)` when the callable actually raises or
     propagates an uncaught exception. If the callable catches, suppresses, or logs the
     exception internally (handling it without re-raising), invoke the callable directly
     without `pytest.raises`.
-  - When a callable has a `[hint: ...]` note, use it: it diagnoses why the search could
+  - When a callable has a `Hint:` note, use it: it diagnoses why the search could
     not cover the callable (e.g. it was never reached, or a branch only took one
     outcome). Address the hint directly — construct valid inputs to reach it, or vary
     one input/state axis to flip an unobserved branch.

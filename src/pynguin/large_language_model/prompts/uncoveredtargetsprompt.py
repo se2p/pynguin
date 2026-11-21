@@ -8,6 +8,7 @@
 
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.request import RenderedRequest
+from pynguin.large_language_model.targets import TargetDiagnosis, describe
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
@@ -26,8 +27,10 @@ class UncoveredTargetsPrompt(Prompt):
         callables: list[GenericCallableAccessibleObject],
         module_code: str,
         module_path: str,
-        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
+        *,
+        diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] | None = None,
         visibility_instructions: str = "",
+        tests_per_query: int = 0,
     ):
         """Initializes the prompt.
 
@@ -36,28 +39,38 @@ class UncoveredTargetsPrompt(Prompt):
                 uncovered callables.
             module_path (str): Path to the module.
             module_code (str): Source code of the module.
-            diagnostics (dict): Optional per-callable diagnostic hints describing why
-                a target is uncovered (e.g. never reached, one-sided branch). Used to
-                give the LLM a targeted "problem card" per callable.
+            diagnostics (dict): Optional per-callable diagnosis: the uncovered lines
+                and branch outcomes, and hints on why the callable is uncovered (e.g.
+                never reached, one-sided branch).
             visibility_instructions: Optional prose describing which members of
                 the module the generated tests may call (see
                 ``llmagent.get_visibility_instructions``).
+            tests_per_query: How many test functions to ask for; 0 asks for no
+                particular number.
         """
         self.callables: list[GenericCallableAccessibleObject] = callables
         self.module_path = module_path
         self.module_code = module_code
-        self.diagnostics: dict[GenericCallableAccessibleObject, str] = diagnostics or {}
+        self.diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] = diagnostics or {}
         self.visibility_instructions = visibility_instructions
+        self.tests_per_query = tests_per_query
         super().__init__()
 
     def _template_vars(self) -> list[str]:
-        return ["uncovered_targets", "module_code", "module_path", "visibility_instructions"]
+        return [
+            "uncovered_targets",
+            "module_code",
+            "module_path",
+            "visibility_instructions",
+            "tests_per_query",
+        ]
 
     def build_callables_prompt_section(self) -> list[str]:
-        """Generates a list of function headers and their signatures.
+        """Generates one entry per callable: its header and what is uncovered in it.
 
         Returns:
-            list[str]: A list of formatted function headers with their signatures.
+            list[str]: Per callable, its header with signature, followed by one
+            indented line per uncovered-goal list and hint.
         """
         callables_list = []
 
@@ -79,9 +92,9 @@ class UncoveredTargetsPrompt(Prompt):
             else:
                 continue  # Skip unknown callable types
 
-            diagnostic = self.diagnostics.get(gao)
-            if diagnostic:
-                callable_list_item += f" [hint: {diagnostic}]"
+            diagnosis = self.diagnostics.get(gao)
+            if diagnosis:
+                callable_list_item += "".join(f"\n  - {line}" for line in describe(diagnosis))
 
             callables_list.append(callable_list_item)
 
@@ -99,4 +112,5 @@ class UncoveredTargetsPrompt(Prompt):
             module_code=self.module_code,
             module_path=self.module_path,
             visibility_instructions=self.visibility_instructions,
+            tests_per_query=self.tests_per_query,
         )

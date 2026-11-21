@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 
     from pynguin.large_language_model.prompts.prompt import Prompt
     from pynguin.large_language_model.request import RenderedRequest
+    from pynguin.large_language_model.targets import TargetDiagnosis
     from pynguin.utils.generic.genericaccessibleobject import (
         GenericCallableAccessibleObject,
     )
@@ -302,7 +303,7 @@ def _find_lines(name: str) -> tuple[list[str], int] | None:
 
 def _uncovered_targets_prompt(
     gao_coverage_map: dict[GenericCallableAccessibleObject, float],
-    diagnostics: dict[GenericCallableAccessibleObject, str] | None,
+    diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] | None,
 ) -> UncoveredTargetsPrompt:
     """Builds the prompt asking the LLM for tests that cover the given targets.
 
@@ -310,7 +311,8 @@ def _uncovered_targets_prompt(
 
     Args:
         gao_coverage_map: Maps callable objects to coverage percentages.
-        diagnostics: Optional per-callable hints describing why a target is uncovered.
+        diagnostics: Optional per-callable diagnosis: uncovered goals and hints on why
+            a target is uncovered.
 
     Returns:
         The prompt for the uncovered targets.
@@ -321,6 +323,7 @@ def _uncovered_targets_prompt(
         get_importable_module_path(),
         diagnostics=diagnostics,
         visibility_instructions=get_visibility_instructions(),
+        tests_per_query=config.configuration.large_language_model.tests_per_query,
     )
 
 
@@ -848,13 +851,14 @@ class LLMAgent:  # noqa: PLR0904
     @staticmethod
     def build_uncovered_targets_prompt(
         gao_coverage_map: dict[GenericCallableAccessibleObject, float],
-        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
+        diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] | None = None,
     ) -> UncoveredTargetsPrompt:
         """Builds the prompt asking for tests that cover the given targets.
 
         Args:
             gao_coverage_map: Maps callable objects to coverage percentages.
-            diagnostics: Optional per-callable hints describing why a target is uncovered.
+            diagnostics: Optional per-callable diagnosis: the uncovered lines and
+                branch outcomes, and hints on why a target is uncovered.
 
         Returns:
             The prompt.
@@ -864,14 +868,14 @@ class LLMAgent:  # noqa: PLR0904
     async def call_llm_for_uncovered_targets_async(
         self,
         gao_coverage_map: dict[GenericCallableAccessibleObject, float],
-        diagnostics: dict[GenericCallableAccessibleObject, str] | None = None,
+        diagnostics: dict[GenericCallableAccessibleObject, TargetDiagnosis] | None = None,
     ):
         """Asynchronously queries the language model for uncovered targets.
 
         Args:
             gao_coverage_map (dict): Maps callable objects to coverage percentages.
-            diagnostics (dict): Optional per-callable diagnostic hints describing why
-                a target is uncovered (e.g. never reached, one-sided branch).
+            diagnostics (dict): Optional per-callable diagnosis: the uncovered lines and
+                branch outcomes, and hints on why a target is uncovered.
 
         Returns:
             Any: Result of the query based on the constructed prompt.
